@@ -10,8 +10,32 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@nuxt/ui": "^4.11.0",
+    "@tiptap/core": "^3.30.5",
+    "@tiptap/extension-bubble-menu": "^3.30.5",
+    "@tiptap/extension-code": "^3.30.5",
+    "@tiptap/extension-collaboration": "^3.30.5",
+    "@tiptap/extension-drag-handle": "^3.30.5",
+    "@tiptap/extension-drag-handle-vue-3": "^3.30.5",
+    "@tiptap/extension-floating-menu": "^3.30.5",
+    "@tiptap/extension-horizontal-rule": "^3.30.5",
+    "@tiptap/extension-image": "^3.30.5",
+    "@tiptap/extension-mention": "^3.30.5",
+    "@tiptap/extension-node-range": "^3.30.5",
+    "@tiptap/extension-placeholder": "^3.30.5",
+    "@tiptap/markdown": "^3.30.5",
+    "@tiptap/pm": "^3.30.5",
+    "@tiptap/starter-kit": "^3.30.5",
+    "@tiptap/suggestion": "^3.30.5",
+    "@tiptap/vue-3": "^3.30.5",
+    "maplibre-gl": "^6.6.0",
     "nuxt": "^4.5.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
     "vue": "^3.5.41",
     "vue-router": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/maplibre-gl": "^1.13.2"
   }
 }

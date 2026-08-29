@@ -1,0 +1,199 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+:root {
+  /* ==========================================
+     MODO CLARO (Por defecto cuando OS es Light)
+     ========================================== */
+  --color-bg-base: #f8fafc;
+  --color-surface-base: #ffffff;
+  --color-surface-elevated: #f1f5f9;
+  --color-surface-card: #ffffff;
+  --color-border-subtle: #e2e8f0;
+  --color-border-hover: #cbd5e1;
+
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-dim: #94a3b8;
+
+  --color-aero-cyan: #0284c7;
+  --color-aero-glow: #38bdf8;
+  --color-electric-cobalt: #2563eb;
+
+  --color-otp-good: #059669;
+  --color-otp-warning: #d97706;
+  --color-otp-critical: #dc2626;
+
+  --hud-panel-bg: rgba(255, 255, 255, 0.88);
+  --hud-panel-border: rgba(226, 232, 240, 0.95);
+  --hud-card-bg: rgba(248, 250, 252, 0.9);
+  --hud-input-bg: #ffffff;
+}
+
+/* ==========================================
+   MODO OSCURO (Automático por OS o clase .dark)
+   ========================================== */
+.dark {
+  --color-bg-base: #070b14;
+  --color-surface-base: #0f1418;
+  --color-surface-elevated: #171c20;
+  --color-surface-card: #1b2024;
+  --color-border-subtle: #252b2e;
+  --color-border-hover: #3e484f;
+
+  --color-text-main: #dee3e8;
+  --color-text-muted: #87929a;
+  --color-text-dim: #59656e;
+
+  --color-aero-cyan: #38bdf8;
+  --color-aero-glow: #7bd0ff;
+  --color-electric-cobalt: #3b82f6;
+
+  --color-otp-good: #10b981;
+  --color-otp-warning: #f59e0b;
+  --color-otp-critical: #ef4444;
+
+  --hud-panel-bg: rgba(15, 20, 24, 0.85);
+  --hud-panel-border: rgba(37, 43, 46, 0.8);
+  --hud-card-bg: rgba(27, 32, 36, 0.75);
+  --hud-input-bg: rgba(10, 15, 18, 0.85);
+}
+
+@theme {
+  /* Tipografía */
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+
+  /* Mapeo de tokens a variables CSS dinámicas */
+  --color-bg-base: var(--color-bg-base);
+  --color-surface-base: var(--color-surface-base);
+  --color-surface-elevated: var(--color-surface-elevated);
+  --color-surface-card: var(--color-surface-card);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-hover: var(--color-border-hover);
+
+  --color-text-main: var(--color-text-main);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-dim: var(--color-text-dim);
+
+  --color-aero-cyan: var(--color-aero-cyan);
+  --color-aero-glow: var(--color-aero-glow);
+  --color-electric-cobalt: var(--color-electric-cobalt);
+
+  --color-otp-good: var(--color-otp-good);
+  --color-otp-warning: var(--color-otp-warning);
+  --color-otp-critical: var(--color-otp-critical);
+}
+
+/* Reglas Base */
+html,
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: rgba(56, 189, 248, 0.3);
+  color: var(--color-aero-glow);
+}
+
+/* ==========================================
+   UTILIDADES REUTILIZABLES DEL DESIGN SYSTEM
+   ========================================== */
+
+/* Contenedores Glassmorphism HUD */
+.hud-panel {
+  background-color: var(--hud-panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--hud-panel-border);
+  border-radius: 1rem; /* rounded-2xl */
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.dark .hud-panel {
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+}
+
+.hud-card {
+  background-color: var(--hud-card-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--hud-panel-border);
+  border-radius: 0.75rem; /* rounded-xl */
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Tipografía de Título HUD */
+@utility hud-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-aero-cyan);
+  line-height: 1.25;
+}
+
+/* Inputs de Cabina */
+.hud-input {
+  background-color: var(--hud-input-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.75rem;
+  color: var(--color-text-main);
+  transition: all 0.2s ease-in-out;
+}
+
+.hud-input:focus {
+  outline: none;
+  border-color: var(--color-aero-cyan);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+/* Badges de Confiabilidad OTP-15 */
+.badge-otp-good {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--color-otp-good);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-otp-warning {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--color-otp-warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-otp-critical {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--color-otp-critical);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Botones HUD */
+.btn-hud-primary {
+  background: linear-gradient(135deg, #0053db 0%, #38bdf8 100%);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-hud-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.45);
+}
+
+.btn-hud-primary:active {
+  transform: scale(0.97);
+}
+
+
