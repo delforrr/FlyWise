@@ -1,0 +1,109 @@
+/* ==========================================
+   FLYWISE HUD DESIGN SYSTEM
+   Responsabilidad: Componentes visuales y utilidades
+   aeronáuticas (paneles glassmorphism, botones HUD,
+   títulos con resplandor, badges OTP).
+   ========================================== */
+
+/* Contenedores Glassmorphism HUD */
+.hud-panel {
+  background-color: var(--hud-panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--hud-panel-border);
+  border-radius: 1rem; /* rounded-2xl */
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.2);
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.dark .hud-panel {
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+}
+
+.hud-card {
+  background-color: var(--hud-card-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--hud-panel-border);
+  border-radius: 0.75rem; /* rounded-xl */
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+/* Tipografía de Título HUD con Glow */
+@utility hud-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-aero-cyan);
+  line-height: 1.25;
+  text-shadow:
+    0 0 12px rgba(56, 189, 248, 0.45),
+    0 0 24px rgba(56, 189, 248, 0.2);
+}
+
+.dark .hud-title {
+  text-shadow:
+    0 0 14px rgba(56, 189, 248, 0.75),
+    0 0 32px rgba(56, 189, 248, 0.35);
+}
+
+/* Inputs de Cabina */
+.hud-input {
+  background-color: var(--hud-input-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.75rem;
+  color: var(--color-text-main);
+  transition: all 0.2s ease-in-out;
+}
+
+.hud-input:focus {
+  outline: none;
+  border-color: var(--color-aero-cyan);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.hud-custom-input {
+  border: none;
+}
+
+/* Badges de Confiabilidad OTP-15 */
+.badge-otp-good {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--color-otp-good);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-otp-warning {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--color-otp-warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-otp-critical {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--color-otp-critical);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Botones HUD */
+.btn-hud-primary {
+  background: linear-gradient(135deg, #0053db 0%, #38bdf8 100%);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-hud-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.45);
+}
+
+.btn-hud-primary:active {
+  transform: scale(0.97);
+}

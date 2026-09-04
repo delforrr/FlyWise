@@ -30,6 +30,20 @@ export default defineNuxtConfig({
     },
   },
 
+  ui: {
+    theme: {
+      colors: [
+        "primary",
+        "secondary",
+        "tertiary",
+        "success",
+        "info",
+        "warning",
+        "error",
+      ],
+    },
+  },
+  
   app: {
     head: {
       title: "FlyWise — Aeronautical Intelligence System",
@@ -43,6 +57,7 @@ export default defineNuxtConfig({
         },
       ],
       link: [
+        { rel: "icon", type: "image/svg+xml", href: "/icon.svg" },
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         {
           rel: "preconnect",

@@ -1,5 +1,5 @@
 <template>
-  <div style="padding: 30"><Header /></div>
+  <div><Header /></div>
 
   <main></main>
   <footer></footer>
