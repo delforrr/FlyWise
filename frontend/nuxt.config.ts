@@ -6,6 +6,12 @@ export default defineNuxtConfig({
 
   modules: ["@nuxt/ui"],
 
+  icon: {
+    serverBundle: {
+      collections: ["lucide"],
+    },
+  },
+
   css: ["maplibre-gl/dist/maplibre-gl.css", "~/app.css"],
 
   build: {

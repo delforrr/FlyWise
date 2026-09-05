@@ -28,6 +28,7 @@ flowchart LR
 ---
 
 ### 📦 Fase 0: Setup, Arquitectura Base y Dependencias
+
 *Objetivo: Establecer la base estructural, tipado y dependencias gráficas/UI.*
 
 - [ ] **0.1 Instalación de dependencias clave:**
@@ -39,6 +40,7 @@ flowchart LR
   - Configurar `nuxt.config.ts` (transpilación de paquetes deck.gl/maplibre si es necesario, variables de entorno públicas `NUXT_PUBLIC_API_BASE_URL`).
   - Configurar variables de diseño en Tailwind (paleta semántica: OTP verde `#10B981`, amarillo `#F59E0B`, rojo `#EF4444`).
 - [ ] **0.3 Arquitectura de Directorios:**
+
   ```text
   frontend/app/
   ├── assets/          # Estilos globales, iconos SVG
@@ -62,6 +64,7 @@ flowchart LR
   ├── stores/ or state/ # Estado reactivo global (Pinia o useState)
   └── types/           # Interfaces TypeScript (Airport, Route, Metric, Job)
   ```
+
 - [ ] **0.4 Definición de Tipos Core (`types/`):**
   - `Airport`: `id, iata, icao, name, city, country, latitude, longitude`.
   - `RoutePerformance`: `origin, destination, airline, otp15, avgDelayMinutes, cancellationRate, period`.
@@ -70,6 +73,7 @@ flowchart LR
 ---
 
 ### 🗺️ Fase 1: Capa de Visualización Geoespacial (WebGL & MapLibre)
+
 *Objetivo: Integrar el mapa base y la capa de WebGL con aceleración por GPU sin problemas de hidratación SSR.*
 
 - [ ] **1.1 Componente Base del Mapa (`components/map/FlightMap.client.vue`):**
@@ -92,6 +96,7 @@ flowchart LR
 ---
 
 ### 🔍 Fase 2: Motor de Búsqueda, Filtros y UI de Exploración
+
 *Objetivo: Proporcionar controles de navegación rápidos para consultar rutas y comparar opciones.*
 
 - [ ] **2.1 Buscador Flotante de Vuelos (`components/search/FlightSearchBar.vue`):**
@@ -109,6 +114,7 @@ flowchart LR
 ---
 
 ### 📊 Fase 3: Analítica Detallada de Puntualidad (OTP-15)
+
 *Objetivo: Mostrar la analítica profunda por ruta, aerolínea y estacionalidad.*
 
 - [ ] **3.1 Vista de Detalle de Ruta (`pages/routes/[id].vue` o Modal de Métricas):**
@@ -126,6 +132,7 @@ flowchart LR
 ---
 
 ### 🔐 Fase 4: Autenticación y Panel de Administración ETL
+
 *Objetivo: Proveer acceso seguro a administradores para monitorear y disparar procesos de ingesta de datos aeronáuticos.*
 
 - [ ] **4.1 Autenticación (`pages/login.vue`, `composables/useAuth.ts`):**
@@ -145,6 +152,7 @@ flowchart LR
 ---
 
 ### 🚀 Fase 5: Optimización, Accesibilidad y Testing
+
 *Objetivo: Asegurar fluidez a 60 FPS, diseño adaptativo móvil y calidad de código.*
 
 - [ ] **5.1 Rendimiento & WebGL Optimization:**

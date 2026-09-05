@@ -13,6 +13,7 @@
     "@deck.gl/core": "^9.3.11",
     "@deck.gl/layers": "^9.3.11",
     "@deck.gl/mapbox": "^9.3.11",
+    "@nuxt/icon": "^2.5.1",
     "@nuxt/ui": "^4.11.0",
     "@tiptap/core": "^3.30.5",
     "@tiptap/extension-bubble-menu": "^3.30.5",
@@ -37,5 +38,13 @@
     "typescript": "^7.0.2",
     "vue": "^3.5.41",
     "vue-router": "^5.2.0"
+  },
+  "allowScripts": {
+    "vue-demi@0.14.10": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.27.7": true
+  },
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.129"
   }
 }
