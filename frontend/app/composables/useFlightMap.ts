@@ -146,46 +146,71 @@ export const useFlightMap = () => {
 
     mapInstance.value = map;
 
-    // 2. Al cargar el mapa base, acoplar MapboxOverlay de Deck.gl
-    map.on("load", () => {
+    // 2. Acoplar MapboxOverlay de Deck.gl de forma inmediata en modo overlay
+    const deckOverlay = new MapboxOverlay({
+      interleaved: false,
+      layers: buildLayers(),
+      getCursor: ({ isHovering }) => (isHovering ? "pointer" : "default"),
+      onHover: (info) => {
+        if (info && info.object) {
+          const isRoute = "originIata" in (info.object as object);
+          setHoveredEntity({
+            type: isRoute ? "route" : "airport",
+            data: info.object as FlightRoute | Airport,
+            x: Math.round(info.x),
+            y: Math.round(info.y),
+          });
+        } else {
+          clearHoveredEntity();
+        }
+      },
+      onClick: (info) => {
+        if (info && info.object) {
+          if ("originIata" in (info.object as object)) {
+            const route = info.object as FlightRoute;
+            setRoute(route.originIata, route.destinationIata);
+          } else if ("iata" in (info.object as object)) {
+            const airport = info.object as Airport;
+            setOrigin(airport);
+          }
+        }
+      },
+    });
+
+    overlayInstance.value = deckOverlay;
+    map.addControl(deckOverlay as unknown as maplibregl.IControl);
+
+    // 3. Mecanismo resiliente para marcar el mapa como listo (isLoaded)
+    const setMapReady = () => {
+      if (isLoaded.value) return;
       isLoaded.value = true;
       currentPitch.value = map.getPitch();
       currentZoom.value = map.getZoom();
+      updateLayers();
+    };
 
-      const deckOverlay = new MapboxOverlay({
-        interleaved: true,
-        layers: buildLayers(),
-        onHover: (info) => {
-          if (info && info.object) {
-            const isRoute = "originIata" in (info.object as object);
-            setHoveredEntity({
-              type: isRoute ? "route" : "airport",
-              data: info.object as FlightRoute | Airport,
-              x: Math.round(info.x),
-              y: Math.round(info.y),
-            });
-          } else {
-            clearHoveredEntity();
-          }
-        },
-        onClick: (info) => {
-          if (info && info.object) {
-            if ("originIata" in (info.object as object)) {
-              const route = info.object as FlightRoute;
-              setRoute(route.originIata, route.destinationIata);
-            } else if ("iata" in (info.object as object)) {
-              const airport = info.object as Airport;
-              setOrigin(airport);
-            }
-          }
-        },
-      });
+    if (map.loaded()) {
+      setMapReady();
+    } else {
+      map.once("load", setMapReady);
+    }
 
-      overlayInstance.value = deckOverlay;
-      map.addControl(deckOverlay as unknown as maplibregl.IControl);
+    // Fallbacks en caso de que Carto CDN demore en responder fuentes o sprites
+    map.once("idle", setMapReady);
+    map.on("styledata", () => {
+      if (map.isStyleLoaded()) {
+        setMapReady();
+      }
     });
 
-    // 3. Sincronización continua de la cámara
+    // Timeout de seguridad: Si las teselas ya renderizan pero la red es lenta, no bloquear la interfaz
+    setTimeout(setMapReady, 1200);
+
+    map.on("error", (e) => {
+      console.warn("[MapLibre Warning]", e);
+    });
+
+    // 4. Sincronización continua de la cámara
     map.on("pitch", () => {
       currentPitch.value = map.getPitch();
     });
@@ -212,11 +237,8 @@ export const useFlightMap = () => {
     currentPitch.value = 0;
     currentZoom.value = 0;
   }
-
-  // Limpieza automática cuando el componente consumidor se desmonta
-  onUnmounted(() => {
-    destroyMap();
-  });
+  // Nota: destroyMap() debe ser invocado por el componente host del mapa (ej. FlightMap.client.vue)
+  // en su propio onUnmounted, para no destruir la instancia si un botón HUD se desmonta.
 
   /**
    * Desplaza la cámara de forma cinemática y fluida hacia un aeropuerto.
