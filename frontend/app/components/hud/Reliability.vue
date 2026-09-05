@@ -1,8 +1,3 @@
-<script setup lang="ts">
-import OtpBadge from "./HudOtpBadge.vue";
-import HudContainer from "./containers/HudContainer.vue";
-</script>
-
 <template>
   <UCollapsible default-open class="group w-80">
     <UButton
@@ -23,9 +18,9 @@ import HudContainer from "./containers/HudContainer.vue";
     <template #content>
       <HudContainer variant="box" rounded="xl" class="mt-2 w-full p-4">
         <div class="flex flex-col gap-3">
-          <OtpBadge message="Alta" />
-          <OtpBadge message="Media" />
-          <OtpBadge message="Baja" />
+          <HudOtpBadge message="Alta" />
+          <HudOtpBadge message="Media" />
+          <HudOtpBadge message="Baja" />
         </div>
       </HudContainer>
     </template>

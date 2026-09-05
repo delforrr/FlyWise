@@ -1,18 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import type { HudContainerVariant, HudRounded } from "~/types/hud";
 
-export type HudContainerVariant = "pill" | "box" | "container";
-export type HudRounded =
-  | "none"
-  | "xs"
-  | "sm"
-  | "md"
-  | "lg"
-  | "xl"
-  | "2xl"
-  | "3xl"
-  | "full"
-  | string;
+export type { HudContainerVariant, HudRounded };
 
 interface Props {
   /**
@@ -51,33 +41,49 @@ const props = withDefaults(defineProps<Props>(), {
   as: "div",
 });
 
-const ROUNDED_TOKENS: Record<string, { class: string; value: string }> = {
+interface RoundedToken {
+  class: string;
+  value: string;
+}
+
+const DEFAULT_PILL_ROUNDED: RoundedToken = {
+  class: "rounded-3xl",
+  value: "1.5rem",
+};
+
+const DEFAULT_BOX_ROUNDED: RoundedToken = {
+  class: "rounded-xl",
+  value: "0.75rem",
+};
+
+const ROUNDED_TOKENS: Record<string, RoundedToken> = {
   none: { class: "rounded-none", value: "0px" },
   xs: { class: "rounded-xs", value: "0.125rem" },
   sm: { class: "rounded-sm", value: "0.25rem" },
   md: { class: "rounded-md", value: "0.375rem" },
   lg: { class: "rounded-lg", value: "0.5rem" },
-  xl: { class: "rounded-xl", value: "0.75rem" },
+  xl: DEFAULT_BOX_ROUNDED,
   "2xl": { class: "rounded-2xl", value: "1rem" },
-  "3xl": { class: "rounded-3xl", value: "1.5rem" },
+  "3xl": DEFAULT_PILL_ROUNDED,
   full: { class: "rounded-full", value: "9999px" },
 };
 
-const roundedInfo = computed(() => {
+const roundedInfo = computed<RoundedToken>(() => {
   if (props.rounded !== undefined) {
     const raw = String(props.rounded).trim();
     const token = raw.startsWith("rounded-") ? raw.replace(/^rounded-/, "") : raw;
-    if (token in ROUNDED_TOKENS) {
-      return ROUNDED_TOKENS[token];
+    const match = ROUNDED_TOKENS[token];
+    if (match) {
+      return match;
     }
     return { class: "", value: raw };
   }
 
   // Valores por defecto según la variante
   if (props.variant === "pill") {
-    return ROUNDED_TOKENS["3xl"];
+    return DEFAULT_PILL_ROUNDED;
   }
-  return ROUNDED_TOKENS["xl"];
+  return DEFAULT_BOX_ROUNDED;
 });
 
 const variantClass = computed(() => {

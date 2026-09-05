@@ -28,7 +28,6 @@ function swapAirports() {
   destination.value = temp;
   rotation.value += 180;
 }
-import HudPill from "~/components/hud/containers/HudPill.vue";
 </script>
 
 <template>

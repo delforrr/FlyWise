@@ -34,7 +34,7 @@
 }
 
 /* Tipografía de Título HUD con Glow */
-@utility hud-title {
+.hud-title {
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -51,7 +51,7 @@
     0 0 32px rgba(56, 189, 248, 0.35);
 }
 
-@utility hud-legend {
+.hud-legend {
   font-family: var(--font-mono);
   font-weight: 500;
   color: var(--text-dim);
@@ -200,3 +200,14 @@
 .hud-pill:focus-within {
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }
+
+.hud-pill.is-vertical {
+  flex-direction: column;
+  padding: 0.75rem 0.5rem;
+  width: var(--hud-pill-width, fit-content);
+}
+
+.hud-pill.is-not-flex {
+  display: block;
+}
+

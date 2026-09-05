@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import HudContainer from "./HudContainer.vue";
-import type { HudContainerVariant, HudRounded } from "./HudContainer.vue";
+import type { HudContainerVariant, HudRounded } from "~/types/hud";
+
+export type { HudContainerVariant, HudRounded };
 
 interface Props {
   /**

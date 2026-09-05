@@ -246,15 +246,15 @@ export const useFlightMap = () => {
   }
 
   /**
-   * Ajusta la cámara para encuadrar en pantalla ambos extremos de una ruta.
+   * Encuadra la cámara suavemente sobre la ruta provista o sobre la ruta activa actual.
    *
-   * @param originCoords Coordenadas de salida [longitud, latitud].
-   * @param destinationCoords Coordenadas de llegada [longitud, latitud].
+   * @param originCoords Coordenadas de salida opcionales [longitud, latitud].
+   * @param destinationCoords Coordenadas de llegada opcionales [longitud, latitud].
    * @param options Opciones de encuadre (padding personalizado, pitch, etc.).
    */
   function fitRoute(
-    originCoords: [number, number],
-    destinationCoords: [number, number],
+    originCoords?: [number, number],
+    destinationCoords?: [number, number],
     options?: {
       pitch?: number;
       duration?: number;
@@ -262,8 +262,20 @@ export const useFlightMap = () => {
   ): void {
     if (!mapInstance.value) return;
 
-    const bounds = new maplibregl.LngLatBounds(originCoords, originCoords);
-    bounds.extend(destinationCoords);
+    let orig = originCoords;
+    let dest = destinationCoords;
+
+    if (!orig || !dest) {
+      if (selectedRouteData.value) {
+        orig = selectedRouteData.value.originCoordinates;
+        dest = selectedRouteData.value.destinationCoordinates;
+      }
+    }
+
+    if (!orig || !dest) return;
+
+    const bounds = new maplibregl.LngLatBounds(orig, orig);
+    bounds.extend(dest);
 
     mapInstance.value.fitBounds(bounds, {
       padding: {
