@@ -11,8 +11,7 @@ useSeoMeta({
     <LayoutHeader />
 
     <main class="relative flex-1 overflow-hidden p-3 sm:p-6">
-      <HudReliability />
-      <HudControls />
+      <HudWrapper />
     </main>
   </div>
 </template>

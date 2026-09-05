@@ -1,6 +1,6 @@
 import { type Airport } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
-import type { MapPickingInfo } from "~/types/map";
+import  { type MapPickingInfo } from "~/types/map";
 import { SEED_ROUTES } from "~/data/seedData";
 
 export const useFlightSelection = () => {

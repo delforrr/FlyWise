@@ -1,21 +1,17 @@
 <template>
-  <!-- Cápsula vertical de 14rem (w-56) con secciones separadas -->
-  <HudPill vertical width="w-56" interactive class="p-2 gap-2">
+  <HudPill vertical width="w-56" interactive class="p-2">
     <!-- Sección Superior: Controles de Zoom -->
-    <HudControlButton type="zoomIn" />
-    <HudControlButton type="zoomOut" />
+    <div class="flex flex-col gap-2">
+      <HudControlButton type="zoomIn" />
+      <HudControlButton type="zoomOut" />
+    </div>
 
     <USeparator class="w-full opacity-60" size="xs" />
 
-    <!-- Sección Inferior: Filtros o Acciones -->
-    <div class="flex items-center justify-center w-full py-1">
-      <UButton
-        icon="i-lucide-layers"
-        label="Capas"
-        variant="ghost"
-        size="xs"
-        block
-      />
+    <!-- Sección Inferior: Acciones -->
+    <div class="flex flex-col gap-2">
+      <HudControlButton type="toggle3D" />
+      <HudControlButton type="fitRoute" />
     </div>
   </HudPill>
 </template>

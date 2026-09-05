@@ -1,8 +1,3 @@
-<script setup lang="ts">
-import FromToInput from "~/components/FromToInput.vue";
-import ToggleTheme from "~/components/common/ToggleTheme.vue";
-</script>
-
 <template>
   <UHeader
     title="FlyWise"
@@ -31,11 +26,11 @@ import ToggleTheme from "~/components/common/ToggleTheme.vue";
     </template>
 
     <template #default>
-      <FromToInput />
+      <HudFromToDate />
     </template>
 
     <template #right>
-      <ToggleTheme />
+      <CommonToggleTheme />
     </template>
   </UHeader>
 </template>

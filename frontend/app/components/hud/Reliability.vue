@@ -1,5 +1,5 @@
 <template>
-  <UCollapsible default-open class="group w-80">
+  <UCollapsible default-open :unmount-on-hide="false" class="group w-80">
     <UButton
       color="neutral"
       variant="subtle"
