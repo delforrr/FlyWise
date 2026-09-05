@@ -6,13 +6,15 @@ import type { Airport } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { SEED_AIRPORTS, SEED_ROUTES } from "~/data/seedData";
 
-export const useFlightMap = () => {
-  const mapInstance = shallowRef<Map | null>(null);
-  const overlayInstance = shallowRef<MapboxOverlay | null>(null);
+// Estado del mapa compartido a nivel módulo (Singleton para sincronizar componentes HUD)
+const mapInstance = shallowRef<Map | null>(null);
+const overlayInstance = shallowRef<MapboxOverlay | null>(null);
 
-  const isLoaded = ref<boolean>(false);
-  const currentPitch = ref<number>(0);
-  const currentZoom = ref<number>(0);
+const isLoaded = ref<boolean>(false);
+const currentPitch = ref<number>(0);
+const currentZoom = ref<number>(0);
+
+export const useFlightMap = () => {
 
   const {
     setHoveredEntity,

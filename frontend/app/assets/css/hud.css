@@ -51,6 +51,12 @@
     0 0 32px rgba(56, 189, 248, 0.35);
 }
 
+@utility hud-legend {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
 /* Inputs de Cabina */
 .hud-input {
   background-color: var(--hud-input-bg);
@@ -69,6 +75,33 @@
 .hud-custom-input {
   border: none;
 }
+
+/* Contenedores HUD (Box y Container) */
+.hud-container,
+.hud-box {
+  background-color: var(--color-surface-accent);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--hud-border-radius, 0.75rem);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition:
+    background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hud-container.is-interactive:hover,
+.hud-box.is-interactive:hover,
+.hud-container.is-interactive:focus-within,
+.hud-box.is-interactive:focus-within {
+  background-color: var(--color-surface-elevated);
+  border-color: var(--color-aero-cyan);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);
+  transform: translateY(-1px);
+}
+
 
 /* Badges de Confiabilidad OTP-15 */
 .badge-otp-good {
@@ -106,4 +139,64 @@
 
 .btn-hud-primary:active {
   transform: scale(0.97);
+}
+
+.btn-hud-secondary {
+  background-color: var(--color-surface-accent);
+  color: var(--color-text-main);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.75rem;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-hud-secondary:hover {
+  background-color: var(--color-surface-elevated);
+  border-color: var(--color-aero-cyan);
+  color: var(--color-aero-cyan);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-hud-secondary:active {
+  transform: scale(0.97) translateY(0);
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.15);
+}
+
+.btn-hud-secondary:focus-visible {
+  outline: none;
+  border-color: var(--color-aero-cyan);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35);
+}
+
+/* Contenedor Cápsula HUD (Buscador y filtros) */
+.hud-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--hud-border-radius, 1.5rem);
+  background-color: var(--color-surface-accent);
+  border: 1px solid var(--color-border-subtle);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hud-pill:hover,
+.hud-pill:focus-within,
+.hud-pill.is-interactive:hover,
+.hud-pill.is-interactive:focus-within {
+  background-color: var(--color-surface-elevated);
+  border-color: var(--color-aero-cyan);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);
+  transform: translateY(-1px);
+}
+
+.hud-pill:focus-within {
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }

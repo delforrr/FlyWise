@@ -28,12 +28,11 @@ function swapAirports() {
   destination.value = temp;
   rotation.value += 180;
 }
+import HudPill from "~/components/hud/containers/HudPill.vue";
 </script>
 
 <template>
-  <div
-    class="flex items-center gap-1.5 px-5 py-2 rounded-3xl bg-surface-accent border border-border-subtle backdrop-blur-md shadow-inner transition-all duration-200 hover:border-aero-cyan/50 focus-within:border-aero-cyan/50 focus-within:ring-2 focus-within:ring-aero-cyan/20"
-  >
+  <HudPill>
     <!-- Selector Origen -->
     <div class="relative flex items-center">
       <UInputMenu
@@ -109,5 +108,5 @@ function swapAirports() {
       class="btn-hud-primary rounded-xl shrink-0 px-2.5 sm:px-3 shadow-md"
       aria-label="Buscar vuelo"
     />
-  </div>
+  </HudPill>
 </template>

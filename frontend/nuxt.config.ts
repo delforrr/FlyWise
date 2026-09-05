@@ -6,14 +6,15 @@ export default defineNuxtConfig({
 
   modules: ["@nuxt/ui"],
 
-  css: ["~/app.css", "maplibre-gl/dist/maplibre-gl.css"],
+  css: ["maplibre-gl/dist/maplibre-gl.css", "~/app.css"],
 
   build: {
     transpile: [
-      "@deck.gl/core",
-      "@deck.gl/layers",
-      "@deck.gl/geo-layers",
-      "@deck.gl/mapbox",
+      /@deck\.gl/,
+      /@probe\.gl/,
+      /@loaders\.gl/,
+      /@luma\.gl/,
+      /@math\.gl/,
       "maplibre-gl",
     ],
   },
@@ -24,8 +25,20 @@ export default defineNuxtConfig({
         "maplibre-gl",
         "@deck.gl/core",
         "@deck.gl/layers",
-        "@deck.gl/geo-layers",
         "@deck.gl/mapbox",
+        "@probe.gl/stats",
+        "@probe.gl/env",
+        "@probe.gl/log",
+        "@loaders.gl/core",
+        "@loaders.gl/images",
+        "@luma.gl/core",
+        "@luma.gl/engine",
+        "@luma.gl/webgl",
+        "@luma.gl/shadertools",
+        "@math.gl/core",
+        "@math.gl/web-mercator",
+        "mjolnir.js",
+        "gl-matrix",
       ],
     },
   },
@@ -43,7 +56,7 @@ export default defineNuxtConfig({
       ],
     },
   },
-  
+
   app: {
     head: {
       title: "FlyWise — Aeronautical Intelligence System",
