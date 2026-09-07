@@ -1,5 +1,5 @@
 import * as maplibregl from "maplibre-gl";
-import type { Map, IControl } from "maplibre-gl";
+import type { Map } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { ArcLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { Airport } from "~/types/airport";
@@ -15,7 +15,6 @@ const currentPitch = ref<number>(0);
 const currentZoom = ref<number>(0);
 
 export const useFlightMap = () => {
-
   const {
     setHoveredEntity,
     clearHoveredEntity,
@@ -31,11 +30,19 @@ export const useFlightMap = () => {
     return [239, 68, 68, 210]; // 🔴 OTP-Critical (Crimson)
   }
 
+  const colorMode = useColorMode();
+
+  const MAP_STYLES = {
+    dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+    light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+  } as const;
+
   /**
    * Genera las capas activas de WebGL (ArcLayer, ScatterplotLayer, TextLayer).
    */
   function buildLayers() {
     const activeId = activeRouteId.value;
+    const isLight = colorMode.value === "light";
 
     return [
       // 1. Capa de Arcos Geodésicos 3D (Rutas y puntualidad OTP-15)
@@ -44,13 +51,14 @@ export const useFlightMap = () => {
         data: SEED_ROUTES,
         pickable: true,
         autoHighlight: true,
-        highlightColor: [56, 189, 248, 255], // Aero Cyan
+        highlightColor: isLight ? [2, 132, 199, 255] : [56, 189, 248, 255], // Aero Cyan
         greatCircle: true,
         getSourcePosition: (d: FlightRoute) => d.originCoordinates,
         getTargetPosition: (d: FlightRoute) => d.destinationCoordinates,
         getSourceColor: (d: FlightRoute) => getOtpColor(d.averageOtp15),
         getTargetColor: (d: FlightRoute) => getOtpColor(d.averageOtp15),
-        getWidth: (d: FlightRoute) => (d.id === activeId ? 4.5 : 1.8),
+        getWidth: (d: FlightRoute) => (d.id === activeId ? 5 : 2.5),
+        widthMinPixels: 2.5,
       }),
 
       // 2. Capa de Nodos de Aeropuertos / Hubs
@@ -59,13 +67,13 @@ export const useFlightMap = () => {
         data: SEED_AIRPORTS,
         pickable: true,
         autoHighlight: true,
-        highlightColor: [56, 189, 248, 255],
+        highlightColor: isLight ? [2, 132, 199, 255] : [56, 189, 248, 255],
         getPosition: (d: Airport) => d.coordinates,
         getRadius: (d: Airport) => (d.type === "large_airport" ? 45000 : 25000),
         radiusMinPixels: 4,
         radiusMaxPixels: 12,
-        getFillColor: [222, 227, 232, 220], // Text primary cockpit
-        getLineColor: [37, 43, 46, 255],
+        getFillColor: isLight ? [30, 41, 59, 230] : [222, 227, 232, 220],
+        getLineColor: isLight ? [255, 255, 255, 255] : [37, 43, 46, 255],
         stroked: true,
         lineWidthMinPixels: 1.5,
       }),
@@ -78,7 +86,7 @@ export const useFlightMap = () => {
         getPosition: (d: Airport) => d.coordinates,
         getText: (d: Airport) => d.iata,
         getSize: 11,
-        getColor: [222, 227, 232, 240],
+        getColor: isLight ? [15, 23, 42, 240] : [222, 227, 232, 240],
         getTextAnchor: "middle",
         getAlignmentBaseline: "top",
         getPixelOffset: [0, 8],
@@ -111,6 +119,17 @@ export const useFlightMap = () => {
     }
   });
 
+  // Vigilar cambios de tema (claro/oscuro) para actualizar el mapa base y capas
+  watch(
+    () => colorMode.value,
+    (mode) => {
+      if (!mapInstance.value) return;
+      const targetStyle = mode === "light" ? MAP_STYLES.light : MAP_STYLES.dark;
+      mapInstance.value.setStyle(targetStyle);
+      updateLayers();
+    },
+  );
+
   /**
    * Inicializa MapLibre GL inyectándolo en el contenedor DOM provisto y acopla Deck.gl.
    *
@@ -135,10 +154,13 @@ export const useFlightMap = () => {
       const pitch: number = options?.pitch ?? 30;
       const bearing: number = options?.bearing ?? 0;
 
+      const activeStyle =
+        colorMode.value === "light" ? MAP_STYLES.light : MAP_STYLES.dark;
+
       // 1. Instanciación de MapLibre GL
       const map = new maplibregl.Map({
         container,
-        style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+        style: activeStyle,
         center,
         zoom,
         pitch,
@@ -152,6 +174,7 @@ export const useFlightMap = () => {
       // 2. Acoplar MapboxOverlay de Deck.gl de forma inmediata en modo overlay
       const deckOverlay = new MapboxOverlay({
         interleaved: false,
+        pickingRadius: 10,
         layers: buildLayers(),
         getCursor: ({ isHovering }) => (isHovering ? "pointer" : "default"),
         onHover: (info) => {
@@ -223,7 +246,10 @@ export const useFlightMap = () => {
         updateLayers(); // Actualizar visibilidad de etiquetas según nivel de zoom
       });
     } catch (err) {
-      console.error("[FlyWise useFlightMap] Error al inicializar MapLibre / Deck.gl:", err);
+      console.error(
+        "[FlyWise useFlightMap] Error al inicializar MapLibre / Deck.gl:",
+        err,
+      );
     }
   }
 

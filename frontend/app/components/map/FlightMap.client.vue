@@ -92,16 +92,16 @@ onUnmounted(() => {
   z-index: 20;
 }
 :deep(.maplibregl-ctrl-attrib) {
-  background-color: rgba(15, 20, 24, 0.75) !important;
+  background-color: var(--hud-panel-bg, rgba(15, 20, 24, 0.75)) !important;
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
   border-radius: 6px;
   padding: 2px 6px;
   font-size: 10px;
-  color: #94a3b8 !important;
+  color: var(--color-text-muted, #94a3b8) !important;
 }
 :deep(.maplibregl-ctrl-attrib a) {
-  color: #cbd5e1 !important;
+  color: var(--color-text-main, #cbd5e1) !important;
   text-decoration: none;
 }
 :deep(.maplibregl-ctrl-attrib a:hover) {
