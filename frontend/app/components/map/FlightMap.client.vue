@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, nextTick } from "vue";
 import { useFlightMap } from "~/composables/useFlightMap";
 
 const mapContainer = ref<HTMLDivElement | null>(null);
@@ -7,11 +7,21 @@ const { initMap, destroyMap, mapInstance, isLoaded } = useFlightMap();
 
 let resizeObserver: ResizeObserver | null = null;
 
-onMounted(() => {
-  if (!mapContainer.value) return;
+onMounted(async () => {
+  // Esperar a que el DOM esté disponible tras el ciclo de hidratación en el cliente
+  await nextTick();
+
+  const containerElement =
+    mapContainer.value ||
+    (document.getElementById("flywise-map-container") as HTMLDivElement | null);
+
+  if (!containerElement) {
+    console.error("[FlyWise FlightMap] Error crítico: no se encontró el contenedor del mapa.");
+    return;
+  }
 
   // Inicializar MapLibre GL + Deck.gl con perspectiva aeronáutica inicial
-  initMap(mapContainer.value, {
+  initMap(containerElement, {
     center: [-30, 20],
     zoom: 2.5,
     pitch: 30,
@@ -23,7 +33,7 @@ onMounted(() => {
     resizeObserver = new ResizeObserver(() => {
       mapInstance.value?.resize();
     });
-    resizeObserver.observe(mapContainer.value);
+    resizeObserver.observe(containerElement);
   }
 });
 
@@ -38,6 +48,7 @@ onUnmounted(() => {
   <div class="relative w-full h-full overflow-hidden bg-background select-none">
     <!-- Contenedor del Canvas MapLibre GL + Deck.gl -->
     <div
+      id="flywise-map-container"
       ref="mapContainer"
       class="absolute inset-0 w-full h-full outline-none"
     />
@@ -73,8 +84,27 @@ onUnmounted(() => {
 :deep(.maplibregl-canvas) {
   outline: none;
 }
-:deep(.maplibregl-ctrl-bottom-left),
 :deep(.maplibregl-ctrl-bottom-right) {
-  display: none !important; /* Ocultar controles nativos para usar HUD personalizado */
+  display: none !important;
+}
+:deep(.maplibregl-ctrl-bottom-left) {
+  margin: 0 0 12px 16px;
+  z-index: 20;
+}
+:deep(.maplibregl-ctrl-attrib) {
+  background-color: rgba(15, 20, 24, 0.75) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: #94a3b8 !important;
+}
+:deep(.maplibregl-ctrl-attrib a) {
+  color: #cbd5e1 !important;
+  text-decoration: none;
+}
+:deep(.maplibregl-ctrl-attrib a:hover) {
+  text-decoration: underline;
 }
 </style>

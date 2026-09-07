@@ -129,106 +129,122 @@ export const useFlightMap = () => {
     // Evitar duplicación si ya está inicializado o no hay contenedor
     if (!container || mapInstance.value) return;
 
-    const center: [number, number] = options?.center ?? [-30, 20];
-    const zoom: number = options?.zoom ?? 2.5;
-    const pitch: number = options?.pitch ?? 30;
-    const bearing: number = options?.bearing ?? 0;
+    try {
+      const center: [number, number] = options?.center ?? [-30, 20];
+      const zoom: number = options?.zoom ?? 2.5;
+      const pitch: number = options?.pitch ?? 30;
+      const bearing: number = options?.bearing ?? 0;
 
-    // 1. Instanciación de MapLibre GL
-    const map = new maplibregl.Map({
-      container,
-      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-      center,
-      zoom,
-      pitch,
-      bearing,
-    });
+      // 1. Instanciación de MapLibre GL
+      const map = new maplibregl.Map({
+        container,
+        style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+        center,
+        zoom,
+        pitch,
+        bearing,
+        attributionControl: { compact: true },
+        renderWorldCopies: false,
+      });
 
-    mapInstance.value = map;
+      mapInstance.value = map;
 
-    // 2. Acoplar MapboxOverlay de Deck.gl de forma inmediata en modo overlay
-    const deckOverlay = new MapboxOverlay({
-      interleaved: false,
-      layers: buildLayers(),
-      getCursor: ({ isHovering }) => (isHovering ? "pointer" : "default"),
-      onHover: (info) => {
-        if (info && info.object) {
-          const isRoute = "originIata" in (info.object as object);
-          setHoveredEntity({
-            type: isRoute ? "route" : "airport",
-            data: info.object as FlightRoute | Airport,
-            x: Math.round(info.x),
-            y: Math.round(info.y),
-          });
-        } else {
-          clearHoveredEntity();
-        }
-      },
-      onClick: (info) => {
-        if (info && info.object) {
-          if ("originIata" in (info.object as object)) {
-            const route = info.object as FlightRoute;
-            setRoute(route.originIata, route.destinationIata);
-          } else if ("iata" in (info.object as object)) {
-            const airport = info.object as Airport;
-            setOrigin(airport);
+      // 2. Acoplar MapboxOverlay de Deck.gl de forma inmediata en modo overlay
+      const deckOverlay = new MapboxOverlay({
+        interleaved: false,
+        layers: buildLayers(),
+        getCursor: ({ isHovering }) => (isHovering ? "pointer" : "default"),
+        onHover: (info) => {
+          if (info && info.object) {
+            const isRoute = "originIata" in (info.object as object);
+            setHoveredEntity({
+              type: isRoute ? "route" : "airport",
+              data: info.object as FlightRoute | Airport,
+              x: Math.round(info.x),
+              y: Math.round(info.y),
+            });
+          } else {
+            clearHoveredEntity();
           }
-        }
-      },
-    });
+        },
+        onClick: (info) => {
+          if (info && info.object) {
+            if ("originIata" in (info.object as object)) {
+              const route = info.object as FlightRoute;
+              setRoute(route.originIata, route.destinationIata);
+            } else if ("iata" in (info.object as object)) {
+              const airport = info.object as Airport;
+              setOrigin(airport);
+            }
+          }
+        },
+      });
 
-    overlayInstance.value = deckOverlay;
-    map.addControl(deckOverlay as unknown as maplibregl.IControl);
+      overlayInstance.value = deckOverlay;
+      map.addControl(deckOverlay as unknown as maplibregl.IControl);
 
-    // 3. Mecanismo resiliente para marcar el mapa como listo (isLoaded)
-    const setMapReady = () => {
-      if (isLoaded.value) return;
-      isLoaded.value = true;
-      currentPitch.value = map.getPitch();
-      currentZoom.value = map.getZoom();
-      updateLayers();
-    };
+      // 3. Mecanismo resiliente para marcar el mapa como listo (isLoaded)
+      const setMapReady = () => {
+        if (isLoaded.value) return;
+        isLoaded.value = true;
+        currentPitch.value = map.getPitch();
+        currentZoom.value = map.getZoom();
+        updateLayers();
+      };
 
-    if (map.loaded()) {
-      setMapReady();
-    } else {
-      map.once("load", setMapReady);
-    }
-
-    // Fallbacks en caso de que Carto CDN demore en responder fuentes o sprites
-    map.once("idle", setMapReady);
-    map.on("styledata", () => {
-      if (map.isStyleLoaded()) {
+      if (map.loaded()) {
         setMapReady();
+      } else {
+        map.once("load", setMapReady);
       }
-    });
 
-    // Timeout de seguridad: Si las teselas ya renderizan pero la red es lenta, no bloquear la interfaz
-    setTimeout(setMapReady, 1200);
+      // Fallbacks en caso de que Carto CDN demore en responder fuentes o sprites
+      map.once("idle", setMapReady);
+      map.on("styledata", () => {
+        if (map.isStyleLoaded()) {
+          setMapReady();
+        }
+      });
 
-    map.on("error", (e) => {
-      console.warn("[MapLibre Warning]", e);
-    });
+      // Timeout de seguridad: Si las teselas ya renderizan pero la red es lenta, no bloquear la interfaz
+      setTimeout(setMapReady, 1200);
 
-    // 4. Sincronización continua de la cámara
-    map.on("pitch", () => {
-      currentPitch.value = map.getPitch();
-    });
+      map.on("error", (e) => {
+        console.warn("[MapLibre Warning]", e);
+      });
 
-    map.on("zoom", () => {
-      currentZoom.value = map.getZoom();
-      updateLayers(); // Actualizar visibilidad de etiquetas según nivel de zoom
-    });
+      // 4. Sincronización continua de la cámara
+      map.on("pitch", () => {
+        currentPitch.value = map.getPitch();
+      });
+
+      map.on("zoom", () => {
+        currentZoom.value = map.getZoom();
+        updateLayers(); // Actualizar visibilidad de etiquetas según nivel de zoom
+      });
+    } catch (err) {
+      console.error("[FlyWise useFlightMap] Error al inicializar MapLibre / Deck.gl:", err);
+    }
   }
 
   /**
    * Destruye de forma segura el mapa y libera recursos WebGL de la GPU.
    */
   function destroyMap(): void {
-    if (overlayInstance.value) {
+    if (mapInstance.value && overlayInstance.value) {
+      try {
+        mapInstance.value.removeControl(
+          overlayInstance.value as unknown as maplibregl.IControl,
+        );
+      } catch {
+        overlayInstance.value.finalize();
+      }
+      overlayInstance.value = null;
+    } else if (overlayInstance.value) {
       overlayInstance.value.finalize();
       overlayInstance.value = null;
     }
+
     if (mapInstance.value) {
       mapInstance.value.remove();
       mapInstance.value = null;
