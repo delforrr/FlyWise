@@ -5,7 +5,6 @@ import {
   getLocalTimeZone,
 } from "@internationalized/date";
 import { SEED_AIRPORTS } from "~/data/seedData";
-import RouteCounterBadge from "./search/RouteCounterBadge.vue";
 
 const {
   selectedOrigin,
@@ -22,7 +21,6 @@ const airportItems = computed(() => {
 });
 
 const defaultDate = shallowRef<DateValue>(today(getLocalTimeZone()));
-const inputDate = useTemplateRef("inputDate");
 const rotation = ref(0);
 
 function swapAirports() {
@@ -82,36 +80,27 @@ function handleSearch() {
 
     <USeparator orientation="vertical" class="h-4 hidden sm:block shrink-0" size="sm" />
 
-    <!-- Input de Fecha (Desktop) -->
-    <div class="hidden md:block shrink-0">
-      <UInputDate
-        ref="inputDate"
-        v-model="defaultDate"
-        size="sm"
-        variant="ghost"
-        :ui="{ base: 'h-8 sm:h-9' }"
-      >
-        <template #leading>
-          <UPopover arrow :reference="inputDate?.inputsRef[3]?.$el">
-            <UButton
-              color="neutral"
-              variant="link"
-              size="sm"
-              icon="i-lucide-calendar"
-              aria-label="Select a date"
-              class="w-10"
-            />
+    <!-- Selector de Fecha (Desktop) -->
+    <div class="hidden md:flex items-center shrink-0">
+      <UPopover arrow>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          icon="i-lucide-calendar"
+          :label="defaultDate.toString()"
+          class="font-mono text-xs text-text-muted hover:text-text-main h-8 sm:h-9"
+          aria-label="Seleccionar fecha de vuelo"
+        />
 
-            <template #content>
-              <UCalendar v-model="defaultDate" class="p-2" />
-            </template>
-          </UPopover>
+        <template #content>
+          <UCalendar v-model="defaultDate" class="p-2" />
         </template>
-      </UInputDate>
+      </UPopover>
     </div>
 
     <!-- Contador de Rutas Coincidentes (si hay filtro activo) -->
-    <RouteCounterBadge
+    <HudSearchRouteCounterBadge
       v-if="selectedOrigin || selectedDestination"
       :count="matchingRoutes.length"
     />

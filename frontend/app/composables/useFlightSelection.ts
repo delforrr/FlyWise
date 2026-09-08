@@ -3,15 +3,43 @@ import type { FlightRoute } from "~/types/route";
 import { type MapPickingInfo } from "~/types/map";
 import { SEED_ROUTES } from "~/data/seedData";
 
+// Índices Map precalculados a nivel de módulo para búsquedas O(1) ultra-rápidas
+const routeByIdMap = new Map<string, FlightRoute>();
+const routesByAirportMap = new Map<string, FlightRoute[]>();
+const outgoingRoutesMap = new Map<string, FlightRoute[]>();
+const incomingRoutesMap = new Map<string, FlightRoute[]>();
+
+for (const route of SEED_ROUTES) {
+  routeByIdMap.set(route.id, route);
+  routeByIdMap.set(`${route.originIata}-${route.destinationIata}`, route);
+
+  if (!routesByAirportMap.has(route.originIata)) routesByAirportMap.set(route.originIata, []);
+  routesByAirportMap.get(route.originIata)!.push(route);
+
+  if (!routesByAirportMap.has(route.destinationIata)) routesByAirportMap.set(route.destinationIata, []);
+  routesByAirportMap.get(route.destinationIata)!.push(route);
+
+  if (!outgoingRoutesMap.has(route.originIata)) outgoingRoutesMap.set(route.originIata, []);
+  outgoingRoutesMap.get(route.originIata)!.push(route);
+
+  if (!incomingRoutesMap.has(route.destinationIata)) incomingRoutesMap.set(route.destinationIata, []);
+  incomingRoutesMap.get(route.destinationIata)!.push(route);
+}
+
+let hoverRafId: number | null = null;
+
 export const useFlightSelection = () => {
-  // Estado base
-  const selectedOrigin = useState<string | null>("flight_origin", () => null);
-  const selectedDestination = useState<string | null>(
+  // Estado base (usar undefined en lugar de null para compatibilidad estricta con UInputMenu de Nuxt UI)
+  const selectedOrigin = useState<string | undefined>("flight_origin", () => undefined);
+  const selectedDestination = useState<string | undefined>(
     "flight_destination",
-    () => null,
+    () => undefined,
   );
   const hoveredEntity = useState<MapPickingInfo>("flight_hovered", () => null);
-  const activeScenarioId = useState<string | null>("flight_scenario_id", () => null);
+  const activeScenarioId = useState<string | undefined>(
+    "flight_scenario_id",
+    () => undefined,
+  );
   const mapFitTrigger = useState<number>("flight_map_fit_trigger", () => 0);
   const isMobileSearchOpen = useState<boolean>(
     "flight_mobile_search_open",
@@ -35,96 +63,75 @@ export const useFlightSelection = () => {
   });
 
   const selectedRouteData = computed<FlightRoute | null>(() => {
-    if (!selectedOrigin.value && !selectedDestination.value) return null;
-    if (selectedOrigin.value && selectedDestination.value) {
-      return (
-        SEED_ROUTES.find(
-          (route) =>
-            route.id === `${selectedOrigin.value}-${selectedDestination.value}` ||
-            route.id === `${selectedDestination.value}-${selectedOrigin.value}`,
-        ) ?? null
-      );
-    }
-    return null;
+    const orig = selectedOrigin.value;
+    const dest = selectedDestination.value;
+    if (!orig || !dest) return null;
+    return (
+      routeByIdMap.get(`${orig}-${dest}`) ??
+      routeByIdMap.get(`${dest}-${orig}`) ??
+      null
+    );
   });
 
   /**
    * Rutas coincidentes con el input actual:
-   * - Si se selecciona solo origen: devuelve todas las rutas que salen o llegan a ese origen (visión HUB).
-   * - Si se seleccionan origen y destino: devuelve la ruta directa y las opciones con escala / conectadas.
-   * - Si no hay selección: devuelve la totalidad de rutas del dataset.
+   * - Si se selecciona solo origen/destino: devuelve todas las rutas del Hub en O(1).
+   * - Si se seleccionan ambos: devuelve directa + conexiones de 1 escala.
+   * - Si no hay selección: devuelve la totalidad de rutas.
    */
   const matchingRoutes = computed<FlightRoute[]>(() => {
     const orig = selectedOrigin.value;
     const dest = selectedDestination.value;
 
     if (orig && dest) {
-      const direct = SEED_ROUTES.filter(
-        (r) =>
-          (r.originIata === orig && r.destinationIata === dest) ||
-          (r.originIata === dest && r.destinationIata === orig),
-      );
+      const directRoute =
+        routeByIdMap.get(`${orig}-${dest}`) ??
+        routeByIdMap.get(`${dest}-${orig}`);
+      const direct = directRoute ? [directRoute] : [];
 
-      // Conexiones de 1 escala intermedias
-      const outgoing = SEED_ROUTES.filter((r) => r.originIata === orig);
-      const incoming = SEED_ROUTES.filter((r) => r.destinationIata === dest);
+      const outgoing = outgoingRoutesMap.get(orig) ?? [];
+      const incoming = incomingRoutesMap.get(dest) ?? [];
+      const incomingByOrigin = new Map<string, FlightRoute>();
+      for (const inLeg of incoming) {
+        incomingByOrigin.set(inLeg.originIata, inLeg);
+      }
+
       const connecting: FlightRoute[] = [];
-
-      outgoing.forEach((leg1) => {
-        const leg2 = incoming.find(
-          (inLeg) => inLeg.originIata === leg1.destinationIata,
-        );
+      for (const leg1 of outgoing) {
+        const leg2 = incomingByOrigin.get(leg1.destinationIata);
         if (leg2 && !direct.some((d) => d.id === leg1.id || d.id === leg2.id)) {
           connecting.push(leg1, leg2);
         }
-      });
+      }
 
       return [...direct, ...connecting];
     }
 
     if (orig) {
-      return SEED_ROUTES.filter(
-        (r) => r.originIata === orig || r.destinationIata === orig,
-      );
+      return routesByAirportMap.get(orig) ?? [];
     }
 
     if (dest) {
-      return SEED_ROUTES.filter(
-        (r) => r.destinationIata === dest || r.originIata === dest,
-      );
+      return routesByAirportMap.get(dest) ?? [];
     }
 
     return SEED_ROUTES;
   });
 
+  // Set de IDs para resolución instantánea O(1)
+  const matchingRouteIds = computed<Set<string>>(() => {
+    return new Set(matchingRoutes.value.map((r) => r.id));
+  });
+
   /**
-   * Determina si una ruta dada coincide con los filtros activos
+   * Determina en O(1) si una ruta dada coincide con los filtros activos
    */
   function isRouteMatched(route: FlightRoute): boolean {
     const orig = selectedOrigin.value;
     const dest = selectedDestination.value;
 
     if (!orig && !dest) return true;
-
-    if (orig && dest) {
-      if (
-        (route.originIata === orig && route.destinationIata === dest) ||
-        (route.originIata === dest && route.destinationIata === orig)
-      ) {
-        return true;
-      }
-      return matchingRoutes.value.some((r) => r.id === route.id);
-    }
-
-    if (orig) {
-      return route.originIata === orig || route.destinationIata === orig;
-    }
-
-    if (dest) {
-      return route.destinationIata === dest || route.originIata === dest;
-    }
-
-    return false;
+    return matchingRouteIds.value.has(route.id);
   }
 
   // Hooks
@@ -134,24 +141,24 @@ export const useFlightSelection = () => {
    * @param airport Aeropuerto o código IATA
    */
   function setOrigin(airport?: Airport | string | null): void {
-    const iata = typeof airport === "string" ? airport : airport?.iata ?? null;
+    const iata = typeof airport === "string" ? airport : airport?.iata;
 
     if (!iata) {
-      selectedOrigin.value = null;
+      selectedOrigin.value = undefined;
       return;
     }
 
     if (selectedOrigin.value === iata) {
-      selectedOrigin.value = null;
+      selectedOrigin.value = undefined;
       return;
     }
 
     if (selectedDestination.value === iata) {
-      selectedDestination.value = null;
+      selectedDestination.value = undefined;
     }
 
     selectedOrigin.value = iata;
-    activeScenarioId.value = null;
+    activeScenarioId.value = undefined;
   }
 
   /**
@@ -159,39 +166,39 @@ export const useFlightSelection = () => {
    * @param airport Aeropuerto o código IATA
    */
   function setDestination(airport?: Airport | string | null): void {
-    const iata = typeof airport === "string" ? airport : airport?.iata ?? null;
+    const iata = typeof airport === "string" ? airport : airport?.iata;
 
     if (!iata) {
-      selectedDestination.value = null;
+      selectedDestination.value = undefined;
       return;
     }
 
     if (selectedDestination.value === iata) {
-      selectedDestination.value = null;
+      selectedDestination.value = undefined;
       return;
     }
 
     if (selectedOrigin.value === iata) {
-      selectedOrigin.value = null;
+      selectedOrigin.value = undefined;
     }
 
     selectedDestination.value = iata;
-    activeScenarioId.value = null;
+    activeScenarioId.value = undefined;
   }
 
   /**
    * Setea la ruta que seleccionó el usuario
    */
-  function setRoute(originIata: string | null, destIata: string | null): void {
+  function setRoute(originIata?: string | null, destIata?: string | null): void {
     if (originIata && destIata && originIata === destIata) {
       selectedOrigin.value = originIata;
-      selectedDestination.value = null;
-      activeScenarioId.value = null;
+      selectedDestination.value = undefined;
+      activeScenarioId.value = undefined;
       return;
     }
-    selectedOrigin.value = originIata;
-    selectedDestination.value = destIata;
-    activeScenarioId.value = null;
+    selectedOrigin.value = originIata ?? undefined;
+    selectedDestination.value = destIata ?? undefined;
+    activeScenarioId.value = undefined;
   }
 
   /**
@@ -199,12 +206,12 @@ export const useFlightSelection = () => {
    */
   function applyScenario(scenario: {
     id?: string;
-    originIata: string | null;
-    destinationIata: string | null;
+    originIata?: string | null;
+    destinationIata?: string | null;
   }): void {
-    activeScenarioId.value = scenario.id ?? null;
-    selectedOrigin.value = scenario.originIata;
-    selectedDestination.value = scenario.destinationIata;
+    activeScenarioId.value = scenario.id ?? undefined;
+    selectedOrigin.value = scenario.originIata ?? undefined;
+    selectedDestination.value = scenario.destinationIata ?? undefined;
   }
 
   /**
@@ -220,22 +227,36 @@ export const useFlightSelection = () => {
    * Limpia los inputs seleccionados y restablece el mapa
    */
   function clearSelection(): void {
-    selectedOrigin.value = null;
-    selectedDestination.value = null;
-    activeScenarioId.value = null;
+    selectedOrigin.value = undefined;
+    selectedDestination.value = undefined;
+    activeScenarioId.value = undefined;
   }
 
   /**
-   * Define y setea el elemento que está debajo del mouse
+   * Define y setea el elemento que está debajo del mouse (con RAF para fluidez de 60 FPS)
    */
   function setHoveredEntity(info: MapPickingInfo): void {
-    hoveredEntity.value = info;
+    if (typeof window !== "undefined" && typeof requestAnimationFrame !== "undefined") {
+      if (hoverRafId !== null) {
+        cancelAnimationFrame(hoverRafId);
+      }
+      hoverRafId = requestAnimationFrame(() => {
+        hoveredEntity.value = info;
+        hoverRafId = null;
+      });
+    } else {
+      hoveredEntity.value = info;
+    }
   }
 
   /**
    * Limpia la entidad debajo del mouse
    */
   function clearHoveredEntity(): void {
+    if (typeof window !== "undefined" && hoverRafId !== null) {
+      cancelAnimationFrame(hoverRafId);
+      hoverRafId = null;
+    }
     hoveredEntity.value = null;
   }
 

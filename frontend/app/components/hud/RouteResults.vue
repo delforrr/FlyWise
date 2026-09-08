@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SEED_AIRPORTS } from "~/data/seedData";
+import { SEED_AIRPORTS_BY_IATA } from "~/data/seedData";
 import { type FlightRoute } from "~/types/route";
 import RouteHeader from "./results/RouteHeader.vue";
 import RouteDirectCard from "./results/RouteDirectCard.vue";
@@ -22,14 +22,12 @@ const isCollapsed = ref(false);
 
 const originAirport = computed(() => {
   if (!selectedOrigin.value) return null;
-  return SEED_AIRPORTS.find((a) => a.iata === selectedOrigin.value) ?? null;
+  return SEED_AIRPORTS_BY_IATA.get(selectedOrigin.value) ?? null;
 });
 
 const destinationAirport = computed(() => {
   if (!selectedDestination.value) return null;
-  return (
-    SEED_AIRPORTS.find((a) => a.iata === selectedDestination.value) ?? null
-  );
+  return SEED_AIRPORTS_BY_IATA.get(selectedDestination.value) ?? null;
 });
 
 // Rutas de escala o alternativas para el par seleccionado
@@ -63,9 +61,7 @@ function handleFocusRoute(route: FlightRoute) {
   >
     <div
       v-if="selectedOrigin || selectedDestination"
-      class="fixed z-40 pointer-events-auto select-none transition-all duration-300
-             bottom-3 inset-x-3 max-h-[85vh]
-             md:bottom-auto md:top-20 md:left-6 md:w-84 md:max-w-[calc(100vw-24px)]"
+      class="fixed z-40 pointer-events-auto select-none transition-all duration-300 bottom-3 inset-x-3 max-h-[85vh] md:bottom-auto md:top-25 md:left-6 md:w-100 md:max-w-[calc(100vw-24px)]"
     >
       <div
         class="hud-card border border-border-subtle/80 bg-surface-elevated/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all"

@@ -11,7 +11,7 @@
           color="neutral"
           variant="ghost"
           size="sm"
-          title="Confiabilidad OTP"
+          title="Leyenda Confiabilidad OTP"
           aria-label="Ver leyenda de confiabilidad OTP"
           class="text-aero-cyan hover:text-aero-cyan/80 transition-colors"
         />
@@ -21,11 +21,17 @@
             class="w-64 p-3 bg-surface-elevated/95 backdrop-blur-xl border border-border-subtle rounded-xl shadow-2xl flex flex-col gap-2.5 select-none"
           >
             <!-- Cabecera de la Leyenda -->
-            <div class="flex items-center gap-2 pb-1.5 border-b border-border-subtle/60">
-              <div class="w-2 h-2 rounded-full bg-aero-cyan animate-pulse shrink-0" />
+            <div
+              class="flex items-center gap-2 pb-1.5 border-b border-border-subtle/60"
+            >
+              <div
+                class="w-2 h-2 rounded-full bg-aero-cyan animate-pulse shrink-0"
+              />
               <div class="flex flex-col min-w-0">
-                <span class="text-xs font-bold font-mono text-text-main uppercase tracking-wider truncate">
-                  Confiabilidad OTP-15
+                <span
+                  class="text-xs font-bold font-mono text-text-main uppercase tracking-wider truncate"
+                >
+                  Leyenda Confiabilidad OTP
                 </span>
                 <span class="text-[10px] text-text-muted truncate">
                   Retraso ≤ 15 min del horario programado

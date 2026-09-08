@@ -2,8 +2,8 @@
 import type { Airport } from "~/types/airport";
 
 defineProps<{
-  selectedOrigin: string | null;
-  selectedDestination: string | null;
+  selectedOrigin?: string | null;
+  selectedDestination?: string | null;
   originAirport: Airport | null;
   destinationAirport: Airport | null;
   matchingCount: number;

@@ -341,3 +341,8 @@ export const SEED_AIRPORTS: Airport[] = [
     connectionsCount: 80,
   },
 ];
+
+export const SEED_AIRPORTS_BY_IATA = new Map<string, Airport>(
+  SEED_AIRPORTS.map((a) => [a.iata, a]),
+);
+

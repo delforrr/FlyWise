@@ -2,7 +2,7 @@
 import type { FlightRoute } from "~/types/route";
 
 const props = defineProps<{
-  selectedOrigin: string | null;
+  selectedOrigin?: string | null;
   routes: FlightRoute[];
 }>();
 

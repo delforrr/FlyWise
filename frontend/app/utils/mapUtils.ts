@@ -8,6 +8,8 @@ export const MAP_STYLES = {
 export const DEFAULT_MAP_CAMERA = {
   center: [-30, 20] as [number, number],
   zoom: 2.5,
+  minZoom: 1.5,
+  maxZoom: 7.5,
   pitch: 30,
   bearing: 0,
 } as const;

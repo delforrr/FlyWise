@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
 interface Props {
   message?: "Alta" | "Media" | "Baja";
   value?: number;
@@ -28,39 +30,30 @@ const scoreText = computed<string>(() => {
   return "< 60%";
 });
 
-// Clases semánticas de app.css
-const badgeColor = computed<"success" | "warning" | "error">(() => {
-  if (reliabilityLevel.value === "Alta") return "success";
-  if (reliabilityLevel.value === "Media") return "warning";
-  return "error";
-});
-
 const badgeClass = computed<string>(() => {
   if (reliabilityLevel.value === "Alta") return "badge-otp-good";
   if (reliabilityLevel.value === "Media") return "badge-otp-warning";
   return "badge-otp-critical";
 });
+
+const dotClass = computed<string>(() => {
+  if (reliabilityLevel.value === "Alta") return "bg-otp-good";
+  if (reliabilityLevel.value === "Media") return "bg-otp-warning";
+  return "bg-otp-critical";
+});
 </script>
 
 <template>
-  <UBadge
-    :color="badgeColor"
-    variant="subtle"
-    size="md"
+  <span
     :class="[
-      'font-mono font-medium rounded-full px-3 py-1 shadow-sm transition-colors',
+      'inline-flex items-center font-mono text-xs font-medium rounded-full px-2.5 py-0.5 shadow-sm transition-colors select-none',
       badgeClass,
     ]"
   >
     <span
-      class="inline-block w-2 h-2 rounded-full mr-1.5 animate-pulse"
-      :class="{
-        'bg-emerald-500': reliabilityLevel === 'Alta',
-        'bg-amber-500': reliabilityLevel === 'Media',
-        'bg-rose-500': reliabilityLevel === 'Baja',
-      }"
-    ></span>
-
-    {{ reliabilityLevel }} confiabilidad ({{ scoreText }})
-  </UBadge>
+      class="inline-block w-2 h-2 rounded-full mr-1.5 animate-pulse shrink-0"
+      :class="dotClass"
+    />
+    <span>{{ reliabilityLevel }} confiabilidad ({{ scoreText }})</span>
+  </span>
 </template>

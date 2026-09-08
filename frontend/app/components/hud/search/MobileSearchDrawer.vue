@@ -101,10 +101,7 @@ function handleSearch() {
             >
               Filtros
             </UBadge>
-            <UIcon
-              name="i-lucide-chevron-up"
-              class="w-4 h-4 text-text-muted"
-            />
+            <UIcon name="i-lucide-chevron-up" class="w-4 h-4 text-text-muted" />
           </div>
         </button>
       </div>
@@ -146,19 +143,21 @@ function handleSearch() {
           <!-- Selectores Origen y Destino -->
           <div class="flex flex-col gap-2.5">
             <div>
-              <label class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1">
+              <label
+                class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1"
+              >
                 Aeropuerto de Origen
+                <UInputMenu
+                  arrow
+                  v-model="selectedOrigin"
+                  :items="airportItems"
+                  variant="soft"
+                  placeholder="Seleccionar origen (ej. EZE)"
+                  icon="i-lucide-plane-takeoff"
+                  size="lg"
+                  class="hud-custom-input w-full font-mono font-semibold"
+                />
               </label>
-              <UInputMenu
-                arrow
-                v-model="selectedOrigin"
-                :items="airportItems"
-                variant="soft"
-                placeholder="Seleccionar origen (ej. EZE)"
-                icon="i-lucide-plane-takeoff"
-                size="lg"
-                class="hud-custom-input w-full font-mono font-semibold"
-              />
             </div>
 
             <!-- Botón Swap Centrado -->
@@ -175,25 +174,29 @@ function handleSearch() {
             </div>
 
             <div>
-              <label class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1">
+              <label
+                class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1"
+              >
                 Aeropuerto de Destino
+                <UInputMenu
+                  arrow
+                  v-model="selectedDestination"
+                  :items="airportItems"
+                  variant="soft"
+                  placeholder="Seleccionar destino (ej. MAD)"
+                  icon="i-lucide-plane-landing"
+                  size="lg"
+                  class="hud-custom-input w-full font-mono font-semibold"
+                />
               </label>
-              <UInputMenu
-                arrow
-                v-model="selectedDestination"
-                :items="airportItems"
-                variant="soft"
-                placeholder="Seleccionar destino (ej. MAD)"
-                icon="i-lucide-plane-landing"
-                size="lg"
-                class="hud-custom-input w-full font-mono font-semibold"
-              />
             </div>
           </div>
 
           <!-- Hubs Sugeridos Rápidos -->
           <div class="flex flex-col gap-1.5">
-            <span class="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+            <span
+              class="text-[11px] font-semibold text-text-muted uppercase tracking-wider"
+            >
               Hubs Populares
             </span>
             <div class="flex flex-wrap gap-1.5">
@@ -203,9 +206,10 @@ function handleSearch() {
                 type="button"
                 class="px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all border"
                 :class="[
-                  selectedOrigin === hub.iata || selectedDestination === hub.iata
+                  selectedOrigin === hub.iata ||
+                  selectedDestination === hub.iata
                     ? 'bg-aero-cyan text-white border-aero-cyan shadow-sm'
-                    : 'bg-surface-base text-text-muted hover:text-text-main border-border-subtle hover:border-aero-cyan/40'
+                    : 'bg-surface-base text-text-muted hover:text-text-main border-border-subtle hover:border-aero-cyan/40',
                 ]"
                 @click="handleSelectHub(hub.iata)"
               >
@@ -218,16 +222,22 @@ function handleSearch() {
           </div>
 
           <!-- Selector de Fecha (Calendario visible al scrollear hacia arriba) -->
-          <div class="flex flex-col gap-1.5 pt-2 border-t border-border-subtle/60">
+          <div
+            class="flex flex-col gap-1.5 pt-2 border-t border-border-subtle/60"
+          >
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+              <span
+                class="text-[11px] font-semibold text-text-muted uppercase tracking-wider"
+              >
                 Fecha del Vuelo
               </span>
               <span class="text-xs font-mono text-text-muted">
                 {{ defaultDate.toString() }}
               </span>
             </div>
-            <div class="flex justify-center bg-surface-base/50 rounded-xl p-2 border border-border-subtle/50">
+            <div
+              class="flex justify-center bg-surface-base/50 rounded-xl p-2 border border-border-subtle/50"
+            >
               <UCalendar v-model="defaultDate" class="w-full justify-center" />
             </div>
           </div>
