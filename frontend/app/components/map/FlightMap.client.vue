@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
-import { useFlightMap } from "~/composables/useFlightMap";
 
 const mapContainer = ref<HTMLDivElement | null>(null);
 const { initMap, destroyMap, mapInstance, isLoaded } = useFlightMap();

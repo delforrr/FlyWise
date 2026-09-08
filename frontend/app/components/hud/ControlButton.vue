@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useFlightMap } from "~/composables/useFlightMap";
 
 export type actionType =
   | "zoomIn"
@@ -63,7 +62,7 @@ const mapAction = computed<() => void>(() => {
   }
   switch (props.type) {
     case "fitRoute":
-      return () => fitRoute();
+      return fitRoute;
     case "resetNorth":
       return resetNorth;
     case "toggle3D":

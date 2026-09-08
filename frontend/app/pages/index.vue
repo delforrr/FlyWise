@@ -22,6 +22,9 @@ useSeoMeta({
       </div>
 
       <main class="relative flex-1 overflow-hidden p-3 sm:p-6 pointer-events-none">
+        <!-- Panel Flotante de Resultados de Rutas / Desglose de Aerolíneas -->
+        <HudRouteResults />
+
         <!-- HUD de Controles y Leyenda de Confiabilidad -->
         <HudWrapper />
       </main>

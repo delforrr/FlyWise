@@ -20,8 +20,13 @@ export const useFlightMap = () => {
     clearHoveredEntity,
     setRoute,
     setOrigin,
+    setDestination,
     selectedRouteData,
     activeRouteId,
+    selectedOrigin,
+    selectedDestination,
+    isRouteMatched,
+    mapFitTrigger,
   } = useFlightSelection();
 
   function getOtpColor(otp15: number): [number, number, number, number] {
@@ -41,58 +46,122 @@ export const useFlightMap = () => {
    * Genera las capas activas de WebGL (ArcLayer, ScatterplotLayer, TextLayer).
    */
   function buildLayers() {
-    const activeId = activeRouteId.value;
     const isLight = colorMode.value === "light";
+    const orig = selectedOrigin.value;
+    const dest = selectedDestination.value;
+    const hasSelection = Boolean(orig || dest);
+    const hasBoth = Boolean(orig && dest);
+
+    // 1. Filtrar rutas: cuando hay selección activa, las no relacionadas DESAPARECEN por completo
+    const visibleRoutes = hasSelection
+      ? SEED_ROUTES.filter((d) => isRouteMatched(d))
+      : SEED_ROUTES;
+
+    // 2. Aeropuertos conectados a las rutas visibles para despejar la pantalla
+    const activeAirportIatas = new Set<string>();
+    if (hasSelection) {
+      if (orig) activeAirportIatas.add(orig);
+      if (dest) activeAirportIatas.add(dest);
+      visibleRoutes.forEach((r) => {
+        activeAirportIatas.add(r.originIata);
+        activeAirportIatas.add(r.destinationIata);
+      });
+    }
+
+    const visibleAirports = hasSelection
+      ? SEED_AIRPORTS.filter((a) => activeAirportIatas.has(a.iata))
+      : SEED_AIRPORTS;
 
     return [
       // 1. Capa de Arcos Geodésicos 3D (Rutas y puntualidad OTP-15)
       new ArcLayer<FlightRoute>({
         id: "flight-routes-arc",
-        data: SEED_ROUTES,
+        data: visibleRoutes,
         pickable: true,
         autoHighlight: true,
         highlightColor: isLight ? [2, 132, 199, 255] : [56, 189, 248, 255], // Aero Cyan
         greatCircle: true,
         getSourcePosition: (d: FlightRoute) => d.originCoordinates,
         getTargetPosition: (d: FlightRoute) => d.destinationCoordinates,
-        getSourceColor: (d: FlightRoute) => getOtpColor(d.averageOtp15),
-        getTargetColor: (d: FlightRoute) => getOtpColor(d.averageOtp15),
-        getWidth: (d: FlightRoute) => (d.id === activeId ? 5 : 2.5),
-        widthMinPixels: 2.5,
+        getSourceColor: (d: FlightRoute) => {
+          const baseColor = getOtpColor(d.averageOtp15);
+          return [baseColor[0], baseColor[1], baseColor[2], 255];
+        },
+        getTargetColor: (d: FlightRoute) => {
+          const baseColor = getOtpColor(d.averageOtp15);
+          return [baseColor[0], baseColor[1], baseColor[2], 255];
+        },
+        getWidth: (d: FlightRoute) => {
+          if (!hasSelection) return 2.5;
+          if (hasBoth) {
+            if (
+              (d.originIata === orig && d.destinationIata === dest) ||
+              (d.originIata === dest && d.destinationIata === orig)
+            ) {
+              return 6.5;
+            }
+            return 3.5;
+          }
+          // Si solo hay origen o destino seleccionado (visión de Hub multiruta)
+          return 4.5;
+        },
+        widthMinPixels: 1.5,
       }),
 
       // 2. Capa de Nodos de Aeropuertos / Hubs
       new ScatterplotLayer<Airport>({
         id: "airports-nodes",
-        data: SEED_AIRPORTS,
+        data: visibleAirports,
         pickable: true,
         autoHighlight: true,
         highlightColor: isLight ? [2, 132, 199, 255] : [56, 189, 248, 255],
         getPosition: (d: Airport) => d.coordinates,
-        getRadius: (d: Airport) => (d.type === "large_airport" ? 45000 : 25000),
+        getRadius: (d: Airport) => {
+          if (d.iata === orig || d.iata === dest) {
+            return 80000;
+          }
+          return d.type === "large_airport" ? 45000 : 25000;
+        },
         radiusMinPixels: 4,
-        radiusMaxPixels: 12,
-        getFillColor: isLight ? [30, 41, 59, 230] : [222, 227, 232, 220],
-        getLineColor: isLight ? [255, 255, 255, 255] : [37, 43, 46, 255],
+        radiusMaxPixels: 16,
+        getFillColor: (d: Airport) => {
+          if (d.iata === orig) {
+            return [56, 189, 248, 255]; // Aero Cyan (Origen)
+          }
+          if (d.iata === dest) {
+            return [16, 185, 129, 255]; // Emerald (Destino)
+          }
+          return isLight ? [30, 41, 59, 230] : [222, 227, 232, 220];
+        },
+        getLineColor: (d: Airport) => {
+          if (d.iata === orig || d.iata === dest) {
+            return [255, 255, 255, 255];
+          }
+          return isLight ? [255, 255, 255, 255] : [37, 43, 46, 255];
+        },
         stroked: true,
         lineWidthMinPixels: 1.5,
       }),
 
-      // 3. Capa de Etiquetas IATA (Visible con zoom moderado)
+      // 3. Capa de Etiquetas IATA (Visible con zoom moderado o si está seleccionado)
       new TextLayer<Airport>({
         id: "airports-labels",
-        data: SEED_AIRPORTS,
+        data: visibleAirports,
         pickable: false,
         getPosition: (d: Airport) => d.coordinates,
         getText: (d: Airport) => d.iata,
-        getSize: 11,
-        getColor: isLight ? [15, 23, 42, 240] : [222, 227, 232, 240],
+        getSize: (d: Airport) => (d.iata === orig || d.iata === dest ? 14 : 11),
+        getColor: (d: Airport) => {
+          if (d.iata === orig) return [56, 189, 248, 255];
+          if (d.iata === dest) return [16, 185, 129, 255];
+          return isLight ? [15, 23, 42, 240] : [222, 227, 232, 240];
+        },
         getTextAnchor: "middle",
         getAlignmentBaseline: "top",
         getPixelOffset: [0, 8],
         fontFamily: "JetBrains Mono, monospace",
         fontWeight: 700,
-        visible: currentZoom.value >= 3.5,
+        visible: currentZoom.value >= 3.0 || Boolean(orig || dest),
       }),
     ];
   }
@@ -107,7 +176,64 @@ export const useFlightMap = () => {
     });
   }
 
-  // Vigilar cambios en la ruta seleccionada para actualizar grosor y resaltado
+  /**
+   * Encuadra la cámara suavemente alrededor de un Hub y todas sus conexiones
+   */
+  function fitHub(airportIata: string): void {
+    if (!mapInstance.value) return;
+    const airport = SEED_AIRPORTS.find((a) => a.iata === airportIata);
+    if (!airport) return;
+
+    const connectedRoutes = SEED_ROUTES.filter(
+      (r) => r.originIata === airportIata || r.destinationIata === airportIata,
+    );
+
+    if (connectedRoutes.length === 0) {
+      flyToAirport(airport.coordinates, 5);
+      return;
+    }
+
+    const bounds = new maplibregl.LngLatBounds(
+      airport.coordinates,
+      airport.coordinates,
+    );
+    connectedRoutes.forEach((r) => {
+      bounds.extend(r.originCoordinates);
+      bounds.extend(r.destinationCoordinates);
+    });
+
+    mapInstance.value.fitBounds(bounds, {
+      padding: {
+        top: 150,
+        bottom: 120,
+        left: 80,
+        right: 80,
+      },
+      pitch: 32,
+      duration: 1800,
+      essential: true,
+    });
+  }
+
+  // Vigilar cambios en la selección de origen y destino
+  watch(selectedOrigin, (newOrigin) => {
+    updateLayers();
+    if (newOrigin && !selectedDestination.value) {
+      fitHub(newOrigin);
+    } else if (newOrigin && selectedDestination.value) {
+      fitRoute();
+    }
+  });
+
+  watch(selectedDestination, (newDest) => {
+    updateLayers();
+    if (newDest && !selectedOrigin.value) {
+      fitHub(newDest);
+    } else if (newDest && selectedOrigin.value) {
+      fitRoute();
+    }
+  });
+
   watch(activeRouteId, () => {
     updateLayers();
   });
@@ -118,6 +244,41 @@ export const useFlightMap = () => {
       fitRoute(route.originCoordinates, route.destinationCoordinates);
     }
   });
+
+  // Vigilar solicitudes explícitas de encuadre HUD
+  watch(mapFitTrigger, () => {
+    if (selectedOrigin.value && selectedDestination.value) {
+      fitRoute();
+    } else if (selectedOrigin.value) {
+      fitHub(selectedOrigin.value);
+    } else if (selectedDestination.value) {
+      fitHub(selectedDestination.value);
+    } else if (mapInstance.value) {
+      mapInstance.value.flyTo({
+        center: [-30, 20],
+        zoom: 2.5,
+        pitch: 30,
+        bearing: 0,
+        duration: 1200,
+      });
+    }
+  });
+
+  // Si se limpia la selección completa, volver suavemente a la perspectiva global
+  watch(
+    () => [selectedOrigin.value, selectedDestination.value],
+    ([orig, dest]) => {
+      if (!orig && !dest && mapInstance.value) {
+        mapInstance.value.flyTo({
+          center: [-30, 20],
+          zoom: 2.5,
+          pitch: 30,
+          bearing: 0,
+          duration: 1200,
+        });
+      }
+    },
+  );
 
   // Vigilar cambios de tema (claro/oscuro) para actualizar el mapa base y capas
   watch(
@@ -132,9 +293,6 @@ export const useFlightMap = () => {
 
   /**
    * Inicializa MapLibre GL inyectándolo en el contenedor DOM provisto y acopla Deck.gl.
-   *
-   * @param container Elemento HTML del DOM o selector CSS donde se monta el canvas.
-   * @param options Configuración inicial de cámara (centro, zoom, inclinación, rumbo).
    */
   function initMap(
     container: HTMLElement | string,
@@ -145,7 +303,6 @@ export const useFlightMap = () => {
       bearing?: number;
     },
   ): void {
-    // Evitar duplicación si ya está inicializado o no hay contenedor
     if (!container || mapInstance.value) return;
 
     try {
@@ -171,14 +328,14 @@ export const useFlightMap = () => {
 
       mapInstance.value = map;
 
-      // 2. Acoplar MapboxOverlay de Deck.gl de forma inmediata en modo overlay
+      // 2. Acoplar MapboxOverlay de Deck.gl
       const deckOverlay = new MapboxOverlay({
         interleaved: false,
         pickingRadius: 10,
         layers: buildLayers(),
         getCursor: ({ isHovering }) => (isHovering ? "pointer" : "default"),
         onHover: (info) => {
-          if (info && info.object) {
+          if (info?.object) {
             const isRoute = "originIata" in (info.object as object);
             setHoveredEntity({
               type: isRoute ? "route" : "airport",
@@ -191,13 +348,21 @@ export const useFlightMap = () => {
           }
         },
         onClick: (info) => {
-          if (info && info.object) {
+          if (info?.object) {
             if ("originIata" in (info.object as object)) {
               const route = info.object as FlightRoute;
               setRoute(route.originIata, route.destinationIata);
             } else if ("iata" in (info.object as object)) {
               const airport = info.object as Airport;
-              setOrigin(airport);
+              if (!selectedOrigin.value) {
+                setOrigin(airport.iata);
+              } else if (selectedOrigin.value === airport.iata) {
+                setOrigin(null);
+              } else if (!selectedDestination.value) {
+                setDestination(airport.iata);
+              } else {
+                setOrigin(airport.iata);
+              }
             }
           }
         },
@@ -206,7 +371,7 @@ export const useFlightMap = () => {
       overlayInstance.value = deckOverlay;
       map.addControl(deckOverlay as unknown as maplibregl.IControl);
 
-      // 3. Mecanismo resiliente para marcar el mapa como listo (isLoaded)
+      // 3. Mecanismo para marcar mapa como listo
       const setMapReady = () => {
         if (isLoaded.value) return;
         isLoaded.value = true;
@@ -221,7 +386,6 @@ export const useFlightMap = () => {
         map.once("load", setMapReady);
       }
 
-      // Fallbacks en caso de que Carto CDN demore en responder fuentes o sprites
       map.once("idle", setMapReady);
       map.on("styledata", () => {
         if (map.isStyleLoaded()) {
@@ -229,21 +393,19 @@ export const useFlightMap = () => {
         }
       });
 
-      // Timeout de seguridad: Si las teselas ya renderizan pero la red es lenta, no bloquear la interfaz
       setTimeout(setMapReady, 1200);
 
       map.on("error", (e) => {
         console.warn("[MapLibre Warning]", e);
       });
 
-      // 4. Sincronización continua de la cámara
       map.on("pitch", () => {
         currentPitch.value = map.getPitch();
       });
 
       map.on("zoom", () => {
         currentZoom.value = map.getZoom();
-        updateLayers(); // Actualizar visibilidad de etiquetas según nivel de zoom
+        updateLayers();
       });
     } catch (err) {
       console.error(
@@ -253,9 +415,6 @@ export const useFlightMap = () => {
     }
   }
 
-  /**
-   * Destruye de forma segura el mapa y libera recursos WebGL de la GPU.
-   */
   function destroyMap(): void {
     if (mapInstance.value && overlayInstance.value) {
       try {
@@ -279,22 +438,13 @@ export const useFlightMap = () => {
     currentPitch.value = 0;
     currentZoom.value = 0;
   }
-  // Nota: destroyMap() debe ser invocado por el componente host del mapa (ej. FlightMap.client.vue)
-  // en su propio onUnmounted, para no destruir la instancia si un botón HUD se desmonta.
 
-  /**
-   * Desplaza la cámara de forma cinemática y fluida hacia un aeropuerto.
-   *
-   * @param coords Coordenadas en formato tupla [longitud, latitud] u objeto { lon, lat }.
-   * @param zoom Nivel de zoom objetivo (por defecto 6 para vista metropolitana).
-   */
   function flyToAirport(
     coords: [number, number] | { lon: number; lat: number },
     zoom: number = 6,
   ): void {
     if (!mapInstance.value) return;
 
-    // Normalizar coordenadas
     const [lon, lat] = Array.isArray(coords)
       ? coords
       : [coords.lon, coords.lat];
@@ -302,20 +452,13 @@ export const useFlightMap = () => {
     mapInstance.value.flyTo({
       center: [lon, lat],
       zoom,
-      pitch: 40, // Inclinación cinemática suave para apreciar la altitud
+      pitch: 40,
       speed: 1.2,
       curve: 1.42,
       essential: true,
     });
   }
 
-  /**
-   * Encuadra la cámara suavemente sobre la ruta provista o sobre la ruta activa actual.
-   *
-   * @param originCoords Coordenadas de salida opcionales [longitud, latitud].
-   * @param destinationCoords Coordenadas de llegada opcionales [longitud, latitud].
-   * @param options Opciones de encuadre (padding personalizado, pitch, etc.).
-   */
   function fitRoute(
     originCoords?: [number, number],
     destinationCoords?: [number, number],
@@ -333,6 +476,12 @@ export const useFlightMap = () => {
       if (selectedRouteData.value) {
         orig = selectedRouteData.value.originCoordinates;
         dest = selectedRouteData.value.destinationCoordinates;
+      } else if (selectedOrigin.value) {
+        fitHub(selectedOrigin.value);
+        return;
+      } else if (selectedDestination.value) {
+        fitHub(selectedDestination.value);
+        return;
       }
     }
 
@@ -343,13 +492,13 @@ export const useFlightMap = () => {
 
     mapInstance.value.fitBounds(bounds, {
       padding: {
-        top: 140, // Espacio para Header y barra de búsqueda flotante
-        bottom: 90, // Espacio para la leyenda de puntualidad OTP-15
+        top: 140,
+        bottom: 90,
         left: 60,
         right: 60,
       },
-      pitch: options?.pitch ?? 35, // Inclinación suave
-      duration: options?.duration ?? 1800, // 1.8 segundos
+      pitch: options?.pitch ?? 35,
+      duration: options?.duration ?? 1800,
       essential: true,
     });
   }
@@ -403,6 +552,7 @@ export const useFlightMap = () => {
     destroyMap,
     flyToAirport,
     fitRoute,
+    fitHub,
     toggle3D,
     resetNorth,
     zoomIn,

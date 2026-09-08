@@ -23,4 +23,6 @@ export interface FlightRoute {
   averageOtp15: number
   airlines: RouteAirlinePerformance[]
   primaryAirline: string
+  flightType?: "direct" | "connecting"
+  viaStopover?: string
 }
