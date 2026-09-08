@@ -13,6 +13,10 @@ export const useFlightSelection = () => {
   const hoveredEntity = useState<MapPickingInfo>("flight_hovered", () => null);
   const activeScenarioId = useState<string | null>("flight_scenario_id", () => null);
   const mapFitTrigger = useState<number>("flight_map_fit_trigger", () => 0);
+  const isMobileSearchOpen = useState<boolean>(
+    "flight_mobile_search_open",
+    () => false,
+  );
 
   // Estado computado
   const activeRouteId = computed<string | null>(() => {
@@ -242,6 +246,17 @@ export const useFlightSelection = () => {
     mapFitTrigger.value++;
   }
 
+  /**
+   * Abre y cierra el drawer de búsqueda móvil
+   */
+  function openMobileSearch(): void {
+    isMobileSearchOpen.value = true;
+  }
+
+  function closeMobileSearch(): void {
+    isMobileSearchOpen.value = false;
+  }
+
   return {
     selectedOrigin,
     selectedDestination,
@@ -254,6 +269,9 @@ export const useFlightSelection = () => {
     matchingRoutes,
     isRouteMatched,
     mapFitTrigger,
+    isMobileSearchOpen,
+    openMobileSearch,
+    closeMobileSearch,
     triggerFit,
     setOrigin,
     setDestination,

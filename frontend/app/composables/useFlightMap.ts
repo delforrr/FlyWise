@@ -29,18 +29,7 @@ export const useFlightMap = () => {
     mapFitTrigger,
   } = useFlightSelection();
 
-  function getOtpColor(otp15: number): [number, number, number, number] {
-    if (otp15 >= 85) return [16, 185, 129, 210]; // 🟢 OTP-Good (Emerald)
-    if (otp15 >= 60) return [245, 158, 11, 210]; // 🟡 OTP-Warning (Amber)
-    return [239, 68, 68, 210]; // 🔴 OTP-Critical (Crimson)
-  }
-
   const colorMode = useColorMode();
-
-  const MAP_STYLES = {
-    dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-    light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-  } as const;
 
   /**
    * Genera las capas activas de WebGL (ArcLayer, ScatterplotLayer, TextLayer).

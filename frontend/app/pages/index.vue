@@ -27,6 +27,9 @@ useSeoMeta({
 
         <!-- HUD de Controles y Leyenda de Confiabilidad -->
         <HudWrapper />
+
+        <!-- Drawer y Trigger de Búsqueda Móvil -->
+        <HudSearchMobileSearchDrawer />
       </main>
     </div>
 

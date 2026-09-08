@@ -5,6 +5,7 @@ import {
   getLocalTimeZone,
 } from "@internationalized/date";
 import { SEED_AIRPORTS } from "~/data/seedData";
+import RouteCounterBadge from "./search/RouteCounterBadge.vue";
 
 const {
   selectedOrigin,
@@ -110,14 +111,10 @@ function handleSearch() {
     </div>
 
     <!-- Contador de Rutas Coincidentes (si hay filtro activo) -->
-    <div
+    <RouteCounterBadge
       v-if="selectedOrigin || selectedDestination"
-      class="hidden lg:flex items-center gap-1 text-[11px] font-mono text-aero-cyan bg-aero-cyan/10 px-2 py-1 rounded-md border border-aero-cyan/20 shrink-0"
-      :title="`${matchingRoutes.length} rutas coinciden con tu búsqueda`"
-    >
-      <UIcon name="i-lucide-route" class="w-3.5 h-3.5" />
-      <span>{{ matchingRoutes.length }}</span>
-    </div>
+      :count="matchingRoutes.length"
+    />
 
     <!-- Botón de Búsqueda / Encuadre HUD -->
     <UButton

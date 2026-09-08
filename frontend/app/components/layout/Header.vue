@@ -7,8 +7,7 @@
       container:
         'w-full max-w-none px-4 sm:px-6 py-2 flex flex-wrap md:flex-nowrap items-center justify-between gap-3',
       left: 'flex-none flex items-center gap-3',
-      center:
-        'flex-1 flex items-center justify-center order-3 md:order-none w-full md:w-auto mt-2 md:mt-0',
+      center: 'hidden md:flex flex-1 items-center justify-center',
       right: 'flex-none flex items-center justify-end gap-2 sm:gap-3',
     }"
   >
@@ -26,7 +25,7 @@
     </template>
 
     <template #default>
-      <HudFromToDate />
+      <HudFromToDate class="hidden md:flex" />
     </template>
 
     <template #right>

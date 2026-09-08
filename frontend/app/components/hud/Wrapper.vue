@@ -1,8 +1,8 @@
 <template>
   <div
-    class="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-40 flex items-end gap-3 pointer-events-auto"
+    class="fixed z-30 flex gap-3 pointer-events-auto select-none top-20 right-3 items-start md:top-auto md:bottom-6 md:right-6 md:items-end"
   >
-    <HudReliability />
+    <HudReliability class="hidden md:block" />
     <HudControls />
   </div>
 </template>

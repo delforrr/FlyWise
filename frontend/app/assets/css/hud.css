@@ -213,3 +213,94 @@
   display: block;
 }
 
+/* ==========================================
+   ESTILOS REUTILIZABLES DE COMPONENTES HUD
+   ========================================== */
+
+/* Cabecera estándar de paneles flotantes (Compatible con Modo Claro y Oscuro) */
+.hud-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background-color: color-mix(in srgb, var(--color-surface-card) 75%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Fila interactiva seleccionable (rutas, aeropuertos, escenarios) */
+.hud-interactive-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  background-color: color-mix(in srgb, var(--color-surface-base) 60%, transparent);
+  border: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hud-interactive-item:hover {
+  background-color: var(--color-surface-elevated);
+  border-color: var(--color-aero-cyan);
+  transform: translateY(-1px);
+}
+
+.hud-interactive-item:active {
+  transform: translateY(0);
+}
+
+/* Insignia contador Aero Cyan */
+.hud-counter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--color-aero-cyan);
+  background-color: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.375rem;
+  flex-shrink: 0;
+}
+
+/* Etiqueta de sección tipográfica */
+.hud-section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-dim, #94a3b8);
+}
+
+/* Scrollbar estilizada de cabina */
+.hud-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.hud-scrollable::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.hud-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hud-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.hud-scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.4);
+}
+

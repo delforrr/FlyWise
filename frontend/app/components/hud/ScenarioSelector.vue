@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { TEST_SCENARIOS, type TestScenario } from "~/data/seedData";
+import ScenarioCard from "./scenarios/ScenarioCard.vue";
+
 const {
   applyScenario,
   activeScenarioId,
@@ -13,6 +15,14 @@ function selectScenario(scenario: TestScenario) {
   nextTick(() => {
     triggerFit();
   });
+}
+
+function isScenarioActive(scenario: TestScenario): boolean {
+  return (
+    activeScenarioId.value === scenario.id ||
+    (scenario.originIata === selectedOrigin.value &&
+      scenario.destinationIata === selectedDestination.value)
+  );
 }
 </script>
 
@@ -42,48 +52,16 @@ function selectScenario(scenario: TestScenario) {
           </span>
         </div>
 
-        <div class="flex flex-col gap-1 max-h-80 overflow-y-auto p-1 custom-scrollbar">
-          <button
+        <div class="flex flex-col gap-1 max-h-80 overflow-y-auto p-1 hud-scrollable">
+          <ScenarioCard
             v-for="scenario in TEST_SCENARIOS"
             :key="scenario.id"
-            class="w-full text-left p-2.5 rounded-lg text-xs transition-all duration-150 flex flex-col gap-1 hover:bg-surface-card border"
-            :class="[
-              activeScenarioId === scenario.id ||
-              (scenario.originIata === selectedOrigin && scenario.destinationIata === selectedDestination)
-                ? 'bg-aero-cyan/10 border-aero-cyan/40 text-text-main'
-                : 'border-transparent text-text-muted hover:text-text-main'
-            ]"
-            @click="selectScenario(scenario)"
-          >
-            <div class="flex items-center justify-between gap-2">
-              <span class="font-semibold text-text-main flex items-center gap-1.5">
-                {{ scenario.title }}
-              </span>
-              <UBadge
-                size="xs"
-                variant="subtle"
-                :color="scenario.badgeColor ?? 'primary'"
-                class="text-[10px] font-mono shrink-0"
-              >
-                {{ scenario.badgeText }}
-              </UBadge>
-            </div>
-            <p class="text-[11px] text-text-muted line-clamp-2 leading-relaxed">
-              {{ scenario.description }}
-            </p>
-          </button>
+            :scenario="scenario"
+            :is-active="isScenarioActive(scenario)"
+            @select="selectScenario"
+          />
         </div>
       </div>
     </template>
   </UPopover>
 </template>
-
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-}
-</style>
