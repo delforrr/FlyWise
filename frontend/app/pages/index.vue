@@ -18,10 +18,12 @@ useSeoMeta({
     <!-- 2. Capa Superior: Interfaz HUD y Header (Flotante) -->
     <div class="relative z-10 h-full w-full flex flex-col pointer-events-none">
       <div class="pointer-events-auto">
-        <LayoutHeader />
+        <LayoutHeader :has-login="true" />
       </div>
 
-      <main class="relative flex-1 overflow-hidden p-3 sm:p-6 pointer-events-none">
+      <main
+        class="relative flex-1 overflow-hidden p-3 sm:p-6 pointer-events-none"
+      >
         <!-- Panel Flotante de Resultados de Rutas / Desglose de Aerolíneas -->
         <HudRouteResults />
 
