@@ -40,7 +40,14 @@ function getAirportsGeoJSON(airports: Airport[]) {
   };
 }
 
-let labelsInteractionsRegistered = false;
+/**
+ * Verifica si el estilo base de MapLibre está inicializado y listo para recibir capas y fuentes
+ */
+function isMapStyleReady(map: Map | null | undefined): boolean {
+  if (!map) return false;
+  const style = map.style as unknown as { _loaded?: boolean } | undefined;
+  return Boolean(style && style._loaded);
+}
 
 /**
  * Registra o sincroniza la capa nativa de símbolos vectoriales en MapLibre GL
@@ -53,7 +60,7 @@ function syncMapLibreAirportLabels(
   if (!map) return;
 
   const doSync = () => {
-    if (!map.isStyleLoaded()) return;
+    if (!isMapStyleReady(map)) return;
 
     try {
       const source = map.getSource(AIRPORTS_SOURCE_ID) as GeoJSONSource | undefined;
@@ -110,50 +117,15 @@ function syncMapLibreAirportLabels(
           isLight ? "rgba(255, 255, 255, 0.95)" : "rgba(7, 11, 20, 0.95)",
         );
       }
-
-      // Registrar interacción por clic sobre la etiqueta
-      if (!labelsInteractionsRegistered && map.getLayer(AIRPORTS_LABELS_LAYER_ID)) {
-        labelsInteractionsRegistered = true;
-        map.on("click", AIRPORTS_LABELS_LAYER_ID, (e) => {
-          if (e.features && e.features[0]?.properties?.iata) {
-            const iata = e.features[0].properties.iata as string;
-            const { setOrigin, setDestination, selectedOrigin: curOrig, selectedDestination: curDest } = useFlightSelection();
-            if (!curOrig.value) {
-              setOrigin(iata);
-            } else if (curOrig.value === iata) {
-              setOrigin(undefined);
-            } else if (!curDest.value) {
-              setDestination(iata);
-            } else {
-              setOrigin(iata);
-            }
-          }
-        });
-
-        map.on("mouseenter", AIRPORTS_LABELS_LAYER_ID, () => {
-          map.getCanvas().style.cursor = "pointer";
-        });
-
-        map.on("mouseleave", AIRPORTS_LABELS_LAYER_ID, () => {
-          map.getCanvas().style.cursor = "";
-        });
-      }
     } catch (err) {
       console.warn("[FlyWise] Error en syncMapLibreAirportLabels:", err);
     }
   };
 
-  if (map.isStyleLoaded()) {
+  if (isMapStyleReady(map)) {
     doSync();
   } else {
-    // Escuchar styledata hasta que el estilo esté completamente cargado
-    const onStyleData = () => {
-      if (map.isStyleLoaded()) {
-        map.off("styledata", onStyleData);
-        doSync();
-      }
-    };
-    map.on("styledata", onStyleData);
+    map.once("style.load", doSync);
   }
 }
 
@@ -306,7 +278,7 @@ export const useFlightMap = () => {
       });
     }
 
-    if (mapInstance.value && mapInstance.value.isStyleLoaded()) {
+    if (mapInstance.value) {
       const orig = selectedOrigin.value;
       const dest = selectedDestination.value;
       const hasSelection = Boolean(orig || dest);
@@ -363,8 +335,10 @@ export const useFlightMap = () => {
   function setBaseMapStyle(styleUrl: string): void {
     if (!mapInstance.value) return;
     const map = mapInstance.value;
-    labelsInteractionsRegistered = false;
     map.setStyle(styleUrl);
+    map.once("style.load", () => {
+      updateLayers();
+    });
   }
 
   /**
@@ -413,7 +387,7 @@ export const useFlightMap = () => {
           if (!selectedOrigin.value) {
             setOrigin(iata);
           } else if (selectedOrigin.value === iata) {
-            setOrigin(null);
+            setOrigin(undefined);
           } else if (!selectedDestination.value) {
             setDestination(iata);
           } else {
@@ -481,15 +455,24 @@ export const useFlightMap = () => {
         updateLayers();
       };
 
-      if (map.loaded() && map.isStyleLoaded()) {
+      if (isMapStyleReady(map)) {
         handleStyleOrReady();
       } else {
-        map.once("load", handleStyleOrReady);
+        map.once("load", () => {
+          isLoaded.value = true;
+        });
+        map.once("style.load", handleStyleOrReady);
       }
 
+      // Escuchar style.load para recargar capas nativas tras cambios de estilo base (ej. tema claro/oscuro)
+      map.on("style.load", () => {
+        handleStyleOrReady();
+      });
+
+      // Si por alguna razón tras cambios de datos la capa de etiquetas falta, re-sincronizarla
       map.on("styledata", () => {
-        if (map.isStyleLoaded()) {
-          handleStyleOrReady();
+        if (isMapStyleReady(map) && !map.getLayer(AIRPORTS_LABELS_LAYER_ID)) {
+          updateLayers();
         }
       });
 
@@ -531,7 +514,6 @@ export const useFlightMap = () => {
       mapInstance.value.remove();
       mapInstance.value = null;
     }
-    labelsInteractionsRegistered = false;
     isLoaded.value = false;
     currentPitch.value = 0;
     currentZoom.value = 0;

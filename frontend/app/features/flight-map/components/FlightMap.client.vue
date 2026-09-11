@@ -95,6 +95,7 @@ watch(
   (mode) => {
     const targetStyle = mode === "light" ? MAP_STYLES.light : MAP_STYLES.dark;
     setBaseMapStyle(targetStyle);
+    updateLayers();
   },
 );
 

@@ -102,7 +102,6 @@
   transform: translateY(-1px);
 }
 
-
 /* Badges de Confiabilidad OTP-15 */
 .badge-otp-good {
   background-color: rgba(16, 185, 129, 0.15);
@@ -224,7 +223,11 @@
   justify-content: space-between;
   padding: 0.875rem;
   border-bottom: 1px solid var(--color-border-subtle);
-  background-color: color-mix(in srgb, var(--color-surface-card) 75%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-card) 75%,
+    transparent
+  );
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -236,7 +239,11 @@
   justify-content: space-between;
   padding: 0.625rem 0.75rem;
   border-radius: 0.75rem;
-  background-color: color-mix(in srgb, var(--color-surface-base) 60%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-base) 60%,
+    transparent
+  );
   border: 1px solid var(--color-border-subtle);
   cursor: pointer;
   user-select: none;
@@ -303,4 +310,3 @@
 .hud-scrollable::-webkit-scrollbar-thumb:hover {
   background: rgba(56, 189, 248, 0.4);
 }
-

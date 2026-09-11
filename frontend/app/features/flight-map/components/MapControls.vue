@@ -5,6 +5,7 @@
       <UPopover
         arrow
         :content="{ side: 'left', align: 'start', sideOffset: 8 }"
+        class="bg-surface-base"
       >
         <UButton
           icon="i-lucide-info"

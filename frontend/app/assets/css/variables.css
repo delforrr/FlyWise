@@ -8,7 +8,7 @@
   /* Modo Claro (Por defecto cuando el OS es Light) */
   --color-bg-base: #f8fafc;
   --color-bg-accent: #dfe3e7;
-  --color-surface-base: #ffffff;
+  --color-surface-base: #eff6ff;
   --color-surface-elevated: #f1f5f9;
   --color-surface-accent: #f2f8ff;
   --color-surface-card: #ffffff;
@@ -66,7 +66,7 @@
 .dark {
   /* Modo Oscuro (Automático por OS o clase .dark) */
   --color-bg-base: #070b14;
-  --color-bg-accent: #0A0F18; 
+  --color-bg-accent: #0a0f18;
   --color-surface-base: #0f1418;
   --color-surface-accent: #0f1626;
   --color-surface-elevated: #171c20;
