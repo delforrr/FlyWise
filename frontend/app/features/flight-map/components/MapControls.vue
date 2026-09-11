@@ -41,9 +41,9 @@
 
             <!-- Badges de Confiabilidad -->
             <div class="flex flex-col gap-2">
-              <HudOtpBadge message="Alta" />
-              <HudOtpBadge message="Media" />
-              <HudOtpBadge message="Baja" />
+              <OtpBadge message="Alta" />
+              <OtpBadge message="Media" />
+              <OtpBadge message="Baja" />
             </div>
           </div>
         </template>
@@ -54,16 +54,16 @@
 
     <!-- Sección Superior: Controles de Zoom -->
     <div class="flex flex-col gap-1.5 sm:gap-2 items-center">
-      <HudControlButton type="zoomIn" />
-      <HudControlButton type="zoomOut" />
+      <ControlButton type="zoomIn" />
+      <ControlButton type="zoomOut" />
     </div>
 
     <USeparator class="w-full opacity-60 my-1" size="xs" />
 
     <!-- Sección Inferior: Acciones -->
     <div class="flex flex-col gap-1.5 sm:gap-2 items-center">
-      <HudControlButton type="toggle3D" />
-      <HudControlButton type="fitRoute" />
+      <ControlButton type="toggle3D" />
+      <ControlButton type="fitRoute" />
     </div>
   </HudPill>
 </template>

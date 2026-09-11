@@ -10,8 +10,6 @@ const props = withDefaults(defineProps<Props>(), {
   hasError: false,
 });
 
-const toast = useToast();
-
 const fields: AuthFormField[] = [
   {
     name: "email",
@@ -31,23 +29,6 @@ const fields: AuthFormField[] = [
     name: "remember",
     label: "Remember me",
     type: "checkbox",
-  },
-];
-
-const providers = [
-  {
-    label: "Google",
-    icon: "i-simple-icons-google",
-    onClick: () => {
-      toast.add({ title: "Google", description: "Login with Google" });
-    },
-  },
-  {
-    label: "GitHub",
-    icon: "i-simple-icons-github",
-    onClick: () => {
-      toast.add({ title: "GitHub", description: "Login with GitHub" });
-    },
   },
 ];
 
@@ -71,14 +52,17 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
       <UAuthForm
         :schema="schema"
         :fields="fields"
-        :providers="providers"
-        title="Welcome back!"
+        title="Acceso Restringido"
         icon="i-lucide-lock"
+        :submit="{
+          label: 'Autenticarse',
+          variant: 'subtle',
+          class: 'btn-hud-primary h-12 text-lg',
+        }"
         @submit="onSubmit"
       >
         <template #description>
-          Don't have an account?
-          <ULink to="#" class="text-primary font-medium">Sign up</ULink>.
+          Debés ser administrador para acceder al panel de admin.
         </template>
         <template #password-hint>
           <ULink to="#" class="text-primary font-medium" tabindex="-1"
@@ -94,9 +78,8 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
           />
         </template>
         <template #footer>
-          By signing in, you agree to our
-          <ULink to="#" class="text-primary font-medium">Terms of Service</ULink
-          >.
+          Volver a la página de
+          <ULink to="#" class="text-primary font-medium">Bienvenida</ULink>.
         </template>
       </UAuthForm>
     </UPageCard>

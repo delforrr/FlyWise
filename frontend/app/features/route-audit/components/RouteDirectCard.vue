@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { FlightRoute } from "~/types/route";
-import RouteAirlineRow from "./RouteAirlineRow.vue";
 
 defineProps<{
   route: FlightRoute;
@@ -14,7 +13,7 @@ defineProps<{
         <UIcon name="i-lucide-plane" class="w-3.5 h-3.5 text-aero-cyan" />
         <span>Vuelo Directo</span>
       </div>
-      <HudOtpBadge :value="route.averageOtp15" />
+      <OtpBadge :value="route.averageOtp15" />
     </div>
 
     <div class="text-[11px] text-text-muted flex justify-between items-center font-mono">

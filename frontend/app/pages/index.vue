@@ -11,27 +11,27 @@ useSeoMeta({
     <!-- 1. Capa Base: Canvas WebGL MapLibre GL + Deck.gl -->
     <div class="absolute inset-0 z-0">
       <ClientOnly>
-        <MapFlightMap />
+        <FlightMap />
       </ClientOnly>
     </div>
 
     <!-- 2. Capa Superior: Interfaz HUD y Header (Flotante) -->
     <div class="relative z-10 h-full w-full flex flex-col pointer-events-none">
       <div class="pointer-events-auto">
-        <LayoutHeader :has-login="true" />
+        <AppHeader :has-login="true" />
       </div>
 
       <main
         class="relative flex-1 overflow-hidden p-3 sm:p-6 pointer-events-none"
       >
         <!-- Panel Flotante de Resultados de Rutas / Desglose de Aerolíneas -->
-        <HudRouteResults />
+        <RouteResults />
 
         <!-- HUD de Controles y Leyenda de Confiabilidad -->
         <HudWrapper />
 
         <!-- Drawer y Trigger de Búsqueda Móvil -->
-        <HudSearchMobileSearchDrawer />
+        <MobileSearchDrawer />
       </main>
     </div>
 

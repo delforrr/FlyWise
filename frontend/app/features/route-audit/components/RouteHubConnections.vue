@@ -51,7 +51,7 @@ function handleClick(route: FlightRoute) {
           <span class="font-mono text-[10px] text-text-muted hidden sm:inline">
             {{ route.distanceKm.toLocaleString() }}km
           </span>
-          <HudOtpBadge :value="route.averageOtp15" />
+          <OtpBadge :value="route.averageOtp15" />
         </div>
       </div>
     </div>

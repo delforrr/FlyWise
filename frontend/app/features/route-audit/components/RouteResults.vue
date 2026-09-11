@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { SEED_AIRPORTS_BY_IATA } from "~/data/seedData";
 import { type FlightRoute } from "~/types/route";
-import RouteHeader from "./results/RouteHeader.vue";
-import RouteDirectCard from "./results/RouteDirectCard.vue";
-import RouteConnectingList from "./results/RouteConnectingList.vue";
-import RouteHubConnections from "./results/RouteHubConnections.vue";
 
 const {
   selectedOrigin,

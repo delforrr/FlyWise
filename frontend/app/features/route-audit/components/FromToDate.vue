@@ -100,7 +100,7 @@ function handleSearch() {
     </div>
 
     <!-- Contador de Rutas Coincidentes (si hay filtro activo) -->
-    <HudSearchRouteCounterBadge
+    <RouteCounterBadge
       v-if="selectedOrigin || selectedDestination"
       :count="matchingRoutes.length"
     />

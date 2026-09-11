@@ -14,6 +14,6 @@ defineProps<{
         Demora media: ~{{ airline.avgDelayMinutes }} min · Canc: {{ airline.cancellationRate }}%
       </span>
     </div>
-    <HudOtpBadge :value="airline.otp15" />
+    <OtpBadge :value="airline.otp15" />
   </div>
 </template>

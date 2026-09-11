@@ -5,7 +5,6 @@ import {
   getLocalTimeZone,
 } from "@internationalized/date";
 import { SEED_AIRPORTS } from "~/data/seedData";
-import RouteCounterBadge from "./RouteCounterBadge.vue";
 
 const {
   selectedOrigin,

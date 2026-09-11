@@ -5,7 +5,7 @@ import { ArcLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { Airport } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { SEED_AIRPORTS } from "~/data/seedData";
-import { getOtpColor, MAP_STYLES } from "~/utils/mapUtils";
+import { getOtpColor, MAP_STYLES } from "../utils/mapUtils";
 
 // Estado del mapa compartido a nivel módulo (Singleton para sincronizar componentes HUD)
 const mapInstance = shallowRef<Map | null>(null);

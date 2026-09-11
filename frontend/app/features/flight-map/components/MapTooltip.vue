@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { FlightRoute } from "~/types/route";
 import type { Airport } from "~/types/airport";
-import RouteTooltipContent from "./tooltip/RouteTooltipContent.vue";
-import AirportTooltipContent from "./tooltip/AirportTooltipContent.vue";
 
 const { hoveredEntity } = useFlightSelection();
 

@@ -18,9 +18,9 @@
     <template #content>
       <HudContainer variant="box" rounded="xl" class="mt-2 w-full p-4">
         <div class="flex flex-col gap-3">
-          <HudOtpBadge message="Alta" />
-          <HudOtpBadge message="Media" />
-          <HudOtpBadge message="Baja" />
+          <OtpBadge message="Alta" />
+          <OtpBadge message="Media" />
+          <OtpBadge message="Baja" />
         </div>
       </HudContainer>
     </template>

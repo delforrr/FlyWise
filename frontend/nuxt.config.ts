@@ -6,6 +6,34 @@ export default defineNuxtConfig({
 
   modules: ["@nuxt/ui"],
 
+  components: [
+    {
+      path: "~/features/auth/components",
+      pathPrefix: false,
+    },
+    {
+      path: "~/features/flight-map/components",
+      pathPrefix: false,
+    },
+    {
+      path: "~/features/route-audit/components",
+      pathPrefix: false,
+    },
+    {
+      path: "~/shared/components",
+      pathPrefix: false,
+    },
+  ],
+
+  imports: {
+    dirs: [
+      "features/*/composables",
+      "features/*/utils",
+      "shared/composables",
+      "shared/utils",
+    ],
+  },
+
   icon: {
     serverBundle: {
       collections: ["lucide"],

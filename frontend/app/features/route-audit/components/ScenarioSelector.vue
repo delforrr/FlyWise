@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { TEST_SCENARIOS, type TestScenario } from "~/data/seedData";
-import ScenarioCard from "./scenarios/ScenarioCard.vue";
 
 const {
   applyScenario,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
-import { MAP_STYLES } from "~/utils/mapUtils";
+import { MAP_STYLES } from "../utils/mapUtils";
 
 const mapContainer = ref<HTMLDivElement | null>(null);
 

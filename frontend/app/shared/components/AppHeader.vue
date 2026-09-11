@@ -25,12 +25,12 @@
     </template>
 
     <template #default>
-      <HudFromToDate class="hidden md:flex" />
+      <FromToDate class="hidden md:flex" />
     </template>
 
     <template #right>
-      <HudScenarioSelector />
-      <CommonToggleTheme />
+      <ScenarioSelector />
+      <ThemeToggle />
     </template>
   </UHeader>
 </template>

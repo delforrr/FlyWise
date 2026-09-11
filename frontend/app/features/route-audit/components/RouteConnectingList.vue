@@ -29,7 +29,7 @@ const emit = defineEmits<{
         <span class="font-bold text-text-main">{{ cRoute.destinationIata }}</span>
         <span class="text-[10px] text-text-muted ml-1 font-sans">({{ cRoute.primaryAirline }})</span>
       </div>
-      <HudOtpBadge :value="cRoute.averageOtp15" />
+      <OtpBadge :value="cRoute.averageOtp15" />
     </div>
   </div>
 </template>
