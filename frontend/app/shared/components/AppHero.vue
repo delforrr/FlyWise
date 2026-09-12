@@ -34,16 +34,23 @@ const features: FeatureProps[] = [
       <template #title>
         Información de Vuelo y
         <span
-          class="inline-block drop-shadow-[0_4px_14px_rgba(56,189,248,0.45)]"
+          class="inline-block drop-shadow-[0_4px_14px_color-mix(in_srgb,var(--color-primary)_45%,transparent)]"
         >
           <span
-            class="bg-linear-to-r from-[#0053db] to-[#38bdf8] bg-clip-text text-transparent"
+            class="bg-linear-to-r from-secondary to-primary bg-clip-text text-transparent"
           >
             Confiabilidad en Tiempo Real
           </span>
         </span>
       </template>
     </UPageSection>
-    <UPageLogos :items="['i-lucide-github']" />
+    <UPageLogos title="Dejá tu estrella">
+      <ULink
+        as="button"
+        to="https://github.com/delforrr/FlyWise"
+        target="_blank"
+        ><UIcon name="i-lucide-github" class="size-7 shrink-0"></UIcon
+      ></ULink>
+    </UPageLogos>
   </div>
 </template>

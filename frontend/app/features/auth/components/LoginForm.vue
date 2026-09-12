@@ -81,7 +81,7 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
         </template>
         <template #footer>
           Volver a la página de
-          <ULink to="#" class="text-primary font-medium">Bienvenida</ULink>.
+          <ULink to="/" class="text-primary font-medium">Bienvenida</ULink>.
         </template>
       </UAuthForm>
     </UPageCard>

@@ -9,8 +9,7 @@ export type HudRounded =
   | "xl"
   | "2xl"
   | "3xl"
-  | "full"
-  | string;
+  | "full";
 
 export type HudOrientation = "horizontal" | "vertical";
 
@@ -20,3 +19,9 @@ export type HudActionType =
   | "toggle3D"
   | "fitRoute"
   | "resetNorth";
+
+export interface HudHeaderNav {
+  text: string;
+  icon: string;
+  to?: string;
+}
