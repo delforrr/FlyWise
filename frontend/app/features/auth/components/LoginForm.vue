@@ -17,6 +17,7 @@ const fields: AuthFormField[] = [
     label: "Email",
     placeholder: "Enter your email",
     required: true,
+    size: "xl",
   },
   {
     name: "password",
@@ -24,6 +25,7 @@ const fields: AuthFormField[] = [
     type: "password",
     placeholder: "Enter your password",
     required: true,
+    size: "xl",
   },
   {
     name: "remember",
@@ -48,7 +50,7 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 <template>
   <div class="flex flex-col items-center justify-center gap-4 p-4">
-    <UPageCard spotlight class="w-full max-w-md p-4">
+    <UPageCard spotlight class="w-full max-w-xl p-4">
       <UAuthForm
         :schema="schema"
         :fields="fields"

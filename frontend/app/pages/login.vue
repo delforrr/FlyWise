@@ -6,6 +6,8 @@ useSeoMeta({
 </script>
 
 <template>
+  <AppHeader />
+
   <UPage
     class="min-h-screen"
     :ui="{
@@ -18,7 +20,7 @@ useSeoMeta({
   >
     <template #left>
       <div class="hidden lg:flex h-full w-full items-center justify-center">
-        <!-- Espacio para branding, ilustración o logo de FlyWise -->
+        <AppHero />
       </div>
     </template>
 
