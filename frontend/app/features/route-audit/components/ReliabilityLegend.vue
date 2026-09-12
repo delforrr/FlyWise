@@ -12,7 +12,7 @@
       block
       class="btn-hud-secondary"
     >
-      <span class="hud-legend">Leyenda Confiabilidad OTP</span>
+      <span class="hud-legend">Leyenda</span>
     </UButton>
 
     <template #content>

@@ -54,6 +54,6 @@ const dotClass = computed<string>(() => {
       class="inline-block w-2 h-2 rounded-full mr-1.5 animate-pulse shrink-0"
       :class="dotClass"
     />
-    <span>{{ reliabilityLevel }} confiabilidad ({{ scoreText }})</span>
+    <span>{{ reliabilityLevel }} ({{ scoreText }})</span>
   </span>
 </template>

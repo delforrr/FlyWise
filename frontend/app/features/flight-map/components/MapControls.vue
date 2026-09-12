@@ -2,24 +2,20 @@
   <HudPill vertical interactive class="p-1.5 sm:p-2 w-auto items-center">
     <!-- Botón Info Leyenda OTP (Visible en móviles encima de los controles de mapa) -->
     <div class="md:hidden flex flex-col items-center w-full">
-      <UPopover
-        arrow
-        :content="{ side: 'left', align: 'start', sideOffset: 8 }"
-        class="bg-surface-base"
-      >
+      <UCollapsible :unmount-on-hide="false" class="flex flex-col items-center">
         <UButton
           icon="i-lucide-info"
           color="neutral"
           variant="ghost"
           size="sm"
-          title="Leyenda Confiabilidad OTP"
+          title="Leyenda OTP"
           aria-label="Ver leyenda de confiabilidad OTP"
           class="text-aero-cyan hover:text-aero-cyan/80 transition-colors"
         />
 
         <template #content>
           <div
-            class="w-64 p-3 bg-surface-elevated/95 backdrop-blur-xl border border-border-subtle rounded-xl shadow-2xl flex flex-col gap-2.5 select-none"
+            class="w-64 p-3 bg-surface-elevated/95 backdrop-blur-xl border border-border-subtle rounded-xl shadow-2xl flex flex-col gap-2.5 select-none my-1"
           >
             <!-- Cabecera de la Leyenda -->
             <div
@@ -32,7 +28,7 @@
                 <span
                   class="text-xs font-bold font-mono text-text-main uppercase tracking-wider truncate"
                 >
-                  Leyenda Confiabilidad OTP
+                  Leyenda OTP
                 </span>
                 <span class="text-[10px] text-text-muted truncate">
                   Retraso ≤ 15 min del horario programado
@@ -48,7 +44,7 @@
             </div>
           </div>
         </template>
-      </UPopover>
+      </UCollapsible>
 
       <USeparator class="w-full opacity-60 my-1" size="xs" />
     </div>

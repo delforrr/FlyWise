@@ -51,6 +51,13 @@
     0 0 32px rgba(56, 189, 248, 0.35);
 }
 
+.hud-secondary-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+
 .hud-legend {
   font-family: var(--font-mono);
   font-weight: 500;

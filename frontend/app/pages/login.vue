@@ -11,11 +11,11 @@ useSeoMeta({
   <UPage
     class="min-h-screen"
     :ui="{
-      root: 'min-h-screen lg:grid lg:grid-cols-2 lg:gap-0',
+      root: 'min-h-screen lg:grid lg:grid-cols-12 lg:gap-0',
       center: 'hidden',
-      left: 'hidden lg:flex lg:col-span-1 items-center justify-center',
+      left: 'hidden lg:flex lg:col-span-7 items-center justify-center p-8',
       right:
-        'lg:col-start-2 lg:col-span-1 flex items-center justify-center w-full min-h-screen p-4 bg-accent',
+        'lg:col-span-5 flex items-center justify-center w-full min-h-screen p-6 bg-accent',
     }"
   >
     <template #left>
@@ -28,7 +28,8 @@ useSeoMeta({
       <div
         class="flex flex-col items-center justify-center w-full h-full min-h-screen bg-accent"
       >
-        <LoginForm />
+        <HeroInput />
+        <!-- <LoginForm /> -->
       </div>
     </template>
   </UPage>

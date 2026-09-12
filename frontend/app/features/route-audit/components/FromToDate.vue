@@ -6,6 +6,14 @@ import {
 } from "@internationalized/date";
 import { SEED_AIRPORTS } from "~/data/seedData";
 
+interface FromToDateProps {
+  hasDate?: boolean;
+}
+
+const props = withDefaults(defineProps<FromToDateProps>(), {
+  hasDate: false,
+});
+
 const {
   selectedOrigin,
   selectedDestination,
@@ -45,10 +53,6 @@ function handleSearch() {
       icon="i-lucide-plane-takeoff"
       size="sm"
       class="hud-custom-input w-28 sm:w-36 shrink-0 font-mono font-semibold"
-      :ui="{
-        base: 'w-full h-8 sm:h-9 leading-none',
-        root: 'shrink-0',
-      }"
     />
 
     <!-- Botón Intercambiar Origen / Destino -->
@@ -72,16 +76,17 @@ function handleSearch() {
       icon="i-lucide-plane-landing"
       size="sm"
       class="hud-custom-input w-28 sm:w-36 shrink-0 font-mono font-semibold"
-      :ui="{
-        base: 'w-full h-8 sm:h-9 leading-none',
-        root: 'shrink-0',
-      }"
     />
 
-    <USeparator orientation="vertical" class="h-4 hidden sm:block shrink-0" size="sm" />
+    <USeparator
+      v-if="hasDate"
+      orientation="vertical"
+      class="h-4 hidden sm:block shrink-0"
+      size="sm"
+    />
 
     <!-- Selector de Fecha (Desktop) -->
-    <div class="hidden md:flex items-center shrink-0">
+    <div v-if="hasDate" class="hidden md:flex items-center shrink-0">
       <UPopover arrow>
         <UButton
           color="neutral"
@@ -99,6 +104,13 @@ function handleSearch() {
       </UPopover>
     </div>
 
+    <USeparator
+      v-if="selectedOrigin || selectedDestination"
+      orientation="vertical"
+      class="h-4 hidden sm:block shrink-0 mx-3"
+      size="sm"
+    />
+
     <!-- Contador de Rutas Coincidentes (si hay filtro activo) -->
     <RouteCounterBadge
       v-if="selectedOrigin || selectedDestination"
@@ -107,7 +119,7 @@ function handleSearch() {
 
     <!-- Botón de Búsqueda / Encuadre HUD -->
     <UButton
-      icon="i-lucide-search"
+      icon="i-lucide-locate"
       size="sm"
       class="btn-hud-primary rounded-xl shrink-0 px-2.5 sm:px-3 shadow-md"
       aria-label="Buscar vuelo y centrar cámara"
