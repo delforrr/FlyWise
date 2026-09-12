@@ -10,7 +10,7 @@ defineProps<{
   <div class="flex flex-col gap-2.5 p-3 rounded-xl bg-surface-card/60 border border-border-subtle/60 shadow-sm">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-1.5 text-xs font-mono font-bold text-text-main">
-        <UIcon name="i-lucide-plane" class="w-3.5 h-3.5 text-aero-cyan" />
+        <UIcon name="i-lucide-plane" class="w-3.5 h-3.5 text-primary" />
         <span>Vuelo Directo</span>
       </div>
       <OtpBadge :value="route.averageOtp15" />

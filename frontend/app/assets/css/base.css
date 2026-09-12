@@ -29,6 +29,6 @@ body {
 }
 
 ::selection {
-  background-color: rgba(56, 189, 248, 0.3);
-  color: var(--color-aero-glow);
+  background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  color: var(--color-tertiary);
 }

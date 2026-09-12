@@ -125,7 +125,7 @@ function handleClick(event: MouseEvent) {
     size="sm"
     :disabled="props.disabled"
     :aria-label="computedAriaLabel"
-    class="text-text-main hover:text-aero-cyan transition-colors"
+    class="text-text-main hover:text-primary transition-colors"
     @click="handleClick"
   />
 </template>

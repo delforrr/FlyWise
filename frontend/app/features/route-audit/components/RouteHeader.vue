@@ -20,7 +20,7 @@ const emit = defineEmits<{
 <template>
   <div class="hud-panel-header">
     <div class="flex items-center gap-2 overflow-hidden">
-      <div class="w-2.5 h-2.5 rounded-full bg-aero-cyan animate-pulse shrink-0" />
+      <div class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shrink-0" />
       <div class="truncate">
         <h3 class="text-xs font-bold font-mono text-text-main uppercase tracking-wider truncate">
           <template v-if="selectedOrigin && selectedDestination">
@@ -53,7 +53,7 @@ const emit = defineEmits<{
         icon="i-lucide-search"
         variant="ghost"
         size="xs"
-        class="text-aero-cyan hover:text-aero-cyan/80 md:hidden"
+        class="text-primary hover:text-primary/80 md:hidden"
         aria-label="Modificar búsqueda"
         title="Modificar búsqueda"
         @click="emit('openSearch')"

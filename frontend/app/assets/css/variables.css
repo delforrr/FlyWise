@@ -57,6 +57,15 @@
     --color-text-muted
   ); /* Neutral: Superficies, separadores y atenuaciones */
 
+  /* Puente Nuxt UI (Sobrescribe defaults de Nuxt UI) */
+  --ui-primary: var(--color-primary);
+  --ui-secondary: var(--color-secondary);
+  --ui-tertiary: var(--color-tertiary);
+  --ui-success: var(--color-success);
+  --ui-info: var(--color-info);
+  --ui-warning: var(--color-warning);
+  --ui-error: var(--color-error);
+
   --hud-panel-bg: rgba(255, 255, 255, 0.88);
   --hud-panel-border: rgba(226, 232, 240, 0.95);
   --hud-card-bg: rgba(248, 250, 252, 0.9);
@@ -114,8 +123,29 @@
     --color-text-muted
   ); /* Neutral: Fondos profundos y bordes oscuros */
 
+  /* Puente Nuxt UI (Sobrescribe defaults de Nuxt UI) */
+  --ui-primary: var(--color-primary);
+  --ui-secondary: var(--color-secondary);
+  --ui-tertiary: var(--color-tertiary);
+  --ui-success: var(--color-success);
+  --ui-info: var(--color-info);
+  --ui-warning: var(--color-warning);
+  --ui-error: var(--color-error);
+
   --hud-panel-bg: rgba(15, 20, 24, 0.85);
   --hud-panel-border: rgba(37, 43, 46, 0.8);
   --hud-card-bg: rgba(27, 32, 36, 0.75);
   --hud-input-bg: rgba(10, 15, 18, 0.85);
+}
+
+:root,
+:host,
+.light {
+  --ui-primary: var(--color-primary);
+  --ui-secondary: var(--color-secondary);
+  --ui-tertiary: var(--color-tertiary);
+  --ui-success: var(--color-success);
+  --ui-info: var(--color-info);
+  --ui-warning: var(--color-warning);
+  --ui-error: var(--color-error);
 }

@@ -10,7 +10,7 @@
           size="sm"
           title="Leyenda OTP"
           aria-label="Ver leyenda de confiabilidad OTP"
-          class="text-aero-cyan hover:text-aero-cyan/80 transition-colors"
+          class="text-primary hover:text-primary/80 transition-colors"
         />
 
         <template #content>
@@ -22,7 +22,7 @@
               class="flex items-center gap-2 pb-1.5 border-b border-border-subtle/60"
             >
               <div
-                class="w-2 h-2 rounded-full bg-aero-cyan animate-pulse shrink-0"
+                class="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0"
               />
               <div class="flex flex-col min-w-0">
                 <span

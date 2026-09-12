@@ -60,7 +60,7 @@ function handleSearch() {
       icon="i-lucide-arrow-left-right"
       variant="ghost"
       size="xs"
-      class="rounded-full shrink-0 text-aero-cyan/80 hover:text-aero-cyan hover:bg-surface-card transition-transform"
+      class="rounded-full shrink-0 text-primary/80 hover:text-primary hover:bg-surface-card transition-transform"
       :style="{ transform: `rotate(${rotation}deg)` }"
       aria-label="Invertir origen y destino"
       @click="swapAirports"
