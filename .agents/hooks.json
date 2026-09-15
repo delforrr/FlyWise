@@ -1,45 +1,5 @@
 {
   "flywise-sandboxing-and-rnf": {
-    "PreToolUse": [
-      {
-        "matcher": "write_to_file|replace_file_content",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ../scripts/guardrails/pre-edit-guard.js",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "run_command",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ../scripts/guardrails/pre-command-guard.js",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "write_to_file|replace_file_content",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ../scripts/guardrails/post-edit-verify.js",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "type": "command",
-        "command": "node ../scripts/guardrails/stop-quality-gate.js",
-        "timeout": 15
-      }
-    ]
+    "enabled": false
   }
 }

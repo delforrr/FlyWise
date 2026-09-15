@@ -109,19 +109,273 @@
   transform: translateY(-1px);
 }
 
+/* ==========================================
+   INPUT CARD DE AEROPUERTO (HUD AERONÁUTICO)
+   Responsabilidad: Tarjetas de selección Origen/Destino
+   con borde profesional, indicadores de rol, micro-glow
+   y comportamiento de input completamente 'ghost'.
+   ========================================== */
+
 .input-card {
+  --input-card-accent: var(--color-primary);
+  position: relative;
   display: flex;
-  flex-direction: row;
-  border-radius: 10px;
-  border: 1px solid var(--color-secondary);
+  flex-direction: column;
+  border-radius: var(--hud-border-radius, 1rem);
+  border: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface-card) 85%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition:
+    border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.input-iata {
-  border: 1px solid var(--color-primary);
-  width: 50px;
-  color: var(--color-primary);
-  border-radius: 10px;
+.dark .input-card {
+  background: color-mix(in srgb, var(--color-surface-card) 75%, transparent);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
 }
+
+/* Indicador lateral luminoso integrado en el borde */
+.input-card::before {
+  content: "";
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  left: 0;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background-color: var(--input-card-accent);
+  opacity: 0.55;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.input-card:hover::before,
+.input-card:focus-within::before {
+  top: 10%;
+  bottom: 10%;
+  opacity: 1;
+  box-shadow: 0 0 10px var(--input-card-accent);
+}
+
+/* Variante Origen: Acento Aero Cyan */
+.input-card--origin,
+.input-card[data-type="origin"] {
+  --input-card-accent: var(--color-primary);
+  border-color: color-mix(
+    in srgb,
+    var(--color-primary) 25%,
+    var(--color-border-subtle)
+  );
+}
+
+/* Variante Destino: Acento Electric Cobalt */
+.input-card--destination,
+.input-card[data-type="destination"] {
+  --input-card-accent: var(--color-secondary);
+  border-color: color-mix(
+    in srgb,
+    var(--color-secondary) 25%,
+    var(--color-border-subtle)
+  );
+}
+
+/* Estados Interactivos: Hover y Focus-Within (Borde profesional con glow suave) */
+.input-card:hover {
+  border-color: color-mix(
+    in srgb,
+    var(--input-card-accent) 55%,
+    var(--color-border-hover)
+  );
+  background: color-mix(
+    in srgb,
+    var(--color-surface-elevated) 90%,
+    transparent
+  );
+  box-shadow:
+    0 6px 22px -2px rgba(0, 0, 0, 0.08),
+    0 0 16px -2px color-mix(in srgb, var(--input-card-accent) 20%, transparent);
+}
+
+.input-card:focus-within {
+  border-color: var(--input-card-accent);
+  background: color-mix(
+    in srgb,
+    var(--color-surface-elevated) 95%,
+    transparent
+  );
+  box-shadow:
+    0 0 0 1px var(--input-card-accent),
+    0 0 24px -2px color-mix(in srgb, var(--input-card-accent) 30%, transparent);
+}
+
+/* Badge de Rol (Origen / Destino) */
+.input-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.625rem;
+  border-radius: 9999px;
+  color: var(--input-card-accent);
+  background-color: color-mix(
+    in srgb,
+    var(--input-card-accent) 12%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--input-card-accent) 30%, transparent);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.input-card:hover .input-card-badge,
+.input-card:focus-within .input-card-badge {
+  background-color: color-mix(
+    in srgb,
+    var(--input-card-accent) 18%,
+    transparent
+  );
+  border-color: var(--input-card-accent);
+}
+
+/* Badge IATA Seleccionado */
+.input-iata {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  height: 3.5rem;
+  padding: 0 0.5rem;
+  border-radius: 0.75rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: 0.05em;
+  border: 1px solid
+    color-mix(in srgb, var(--input-card-accent) 45%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--input-card-accent) 10%,
+    transparent
+  );
+  color: var(--input-card-accent);
+  box-shadow: 0 2px 8px
+    color-mix(in srgb, var(--input-card-accent) 15%, transparent);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.input-card:hover .input-iata,
+.input-card:focus-within .input-iata {
+  border-color: var(--input-card-accent);
+  background-color: color-mix(
+    in srgb,
+    var(--input-card-accent) 16%,
+    transparent
+  );
+  box-shadow: 0 0 14px
+    color-mix(in srgb, var(--input-card-accent) 30%, transparent);
+}
+
+/* Ícono Placeholder cuando no hay IATA seleccionado */
+.input-card-placeholder-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.75rem;
+  border: 1px dashed
+    color-mix(in srgb, var(--color-border-subtle) 90%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-base) 40%,
+    transparent
+  );
+  color: var(--color-text-muted);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.input-card:hover .input-card-placeholder-icon,
+.input-card:focus-within .input-card-placeholder-icon {
+  border-color: color-mix(in srgb, var(--input-card-accent) 50%, transparent);
+  color: var(--input-card-accent);
+  background-color: color-mix(
+    in srgb,
+    var(--input-card-accent) 8%,
+    transparent
+  );
+}
+
+/* Input Ghost: Completamente transparente en reposo, hover y activo (muestra solo texto) */
+.input-card .input-ghost,
+.input-card input,
+.input-card [data-slot="input"],
+.input-card [data-slot="base"],
+.input-card [data-slot="root"],
+.input-card button[data-slot="base"] {
+  background-color: transparent !important;
+  background: transparent !important;
+  border: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  ring: 0 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-shadow: 0 0 #0000 !important;
+}
+
+.input-card .input-ghost:hover,
+.input-card .input-ghost:focus,
+.input-card .input-ghost:focus-visible,
+.input-card .input-ghost:active,
+.input-card input:hover,
+.input-card input:focus,
+.input-card input:focus-visible,
+.input-card input:active,
+.input-card [data-slot="input"]:hover,
+.input-card [data-slot="input"]:focus,
+.input-card [data-slot="input"]:focus-visible,
+.input-card [data-slot="input"]:active,
+.input-card [data-slot="base"]:hover,
+.input-card [data-slot="base"]:focus,
+.input-card [data-slot="base"]:focus-visible,
+.input-card [data-slot="base"]:active,
+.input-card [data-slot="root"]:hover,
+.input-card [data-slot="root"]:focus-within,
+.input-card button[data-slot="base"]:hover,
+.input-card button[data-slot="base"]:focus,
+.input-card button[data-slot="base"]:active {
+  background-color: transparent !important;
+  background: transparent !important;
+  border: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  ring: 0 !important;
+}
+
+.input-card input {
+  color: var(--color-text-main);
+  font-weight: 600;
+}
+
+.input-card input::placeholder {
+  color: var(--color-text-dim);
+  font-weight: 400;
+}
+
 /* Badges de Confiabilidad OTP-15 */
 .badge-otp-good {
   background-color: color-mix(in srgb, var(--color-success) 15%, transparent);

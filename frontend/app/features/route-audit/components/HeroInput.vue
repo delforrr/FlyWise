@@ -71,92 +71,78 @@ function swapAirports() {
     <USeparator size="sm" class="mt-2" />
 
     <div class="flex items-center gap-2 my-5">
-      <div class="flex flex-col flex-1 gap-3">
-        <div class="input-card p-5 items-center gap-3">
-          <div
-            v-if="selectedOrigin"
-            class="input-iata p-3 flex items-center justify-center font-mono font-bold shrink-0"
+      <div class="flex flex-col flex-1 gap-5">
+        <InputCard
+          type="origin"
+          :iata="selectedOrigin"
+          :airport="originAirport"
+        >
+          <UInputMenu
+            v-model="selectedOrigin"
+            :items="airportItems"
+            value-key="value"
+            label-key="label"
+            :filter-fields="['iata', 'name', 'city', 'country']"
+            size="xl"
+            class="w-full flex-1 input-ghost"
+            :trailing-icon="false"
+            variant="ghost"
+            placeholder="Desde: Aeropuerto, IATA, País o Ciudad"
+            :ui="{
+              base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold',
+            }"
           >
-            {{ selectedOrigin }}
-          </div>
-          <div class="flex flex-col flex-1 min-w-0">
-            <UInputMenu
-              v-model="selectedOrigin"
-              :items="airportItems"
-              value-key="value"
-              label-key="label"
-              :filter-fields="['iata', 'name', 'city', 'country']"
-              size="xl"
-              class="w-full flex-1"
-              :trailing-icon="false"
-              variant="ghost"
-              placeholder="Aeropuerto, código IATA, País o Ciudad"
-            >
-              <template #item-label="{ item }">
-                <span class="truncate">
-                  {{ item.name }}
-                  <span class="font-mono font-bold text-primary"
-                    >[{{ item.iata }}]</span
-                  >
-                </span>
-              </template>
-              <template #item-description="{ item }">
-                <span class="text-xs text-text-muted truncate">
-                  {{ item.country }}, {{ item.city }}
-                </span>
-              </template>
-            </UInputMenu>
-            <p
-              v-if="originAirport"
-              class="text-xs text-text-muted px-2.5 truncate"
-            >
-              {{ originAirport.city }}, {{ originAirport.country }}
-            </p>
-          </div>
-        </div>
+            <template #item-label="{ item }">
+              <span class="truncate">
+                {{ item.name }}
+                <span class="font-mono font-bold text-primary"
+                  >[{{ item.iata }}]</span
+                >
+              </span>
+            </template>
+            <template #item-description="{ item }">
+              <span class="text-xs text-text-muted truncate">
+                {{ item.country }}, {{ item.city }}
+              </span>
+            </template>
+          </UInputMenu>
+        </InputCard>
 
-        <div class="input-card p-5 items-center gap-3">
-          <div
-            v-if="selectedDestination"
-            class="input-iata p-3 flex items-center justify-center font-mono font-bold shrink-0"
+        <InputCard
+          type="destination"
+          :iata="selectedDestination"
+          :airport="destinationAirport"
+        >
+          <UInputMenu
+            v-model="selectedDestination"
+            :items="airportItems"
+            value-key="value"
+            label-key="label"
+            :filter-fields="['iata', 'name', 'city', 'country']"
+            size="xl"
+            class="w-full flex-1 input-ghost"
+            :trailing-icon="false"
+            variant="ghost"
+            placeholder="Hacia: Aeropuerto, IATA, País o Ciudad"
+            :ui="{
+              base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold',
+            }"
           >
-            {{ selectedDestination }}
-          </div>
-          <div class="flex flex-col flex-1 min-w-0">
-            <UInputMenu
-              v-model="selectedDestination"
-              :items="airportItems"
-              value-key="value"
-              label-key="label"
-              :filter-fields="['iata', 'name', 'city', 'country']"
-              size="xl"
-              class="w-full flex-1"
-              :trailing-icon="false"
-              variant="ghost"
-              placeholder="Aeropuerto, código IATA, País o Ciudad"
-            >
-              <template #item-label="{ item }">
-                <span class="truncate">
-                  {{ item.name }}
-                  <span class="font-mono font-bold text-primary"
-                    >[{{ item.iata }}]</span
-                  >
-                </span>
-              </template>
-              <template #item-description="{ item }">
-                <span class="text-xs text-text-muted truncate">
-                  {{ item.country }}, {{ item.city }}
-                </span>
-              </template>
-            </UInputMenu>
-            <p
-              v-if="destinationAirport"
-              class="text-xs text-text-muted px-2.5 truncate"
-            >
-              {{ destinationAirport.city }}, {{ destinationAirport.country }}
-            </p>
-          </div>
-        </div>
+            <template #item-label="{ item }">
+              <span class="truncate">
+                {{ item.name }}
+                <span class="font-mono font-bold text-primary"
+                  >[{{ item.iata }}]</span
+                >
+              </span>
+            </template>
+            <template #item-description="{ item }">
+              <span class="text-xs text-text-muted truncate">
+                {{ item.country }}, {{ item.city }}
+              </span>
+            </template>
+          </UInputMenu>
+        </InputCard>
       </div>
 
       <div class="flex flex-col gap-3">

@@ -5,6 +5,7 @@ Estas reglas regulan los archivos `docker-compose.yml`, configuraciones de red, 
 ---
 
 ## 1. Contenedores & Docker Compose
+
 - **Servicios:**
   - `flywise_postgres`: Imagen de PostgreSQL con extensión PostGIS preinstalada (`postgis/postgis:16-3.4-alpine` o similar).
   - `flywise_redis`: Imagen oficial de Redis (`redis:7-alpine`).
@@ -15,5 +16,6 @@ Estas reglas regulan los archivos `docker-compose.yml`, configuraciones de red, 
 ---
 
 ## 2. Variables de Entorno & Seguridad
+
 - Mantener siempre sincronizado `.env.example` en la raíz y en cada submódulo.
 - Prohibido hardcodear contraseñas de base de datos o secretos JWT en archivos de código fuente.

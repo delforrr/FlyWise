@@ -12,6 +12,7 @@
 **FlyWise** es una plataforma orientada al análisis de confiabilidad de vuelos comerciales y la visualización interactiva de redes globales de rutas aéreas. El sistema permite a los viajeros consultar la puntualidad histórica y métricas de desempeño de las aerolíneas mediante un mapa interactivo acelerado por GPU, y a los administradores orquestar pipelines ETL masivos para la ingesta y agregación de datos abiertos aeronáuticos.
 
 ### Objetivos Principales
+
 - **Transparencia Operativa:** Proveer a los usuarios finales información clara y verídica sobre la puntualidad (**OTP-15**), cancelaciones y demoras promedio por ruta y aerolínea.
 - **Visualización Geoespacial de Alto Rendimiento:** Renderizar miles de arcos geodésicos en un mapa global con codificación de colores según el desempeño histórico.
 - **Orquestación ETL Asíncrona:** Descargar, normalizar y agregar grandes volúmenes de datos abiertos de aviación de forma automatizada y resiliente sin degradar la experiencia de usuario.
@@ -22,9 +23,9 @@
 
 - **OTP-15 (*On-Time Performance*):** Métrica estándar que califica un vuelo como puntual si arriba con un retraso $\le 15$ minutos respecto a su itinerario programado.
 - **Codificación Visual de Rutas:**
-  - 🟢 **Verde:** OTP-15 $> 85\%$ (Alta puntualidad).
-  - 🟡 **Amarillo:** OTP-15 entre $60\%$ y $85\%$ (Puntualidad moderada).
-  - 🔴 **Rojo:** OTP-15 $< 60\%$ (Baja puntualidad / alta probabilidad de demoras).
+  - **Verde:** OTP-15 $> 85\%$ (Alta puntualidad).
+  - **Amarillo:** OTP-15 entre $60\%$ y $85\%$ (Puntualidad moderada).
+  - **Rojo:** OTP-15 $< 60\%$ (Baja puntualidad / alta probabilidad de demoras).
 - **Tupla de Agregación Analítica:** `(Aeropuerto Origen, Aeropuerto Destino, Aerolínea, Mes/Año)`.
 - **Fuentes de Datos Abiertas:**
   - *Aeropuertos:* OurAirports (coordenadas geográficas, códigos IATA/ICAO, elevación, país).
@@ -35,7 +36,7 @@
 
 ## 3. Stack Tecnológico y Arquitectura
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Frontend (Nuxt 3)                        │
 │   Vue 3 + TypeScript + MapLibre GL JS + Deck.gl (WebGL)     │
@@ -54,6 +55,7 @@
 ```
 
 ### 3.1 Frontend
+
 - **Framework:** [Nuxt 3](https://nuxt.com/) (Vue 3, Vite, TypeScript, PWA).
 - **Cartografía & Visualización Geoespacial:**
   - **MapLibre GL JS:** Control de cámara, teselas vectoriales/raster, zoom y rotación.
@@ -61,6 +63,7 @@
 - **Map Tiles:** Carto / OpenStreetMap mediante HTTPS.
 
 ### 3.2 Backend
+
 - **Framework:** [NestJS](https://nestjs.com/) (Node.js con TypeScript, arquitectura modular basada en módulos, controladores, servicios y repositorios).
 - **ORM / Capa de Datos:** [Prisma ORM](https://www.prisma.io/) interactuando con PostgreSQL.
 - **Autenticación & Seguridad:** Passport.js + `@nestjs/passport` + `passport-jwt` + `bcrypt` (Autenticación JWT con roles diferenciados).
@@ -68,6 +71,7 @@
 - **Parsing de Datasets:** `csv-parser` y `axios` para ingesta por streaming.
 
 ### 3.3 Base de Datos y Servicios de Infraestructura
+
 - **Base de Datos Relacional y Espacial:** PostgreSQL 16 con extensión **PostGIS** (para consultas de proximidad espacial, cálculo de distancias ortodrómicas y soporte de tipos geográficos).
 - **Procesamiento en Segundo Plano & Caching:**
   - **Redis 7 (Alpine):** Almacén clave-valor en memoria.
@@ -79,6 +83,7 @@
 ## 4. Requisitos del Sistema (SRS Mapping)
 
 ### 4.1 Requisitos Funcionales (RF)
+
 - **RF-01 (Mapa de Rutas Interactivo):** Visualización global de conexiones activas mediante arcos geodésicos Deck.gl coloreados según OTP-15.
 - **RF-02 (Búsqueda y Comparativa por Tramo):** Consulta directa indicando origen, destino y fecha; listado de aerolíneas ordenadas descendentemente por puntualidad histórica.
 - **RF-03 (Métricas Analíticas):** Computación periódica de OTP-15, tasa de cancelaciones y demora media por tupla `(Origen, Destino, Aerolínea, Periodo)`.
@@ -87,6 +92,7 @@
 - **RF-06 (Autenticación y Autorización):** Control de acceso administrativo protegido por JWT y encriptación de credenciales.
 
 ### 4.2 Requisitos No Funcionales (RNF)
+
 - **RNF-01 (Latencia):** Respuestas de API $\le 150\text{ ms}$ para consultas de rutas y métricas agregadas.
 - **RNF-02 (Rendimiento Gráfico):** Interacción fluida en el cliente (60 FPS en paneo y zoom) mediante capas WebGL de Deck.gl.
 - **RNF-03 (Seguridad):** Cifrado en tránsito (HTTPS/TLS) y en reposo para credenciales (`bcrypt`).
@@ -121,8 +127,9 @@
 │   │   └── pages/             # Vistas de usuario y panel admin
 │   ├── nuxt.config.ts
 │   └── package.json
+├── AGENTS.md                  # Guardrails operativos y directrices de desarrollo para agentes
 ├── docker-compose.yml         # Servicios PostgreSQL + PostGIS y Redis
-├── gemini.md                  # Contexto y directrices para asistentes de IA
+├── GEMINI.md                  # Contexto y arquitectura para asistentes de IA
 └── README.md
 ```
 
@@ -130,13 +137,13 @@
 
 ## 6. Directrices de Desarrollo para Agentes y Desarrolladores
 
-1. **Modelado y Consultas Espaciales:**
-   - Asegurar que las coordenadas de aeropuertos se indexen adecuadamente (`SRID 4326`).
-   - Las consultas de agregación analítica deben estar optimizadas con índices compuestos en `(originId, destinationId, airlineId, period)`.
-2. **Pipelines ETL Seguros:**
-   - Todo parseo de archivos masivos debe realizarse mediante *streams* o procesamiento por lotes (*batches*) en *workers* de BullMQ para evitar fugas de memoria (`OutOfMemoryError`).
-   - Guardar registro de auditoría de cada ejecución con logs de filas erróneas o descartadas.
-3. **Estrategia de Caché (*Cache-Warming*):**
-   - Precalcular y almacenar en Redis las rutas más consultadas y las estadísticas agregadas globales tras completar cada pipeline ETL.
-4. **Tipado Estricto:**
-   - Mantener TypeScript estricto tanto en backend (NestJS DTOs con `class-validator`) como en frontend (Nuxt interfaces).
+Consultar [AGENTS.md](file:///C:/Users/delfo/Repos/FlyWise/AGENTS.md) para el conjunto detallado de invariantes de cumplimiento obligatorio:
+
+1. **Sandboxing y Ramas:** Trabajo obligatorio en ramas dedicadas (`feature/*`, `bugfix/*`, `refactor/*`); `main` y `develop` están protegidas.
+2. **Modelado y Consultas Espaciales:** Coordenadas con `SRID 4326`, PostGIS para cálculos espaciales e índices en `(originId, destinationId, airlineId, period)`.
+3. **Pipelines ETL Seguros (RNF-04):** Ingesta obligatoria por Streams (`csv-parser`) o batches en BullMQ (1.000 a 5.000 filas). Prohibido `fs.readFileSync` en datasets.
+4. **Seguridad (RNF-03):** Prohibidas consultas SQL concatenadas sin sanitizar. Parametrización estricta en Prisma.
+5. **Frontend & WebGL (RNF-02):** Aislamiento de SSR con `<ClientOnly>` o `onMounted()` para Deck.gl / MapLibre. Sin `tailwind.config.js` (Tailwind CSS v4).
+6. **Estrategia de Caché (*Cache-Warming*):** Precalcular y almacenar en Redis las rutas más consultadas tras cada pipeline ETL.
+7. **Quality Gate:** Verificación estricta de compilación TypeScript (`npm run build` o `tsc --noEmit`) en backend y frontend antes de dar por cerrada cualquier tarea.
+
