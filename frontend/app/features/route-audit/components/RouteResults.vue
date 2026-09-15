@@ -82,24 +82,84 @@ function handleFocusRoute(route: FlightRoute) {
         >
           <!-- CASO A: Par Origen - Destino seleccionado -->
           <template v-if="selectedOrigin && selectedDestination">
-            <RouteDirectCard
-              v-if="selectedRouteData"
-              :route="selectedRouteData"
-            />
+            <!-- Subcaso A.1: Existen rutas directas o conexiones -->
+            <template v-if="selectedRouteData || connectingRoutes.length > 0">
+              <RouteDirectCard
+                v-if="selectedRouteData"
+                :route="selectedRouteData"
+              />
 
-            <RouteConnectingList
-              :routes="connectingRoutes"
-              @focus-route="handleFocusRoute"
-            />
+              <RouteConnectingList
+                :routes="connectingRoutes"
+                @focus-route="handleFocusRoute"
+              />
+            </template>
+
+            <!-- Subcaso A.2: Sin rutas coincidentes (Empty State) -->
+            <template v-else>
+              <UEmpty
+                icon="i-lucide-plane"
+                title="Sin rutas disponibles"
+                variant="naked"
+                size="sm"
+                class="py-4 text-center"
+              >
+                <template #description>
+                  <p class="text-xs text-text-muted max-w-xs">
+                    No se encontraron vuelos comerciales directos ni con 1
+                    escala entre
+                    <span class="font-mono font-bold text-text-main">{{
+                      selectedOrigin
+                    }}</span>
+                    y
+                    <span class="font-mono font-bold text-text-main">{{
+                      selectedDestination
+                    }}</span
+                    >.
+                  </p>
+                </template>
+
+                <template #actions>
+                  <div class="flex items-center gap-2 mt-2">
+                    <UButton
+                      label="Ver salidas de origen"
+                      icon="i-lucide-arrow-left"
+                      size="xs"
+                      variant="subtle"
+                      @click="setDestination(undefined)"
+                    />
+                    <UButton
+                      label="Limpiar"
+                      icon="i-lucide-rotate-ccw"
+                      size="xs"
+                      variant="ghost"
+                      color="neutral"
+                      @click="clearSelection"
+                    />
+                  </div>
+                </template>
+              </UEmpty>
+            </template>
           </template>
 
           <!-- CASO B: Un solo aeropuerto seleccionado (Hub multiruta) -->
           <template v-else-if="selectedOrigin || selectedDestination">
             <RouteHubConnections
+              v-if="matchingRoutes.length > 0"
               :selected-origin="selectedOrigin"
               :routes="matchingRoutes"
               @select-destination="setDestination"
             />
+            <template v-else>
+              <UEmpty
+                icon="i-lucide-plane-off"
+                title="Aeropuerto sin rutas activas"
+                description="No registramos rutas comerciales conectadas para este aeropuerto en el dataset."
+                variant="naked"
+                size="sm"
+                class="py-4 text-center"
+              />
+            </template>
           </template>
         </div>
       </div>

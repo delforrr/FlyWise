@@ -16,7 +16,7 @@ const emit = defineEmits<{
     class="w-full text-left p-2.5 rounded-lg text-xs transition-all duration-150 flex flex-col gap-1 hover:bg-surface-card border"
     :class="[
       isActive
-        ? 'bg-aero-cyan/10 border-aero-cyan/40 text-text-main'
+        ? 'bg-primary/10 border-primary/40 text-text-main'
         : 'border-transparent text-text-muted hover:text-text-main'
     ]"
     @click="emit('select', scenario)"

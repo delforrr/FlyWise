@@ -43,7 +43,7 @@ function isScenarioActive(scenario: TestScenario): boolean {
       <div class="w-80 sm:w-96 p-2 bg-surface-elevated/95 backdrop-blur-xl border border-border-subtle rounded-xl shadow-2xl flex flex-col gap-1 select-none">
         <div class="px-2.5 py-1.5 border-b border-border-subtle/50 flex items-center justify-between">
           <div class="flex items-center gap-1.5 text-xs font-semibold text-text-main font-mono">
-            <UIcon name="i-lucide-flask-conical" class="w-4 h-4 text-aero-cyan" />
+            <UIcon name="i-lucide-flask-conical" class="w-4 h-4 text-primary" />
             <span>Escenarios de Prueba (Mock Data)</span>
           </div>
           <span class="text-[10px] text-text-muted font-mono">

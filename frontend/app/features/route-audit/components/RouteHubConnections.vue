@@ -34,11 +34,11 @@ function handleClick(route: FlightRoute) {
       >
         <div class="flex flex-col gap-0.5">
           <div class="flex items-center gap-1.5 font-mono">
-            <span class="font-bold text-text-main group-hover:text-aero-cyan transition-colors">
+            <span class="font-bold text-text-main group-hover:text-primary transition-colors">
               {{ route.originIata }}
             </span>
             <UIcon name="i-lucide-arrow-right" class="w-3 h-3 text-text-muted" />
-            <span class="font-bold text-text-main group-hover:text-aero-cyan transition-colors">
+            <span class="font-bold text-text-main group-hover:text-primary transition-colors">
               {{ route.destinationIata }}
             </span>
           </div>

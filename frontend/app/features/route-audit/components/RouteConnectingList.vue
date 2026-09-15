@@ -13,7 +13,7 @@ const emit = defineEmits<{
 <template>
   <div v-if="routes.length > 0" class="flex flex-col gap-1.5">
     <span class="hud-section-label">
-      <UIcon name="i-lucide-split" class="w-3.5 h-3.5 text-aero-cyan" />
+      <UIcon name="i-lucide-split" class="w-3.5 h-3.5 text-primary" />
       <span>Alternativas de Conexión en el Mapa:</span>
     </span>
 

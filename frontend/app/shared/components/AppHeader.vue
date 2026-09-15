@@ -1,3 +1,19 @@
+<script setup lang="ts">
+import type { HudHeaderNav } from "~/types/hud";
+
+interface Props {
+  hasControls?: boolean;
+  navs?: HudHeaderNav[];
+  hasLogin?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  hasControls: false,
+  navs: () => [],
+  hasLogin: false,
+});
+</script>
+
 <template>
   <UHeader
     title="FlyWise"
@@ -13,24 +29,52 @@
   >
     <!-- Logo & Título -->
     <template #title>
-      <div class="flex flex-col">
+      <NuxtLink to="/" class="flex flex-col cursor-pointer">
         <span class="flex flex-row items-center gap-3">
           <h1 class="hud-title text-xl sm:text-2xl">FlyWise</h1>
-          <UBadge variant="outline" class="rounded-full" label="v1.0" />
+          <UBadge
+            variant="outline"
+            color="primary"
+            class="rounded-full"
+            label="v1.0"
+          />
         </span>
         <p class="text-xs text-text-muted hidden sm:block">
           ¡Auditá tu próximo vuelo!
         </p>
-      </div>
+      </NuxtLink>
     </template>
 
     <template #default>
-      <FromToDate class="hidden md:flex" />
+      <FromToDate v-if="hasControls" class="hidden md:flex" />
+      <div v-if="navs?.length" class="flex items-center gap-2">
+        <UButton
+          v-for="nav in navs"
+          :key="nav.text"
+          :to="nav.to"
+          :icon="nav.icon"
+          size="md"
+          color="primary"
+          variant="ghost"
+        >
+          {{ nav.text }}
+        </UButton>
+      </div>
     </template>
-
+  
     <template #right>
-      <ScenarioSelector />
+      <ScenarioSelector v-if="hasControls" />
       <ThemeToggle />
+      <UButton
+        v-if="hasLogin"
+        icon="i-lucide-user"
+        size="md"
+        color="primary"
+        variant="ghost"
+        to="/login"
+        aria-label="Acceso administrativo"
+        label="Iniciar Sesión"
+      />
     </template>
   </UHeader>
 </template>

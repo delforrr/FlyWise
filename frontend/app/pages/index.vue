@@ -1,43 +1,53 @@
 <script setup lang="ts">
+import type { HudHeaderNav } from "~/types/hud";
+
 useSeoMeta({
-  title: "FlyWise — Explorador Global de Rutas y Puntualidad",
+  title: "FlyWise — Inteligencia Aeronáutica y Puntualidad",
   description:
-    "Visualización de confiabilidad histórica y métricas de aerolíneas en tiempo real.",
+    "Análisis de demoras, puntualidad OTP-15 y red global de rutas aéreas.",
 });
+
+const navs: HudHeaderNav[] = [
+  {
+    text: "Explorador Global",
+    icon: "i-lucide-globe",
+    to: "/explorar",
+  },
+  {
+    text: "Métricas Consideradas",
+    icon: "i-lucide-circle-help",
+    to: "#",
+  },
+];
 </script>
 
 <template>
-  <div class="relative h-screen w-screen overflow-hidden bg-background">
-    <!-- 1. Capa Base: Canvas WebGL MapLibre GL + Deck.gl -->
-    <div class="absolute inset-0 z-0">
-      <ClientOnly>
-        <FlightMap />
-      </ClientOnly>
-    </div>
+  <div class="min-h-screen flex flex-col bg-background">
+    <AppHeader :navs="navs" :has-login="true" />
 
-    <!-- 2. Capa Superior: Interfaz HUD y Header (Flotante) -->
-    <div class="relative z-10 h-full w-full flex flex-col pointer-events-none">
-      <div class="pointer-events-auto">
-        <AppHeader :has-login="true" />
-      </div>
+    <UPage
+      class="flex-1"
+      :ui="{
+        root: 'lg:grid lg:grid-cols-12 lg:gap-0 flex-1',
+        center: 'hidden',
+        left: 'hidden lg:flex lg:col-span-7 items-center justify-center p-8',
+        right:
+          'lg:col-span-5 flex items-center justify-center w-full min-h-[calc(100vh-5rem)] p-6 bg-accent',
+      }"
+    >
+      <template #left>
+        <div class="hidden lg:flex h-full w-full items-center justify-center">
+          <AppHero />
+        </div>
+      </template>
 
-      <main
-        class="relative flex-1 overflow-hidden p-3 sm:p-6 pointer-events-none"
-      >
-        <!-- Panel Flotante de Resultados de Rutas / Desglose de Aerolíneas -->
-        <RouteResults />
-
-        <!-- HUD de Controles y Leyenda de Confiabilidad -->
-        <HudWrapper />
-
-        <!-- Drawer y Trigger de Búsqueda Móvil -->
-        <MobileSearchDrawer />
-      </main>
-    </div>
-
-    <!-- 3. Tooltip Refractivo Flotante (Picking sobre arcos y aeropuertos) -->
-    <ClientOnly>
-      <MapTooltip />
-    </ClientOnly>
+      <template #right>
+        <div
+          class="flex flex-col items-center justify-center w-full h-full p-4 bg-accent"
+        >
+          <HeroInput />
+        </div>
+      </template>
+    </UPage>
   </div>
 </template>

@@ -28,8 +28,7 @@ useSeoMeta({
       <div
         class="flex flex-col items-center justify-center w-full h-full min-h-screen bg-accent"
       >
-        <HeroInput />
-        <!-- <LoginForm /> -->
+        <LoginForm />
       </div>
     </template>
   </UPage>

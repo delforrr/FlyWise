@@ -37,9 +37,9 @@ const badgeClass = computed<string>(() => {
 });
 
 const dotClass = computed<string>(() => {
-  if (reliabilityLevel.value === "Alta") return "bg-otp-good";
-  if (reliabilityLevel.value === "Media") return "bg-otp-warning";
-  return "bg-otp-critical";
+  if (reliabilityLevel.value === "Alta") return "bg-success";
+  if (reliabilityLevel.value === "Media") return "bg-warning";
+  return "bg-error";
 });
 </script>
 

@@ -78,7 +78,7 @@ function handleSearch() {
         >
           <div class="flex items-center gap-3 min-w-0">
             <div
-              class="w-9 h-9 rounded-xl bg-aero-cyan/15 border border-aero-cyan/30 flex items-center justify-center shrink-0 text-aero-cyan"
+              class="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 text-primary"
             >
               <UIcon name="i-lucide-search" class="w-5 h-5" />
             </div>
@@ -165,7 +165,7 @@ function handleSearch() {
                 icon="i-lucide-arrow-up-down"
                 variant="ghost"
                 size="sm"
-                class="rounded-full text-aero-cyan hover:bg-surface-card transition-transform border border-border-subtle/50"
+                class="rounded-full text-primary hover:bg-surface-card transition-transform border border-border-subtle/50"
                 :style="{ transform: `rotate(${rotation}deg)` }"
                 aria-label="Invertir origen y destino"
                 @click="swapAirports"
@@ -207,8 +207,8 @@ function handleSearch() {
                 :class="[
                   selectedOrigin === hub.iata ||
                   selectedDestination === hub.iata
-                    ? 'bg-aero-cyan text-white border-aero-cyan shadow-sm'
-                    : 'bg-surface-base text-text-muted hover:text-text-main border-border-subtle hover:border-aero-cyan/40',
+                    ? 'bg-primary text-inverted border-primary shadow-sm'
+                    : 'bg-surface-base text-text-muted hover:text-text-main border-border-subtle hover:border-primary/40',
                 ]"
                 @click="handleSelectHub(hub.iata)"
               >
