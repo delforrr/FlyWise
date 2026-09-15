@@ -25,3 +25,5 @@ export interface HudHeaderNav {
   icon: string;
   to?: string;
 }
+
+export type InputCardType = "origin" | "destination";

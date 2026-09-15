@@ -5,6 +5,7 @@ Estas reglas aplican a todo el código en el directorio `frontend/`.
 ---
 
 ## 1. Vue 3 & Nuxt
+
 - **Script Setup:** Utilizar exclusivamente `<script setup lang="ts">`. Prohibida la Options API.
 - **Lógica Reactiva:** Extraer la lógica de negocio y consumo de API en composables limpios en `app/composables/` (`useMap`, `useRoutes`, `useAirports`).
 - **SEO & Performance:** Utilizar SSR/SSG adecuadamente, pero renderizar las capas de Deck.gl y MapLibre en componentes con `<ClientOnly>` o condicionales de montaje en cliente para evitar fallos de renderizado del lado del servidor (SSR WebGL context).
@@ -12,6 +13,7 @@ Estas reglas aplican a todo el código en el directorio `frontend/`.
 ---
 
 ## 2. Estilos & Tailwind CSS
+
 - **Utility-First:** Utilizar clases de Tailwind CSS para la interfaz, layouts y componentes UI.
 - **Accesibilidad y Contraste:** Asegurar que los componentes de búsqueda, paneles de administración y tablas de puntualidad tengan contrastes legibles sobre el mapa.
 - **Diseño Responsivo:** Diseñar con mobile-first en mente, garantizando que el mapa y los filtros colapsen limpiamente en pantallas pequeñas.
@@ -19,6 +21,7 @@ Estas reglas aplican a todo el código en el directorio `frontend/`.
 ---
 
 ## 3. Deck.gl & MapLibre (WebGL Performance)
+
 - **60 FPS Goal:** El mapa y la interacción con arcos geodésicos deben mantener fluidez constante.
 - **Capas Optimizadas:**
   - Los arcos de rutas deben renderizarse con `ArcLayer` codificados según OTP-15 (Verde $> 85\%$, Amarillo $60\%-85\%$, Rojo $< 60\%$).
