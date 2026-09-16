@@ -1,5 +1,5 @@
+import { Map, LngLatBounds, type IControl, type GeoJSONSource } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
-import type { Map, GeoJSONSource } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { ArcLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { Airport } from "~/types/airport";
@@ -14,6 +14,7 @@ const overlayInstance = shallowRef<MapboxOverlay | null>(null);
 const isLoaded = ref<boolean>(false);
 const currentPitch = ref<number>(0);
 const currentZoom = ref<number>(0);
+let resilienceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const AIRPORTS_SOURCE_ID = "flywise-airports-source";
 const AIRPORTS_LABELS_LAYER_ID = "flywise-airports-labels";
@@ -24,7 +25,7 @@ const AIRPORTS_LABELS_LAYER_ID = "flywise-airports-labels";
 function getAirportsGeoJSON(airports: Airport[]) {
   return {
     type: "FeatureCollection" as const,
-    features: airports.map((a) => ({
+    features: (airports || []).map((a) => ({
       type: "Feature" as const,
       geometry: {
         type: "Point" as const,
@@ -45,6 +46,13 @@ function getAirportsGeoJSON(airports: Airport[]) {
  */
 function isMapStyleReady(map: Map | null | undefined): boolean {
   if (!map) return false;
+  try {
+    if (typeof map.isStyleLoaded === "function") {
+      return map.isStyleLoaded();
+    }
+  } catch {
+    // fallback
+  }
   const style = map.style as unknown as { _loaded?: boolean } | undefined;
   return Boolean(style && style._loaded);
 }
@@ -445,24 +453,38 @@ export const useFlightMap = () => {
       });
 
       overlayInstance.value = deckOverlay;
-      map.addControl(deckOverlay as unknown as maplibregl.IControl);
+      map.addControl(deckOverlay as unknown as IControl);
 
       // 3. Mecanismo para marcar mapa como listo y registrar capas nativas
       const handleStyleOrReady = () => {
+        if (resilienceTimer) {
+          clearTimeout(resilienceTimer);
+          resilienceTimer = null;
+        }
         isLoaded.value = true;
         currentPitch.value = map.getPitch();
         currentZoom.value = map.getZoom();
+        map.resize();
         updateLayers();
       };
 
       if (isMapStyleReady(map)) {
         handleStyleOrReady();
       } else {
-        map.once("load", () => {
-          isLoaded.value = true;
-        });
+        map.once("load", handleStyleOrReady);
         map.once("style.load", handleStyleOrReady);
+        map.once("idle", handleStyleOrReady);
       }
+
+      // Fallback de seguridad: si tras 800ms el mapa no disparó eventos, forzar isLoaded
+      resilienceTimer = setTimeout(() => {
+        if (!isLoaded.value && mapInstance.value) {
+          console.info(
+            "[FlyWise useFlightMap] Fallback de seguridad (800ms) activado: forzando isLoaded y sincronización.",
+          );
+          handleStyleOrReady();
+        }
+      }, 800);
 
       // Escuchar style.load para recargar capas nativas tras cambios de estilo base (ej. tema claro/oscuro)
       map.on("style.load", () => {
@@ -496,10 +518,14 @@ export const useFlightMap = () => {
   }
 
   function destroyMap(): void {
+    if (resilienceTimer) {
+      clearTimeout(resilienceTimer);
+      resilienceTimer = null;
+    }
     if (mapInstance.value && overlayInstance.value) {
       try {
         mapInstance.value.removeControl(
-          overlayInstance.value as unknown as maplibregl.IControl,
+          overlayInstance.value as unknown as IControl,
         );
       } catch {
         overlayInstance.value.finalize();

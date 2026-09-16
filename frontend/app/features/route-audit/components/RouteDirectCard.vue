@@ -7,10 +7,10 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex flex-col gap-2.5 p-3 rounded-xl bg-surface-card/60 border border-border-subtle/60 shadow-sm">
+  <div class="flex flex-col gap-2.5 p-3.5 rounded-xl bg-surface-elevated/95 dark:bg-surface-card/85 border border-border-subtle shadow-xs">
     <div class="flex items-center justify-between">
-      <div class="flex items-center gap-1.5 text-xs font-mono font-bold text-text-main">
-        <UIcon name="i-lucide-plane" class="w-3.5 h-3.5 text-primary" />
+      <div class="flex items-center gap-2 text-xs font-mono font-bold text-text-main">
+        <UIcon name="i-lucide-plane-takeoff" class="w-4 h-4 text-primary" />
         <span>Vuelo Directo</span>
       </div>
       <OtpBadge :value="route.averageOtp15" />
@@ -18,13 +18,13 @@ defineProps<{
 
     <div class="text-[11px] text-text-muted flex justify-between items-center font-mono">
       <span>Distancia ortodrómica:</span>
-      <span class="font-medium text-text-main">
+      <span class="font-bold text-text-main">
         {{ route.distanceKm.toLocaleString() }} km
       </span>
     </div>
 
     <!-- Desglose de Aerolíneas -->
-    <div class="flex flex-col gap-1.5 border-t border-border-subtle/40 pt-2">
+    <div class="flex flex-col gap-1.5 border-t border-border-subtle pt-2.5">
       <span class="hud-section-label">
         Desempeño por Aerolínea:
       </span>

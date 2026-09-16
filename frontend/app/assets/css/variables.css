@@ -5,59 +5,43 @@
    ========================================== */
 
 :root {
-  /* Modo Claro (Por defecto cuando el OS es Light) */
-  --color-bg-base: #f8fafc;
-  --color-bg-accent: #dfe3e7;
-  --color-surface-base: #eff6ff;
-  --color-surface-elevated: #f1f5f9;
-  --color-surface-accent: #f2f8ff;
+  /* Modo Claro — Cockpit Titanium & Deep Navy Island */
+  --color-bg-base: #edf2f7;
+  --color-bg-accent: #e2e8f0;
+  --color-surface-base: #edf2f7;
+  --color-surface-elevated: #ffffff;
+  --color-surface-accent: #e2e8f0;
   --color-surface-card: #ffffff;
-  --color-border-subtle: #e2e8f0;
-  --color-border-hover: #cbd5e1;
+  --color-border-subtle: #cbd5e1;
+  --color-border-hover: #94a3b8;
 
-  --color-text-main: #0f172a;
-  --color-text-muted: #64748b;
-  --color-text-dim: #94a3b8;
+  --color-text-main: #090d16;
+  --color-text-muted: #334155;
+  --color-text-dim: #64748b;
 
-  /* Identidad Aeronáutica Base */
+  /* Identidad Aeronáutica Base (Calibrada para contraste claro) */
   --color-aero-cyan: #0284c7;
-  --color-aero-glow: #38bdf8;
-  --color-electric-cobalt: #2563eb;
+  --color-aero-glow: #0ea5e9;
+  --color-electric-cobalt: #1d4ed8;
 
-  /* Métricas OTP Base */
-  --color-otp-good: #059669;
-  --color-otp-warning: #d97706;
-  --color-otp-critical: #dc2626;
+  /* Métricas OTP Base (Alto contraste sobre fondos claros) */
+  --color-otp-good: #047857;
+  --color-otp-warning: #b45309;
+  --color-otp-critical: #b91c1c;
 
   /* ==========================================
      VARIABLES DE COLOR SEMÁNTICAS (TEMA)
      ========================================== */
-  --color-primary: var(
-    --color-aero-cyan
-  ); /* Aero Cyan: Acción principal / Identidad */
-  --color-secondary: var(
-    --color-electric-cobalt
-  ); /* Electric Cobalt: Apoyo y navegación secundaria */
-  --color-tertiary: var(
-    --color-aero-glow
-  ); /* Aero Glow: Resaltados / Beacons / Acentos */
-  --color-success: var(
-    --color-otp-good
-  ); /* OTP Good: Vuelos puntuales / Estado óptimo */
-  --color-info: var(
-    --color-aero-cyan
-  ); /* Info: Métricas, datos METAR y tooltips */
-  --color-warning: var(
-    --color-otp-warning
-  ); /* OTP Warning: Demoras moderadas / Avisos */
-  --color-error: var(
-    --color-otp-critical
-  ); /* OTP Critical: Cancelaciones / Alertas críticas */
-  --color-neutral: var(
-    --color-text-muted
-  ); /* Neutral: Superficies, separadores y atenuaciones */
+  --color-primary: var(--color-aero-cyan);
+  --color-secondary: var(--color-electric-cobalt);
+  --color-tertiary: var(--color-aero-glow);
+  --color-success: var(--color-otp-good);
+  --color-info: var(--color-aero-cyan);
+  --color-warning: var(--color-otp-warning);
+  --color-error: var(--color-otp-critical);
+  --color-neutral: var(--color-text-muted);
 
-  /* Puente Nuxt UI (Sobrescribe defaults de Nuxt UI) */
+  /* Puente Nuxt UI */
   --ui-primary: var(--color-primary);
   --ui-secondary: var(--color-secondary);
   --ui-tertiary: var(--color-tertiary);
@@ -66,30 +50,37 @@
   --ui-warning: var(--color-warning);
   --ui-error: var(--color-error);
 
-  --hud-panel-bg: rgba(255, 255, 255, 0.88);
-  --hud-panel-border: rgba(226, 232, 240, 0.95);
-  --hud-card-bg: rgba(248, 250, 252, 0.9);
-  --hud-input-bg: #ffffff;
+  /* Tokens HUD & Glassmorphism en Modo Claro */
+  --hud-panel-bg: rgba(255, 255, 255, 0.96);
+  --hud-panel-border: #cbd5e1;
+  --hud-card-bg: #ffffff;
+  --hud-input-bg: #f1f5f9;
+
+  /* Arquitectura Double-Bezel (Modo Claro) */
+  --bezel-outer-bg: rgba(255, 255, 255, 0.85);
+  --bezel-outer-border: #cbd5e1;
+  --bezel-inner-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.03), inset 0 1px 0 #ffffff;
+  --bezel-highlight-glow: 0 0 0 1px rgba(2, 132, 199, 0.35), 0 12px 28px -4px rgba(2, 132, 199, 0.18);
 }
 
 .dark {
-  /* Modo Oscuro (Automático por OS o clase .dark) */
-  --color-bg-base: #070b14;
-  --color-bg-accent: #0a0f18;
-  --color-surface-base: #0f1418;
-  --color-surface-accent: #0f1626;
-  --color-surface-elevated: #171c20;
-  --color-surface-card: #1b2024;
-  --color-border-subtle: #333f46;
-  --color-border-hover: #3e484f;
+  /* Modo Oscuro — OLED Space Black & True Specular Glass */
+  --color-bg-base: #05080f;
+  --color-bg-accent: #0a0f1d;
+  --color-surface-base: #0b101b;
+  --color-surface-accent: #0f1728;
+  --color-surface-elevated: #111827;
+  --color-surface-card: #131d31;
+  --color-border-subtle: rgba(255, 255, 255, 0.10);
+  --color-border-hover: rgba(255, 255, 255, 0.22);
 
-  --color-text-main: #dee3e8;
-  --color-text-muted: #87929a;
-  --color-text-dim: #59656e;
+  --color-text-main: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-text-dim: #64748b;
 
   /* Identidad Aeronáutica Base */
   --color-aero-cyan: #38bdf8;
-  --color-aero-glow: #7bd0ff;
+  --color-aero-glow: #7dd3fc;
   --color-electric-cobalt: #3b82f6;
 
   /* Métricas OTP Base */
@@ -100,30 +91,16 @@
   /* ==========================================
      VARIABLES DE COLOR SEMÁNTICAS (TEMA)
      ========================================== */
-  --color-primary: var(
-    --color-aero-cyan
-  ); /* Aero Cyan Glow: Acción principal e interfaz HUD */
-  --color-secondary: var(
-    --color-electric-cobalt
-  ); /* Electric Cobalt: Rutas activas y gradientes */
-  --color-tertiary: var(
-    --color-aero-glow
-  ); /* Cyan Beacon: Destellos e indicadores */
-  --color-success: var(
-    --color-otp-good
-  ); /* OTP Good: Puntualidad y estados aprobados */
-  --color-info: var(--color-aero-cyan); /* Info: Telemetría y datos de ruta */
-  --color-warning: var(
-    --color-otp-warning
-  ); /* OTP Warning: Demoras y alertas preventivas */
-  --color-error: var(
-    --color-otp-critical
-  ); /* OTP Critical: Riesgos severos y cancelaciones */
-  --color-neutral: var(
-    --color-text-muted
-  ); /* Neutral: Fondos profundos y bordes oscuros */
+  --color-primary: var(--color-aero-cyan);
+  --color-secondary: var(--color-electric-cobalt);
+  --color-tertiary: var(--color-aero-glow);
+  --color-success: var(--color-otp-good);
+  --color-info: var(--color-aero-cyan);
+  --color-warning: var(--color-otp-warning);
+  --color-error: var(--color-otp-critical);
+  --color-neutral: var(--color-text-muted);
 
-  /* Puente Nuxt UI (Sobrescribe defaults de Nuxt UI) */
+  /* Puente Nuxt UI */
   --ui-primary: var(--color-primary);
   --ui-secondary: var(--color-secondary);
   --ui-tertiary: var(--color-tertiary);
@@ -132,10 +109,17 @@
   --ui-warning: var(--color-warning);
   --ui-error: var(--color-error);
 
-  --hud-panel-bg: rgba(15, 20, 24, 0.85);
-  --hud-panel-border: rgba(37, 43, 46, 0.8);
-  --hud-card-bg: rgba(27, 32, 36, 0.75);
-  --hud-input-bg: rgba(10, 15, 18, 0.85);
+  /* Tokens HUD & Glassmorphism en Modo Oscuro */
+  --hud-panel-bg: rgba(11, 16, 27, 0.82);
+  --hud-panel-border: rgba(255, 255, 255, 0.12);
+  --hud-card-bg: rgba(17, 24, 39, 0.78);
+  --hud-input-bg: rgba(7, 11, 20, 0.90);
+
+  /* Arquitectura Double-Bezel (Modo Oscuro) */
+  --bezel-outer-bg: rgba(255, 255, 255, 0.04);
+  --bezel-outer-border: rgba(255, 255, 255, 0.10);
+  --bezel-inner-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.14);
+  --bezel-highlight-glow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 12px 28px -4px rgba(56, 189, 248, 0.20);
 }
 
 :root,
@@ -149,3 +133,4 @@
   --ui-warning: var(--color-warning);
   --ui-error: var(--color-error);
 }
+

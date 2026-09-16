@@ -38,13 +38,14 @@ const waypoints = [
     >
       <defs>
         <linearGradient id="radarSweepGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.35" />
-          <stop offset="50%" stop-color="var(--color-secondary)" stop-opacity="0.1" />
+          <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.25" />
+          <stop offset="35%" stop-color="var(--color-primary)" stop-opacity="0.10" />
+          <stop offset="70%" stop-color="var(--color-secondary)" stop-opacity="0.03" />
           <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
         </linearGradient>
 
         <filter id="radarGlow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feGaussianBlur stdDeviation="2" result="blur" />
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
       </defs>
@@ -62,7 +63,7 @@ const waypoints = [
           <line x1="-260" y1="-260" x2="260" y2="260" class="radar-axis-diagonal" />
           <line x1="-260" y1="260" x2="260" y2="-260" class="radar-axis-diagonal" />
 
-          <g class="radar-ticks opacity-40">
+          <g class="radar-ticks opacity-60 dark:opacity-45">
             <line x1="0" y1="-350" x2="0" y2="-360" class="radar-tick" />
             <line x1="350" y1="0" x2="360" y2="0" class="radar-tick" />
             <line x1="0" y1="350" x2="0" y2="360" class="radar-tick" />
@@ -100,12 +101,12 @@ const waypoints = [
           class="radar-waypoint"
         >
           <circle
-            r="12"
+            r="10"
             class="radar-waypoint-ping"
             :style="{ animationDelay: wpt.delay, animationDuration: wpt.duration }"
           />
           <circle
-            r="3"
+            r="2.5"
             class="radar-waypoint-dot"
             :style="{ animationDelay: wpt.delay, animationDuration: wpt.duration }"
           />
@@ -126,71 +127,86 @@ const waypoints = [
   justify-content: center;
   mask-image: radial-gradient(
     circle at center,
-    black 40%,
-    rgba(0, 0, 0, 0.6) 70%,
-    transparent 96%
+    black 35%,
+    rgba(0, 0, 0, 0.6) 65%,
+    transparent 95%
   );
   -webkit-mask-image: radial-gradient(
     circle at center,
-    black 40%,
-    rgba(0, 0, 0, 0.6) 70%,
-    transparent 96%
+    black 35%,
+    rgba(0, 0, 0, 0.6) 65%,
+    transparent 95%
   );
 }
 
 .radar-ring {
   fill: none;
-  stroke: color-mix(in srgb, var(--color-primary) 18%, var(--color-border-subtle));
+  stroke: color-mix(in srgb, var(--color-primary) 65%, var(--color-border-subtle));
   stroke-width: 1px;
   stroke-dasharray: 4 4;
   transition: stroke 0.3s ease;
 }
 
 .dark .radar-ring {
-  stroke: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  stroke: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  stroke-width: 1px;
 }
 
 .radar-ring--outer {
   stroke-dasharray: none;
   stroke-width: 1.5px;
-  stroke: color-mix(in srgb, var(--color-primary) 35%, var(--color-border-subtle));
+  stroke: var(--color-primary);
+  stroke-opacity: 0.45;
 }
 
 .dark .radar-ring--outer {
-  stroke: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  stroke: color-mix(in srgb, var(--color-primary) 65%, transparent);
+  stroke-width: 1.5px;
+  stroke-opacity: 0.45;
 }
 
 .radar-axis {
-  stroke: color-mix(in srgb, var(--color-primary) 20%, var(--color-border-subtle));
-  stroke-width: 1px;
+  stroke: color-mix(in srgb, var(--color-primary) 60%, var(--color-border-subtle));
+  stroke-width: 0.85px;
   stroke-dasharray: 2 4;
 }
 
 .dark .radar-axis {
-  stroke: color-mix(in srgb, var(--color-primary) 25%, transparent);
+  stroke: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  stroke-width: 0.85px;
 }
 
 .radar-axis-diagonal {
-  stroke: color-mix(in srgb, var(--color-primary) 10%, var(--color-border-subtle));
+  stroke: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-subtle));
   stroke-width: 0.75px;
   stroke-dasharray: 2 6;
 }
 
 .dark .radar-axis-diagonal {
-  stroke: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  stroke: color-mix(in srgb, var(--color-primary) 25%, transparent);
+  stroke-width: 0.75px;
 }
 
 .radar-tick {
   stroke: var(--color-primary);
-  stroke-width: 1.5px;
+  stroke-width: 1.25px;
+  opacity: 0.7;
 }
 
 .radar-label {
   font-family: var(--font-mono);
   font-size: 8px;
-  font-weight: 600;
-  fill: var(--color-text-dim);
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  fill: var(--color-text-main);
+  letter-spacing: 0.12em;
+  opacity: 0.65;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95);
+}
+
+.dark .radar-label {
+  fill: var(--color-text-muted);
+  opacity: 0.65;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 50%, transparent);
 }
 
 .radar-sweep-group {
@@ -208,16 +224,19 @@ const waypoints = [
   stroke: var(--color-primary);
   stroke-width: 1.5px;
   opacity: 0.85;
+  filter: drop-shadow(0 0 3px var(--color-primary));
 }
 
 .radar-waypoint-dot {
   fill: var(--color-primary);
+  filter: drop-shadow(0 0 3px var(--color-primary));
   animation: radar-dot-pulse 3s ease-in-out infinite;
 }
 
 .radar-waypoint-cross {
-  stroke: color-mix(in srgb, var(--color-primary) 50%, transparent);
+  stroke: var(--color-primary);
   stroke-width: 0.75px;
+  opacity: 0.6;
 }
 
 .radar-waypoint-ping {
@@ -229,21 +248,27 @@ const waypoints = [
 }
 
 .radar-waypoint-text {
-  font-size: 8.5px;
-  font-weight: 600;
-  fill: var(--color-text-muted);
-  letter-spacing: 0.05em;
-  opacity: 0.8;
+  font-size: 8px;
+  font-weight: 700;
+  fill: var(--color-text-main);
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+.dark .radar-waypoint-text {
+  fill: var(--color-text-main);
+  opacity: 0.85;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--color-primary) 50%, transparent);
 }
 
 @keyframes radar-ping-wave {
-  0% { r: 3px; opacity: 0.9; }
-  70% { r: 20px; opacity: 0; }
-  100% { r: 20px; opacity: 0; }
+  0% { r: 2px; opacity: 0.85; }
+  70% { r: 16px; opacity: 0; }
+  100% { r: 16px; opacity: 0; }
 }
 
 @keyframes radar-dot-pulse {
   0%, 100% { opacity: 0.4; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.2); }
+  50% { opacity: 0.9; transform: scale(1.15); }
 }
 </style>

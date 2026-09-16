@@ -1,7 +1,7 @@
 /* ==========================================
    TIPOGRAFÍA Y FUENTES EXTERNAS
-   Geist: Display y Títulos
-   Inter: Texto general y UI
-   JetBrains Mono: Datos numéricos y códigos IATA
+   Geist: Display, Títulos y Headings
+   Plus Jakarta Sans: Interfaz y Texto General (Alta Legibilidad)
+   JetBrains Mono: Datos numéricos, telemetría y códigos IATA
    ========================================== */
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap");

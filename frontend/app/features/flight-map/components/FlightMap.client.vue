@@ -120,6 +120,12 @@ onMounted(async () => {
     bearing: 0,
   });
 
+  // Redimensionar el canvas inmediatamente para asegurar ajuste a las dimensiones reales
+  mapInstance.value?.resize();
+  requestAnimationFrame(() => {
+    mapInstance.value?.resize();
+  });
+
   // Observador de cambio de dimensiones para redimensionar el canvas WebGL fluidamente
   if (typeof ResizeObserver !== "undefined") {
     resizeObserver = new ResizeObserver(() => {
@@ -173,6 +179,12 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+#flywise-map-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
 :deep(.maplibregl-canvas) {
   outline: none;
 }

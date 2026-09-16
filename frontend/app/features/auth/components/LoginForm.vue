@@ -18,6 +18,7 @@ const fields: AuthFormField[] = [
     placeholder: "admin@flywise.aero",
     required: true,
     size: "xl",
+    defaultValue: "",
   },
   {
     name: "password",
@@ -26,11 +27,13 @@ const fields: AuthFormField[] = [
     placeholder: "••••••••",
     required: true,
     size: "xl",
+    defaultValue: "",
   },
   {
     name: "remember",
     label: "Recordar sesión en este equipo",
     type: "checkbox",
+    defaultValue: false,
   },
 ];
 
@@ -55,53 +58,56 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 
 <template>
   <div class="flex flex-col items-center justify-center w-full max-w-xl p-2 sm:p-4">
-    <UPageCard spotlight class="w-full p-4 sm:p-6 hud-panel border border-border-subtle shadow-2xl">
-      <UAuthForm
-        :schema="schema"
-        :fields="fields"
-        title="Acceso Restringido"
-        icon="i-lucide-shield-lock"
-        :submit="{
-          label: 'Autenticarse',
-          variant: 'subtle',
-          class: 'btn-hud-primary h-12 sm:h-13 text-base sm:text-lg font-semibold w-full justify-center shadow-lg',
-        }"
-        @submit="onSubmit"
-      >
-        <template #description>
-          Acceso exclusivo para administradores y auditores de telemetría de FlyWise.
-        </template>
+    <div class="double-bezel-shell w-full shadow-2xl">
+      <div class="double-bezel-core p-4 sm:p-7 flex flex-col">
+        <UAuthForm
+          :schema="schema"
+          :fields="fields"
+          :validate-on="['blur', 'change']"
+          title="Acceso Restringido"
+          icon="i-lucide-shield-lock"
+          :submit="{
+            label: 'Autenticarse',
+            variant: 'subtle',
+            class: 'btn-hud-primary h-12 sm:h-13 text-base sm:text-lg font-semibold w-full justify-center shadow-lg active:scale-[0.98]',
+          }"
+          @submit="onSubmit"
+        >
+          <template #description>
+            Acceso exclusivo para administradores y auditores de telemetría de FlyWise.
+          </template>
 
-        <template #password-hint>
-          <ULink
-            to="#"
-            class="text-xs text-primary hover:underline font-medium"
-            tabindex="-1"
-          >
-            ¿Olvidaste tu contraseña?
-          </ULink>
-        </template>
+          <template #password-hint>
+            <ULink
+              to="#"
+              class="text-xs text-primary hover:underline font-semibold"
+              tabindex="-1"
+            >
+              ¿Olvidaste tu contraseña?
+            </ULink>
+          </template>
 
-        <template #validation>
-          <UAlert
-            v-if="hasError"
-            color="error"
-            icon="i-lucide-alert-triangle"
-            title="Error de Autenticación"
-            description="Las credenciales ingresadas son incorrectas o no cuentan con privilegios administrativos."
-            class="mb-3"
-          />
-        </template>
+          <template #validation>
+            <UAlert
+              v-if="hasError"
+              color="error"
+              icon="i-lucide-alert-triangle"
+              title="Error de Autenticación"
+              description="Las credenciales ingresadas son incorrectas o no cuentan con privilegios administrativos."
+              class="mb-3"
+            />
+          </template>
 
-        <template #footer>
-          <div class="text-xs text-text-muted text-center pt-2">
-            Volver a la página de
-            <ULink to="/" class="text-primary hover:underline font-semibold">
-              Bienvenida
-            </ULink>.
-          </div>
-        </template>
-      </UAuthForm>
-    </UPageCard>
+          <template #footer>
+            <div class="text-xs text-text-muted text-center pt-2">
+              Volver a la página de
+              <ULink to="/" class="text-primary hover:underline font-semibold">
+                Bienvenida
+              </ULink>.
+            </div>
+          </template>
+        </UAuthForm>
+      </div>
+    </div>
   </div>
 </template>
