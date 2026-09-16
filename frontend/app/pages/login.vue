@@ -10,7 +10,7 @@ useSeoMeta({
     <AppHeader />
 
     <main
-      class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-0 flex flex-col lg:grid lg:grid-cols-12 lg:gap-8 items-center justify-center"
+      class="flex-1 w-full px-4 sm:px-6 lg:px-10 xl:px-16 py-6 lg:py-0 flex flex-col lg:grid lg:grid-cols-12 lg:gap-8 xl:gap-12 items-center justify-center"
     >
       <div class="w-full lg:col-span-7 flex items-center justify-center py-2 sm:py-4 lg:py-8">
         <AppHero class="w-full" />

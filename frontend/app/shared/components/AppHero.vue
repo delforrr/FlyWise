@@ -23,19 +23,16 @@ const features: FeatureProps[] = [
     title: "Mapa Interactivo",
     description: "Navegación fluida y controles flexibles con Deck.gl.",
     icon: "i-lucide-map",
-    badge: "60 FPS",
   },
   {
     title: "Puntualidad OTP-15",
     description: "Estándar internacional de demoras por tramo y aerolínea.",
     icon: "i-lucide-clock",
-    badge: "Estándar",
   },
   {
     title: "Auditoría de Rutas",
     description: "Desempeño histórico y confiabilidad para vuelos comerciales.",
     icon: "i-lucide-route",
-    badge: "O(1) Engine",
   },
 ];
 </script>
@@ -43,7 +40,7 @@ const features: FeatureProps[] = [
 <template>
   <div
     :class="[
-      'relative flex flex-col justify-center w-full max-w-4xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 overflow-hidden rounded-3xl',
+      'relative flex flex-col justify-center w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 overflow-hidden rounded-3xl',
       props.class,
     ]"
   >
@@ -58,10 +55,7 @@ const features: FeatureProps[] = [
           class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider uppercase text-primary bg-primary/10 border border-primary/25 shadow-xs"
         >
           <span class="size-1.5 rounded-full bg-primary animate-pulse" />
-          Inteligencia Aeronáutica
-        </span>
-        <span class="hidden sm:inline-block text-xs font-mono text-text-dim">
-          OTP-15 Engine v1.0
+          v1.0
         </span>
       </div>
 
@@ -84,7 +78,8 @@ const features: FeatureProps[] = [
         <p
           class="text-xs sm:text-sm lg:text-base text-text-muted max-w-2xl leading-relaxed mt-1"
         >
-          Análisis de demoras, puntualidad OTP-15 y telemetría histórica para aerolíneas comerciales y viajeros frecuentes.
+          Análisis de demoras, puntualidad OTP-15 y telemetría histórica para
+          aerolíneas comerciales y viajeros frecuentes.
         </p>
       </div>
 
@@ -118,12 +113,11 @@ const features: FeatureProps[] = [
             class="group p-3.5 rounded-xl bg-surface-card/60 hover:bg-surface-elevated/80 border border-border-subtle hover:border-primary/40 backdrop-blur-md transition-all duration-200 flex flex-col gap-1.5 shadow-xs"
           >
             <div class="flex items-center justify-between">
-              <div class="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+              <div
+                class="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:scale-105 transition-transform"
+              >
                 <UIcon :name="feat.icon" class="size-4 shrink-0" />
               </div>
-              <span v-if="feat.badge" class="font-mono text-[10px] text-text-dim uppercase tracking-wider">
-                {{ feat.badge }}
-              </span>
             </div>
             <h2 class="text-sm font-semibold text-text-main mt-0.5">
               {{ feat.title }}
@@ -135,7 +129,7 @@ const features: FeatureProps[] = [
         </div>
 
         <div class="hidden lg:flex items-center gap-3 pt-2">
-          <span class="text-xs text-text-dim">Proyecto de Código Abierto:</span>
+          <span class="text-xs text-text-dim">Dejá tu estrella en GitHub:</span>
           <ULink
             to="https://github.com/delforrr/FlyWise"
             target="_blank"
