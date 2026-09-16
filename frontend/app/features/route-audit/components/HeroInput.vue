@@ -75,6 +75,34 @@ function swapAirports() {
 
     <USeparator size="sm" class="my-3 sm:my-4" />
 
+    <!-- Barra de acciones rápidas en Móvil (arriba de los inputs) -->
+    <div class="flex sm:hidden items-center justify-end gap-2 my-2">
+      <UButton
+        variant="subtle"
+        size="xs"
+        class="rounded-lg text-primary hover:text-primary hover:bg-surface-card px-2.5 py-1 gap-1.5 text-xs font-medium"
+        aria-label="Invertir origen y destino"
+        @click="swapAirports"
+      >
+        <UIcon
+          name="i-lucide-arrow-up-down"
+          class="size-3.5 transition-transform duration-300 shrink-0"
+          :style="{ transform: `rotate(${rotation}deg)` }"
+        />
+        <span>Invertir</span>
+      </UButton>
+
+      <UButton
+        icon="i-lucide-rotate-ccw"
+        variant="subtle"
+        size="xs"
+        class="rounded-lg text-text-muted hover:text-primary hover:bg-surface-card px-2.5 py-1 gap-1 text-xs font-medium"
+        aria-label="Limpiar selección"
+        label="Limpiar"
+        @click="clearSelection"
+      />
+    </div>
+
     <div class="flex flex-row items-center gap-2 sm:gap-3 my-2 sm:my-4">
       <div class="flex flex-col flex-1 gap-3 sm:gap-4 min-w-0">
         <InputCard
@@ -146,17 +174,22 @@ function swapAirports() {
         </InputCard>
       </div>
 
-      <div class="flex flex-col gap-2 sm:gap-3 shrink-0">
+      <!-- Botonera lateral exclusiva para Tablet / Desktop -->
+      <div class="hidden sm:flex flex-col gap-2 sm:gap-3 shrink-0">
         <UButton
-          icon="i-lucide-arrow-up-down"
           variant="subtle"
           size="lg"
-          class="rounded-full shrink-0 size-11 sm:size-12 text-primary/80 hover:text-primary hover:bg-surface-card transition-all duration-300 shadow-xs"
-          :style="{ transform: `rotate(${rotation}deg)` }"
+          class="rounded-full shrink-0 size-11 sm:size-12 text-primary/80 hover:text-primary hover:bg-surface-card transition-all duration-300 shadow-xs justify-center items-center"
           aria-label="Invertir origen y destino"
           title="Invertir origen y destino"
           @click="swapAirports"
-        />
+        >
+          <UIcon
+            name="i-lucide-arrow-up-down"
+            class="size-5 transition-transform duration-300"
+            :style="{ transform: `rotate(${rotation}deg)` }"
+          />
+        </UButton>
 
         <UButton
           icon="i-lucide-rotate-ccw"

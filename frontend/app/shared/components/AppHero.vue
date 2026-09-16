@@ -40,22 +40,42 @@ const features: FeatureProps[] = [
 <template>
   <div
     :class="[
-      'relative flex flex-col justify-center w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 overflow-hidden rounded-3xl',
+      'relative flex flex-col justify-center w-full max-w-5xl px-3 sm:px-6 lg:px-8 py-2 sm:py-4 lg:py-8 overflow-hidden rounded-3xl',
       props.class,
     ]"
   >
+    <!-- Fondo ambiental en Móvil / Tablet: Gradiente aero sutil y elegante -->
+    <div
+      class="lg:hidden absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-3xl"
+      aria-hidden="true"
+    >
+      <div
+        class="absolute -top-8 -left-8 w-44 h-44 rounded-full bg-primary/15 blur-2xl"
+      />
+      <div
+        class="absolute -bottom-8 -right-8 w-44 h-44 rounded-full bg-secondary/15 blur-2xl"
+      />
+      <div
+        class="absolute inset-0 bg-radial-[at_center] from-primary/8 via-transparent to-transparent"
+      />
+    </div>
+
+    <!-- Fondo Radar en Desktop: Animación HUD aeronáutica completa -->
     <RadarBackground
       v-if="showRadar"
-      class="absolute inset-0 z-0 opacity-40 dark:opacity-60 scale-90 sm:scale-100 lg:scale-110 pointer-events-none"
+      class="hidden lg:flex absolute inset-0 z-0 opacity-40 dark:opacity-60 scale-100 lg:scale-110 pointer-events-none"
     />
 
-    <div class="relative z-10 flex flex-col gap-4 sm:gap-6">
+    <div class="relative z-10 flex flex-col gap-3 sm:gap-6">
       <div class="flex items-center gap-2">
         <span
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider uppercase text-primary bg-primary/10 border border-primary/25 shadow-xs"
+          class="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[11px] sm:text-xs font-mono font-semibold tracking-wider uppercase text-primary bg-primary/10 border border-primary/25 shadow-xs"
         >
           <span class="size-1.5 rounded-full bg-primary animate-pulse" />
-          v1.0
+          Inteligencia Aeronáutica
+        </span>
+        <span class="hidden sm:inline-block text-xs font-mono text-text-dim">
+          OTP-15 Engine v1.0
         </span>
       </div>
 
