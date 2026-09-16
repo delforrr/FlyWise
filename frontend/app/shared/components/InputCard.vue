@@ -80,7 +80,11 @@ const subtitleText = computed(() => {
 
 <template>
   <div
-    :class="['input-card p-4 sm:p-5 gap-3', typeClass, props.class]"
+    :class="[
+      'input-card p-3 sm:p-4 md:p-5 gap-2.5 sm:gap-3',
+      typeClass,
+      props.class,
+    ]"
     :data-type="type"
     role="group"
     :aria-label="`Selector de aeropuerto de ${resolvedLabel.toLowerCase()}`"
@@ -88,29 +92,29 @@ const subtitleText = computed(() => {
     <!-- Cabecera de la tarjeta: Identifica inequívocamente Origen o Destino -->
     <div class="flex items-center justify-between gap-2">
       <div class="input-card-badge">
-        <UIcon :name="resolvedIcon" class="w-3.5 h-3.5 shrink-0" />
-        <span>{{ resolvedLabel }}</span>
+        <UIcon :name="resolvedIcon" class="size-3.5 shrink-0" />
+        <span class="text-[11px] sm:text-xs">{{ resolvedLabel }}</span>
       </div>
 
       <slot name="header-right" />
     </div>
 
     <!-- Cuerpo interactivo: Badge IATA + Slot de Input Ghost + Subtítulo -->
-    <div class="flex items-center gap-3.5 min-w-0">
+    <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
       <!-- Badge IATA si está seleccionado, o ícono placeholder cuando está vacío -->
       <slot name="iata">
         <div
           v-if="iata"
-          class="input-iata flex items-center justify-center font-mono font-bold shrink-0"
+          class="input-iata flex items-center justify-center font-mono font-bold shrink-0 size-11 sm:size-13 md:size-14 text-sm sm:text-base md:text-lg"
         >
           {{ iata }}
         </div>
         <div
           v-else
-          class="input-card-placeholder-icon flex items-center justify-center shrink-0"
+          class="input-card-placeholder-icon flex items-center justify-center shrink-0 size-11 sm:size-13 md:size-14"
           :title="`Seleccionar aeropuerto de ${resolvedLabel.toLowerCase()}`"
         >
-          <UIcon :name="resolvedIcon" class="w-5 h-5 opacity-60" />
+          <UIcon :name="resolvedIcon" class="size-4 sm:size-5 opacity-60" />
         </div>
       </slot>
 
@@ -122,11 +126,11 @@ const subtitleText = computed(() => {
         <slot name="subtitle">
           <p
             v-if="subtitleText"
-            class="text-xs text-text-muted px-2.5 pt-0.5 truncate flex items-center gap-1.5"
+            class="text-[11px] sm:text-xs text-text-muted px-1 sm:px-2.5 pt-0.5 truncate flex items-center gap-1.5"
           >
             <UIcon
               name="i-lucide-map-pin"
-              class="w-3 h-3 text-text-dim shrink-0"
+              class="size-3 text-text-dim shrink-0"
             />
             <span class="truncate">{{ subtitleText }}</span>
           </p>

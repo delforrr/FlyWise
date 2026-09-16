@@ -23,7 +23,6 @@ const {
   triggerFit,
 } = useFlightSelection();
 
-// Lista dinámica de códigos IATA de los aeropuertos mock disponibles
 const airportItems = computed(() => {
   return SEED_AIRPORTS.map((a) => a.iata);
 });
@@ -42,7 +41,7 @@ function handleSearch() {
 </script>
 
 <template>
-  <HudPill class="gap-1.5 sm:gap-2 flex-nowrap items-center shrink-0">
+  <HudPill class="gap-1 sm:gap-2 flex-nowrap items-center shrink-0 max-w-full">
     <!-- Selector Origen -->
     <UInputMenu
       arrow
@@ -52,7 +51,7 @@ function handleSearch() {
       placeholder="Origen"
       icon="i-lucide-plane-takeoff"
       size="sm"
-      class="hud-custom-input w-28 sm:w-36 shrink-0 font-mono font-semibold"
+      class="hud-custom-input w-22 sm:w-28 md:w-36 shrink-0 font-mono font-semibold text-xs sm:text-sm"
     />
 
     <!-- Botón Intercambiar Origen / Destino -->
@@ -60,9 +59,10 @@ function handleSearch() {
       icon="i-lucide-arrow-left-right"
       variant="ghost"
       size="xs"
-      class="rounded-full shrink-0 text-primary/80 hover:text-primary hover:bg-surface-card transition-transform"
+      class="rounded-full shrink-0 text-primary/80 hover:text-primary hover:bg-surface-card transition-transform duration-300"
       :style="{ transform: `rotate(${rotation}deg)` }"
       aria-label="Invertir origen y destino"
+      title="Invertir origen y destino"
       @click="swapAirports"
     />
 
@@ -75,7 +75,7 @@ function handleSearch() {
       placeholder="Destino"
       icon="i-lucide-plane-landing"
       size="sm"
-      class="hud-custom-input w-28 sm:w-36 shrink-0 font-mono font-semibold"
+      class="hud-custom-input w-22 sm:w-28 md:w-36 shrink-0 font-mono font-semibold text-xs sm:text-sm"
     />
 
     <USeparator
@@ -107,7 +107,7 @@ function handleSearch() {
     <USeparator
       v-if="selectedOrigin || selectedDestination"
       orientation="vertical"
-      class="h-4 hidden sm:block shrink-0 mx-3"
+      class="h-4 hidden sm:block shrink-0 mx-1 sm:mx-2"
       size="sm"
     />
 
@@ -115,14 +115,16 @@ function handleSearch() {
     <RouteCounterBadge
       v-if="selectedOrigin || selectedDestination"
       :count="matchingRoutes.length"
+      class="hidden sm:inline-flex"
     />
 
     <!-- Botón de Búsqueda / Encuadre HUD -->
     <UButton
       icon="i-lucide-locate"
       size="sm"
-      class="btn-hud-primary rounded-xl shrink-0 px-2.5 sm:px-3 shadow-md"
+      class="btn-hud-primary rounded-xl shrink-0 px-2 sm:px-3 shadow-md"
       aria-label="Buscar vuelo y centrar cámara"
+      title="Centrar en mapa"
       @click="handleSearch"
     />
 

@@ -6,30 +6,19 @@ useSeoMeta({
 </script>
 
 <template>
-  <AppHeader />
+  <div class="min-h-screen flex flex-col bg-background overflow-x-hidden">
+    <AppHeader />
 
-  <UPage
-    class="min-h-screen"
-    :ui="{
-      root: 'min-h-screen lg:grid lg:grid-cols-12 lg:gap-0',
-      center: 'hidden',
-      left: 'hidden lg:flex lg:col-span-7 items-center justify-center p-8',
-      right:
-        'lg:col-span-5 flex items-center justify-center w-full min-h-screen p-6 bg-accent',
-    }"
-  >
-    <template #left>
-      <div class="hidden lg:flex h-full w-full items-center justify-center">
-        <AppHero />
+    <main
+      class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-0 flex flex-col lg:grid lg:grid-cols-12 lg:gap-8 items-center justify-center"
+    >
+      <div class="w-full lg:col-span-7 flex items-center justify-center py-2 sm:py-4 lg:py-8">
+        <AppHero class="w-full" />
       </div>
-    </template>
 
-    <template #right>
-      <div
-        class="flex flex-col items-center justify-center w-full h-full min-h-screen bg-accent"
-      >
-        <LoginForm />
+      <div class="w-full lg:col-span-5 flex items-center justify-center py-2 sm:py-4 lg:py-8">
+        <LoginForm class="w-full max-w-lg lg:max-w-none" />
       </div>
-    </template>
-  </UPage>
+    </main>
+  </div>
 </template>

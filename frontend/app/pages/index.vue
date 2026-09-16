@@ -14,7 +14,7 @@ const navs: HudHeaderNav[] = [
     to: "/explorar",
   },
   {
-    text: "Métricas Consideradas",
+    text: "Métricas",
     icon: "i-lucide-circle-help",
     to: "#",
   },
@@ -22,32 +22,23 @@ const navs: HudHeaderNav[] = [
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-background">
+  <div class="min-h-screen flex flex-col bg-background overflow-x-hidden">
     <AppHeader :navs="navs" :has-login="true" />
 
-    <UPage
-      class="flex-1"
-      :ui="{
-        root: 'lg:grid lg:grid-cols-12 lg:gap-0 flex-1',
-        center: 'hidden',
-        left: 'hidden lg:flex lg:col-span-7 items-center justify-center p-8',
-        right:
-          'lg:col-span-5 flex items-center justify-center w-full min-h-[calc(100vh-5rem)] p-6 bg-accent',
-      }"
+    <main
+      class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-0 flex flex-col lg:grid lg:grid-cols-12 lg:gap-8 items-center justify-center"
     >
-      <template #left>
-        <div class="hidden lg:flex h-full w-full items-center justify-center">
-          <AppHero />
-        </div>
-      </template>
+      <div
+        class="w-full lg:col-span-7 flex items-center justify-center py-2 sm:py-4 lg:py-8"
+      >
+        <AppHero class="w-full" />
+      </div>
 
-      <template #right>
-        <div
-          class="flex flex-col items-center justify-center w-full h-full p-4 bg-accent"
-        >
-          <HeroInput />
-        </div>
-      </template>
-    </UPage>
+      <div
+        class="w-full lg:col-span-5 flex items-center justify-center py-2 sm:py-4 lg:py-8"
+      >
+        <HeroInput class="w-full max-w-lg lg:max-w-none" />
+      </div>
+    </main>
   </div>
 </template>
