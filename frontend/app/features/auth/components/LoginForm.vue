@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import * as validate from "zod";
+import { z } from "zod";
 import type { FormSubmitEvent, AuthFormField } from "@nuxt/ui";
 
 interface Props {
@@ -14,74 +14,92 @@ const fields: AuthFormField[] = [
   {
     name: "email",
     type: "email",
-    label: "Email",
-    placeholder: "Enter your email",
+    label: "Correo Electrónico",
+    placeholder: "admin@flywise.aero",
     required: true,
     size: "xl",
   },
   {
     name: "password",
-    label: "Password",
+    label: "Contraseña",
     type: "password",
-    placeholder: "Enter your password",
+    placeholder: "••••••••",
     required: true,
     size: "xl",
   },
   {
     name: "remember",
-    label: "Remember me",
+    label: "Recordar sesión en este equipo",
     type: "checkbox",
   },
 ];
 
-const schema = validate.object({
-  email: validate.email("Invalid email"),
-  password: validate
-    .string("Password is required")
-    .min(8, "Must be at least 8 characters"),
+const schema = z.object({
+  email: z
+    .string()
+    .min(1, "El correo electrónico es requerido")
+    .email("Formato de correo electrónico inválido"),
+  password: z
+    .string()
+    .min(1, "La contraseña es requerida")
+    .min(8, "La contraseña debe tener al menos 8 caracteres"),
+  remember: z.boolean().optional(),
 });
 
-type Schema = validate.output<typeof schema>;
+type Schema = z.output<typeof schema>;
 
 function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log("Submitted", payload);
+  console.log("Submitted login credentials:", payload);
 }
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center gap-4 p-4">
-    <UPageCard spotlight class="w-full max-w-xl p-4">
+  <div class="flex flex-col items-center justify-center w-full max-w-xl p-2 sm:p-4">
+    <UPageCard spotlight class="w-full p-4 sm:p-6 hud-panel border border-border-subtle shadow-2xl">
       <UAuthForm
         :schema="schema"
         :fields="fields"
         title="Acceso Restringido"
-        icon="i-lucide-lock"
+        icon="i-lucide-shield-lock"
         :submit="{
           label: 'Autenticarse',
           variant: 'subtle',
-          class: 'btn-hud-primary h-12 text-lg',
+          class: 'btn-hud-primary h-12 sm:h-13 text-base sm:text-lg font-semibold w-full justify-center shadow-lg',
         }"
         @submit="onSubmit"
       >
         <template #description>
-          Debés ser administrador para acceder al panel de admin.
+          Acceso exclusivo para administradores y auditores de telemetría de FlyWise.
         </template>
+
         <template #password-hint>
-          <ULink to="#" class="text-primary font-medium" tabindex="-1"
-            >¿Olvidaste tu contraseña?</ULink
+          <ULink
+            to="#"
+            class="text-xs text-primary hover:underline font-medium"
+            tabindex="-1"
           >
+            ¿Olvidaste tu contraseña?
+          </ULink>
         </template>
+
         <template #validation>
           <UAlert
             v-if="hasError"
             color="error"
-            icon="i-lucide-info"
-            title="Error signing in"
+            icon="i-lucide-alert-triangle"
+            title="Error de Autenticación"
+            description="Las credenciales ingresadas son incorrectas o no cuentan con privilegios administrativos."
+            class="mb-3"
           />
         </template>
+
         <template #footer>
-          Volver a la página de
-          <ULink to="/" class="text-primary font-medium">Bienvenida</ULink>.
+          <div class="text-xs text-text-muted text-center pt-2">
+            Volver a la página de
+            <ULink to="/" class="text-primary hover:underline font-semibold">
+              Bienvenida
+            </ULink>.
+          </div>
         </template>
       </UAuthForm>
     </UPageCard>

@@ -6,13 +6,6 @@ import {
 } from "@internationalized/date";
 import { SEED_AIRPORTS, SEED_AIRPORTS_BY_IATA } from "~/data/seedData";
 
-const {
-  selectedOrigin,
-  selectedDestination,
-  swapAirports: swapSelection,
-  clearSelection,
-} = useFlightSelection();
-
 interface AirportMenuItem {
   id: string;
   iata: string;
@@ -24,7 +17,13 @@ interface AirportMenuItem {
   value: string;
 }
 
-// Lista enriquecida para búsqueda multicriterio (código IATA, nombre, ciudad y país)
+const {
+  selectedOrigin,
+  selectedDestination,
+  swapAirports: swapSelection,
+  clearSelection,
+} = useFlightSelection();
+
 const airportItems = computed<AirportMenuItem[]>(() => {
   return SEED_AIRPORTS.map((a) => ({
     id: a.id,
@@ -45,9 +44,7 @@ const originAirport = computed(() => {
 
 const destinationAirport = computed(() => {
   if (!selectedDestination.value) return null;
-  return (
-    SEED_AIRPORTS_BY_IATA.get(selectedDestination.value.toUpperCase()) ?? null
-  );
+  return SEED_AIRPORTS_BY_IATA.get(selectedDestination.value.toUpperCase()) ?? null;
 });
 
 const defaultDate = shallowRef<DateValue>(today(getLocalTimeZone()));
@@ -60,18 +57,54 @@ function swapAirports() {
 </script>
 
 <template>
-  <UPageCard spotlight class="w-full max-w-xl p-4">
-    <div>
-      <h1 class="hud-secondary-title text-2xl">Realizá tu consulta</h1>
-      <p class="text-text-muted hidden sm:block">
+  <UPageCard spotlight class="w-full max-w-xl p-4 sm:p-6 hud-panel border border-border-subtle shadow-2xl">
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center justify-between">
+        <h2 class="hud-secondary-title text-xl sm:text-2xl text-text-main">
+          Realizá tu consulta
+        </h2>
+        <span class="hud-counter-badge text-[10px] sm:text-xs">
+          <UIcon name="i-lucide-sparkles" class="size-3" />
+          Audit
+        </span>
+      </div>
+      <p class="text-xs sm:text-sm text-text-muted">
         Seleccioná un Origen y opcionalmente un Destino para comenzar
       </p>
     </div>
 
-    <USeparator size="sm" class="mt-2" />
+    <USeparator size="sm" class="my-3 sm:my-4" />
 
-    <div class="flex items-center gap-2 my-5">
-      <div class="flex flex-col flex-1 gap-5">
+    <!-- Barra de acciones rápidas en Móvil (arriba de los inputs) -->
+    <div class="flex sm:hidden items-center justify-end gap-2 my-2">
+      <UButton
+        variant="subtle"
+        size="xs"
+        class="rounded-lg text-primary hover:text-primary hover:bg-surface-card px-2.5 py-1 gap-1.5 text-xs font-medium"
+        aria-label="Invertir origen y destino"
+        @click="swapAirports"
+      >
+        <UIcon
+          name="i-lucide-arrow-up-down"
+          class="size-3.5 transition-transform duration-300 shrink-0"
+          :style="{ transform: `rotate(${rotation}deg)` }"
+        />
+        <span>Invertir</span>
+      </UButton>
+
+      <UButton
+        icon="i-lucide-rotate-ccw"
+        variant="subtle"
+        size="xs"
+        class="rounded-lg text-text-muted hover:text-primary hover:bg-surface-card px-2.5 py-1 gap-1 text-xs font-medium"
+        aria-label="Limpiar selección"
+        label="Limpiar"
+        @click="clearSelection"
+      />
+    </div>
+
+    <div class="flex flex-row items-center gap-2 sm:gap-3 my-2 sm:my-4">
+      <div class="flex flex-col flex-1 gap-3 sm:gap-4 min-w-0">
         <InputCard
           type="origin"
           :iata="selectedOrigin"
@@ -87,21 +120,19 @@ function swapAirports() {
             class="w-full flex-1 input-ghost"
             :trailing-icon="false"
             variant="ghost"
-            placeholder="Desde: Aeropuerto, IATA, País o Ciudad"
+            placeholder="Desde: Aeropuerto, IATA o Ciudad"
             :ui="{
-              base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold',
+              base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold text-sm sm:text-base px-1 sm:px-2.5',
             }"
           >
             <template #item-label="{ item }">
-              <span class="truncate">
+              <span class="truncate text-xs sm:text-sm">
                 {{ item.name }}
-                <span class="font-mono font-bold text-primary"
-                  >[{{ item.iata }}]</span
-                >
+                <span class="font-mono font-bold text-primary">[{{ item.iata }}]</span>
               </span>
             </template>
             <template #item-description="{ item }">
-              <span class="text-xs text-text-muted truncate">
+              <span class="text-[11px] sm:text-xs text-text-muted truncate">
                 {{ item.country }}, {{ item.city }}
               </span>
             </template>
@@ -123,21 +154,19 @@ function swapAirports() {
             class="w-full flex-1 input-ghost"
             :trailing-icon="false"
             variant="ghost"
-            placeholder="Hacia: Aeropuerto, IATA, País o Ciudad"
+            placeholder="Hacia: Aeropuerto, IATA o Ciudad"
             :ui="{
-              base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold',
+              base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold text-sm sm:text-base px-1 sm:px-2.5',
             }"
           >
             <template #item-label="{ item }">
-              <span class="truncate">
+              <span class="truncate text-xs sm:text-sm">
                 {{ item.name }}
-                <span class="font-mono font-bold text-primary"
-                  >[{{ item.iata }}]</span
-                >
+                <span class="font-mono font-bold text-primary">[{{ item.iata }}]</span>
               </span>
             </template>
             <template #item-description="{ item }">
-              <span class="text-xs text-text-muted truncate">
+              <span class="text-[11px] sm:text-xs text-text-muted truncate">
                 {{ item.country }}, {{ item.city }}
               </span>
             </template>
@@ -145,39 +174,45 @@ function swapAirports() {
         </InputCard>
       </div>
 
-      <div class="flex flex-col gap-3">
+      <!-- Botonera lateral exclusiva para Tablet / Desktop -->
+      <div class="hidden sm:flex flex-col gap-2 sm:gap-3 shrink-0">
         <UButton
-          icon="i-lucide-arrow-up-down"
           variant="subtle"
-          size="xl"
-          class="rounded-full shrink-0 text-primary/80 hover:text-primary hover:bg-surface-card transition-transform"
-          :style="{ transform: `rotate(${rotation}deg)` }"
+          size="lg"
+          class="rounded-full shrink-0 size-11 sm:size-12 text-primary/80 hover:text-primary hover:bg-surface-card transition-all duration-300 shadow-xs justify-center items-center"
           aria-label="Invertir origen y destino"
+          title="Invertir origen y destino"
           @click="swapAirports"
-        />
+        >
+          <UIcon
+            name="i-lucide-arrow-up-down"
+            class="size-5 transition-transform duration-300"
+            :style="{ transform: `rotate(${rotation}deg)` }"
+          />
+        </UButton>
 
         <UButton
           icon="i-lucide-rotate-ccw"
           variant="subtle"
-          size="xl"
-          class="rounded-full shrink-0 text-muted/80 hover:text-primary hover:bg-surface-card"
-          aria-label="Invertir origen y destino"
+          size="lg"
+          class="rounded-full shrink-0 size-11 sm:size-12 text-text-muted hover:text-primary hover:bg-surface-card transition-all shadow-xs"
+          aria-label="Limpiar selección"
+          title="Limpiar campos"
           @click="clearSelection"
         />
       </div>
     </div>
 
-    <UButton
-      loading-auto
-      to="explorar"
-      size="xl"
-      label="Analizar"
-      trailing-icon="i-lucide-arrow-right"
-      leading-icon="i-lucide-search"
-      class="btn-hud-primary rounded-xl shadow-md text-2xl h-15 justify-center"
-      :ui="{
-        leadingIcon: 'mr-2',
-      }"
-    />
+    <div class="mt-4 sm:mt-6">
+      <UButton
+        loading-auto
+        to="/explorar"
+        size="xl"
+        label="Analizar Rutas"
+        trailing-icon="i-lucide-arrow-right"
+        leading-icon="i-lucide-search"
+        class="btn-hud-primary w-full rounded-xl shadow-lg text-lg sm:text-xl h-13 sm:h-14 justify-center font-semibold"
+      />
+    </div>
   </UPageCard>
 </template>

@@ -14,7 +14,7 @@ const navs: HudHeaderNav[] = [
     to: "/explorar",
   },
   {
-    text: "Métricas Consideradas",
+    text: "Métricas",
     icon: "i-lucide-circle-help",
     to: "#",
   },
@@ -22,32 +22,49 @@ const navs: HudHeaderNav[] = [
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-background">
-    <AppHeader :navs="navs" :has-login="true" />
-
-    <UPage
-      class="flex-1"
-      :ui="{
-        root: 'lg:grid lg:grid-cols-12 lg:gap-0 flex-1',
-        center: 'hidden',
-        left: 'hidden lg:flex lg:col-span-7 items-center justify-center p-8',
-        right:
-          'lg:col-span-5 flex items-center justify-center w-full min-h-[calc(100vh-5rem)] p-6 bg-accent',
-      }"
+  <div class="min-h-screen flex flex-col bg-background relative overflow-x-hidden">
+    <!-- 1. Capa de Fondo Ambiental Global (Móvil y Desktop) -->
+    <div
+      class="fixed inset-0 pointer-events-none z-0 overflow-hidden"
+      aria-hidden="true"
     >
-      <template #left>
-        <div class="hidden lg:flex h-full w-full items-center justify-center">
-          <AppHero />
-        </div>
-      </template>
+      <div
+        class="absolute -top-24 -left-24 w-80 h-80 sm:w-96 sm:h-96 md:w-[32rem] md:h-[32rem] rounded-full bg-primary/10 dark:bg-primary/15 blur-3xl"
+      />
+      <div
+        class="absolute -bottom-24 -right-24 w-80 h-80 sm:w-96 sm:h-96 md:w-[32rem] md:h-[32rem] rounded-full bg-secondary/10 dark:bg-secondary/15 blur-3xl"
+      />
+      <div
+        class="absolute inset-0 bg-radial-[at_top_center] from-primary/5 via-transparent to-transparent"
+      />
+    </div>
 
-      <template #right>
-        <div
-          class="flex flex-col items-center justify-center w-full h-full p-4 bg-accent"
-        >
-          <HeroInput />
+    <!-- 2. Estructura de Contenido -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+      <AppHeader :navs="navs" :has-login="true" />
+
+      <main
+        class="flex-1 w-full flex flex-col lg:grid lg:grid-cols-12 lg:gap-8 xl:gap-12 items-center justify-center px-4 sm:px-6 lg:px-12 xl:px-16 py-4 lg:py-0"
+      >
+        <!-- Columna Izquierda: Hero con Radar Centrado Detrás en Desktop -->
+        <div class="relative w-full lg:col-span-7 flex items-center justify-center">
+          <!-- Radar HUD Exclusivo Desktop: Centrado simétricamente detrás del Hero -->
+          <div
+            class="hidden lg:flex absolute inset-0 -m-8 xl:-m-12 pointer-events-none z-0 items-center justify-center overflow-hidden opacity-35 dark:opacity-50"
+            aria-hidden="true"
+          >
+            <RadarBackground class="w-full h-full max-w-[720px] max-h-[720px]" />
+          </div>
+
+          <AppHero class="w-full relative z-10" />
         </div>
-      </template>
-    </UPage>
+
+        <div class="w-full lg:col-span-5 flex items-center justify-center relative z-10">
+          <HeroInput class="w-full max-w-lg lg:max-w-none" />
+        </div>
+      </main>
+
+      <AppFooter />
+    </div>
   </div>
 </template>
