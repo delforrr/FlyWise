@@ -25,16 +25,15 @@ const waypoints = [
 <template>
   <div
     :class="[
-      'radar-background-container absolute inset-0 pointer-events-none overflow-hidden select-none',
+      'radar-background-container relative w-full h-full pointer-events-none select-none overflow-hidden flex items-center justify-center',
       props.class,
     ]"
     aria-hidden="true"
   >
-    <div class="radar-vignette absolute inset-0 z-10 pointer-events-none" />
-
     <svg
       viewBox="0 0 800 800"
-      class="radar-svg w-full h-full object-contain opacity-60 dark:opacity-80 transition-opacity duration-500"
+      preserveAspectRatio="xMidYMid meet"
+      class="radar-svg w-full h-full object-contain opacity-75 dark:opacity-85 transition-opacity duration-500 pointer-events-none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
@@ -125,14 +124,17 @@ const waypoints = [
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.radar-vignette {
-  background: radial-gradient(
+  mask-image: radial-gradient(
     circle at center,
-    transparent 30%,
-    color-mix(in srgb, var(--color-bg-base) 60%, transparent) 70%,
-    var(--color-bg-base) 100%
+    black 40%,
+    rgba(0, 0, 0, 0.6) 70%,
+    transparent 96%
+  );
+  -webkit-mask-image: radial-gradient(
+    circle at center,
+    black 40%,
+    rgba(0, 0, 0, 0.6) 70%,
+    transparent 96%
   );
 }
 

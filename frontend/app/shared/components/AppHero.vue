@@ -8,13 +8,11 @@ interface FeatureProps {
 
 interface Props {
   compact?: boolean;
-  showRadar?: boolean;
   class?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   compact: false,
-  showRadar: true,
   class: "",
 });
 
@@ -40,32 +38,10 @@ const features: FeatureProps[] = [
 <template>
   <div
     :class="[
-      'relative flex flex-col justify-center w-full max-w-5xl px-3 sm:px-6 lg:px-8 py-2 sm:py-4 lg:py-8 overflow-hidden rounded-3xl',
+      'relative flex flex-col justify-center w-full max-w-3xl lg:max-w-none px-2 sm:px-4 lg:px-0 py-2 sm:py-4 lg:py-0',
       props.class,
     ]"
   >
-    <!-- Fondo ambiental en Móvil / Tablet: Gradiente aero sutil y elegante -->
-    <div
-      class="lg:hidden absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-3xl"
-      aria-hidden="true"
-    >
-      <div
-        class="absolute -top-8 -left-8 w-44 h-44 rounded-full bg-primary/15 blur-2xl"
-      />
-      <div
-        class="absolute -bottom-8 -right-8 w-44 h-44 rounded-full bg-secondary/15 blur-2xl"
-      />
-      <div
-        class="absolute inset-0 bg-radial-[at_center] from-primary/8 via-transparent to-transparent"
-      />
-    </div>
-
-    <!-- Fondo Radar en Desktop: Animación HUD aeronáutica completa -->
-    <RadarBackground
-      v-if="showRadar"
-      class="hidden lg:flex absolute inset-0 z-0 opacity-40 dark:opacity-60 scale-100 lg:scale-110 pointer-events-none"
-    />
-
     <div class="relative z-10 flex flex-col gap-3 sm:gap-6">
       <div class="flex items-center gap-2">
         <span
@@ -81,7 +57,7 @@ const features: FeatureProps[] = [
 
       <div class="flex flex-col gap-1 sm:gap-2">
         <h1
-          class="text-2xl sm:text-4xl lg:text-5xl font-display font-bold tracking-tight text-text-main leading-tight"
+          class="text-2xl sm:text-4xl lg:text-5xl font-display font-bold tracking-tight text-text-main leading-tight sm:leading-tight lg:leading-[1.15]"
         >
           Información de Vuelo y
           <span
@@ -115,6 +91,7 @@ const features: FeatureProps[] = [
       </div>
 
       <div v-else class="flex flex-col gap-4">
+        <!-- Badges para Móvil -->
         <div class="flex lg:hidden flex-wrap items-center gap-2 pt-1">
           <div
             v-for="feat in features"
@@ -126,6 +103,7 @@ const features: FeatureProps[] = [
           </div>
         </div>
 
+        <!-- Cuadrícula 3 Cards para Desktop -->
         <div class="hidden lg:grid grid-cols-3 gap-3.5 pt-2">
           <div
             v-for="feat in features"
@@ -148,6 +126,7 @@ const features: FeatureProps[] = [
           </div>
         </div>
 
+        <!-- Enlace a GitHub en Desktop -->
         <div class="hidden lg:flex items-center gap-3 pt-2">
           <span class="text-xs text-text-dim">Dejá tu estrella en GitHub:</span>
           <ULink
