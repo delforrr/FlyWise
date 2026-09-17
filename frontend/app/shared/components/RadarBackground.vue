@@ -25,7 +25,7 @@ const waypoints = [
 <template>
   <div
     :class="[
-      'radar-background-container relative w-full h-full pointer-events-none select-none overflow-hidden flex items-center justify-center',
+      'radar-background-container relative w-full h-full pointer-events-none select-none overflow-visible flex items-center justify-center',
       props.class,
     ]"
     aria-hidden="true"
@@ -125,18 +125,6 @@ const waypoints = [
   display: flex;
   align-items: center;
   justify-content: center;
-  mask-image: radial-gradient(
-    circle at center,
-    black 35%,
-    rgba(0, 0, 0, 0.6) 65%,
-    transparent 95%
-  );
-  -webkit-mask-image: radial-gradient(
-    circle at center,
-    black 35%,
-    rgba(0, 0, 0, 0.6) 65%,
-    transparent 95%
-  );
 }
 
 .radar-ring {
