@@ -34,3 +34,12 @@ body {
   background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
   color: var(--color-tertiary);
 }
+
+/* Alineación tabular en fuentes numéricas y telemetría */
+.font-mono,
+[class*="font-mono"],
+table,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+

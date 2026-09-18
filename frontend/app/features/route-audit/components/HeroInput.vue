@@ -71,7 +71,8 @@ function swapAirports() {
           </h2>
         </div>
         <p class="text-xs sm:text-sm text-text-muted">
-          Seleccioná un Origen y Destino para auditar la puntualidad histórica
+          Seleccioná un Origen y/o Destino para auditar una ruta de preferencia.
+          Opcionalmente podés proceder para seleccionarla en el mapa global.
         </p>
       </div>
 
@@ -212,7 +213,10 @@ function swapAirports() {
         >
           <div class="flex items-center gap-2.5">
             <UIcon name="i-lucide-search" class="size-5 text-white/90" />
-            <span>Analizar Rutas Globales</span>
+            <span v-if="selectedOrigin || selectedDestination"
+              >Analizar Ruta</span
+            >
+            <span v-else>Analizar Rutas Globales</span>
           </div>
         </NuxtLink>
       </div>

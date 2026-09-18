@@ -122,7 +122,7 @@ const props = withDefaults(defineProps<Props>(), {
         <!-- Enlace a GitHub con contraste mejorado (Oculto en móviles < sm) -->
         <div class="hidden lg:flex items-center gap-3 pt-1">
           <span class="text-xs text-text-muted font-mono"
-            >// Código Abierto:</span
+            >// Dejá tu estrella:</span
           >
           <ULink
             to="https://github.com/delforrr/FlyWise"

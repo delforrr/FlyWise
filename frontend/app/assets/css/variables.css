@@ -5,40 +5,101 @@
    ========================================== */
 
 :root {
-  /* Modo Claro — Cockpit Titanium & Deep Navy Island */
-  --color-bg-base: #edf2f7;
-  --color-bg-accent: #e2e8f0;
-  --color-surface-base: #edf2f7;
-  --color-surface-elevated: #ffffff;
-  --color-surface-accent: #e2e8f0;
-  --color-surface-card: #ffffff;
-  --color-border-subtle: #cbd5e1;
-  --color-border-hover: #94a3b8;
-
-  --color-text-main: #090d16;
-  --color-text-muted: #334155;
-  --color-text-dim: #64748b;
-
-  /* Identidad Aeronáutica Base (Calibrada para contraste claro) */
-  --color-aero-cyan: #0284c7;
-  --color-aero-glow: #0ea5e9;
-  --color-electric-cobalt: #1d4ed8;
-
-  /* Métricas OTP Base (Alto contraste sobre fondos claros) */
-  --color-otp-good: #047857;
-  --color-otp-warning: #b45309;
-  --color-otp-critical: #b91c1c;
-
   /* ==========================================
-     VARIABLES DE COLOR SEMÁNTICAS (TEMA)
+     MODO CLARO — FLYWISE DAYLIGHT TECHNICAL
+     Fuente de diseño: DESIGN.md (Stitch.ai)
      ========================================== */
-  --color-primary: var(--color-aero-cyan);
-  --color-secondary: var(--color-electric-cobalt);
-  --color-tertiary: var(--color-aero-glow);
+
+  /* Fondo de Canvas y Superficies */
+  --color-background: #f8f9ff;
+  --color-on-background: #0b1c30;
+  --color-bg-base: #f8f9ff;
+  --color-bg-accent: #eff4ff;
+
+  /* Escala de Superficies y Contenedores */
+  --color-surface: #f8f9ff;
+  --color-surface-dim: #cbdbf5;
+  --color-surface-bright: #f8f9ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #eff4ff;
+  --color-surface-container: #e5eeff;
+  --color-surface-container-high: #dce9ff;
+  --color-surface-container-highest: #d3e4fe;
+  --color-surface-variant: #d3e4fe;
+
+  --color-surface-base: #f8f9ff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-accent: #eff4ff;
+  --color-surface-card: #ffffff;
+
+  /* Contraste y Tipografía */
+  --color-on-surface: #0b1c30;
+  --color-on-surface-variant: #3f4850;
+  --color-inverse-surface: #213145;
+  --color-inverse-on-surface: #eaf1ff;
+
+  --color-text-main: #0b1c30;
+  --color-text-muted: #3f4850;
+  --color-text-dim: #707881;
+
+  /* Bordes y Líneas Estructurales */
+  --color-outline: #707881;
+  --color-outline-variant: #bfc7d2;
+  --color-border-subtle: #bfc7d2;
+  --color-border-hover: #707881;
+
+  /* Identidad Aeronáutica y Acentos */
+  --color-surface-tint: #006398;
+  --color-aero-cyan: #006194;
+  --color-aero-glow: #0284c7;
+  --color-electric-cobalt: #0051d5;
+
+  /* Roles Principales de Color */
+  --color-primary: #006194;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #007bb9;
+  --color-on-primary-container: #fdfcff;
+  --color-inverse-primary: #93ccff;
+
+  --color-secondary: #0051d5;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #316bf3;
+  --color-on-secondary-container: #fefcff;
+
+  --color-tertiary: #545c72;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #6c748b;
+  --color-on-tertiary-container: #fefcff;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* Variantes Fijas (Fixed) */
+  --color-primary-fixed: #cce5ff;
+  --color-primary-fixed-dim: #93ccff;
+  --color-on-primary-fixed: #001d31;
+  --color-on-primary-fixed-variant: #004b73;
+
+  --color-secondary-fixed: #dbe1ff;
+  --color-secondary-fixed-dim: #b4c5ff;
+  --color-on-secondary-fixed: #00174b;
+  --color-on-secondary-fixed-variant: #003ea8;
+
+  --color-tertiary-fixed: #dae2fd;
+  --color-tertiary-fixed-dim: #bec6e0;
+  --color-on-tertiary-fixed: #131b2e;
+  --color-on-tertiary-fixed-variant: #3f465c;
+
+  /* Métricas Operativas OTP-15 (Alto Contraste Luz Diurna) */
+  --color-otp-good: #047857;
+  --color-otp-warning: #92400e;
+  --color-otp-critical: #ba1a1a;
+
   --color-success: var(--color-otp-good);
-  --color-info: var(--color-aero-cyan);
+  --color-info: var(--color-primary);
   --color-warning: var(--color-otp-warning);
-  --color-error: var(--color-otp-critical);
   --color-neutral: var(--color-text-muted);
 
   /* Puente Nuxt UI */
@@ -51,53 +112,109 @@
   --ui-error: var(--color-error);
 
   /* Tokens HUD & Glassmorphism en Modo Claro */
-  --hud-panel-bg: rgba(255, 255, 255, 0.96);
-  --hud-panel-border: #cbd5e1;
+  --hud-panel-bg: rgba(255, 255, 255, 0.94);
+  --hud-panel-border: var(--color-outline-variant);
   --hud-card-bg: #ffffff;
-  --hud-input-bg: #f1f5f9;
+  --hud-input-bg: #eff4ff;
 
   /* Arquitectura Double-Bezel (Modo Claro) */
-  --bezel-outer-bg: rgba(255, 255, 255, 0.85);
-  --bezel-outer-border: #cbd5e1;
-  --bezel-inner-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.03), inset 0 1px 0 #ffffff;
-  --bezel-highlight-glow: 0 0 0 1px rgba(2, 132, 199, 0.35), 0 12px 28px -4px rgba(2, 132, 199, 0.18);
+  --bezel-outer-bg: rgba(255, 255, 255, 0.9);
+  --bezel-outer-border: var(--color-outline-variant);
+  --bezel-inner-shadow:
+    0 10px 25px -5px rgba(11, 28, 48, 0.06),
+    0 4px 6px -2px rgba(11, 28, 48, 0.03), inset 0 1px 0 #ffffff;
+  --bezel-highlight-glow:
+    0 0 0 1px rgba(0, 97, 148, 0.35), 0 12px 28px -4px rgba(0, 97, 148, 0.16);
 }
 
 .dark {
   /* Modo Oscuro — OLED Space Black & True Specular Glass */
+  --color-background: #05080f;
+  --color-on-background: #f8fafc;
   --color-bg-base: #05080f;
   --color-bg-accent: #0a0f1d;
+
+  --color-surface: #0b101b;
+  --color-surface-dim: #070b14;
+  --color-surface-bright: #131d31;
+  --color-surface-container-lowest: #05080f;
+  --color-surface-container-low: #0b101b;
+  --color-surface-container: #0f1728;
+  --color-surface-container-high: #131d31;
+  --color-surface-container-highest: #1a263e;
+  --color-surface-variant: #1a263e;
+
   --color-surface-base: #0b101b;
   --color-surface-accent: #0f1728;
   --color-surface-elevated: #111827;
   --color-surface-card: #131d31;
-  --color-border-subtle: rgba(255, 255, 255, 0.10);
+
+  --color-on-surface: #f8fafc;
+  --color-on-surface-variant: #94a3b8;
+  --color-inverse-surface: #f8f9ff;
+  --color-inverse-on-surface: #0b1c30;
+
+  --color-outline: #64748b;
+  --color-outline-variant: rgba(255, 255, 255, 0.12);
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
   --color-border-hover: rgba(255, 255, 255, 0.22);
 
   --color-text-main: #f8fafc;
   --color-text-muted: #94a3b8;
   --color-text-dim: #64748b;
 
+  --color-surface-tint: #93ccff;
+
   /* Identidad Aeronáutica Base */
   --color-aero-cyan: #38bdf8;
   --color-aero-glow: #7dd3fc;
   --color-electric-cobalt: #3b82f6;
+
+  --color-primary: #38bdf8;
+  --color-on-primary: #003453;
+  --color-primary-container: #004c75;
+  --color-on-primary-container: #cce5ff;
+  --color-inverse-primary: #006194;
+
+  --color-secondary: #3b82f6;
+  --color-on-secondary: #002573;
+  --color-secondary-container: #003ea8;
+  --color-on-secondary-container: #dbe1ff;
+
+  --color-tertiary: #bec6e0;
+  --color-on-tertiary: #262e43;
+  --color-tertiary-container: #3c445a;
+  --color-on-tertiary-container: #dae2fd;
+
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+
+  /* Tokens Fijos (Fixed) */
+  --color-primary-fixed: #cce5ff;
+  --color-primary-fixed-dim: #93ccff;
+  --color-on-primary-fixed: #001d31;
+  --color-on-primary-fixed-variant: #004b73;
+
+  --color-secondary-fixed: #dbe1ff;
+  --color-secondary-fixed-dim: #b4c5ff;
+  --color-on-secondary-fixed: #00174b;
+  --color-on-secondary-fixed-variant: #003ea8;
+
+  --color-tertiary-fixed: #dae2fd;
+  --color-tertiary-fixed-dim: #bec6e0;
+  --color-on-tertiary-fixed: #131b2e;
+  --color-on-tertiary-fixed-variant: #3f465c;
 
   /* Métricas OTP Base */
   --color-otp-good: #10b981;
   --color-otp-warning: #f59e0b;
   --color-otp-critical: #ef4444;
 
-  /* ==========================================
-     VARIABLES DE COLOR SEMÁNTICAS (TEMA)
-     ========================================== */
-  --color-primary: var(--color-aero-cyan);
-  --color-secondary: var(--color-electric-cobalt);
-  --color-tertiary: var(--color-aero-glow);
   --color-success: var(--color-otp-good);
-  --color-info: var(--color-aero-cyan);
+  --color-info: var(--color-primary);
   --color-warning: var(--color-otp-warning);
-  --color-error: var(--color-otp-critical);
   --color-neutral: var(--color-text-muted);
 
   /* Puente Nuxt UI */
@@ -113,13 +230,16 @@
   --hud-panel-bg: rgba(11, 16, 27, 0.82);
   --hud-panel-border: rgba(255, 255, 255, 0.12);
   --hud-card-bg: rgba(17, 24, 39, 0.78);
-  --hud-input-bg: rgba(7, 11, 20, 0.90);
+  --hud-input-bg: rgba(7, 11, 20, 0.9);
 
   /* Arquitectura Double-Bezel (Modo Oscuro) */
   --bezel-outer-bg: rgba(255, 255, 255, 0.04);
-  --bezel-outer-border: rgba(255, 255, 255, 0.10);
-  --bezel-inner-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.14);
-  --bezel-highlight-glow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 12px 28px -4px rgba(56, 189, 248, 0.20);
+  --bezel-outer-border: rgba(255, 255, 255, 0.1);
+  --bezel-inner-shadow:
+    0 12px 32px -4px rgba(0, 0, 0, 0.65),
+    inset 0 1px 1px rgba(255, 255, 255, 0.14);
+  --bezel-highlight-glow:
+    0 0 0 1px rgba(56, 189, 248, 0.35), 0 12px 28px -4px rgba(56, 189, 248, 0.2);
 }
 
 :root,
@@ -133,4 +253,3 @@
   --ui-warning: var(--color-warning);
   --ui-error: var(--color-error);
 }
-
