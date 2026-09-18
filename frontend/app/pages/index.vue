@@ -23,11 +23,11 @@ const navs: HudHeaderNav[] = [
 
 <template>
   <div
-    class="min-h-screen flex flex-col bg-background relative overflow-x-hidden"
+    class="min-h-screen w-full flex flex-col bg-background relative overflow-x-hidden"
   >
     <!-- 1. Capa de Fondo Ambiental Global (Móvil y Desktop) -->
     <div
-      class="fixed inset-0 pointer-events-none z-0 overflow-hidden"
+      class="fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden"
       aria-hidden="true"
     >
       <div
@@ -40,9 +40,7 @@ const navs: HudHeaderNav[] = [
         class="absolute inset-0 bg-radial-[at_top_center] from-primary/6 via-transparent to-transparent dark:from-primary/10 dark:via-transparent dark:to-transparent"
       />
       <!-- Malla técnica geodésica de micro-puntos (dot-matrix scrim calibrada para titanium slate) -->
-      <div
-        class="absolute inset-0 bg-[radial-gradient(rgba(15,23,42,0.14)_1.25px,transparent_1.25px)] dark:bg-[radial-gradient(rgba(255,255,255,0.08)_1.25px,transparent_1.25px)] bg-size-[24px_24px] mask-[radial-gradient(ellipse_at_top,black_55%,transparent_90%)]"
-      />
+      <div class="aero-dot-grid" />
     </div>
 
     <!-- 2. Estructura de Contenido -->
