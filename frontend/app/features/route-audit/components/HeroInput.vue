@@ -146,6 +146,24 @@ function swapAirports() {
             </UInputMenu>
           </InputCard>
 
+          <!-- Boton de invertir -->
+          <div class="hidden mt-8 sm:block mx-auto shrink-0">
+            <UButton
+              variant="subtle"
+              size="lg"
+              class="rounded-2xl shrink-0 size-11 sm:size-12 text-primary hover:text-primary hover:bg-surface-accent transition-all duration-300 shadow-2xs border border-border-subtle/80 justify-center items-center active:scale-[0.95]"
+              aria-label="Invertir origen y destino"
+              title="Invertir origen y destino"
+              @click="swapAirports"
+            >
+              <UIcon
+                name="i-lucide-arrow-up-down"
+                class="size-5 transition-transform duration-300"
+                :style="{ transform: `rotate(${rotation}deg)` }"
+              />
+            </UButton>
+          </div>
+
           <InputCard
             type="destination"
             :iata="selectedDestination"
@@ -184,37 +202,9 @@ function swapAirports() {
             </UInputMenu>
           </InputCard>
         </div>
-
-        <!-- Botonera lateral táctica para Tablet / Desktop -->
-        <div class="hidden sm:flex flex-col gap-2.5 shrink-0">
-          <UButton
-            variant="subtle"
-            size="lg"
-            class="rounded-2xl shrink-0 size-11 sm:size-12 text-primary hover:text-primary hover:bg-surface-accent transition-all duration-300 shadow-2xs border border-border-subtle/80 justify-center items-center active:scale-[0.95]"
-            aria-label="Invertir origen y destino"
-            title="Invertir origen y destino"
-            @click="swapAirports"
-          >
-            <UIcon
-              name="i-lucide-arrow-up-down"
-              class="size-5 transition-transform duration-300"
-              :style="{ transform: `rotate(${rotation}deg)` }"
-            />
-          </UButton>
-
-          <UButton
-            icon="i-lucide-rotate-ccw"
-            variant="subtle"
-            size="lg"
-            class="rounded-2xl shrink-0 size-11 sm:size-12 text-text-muted hover:text-primary hover:bg-surface-accent transition-all duration-300 shadow-2xs border border-border-subtle/80 justify-center items-center active:scale-[0.95]"
-            aria-label="Limpiar selección"
-            title="Limpiar campos"
-            @click="clearSelection"
-          />
-        </div>
       </div>
 
-      <!-- CTA Principal Button-in-Button -->
+      <!-- Botón principal -->
       <div class="mt-4 sm:mt-5">
         <NuxtLink
           to="/explorar"
@@ -224,14 +214,10 @@ function swapAirports() {
             <UIcon name="i-lucide-search" class="size-5 text-white/90" />
             <span>Analizar Rutas Globales</span>
           </div>
-          <div class="btn-icon-capsule">
-            <UIcon
-              name="i-lucide-arrow-right"
-              class="size-4.5 text-white transition-transform duration-300 group-hover:translate-x-0.5"
-            />
-          </div>
         </NuxtLink>
       </div>
+
+      <USeparator size="sm" class="my-3 sm:my-4 opacity-75" />
     </div>
   </div>
 </template>
