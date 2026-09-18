@@ -29,7 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
       </div>
 
       <!-- Título de Alto Impacto Editorial -->
-      <div class="flex flex-col gap-2">
+      <div class="flex flex-col gap-2 mb-10 lg:mb-5">
         <h1
           class="text-3xl sm:text-5xl lg:text-[3.25rem] font-display font-extrabold tracking-[-0.035em] text-text-main leading-[1.08] text-balance"
         >
@@ -42,23 +42,23 @@ const props = withDefaults(defineProps<Props>(), {
         <p
           class="text-sm sm:text-base text-text-muted max-w-2xl leading-relaxed mt-1"
         >
-          Auditoría de demoras y puntualidad histórica por aerolínea y tramo
-          mediante visualización geoespacial acelerada por WebGL.
+          Auditoría de demoras y puntualidad histórica por aerolínea y ruta.
+          Conocé la probabilidad de que tu próximo vuelo se retrase.
         </p>
       </div>
 
       <!-- Asymmetrical Telemetry Bento Grid (Desktop) -->
-      <div class="flex flex-col gap-3 pt-1">
+      <div class="hidden lg:flex flex-col gap-3 pt-1">
         <!-- Grid Asimétrico en Desktop -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
           <!-- Bento 1: Principal de Rutas y Radar (Col 7) -->
           <div
-            class="sm:col-span-7 p-4 rounded-2xl bg-white dark:bg-surface-card/70 border border-slate-200 dark:border-border-subtle hover:border-primary/50 backdrop-blur-xl shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between gap-3 group"
+            class="sm:col-span-7 p-4 rounded-2xl bg-surface-card dark:bg-surface-card/70 border border-border-subtle hover:border-primary/50 backdrop-blur-xl shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between gap-3 group"
           >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2.5">
                 <div
-                  class="p-2 rounded-xl bg-sky-50 dark:bg-primary/10 text-sky-700 dark:text-primary border border-sky-200/80 dark:border-primary/20 group-hover:scale-105 transition-transform"
+                  class="p-2 rounded-xl bg-primary/10 text-primary border border-primary/20 group-hover:scale-105 transition-transform"
                 >
                   <UIcon name="i-lucide-globe" class="size-4.5 shrink-0" />
                 </div>
@@ -74,7 +74,7 @@ const props = withDefaults(defineProps<Props>(), {
                 </div>
               </div>
               <span
-                class="text-xs font-mono font-bold text-sky-700 dark:text-primary bg-sky-50 dark:bg-primary/10 border border-sky-200/80 dark:border-primary/20 px-2 py-0.5 rounded-md"
+                class="text-xs font-mono font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md"
                 >60 FPS</span
               >
             </div>
@@ -86,12 +86,12 @@ const props = withDefaults(defineProps<Props>(), {
 
           <!-- Bento 2: Scorecard OTP-15 (Col 5) -->
           <div
-            class="sm:col-span-5 p-4 rounded-2xl bg-white dark:bg-surface-card/70 border border-slate-200 dark:border-border-subtle hover:border-emerald-500/50 backdrop-blur-xl shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between gap-2 group"
+            class="sm:col-span-5 p-4 rounded-2xl bg-surface-card dark:bg-surface-card/70 border border-border-subtle hover:border-success/50 backdrop-blur-xl shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between gap-2 group"
           >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2.5">
                 <div
-                  class="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-500/20 group-hover:scale-105 transition-transform"
+                  class="p-2 rounded-xl bg-success/10 text-success border border-success/20 group-hover:scale-105 transition-transform"
                 >
                   <UIcon
                     name="i-lucide-check-circle"
@@ -105,7 +105,7 @@ const props = withDefaults(defineProps<Props>(), {
                 </h3>
               </div>
               <span
-                class="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-500/20 px-2 py-0.5 rounded-md"
+                class="text-xs font-mono font-bold text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-md"
                 >≤ 15m</span
               >
             </div>
@@ -120,7 +120,7 @@ const props = withDefaults(defineProps<Props>(), {
         </div>
 
         <!-- Enlace a GitHub con contraste mejorado (Oculto en móviles < sm) -->
-        <div class="hidden sm:flex items-center gap-3 pt-1">
+        <div class="hidden lg:flex items-center gap-3 pt-1">
           <span class="text-xs text-text-muted font-mono"
             >// Código Abierto:</span
           >
@@ -128,7 +128,7 @@ const props = withDefaults(defineProps<Props>(), {
             to="https://github.com/delforrr/FlyWise"
             target="_blank"
             rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 text-xs font-semibold text-text-main hover:text-primary transition-colors py-1.5 px-3 rounded-xl bg-white dark:bg-surface-card/80 hover:bg-slate-50 dark:hover:bg-surface-accent border border-slate-200 dark:border-border-subtle shadow-2xs"
+            class="inline-flex items-center gap-1.5 text-xs font-semibold text-text-main hover:text-primary transition-colors py-1.5 px-3 rounded-xl bg-surface-card dark:bg-surface-card/80 hover:bg-surface-accent border border-border-subtle shadow-2xs"
             aria-label="Repositorio de FlyWise en GitHub"
           >
             <UIcon
