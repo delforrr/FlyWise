@@ -60,7 +60,7 @@ const props = withDefaults(defineProps<Props>(), {
           :icon="nav.icon"
           size="md"
           variant="ghost"
-          class="rounded-xl font-medium text-xs sm:text-sm text-text-muted hover:text-text-main hover:bg-surface-accent transition-all active:scale-[0.98]"
+          class="rounded-xl font-medium text-xs sm:text-sm text-text-muted hover:text-primary hover:font-bold hover:bg-surface-accent transition-all active:scale-[0.98]"
         >
           {{ nav.text }}
         </UButton>
