@@ -139,6 +139,8 @@ function handleSearch() {
             />
           </div>
 
+          <USeparator size="sm" class="my-3 sm:my-4 opacity-75" />
+
           <!-- Selectores Origen y Destino -->
           <div class="flex flex-col gap-2.5">
             <div>
