@@ -123,10 +123,14 @@ function swapAirports() {
               size="xl"
               class="w-full flex-1 input-ghost"
               :trailing-icon="false"
+              clear
               variant="ghost"
               placeholder="Desde: Aeropuerto, IATA o Ciudad"
               :ui="{
-                base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold text-sm sm:text-base px-1 sm:px-2.5',
+                base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold text-sm sm:text-base ps-1 sm:ps-2.5 pe-9 sm:pe-10 truncate',
+                trailing: 'pe-2 sm:pe-3',
+                trailingClear:
+                  'text-text-muted hover:text-text-main transition-colors cursor-pointer',
               }"
             >
               <template #item-label="{ item }">
@@ -179,10 +183,14 @@ function swapAirports() {
               size="xl"
               class="w-full flex-1 input-ghost"
               :trailing-icon="false"
+              clear
               variant="ghost"
               placeholder="Hacia: Aeropuerto, IATA o Ciudad"
               :ui="{
-                base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold text-sm sm:text-base px-1 sm:px-2.5',
+                base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold text-sm sm:text-base ps-1 sm:ps-2.5 pe-9 sm:pe-10 truncate',
+                trailing: 'pe-2 sm:pe-3',
+                trailingClear:
+                  'text-text-muted hover:text-text-main transition-colors cursor-pointer',
               }"
             >
               <template #item-label="{ item }">
