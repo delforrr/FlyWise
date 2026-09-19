@@ -77,7 +77,7 @@ const modelValue = defineModel<string | undefined>({
 
 const airportItems = computed<AirportOption[]>(() => {
   return SEED_AIRPORTS.map((a) => {
-    let label = a.iata;
+    let label = `${a.iata} — ${a.city}`;
     if (props.mode === "hero") {
       label = `${a.name} [${a.iata}]`;
     } else if (props.mode === "drawer") {
@@ -128,7 +128,7 @@ const resolvedPlaceholder = computed(() => {
   if (props.placeholder) return props.placeholder;
   if (props.mode === "hero") return "Aeropuerto, IATA o Ciudad";
   if (props.mode === "drawer") return "Seleccionar aeropuerto";
-  return "Aeropuerto";
+  return "Aeropuerto o Ciudad";
 });
 
 const resolvedClass = computed(() => {
@@ -139,7 +139,7 @@ const resolvedClass = computed(() => {
     classes.push("hud-custom-input w-full font-mono font-semibold");
   } else {
     classes.push(
-      "hud-custom-input w-22 sm:w-28 md:w-36 shrink-0 font-mono font-semibold text-xs sm:text-sm",
+      "hud-custom-input flex-1 min-w-0 font-mono font-semibold text-xs sm:text-sm",
     );
   }
 
@@ -151,16 +151,37 @@ const resolvedClass = computed(() => {
 });
 
 const resolvedUi = computed(() => {
-  if (props.ui) return props.ui;
+  const baseUi = props.ui || {};
+
+  const commonContent =
+    "w-max min-w-(--reka-combobox-trigger-width) max-w-[min(90vw,36rem)] shadow-2xl backdrop-blur-xl border border-border-subtle z-50";
+
   if (props.mode === "hero") {
     return {
       base: "bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold text-sm sm:text-base ps-1 sm:ps-2.5 pe-9 sm:pe-10 truncate",
       trailing: "pe-2 sm:pe-3",
       trailingClear:
         "text-text-muted hover:text-text-main transition-colors cursor-pointer",
+      content: commonContent,
+      itemLabel: "w-full min-w-0",
+      ...baseUi,
     };
   }
-  return undefined;
+
+  if (props.mode === "hud") {
+    return {
+      base: "truncate font-mono font-semibold text-xs sm:text-sm",
+      content: commonContent,
+      itemLabel: "w-full min-w-0",
+      ...baseUi,
+    };
+  }
+
+  return {
+    content: commonContent,
+    itemLabel: "w-full min-w-0",
+    ...baseUi,
+  };
 });
 </script>
 
@@ -182,15 +203,24 @@ const resolvedUi = computed(() => {
     :ui="resolvedUi"
   >
     <template #item-label="{ item }">
-      <span class="truncate text-xs sm:text-sm font-medium text-text-main">
-        {{ item.name }}
-        <span class="font-mono font-bold text-primary">[{{ item.iata }}]</span>
-      </span>
+      <div class="flex items-center justify-between gap-3 w-full min-w-0">
+        <span class="truncate text-xs sm:text-sm font-medium text-text-main">
+          {{ item.name }}
+        </span>
+        <span
+          class="font-mono font-bold text-primary shrink-0 text-[11px] sm:text-xs bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20 tracking-wider"
+        >
+          {{ item.iata }}
+        </span>
+      </div>
     </template>
     <template #item-description="{ item }">
-      <span class="text-[11px] sm:text-xs text-text-muted truncate">
-        {{ item.country }}, {{ item.city }}
-      </span>
+      <div
+        class="flex items-center gap-1.5 text-[11px] sm:text-xs text-text-muted truncate"
+      >
+        <UIcon name="i-lucide-map-pin" class="size-3 text-text-dim shrink-0" />
+        <span class="truncate">{{ item.country }}, {{ item.city }}</span>
+      </div>
     </template>
   </UInputMenu>
 </template>

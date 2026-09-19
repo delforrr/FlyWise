@@ -36,12 +36,14 @@ function handleSearch() {
 </script>
 
 <template>
-  <HudPill class="gap-1 sm:gap-2 flex-nowrap items-center shrink-0 max-w-full">
+  <HudPill
+    class="w-full max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl gap-1 sm:gap-2 flex-nowrap items-center px-2 sm:px-3 py-1.5 min-w-0"
+  >
     <!-- Selector Origen -->
     <AirportSelectInput
       v-model="selectedOrigin"
       mode="hud"
-      placeholder="Origen"
+      placeholder="Origen (IATA o Ciudad)"
       icon="i-lucide-plane-takeoff"
     />
 
@@ -61,7 +63,7 @@ function handleSearch() {
     <AirportSelectInput
       v-model="selectedDestination"
       mode="hud"
-      placeholder="Destino"
+      placeholder="Destino (IATA o Ciudad)"
       icon="i-lucide-plane-landing"
     />
 
@@ -102,7 +104,7 @@ function handleSearch() {
     <RouteCounterBadge
       v-if="selectedOrigin || selectedDestination"
       :count="matchingRoutes.length"
-      class="hidden sm:inline-flex"
+      class="hidden sm:inline-flex shrink-0"
     />
 
     <!-- Botón de Búsqueda / Encuadre HUD -->

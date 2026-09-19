@@ -23,7 +23,8 @@ const props = withDefaults(defineProps<Props>(), {
       container:
         'w-full max-w-none px-3.5 sm:px-6 py-2 sm:py-2.5 flex flex-wrap md:flex-nowrap items-center justify-between gap-3',
       left: 'flex-none flex items-center gap-3',
-      center: 'hidden md:flex flex-1 items-center justify-center',
+      center:
+        'hidden md:flex flex-1 items-center justify-center px-2 sm:px-4 min-w-0',
       right: 'flex-none flex items-center justify-end gap-2 sm:gap-3',
     }"
   >
@@ -45,8 +46,12 @@ const props = withDefaults(defineProps<Props>(), {
       </NuxtLink>
     </template>
 
+    <!-- Navs de la página principal -->
     <template #default>
-      <FromToDate v-if="hasControls" class="hidden md:flex" />
+      <FromToDate
+        v-if="hasControls"
+        class="hidden md:flex w-full justify-center"
+      />
       <div v-if="navs?.length" class="flex items-center gap-1.5 sm:gap-2">
         <UButton
           v-for="nav in navs"
@@ -62,6 +67,7 @@ const props = withDefaults(defineProps<Props>(), {
       </div>
     </template>
 
+    <!-- Botón de login -->
     <template #right>
       <ScenarioSelector v-if="hasControls" />
       <ThemeToggle />
