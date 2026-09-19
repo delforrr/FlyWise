@@ -57,10 +57,8 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center w-full max-w-xl p-2 sm:p-4">
-    <div class="double-bezel-shell w-full shadow-2xl">
-      <div class="double-bezel-core p-4 sm:p-7 flex flex-col">
-        <UAuthForm
+  <PaperBezel class="max-w-xl" core-class="p-4 sm:p-7">
+    <UAuthForm
           :schema="schema"
           :fields="fields"
           :validate-on="['blur', 'change']"
@@ -107,7 +105,5 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
             </div>
           </template>
         </UAuthForm>
-      </div>
-    </div>
-  </div>
+  </PaperBezel>
 </template>
