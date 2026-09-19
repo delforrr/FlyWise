@@ -1,21 +1,5 @@
 <script setup lang="ts">
-import {
-  type DateValue,
-  today,
-  getLocalTimeZone,
-} from "@internationalized/date";
-import { SEED_AIRPORTS, SEED_AIRPORTS_BY_IATA } from "~/data/seedData";
-
-interface AirportMenuItem {
-  id: string;
-  iata: string;
-  name: string;
-  city: string;
-  country: string;
-  label: string;
-  description: string;
-  value: string;
-}
+import { SEED_AIRPORTS_BY_IATA } from "~/data/seedData";
 
 const {
   selectedOrigin,
@@ -23,19 +7,6 @@ const {
   swapAirports: swapSelection,
   clearSelection,
 } = useFlightSelection();
-
-const airportItems = computed<AirportMenuItem[]>(() => {
-  return SEED_AIRPORTS.map((a) => ({
-    id: a.id,
-    iata: a.iata,
-    name: a.name,
-    city: a.city,
-    country: a.country,
-    label: `${a.name} [${a.iata}]`,
-    description: `${a.country}, ${a.city}`,
-    value: a.iata,
-  }));
-});
 
 const originAirport = computed(() => {
   if (!selectedOrigin.value) return null;
@@ -49,7 +20,6 @@ const destinationAirport = computed(() => {
   );
 });
 
-const defaultDate = shallowRef<DateValue>(today(getLocalTimeZone()));
 const rotation = ref(0);
 
 function swapAirports() {
@@ -114,41 +84,11 @@ function swapAirports() {
             :iata="selectedOrigin"
             :airport="originAirport"
           >
-            <UInputMenu
+            <AirportSelectInput
               v-model="selectedOrigin"
-              :items="airportItems"
-              value-key="value"
-              label-key="label"
-              :filter-fields="['iata', 'name', 'city', 'country']"
-              size="xl"
-              class="w-full flex-1 input-ghost"
-              :trailing-icon="false"
-              clear
-              variant="ghost"
+              mode="hero"
               placeholder="Desde: Aeropuerto, IATA o Ciudad"
-              :ui="{
-                base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold text-sm sm:text-base ps-1 sm:ps-2.5 pe-9 sm:pe-10 truncate',
-                trailing: 'pe-2 sm:pe-3',
-                trailingClear:
-                  'text-text-muted hover:text-text-main transition-colors cursor-pointer',
-              }"
-            >
-              <template #item-label="{ item }">
-                <span
-                  class="truncate text-xs sm:text-sm font-medium text-text-main"
-                >
-                  {{ item.name }}
-                  <span class="font-mono font-bold text-primary"
-                    >[{{ item.iata }}]</span
-                  >
-                </span>
-              </template>
-              <template #item-description="{ item }">
-                <span class="text-[11px] sm:text-xs text-text-muted truncate">
-                  {{ item.country }}, {{ item.city }}
-                </span>
-              </template>
-            </UInputMenu>
+            />
           </InputCard>
 
           <!-- Boton de invertir -->
@@ -174,41 +114,11 @@ function swapAirports() {
             :iata="selectedDestination"
             :airport="destinationAirport"
           >
-            <UInputMenu
+            <AirportSelectInput
               v-model="selectedDestination"
-              :items="airportItems"
-              value-key="value"
-              label-key="label"
-              :filter-fields="['iata', 'name', 'city', 'country']"
-              size="xl"
-              class="w-full flex-1 input-ghost"
-              :trailing-icon="false"
-              clear
-              variant="ghost"
+              mode="hero"
               placeholder="Hacia: Aeropuerto, IATA o Ciudad"
-              :ui="{
-                base: 'bg-transparent! hover:bg-transparent! focus:bg-transparent! active:bg-transparent! border-0! ring-0! shadow-none! focus-visible:ring-0! text-text-main font-semibold text-sm sm:text-base ps-1 sm:ps-2.5 pe-9 sm:pe-10 truncate',
-                trailing: 'pe-2 sm:pe-3',
-                trailingClear:
-                  'text-text-muted hover:text-text-main transition-colors cursor-pointer',
-              }"
-            >
-              <template #item-label="{ item }">
-                <span
-                  class="truncate text-xs sm:text-sm font-medium text-text-main"
-                >
-                  {{ item.name }}
-                  <span class="font-mono font-bold text-primary"
-                    >[{{ item.iata }}]</span
-                  >
-                </span>
-              </template>
-              <template #item-description="{ item }">
-                <span class="text-[11px] sm:text-xs text-text-muted truncate">
-                  {{ item.country }}, {{ item.city }}
-                </span>
-              </template>
-            </UInputMenu>
+            />
           </InputCard>
         </div>
       </div>

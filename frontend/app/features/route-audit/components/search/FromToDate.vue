@@ -4,7 +4,6 @@ import {
   today,
   getLocalTimeZone,
 } from "@internationalized/date";
-import { SEED_AIRPORTS } from "~/data/seedData";
 
 interface FromToDateProps {
   hasDate?: boolean;
@@ -23,10 +22,6 @@ const {
   triggerFit,
 } = useFlightSelection();
 
-const airportItems = computed(() => {
-  return SEED_AIRPORTS.map((a) => a.iata);
-});
-
 const defaultDate = shallowRef<DateValue>(today(getLocalTimeZone()));
 const rotation = ref(0);
 
@@ -43,15 +38,11 @@ function handleSearch() {
 <template>
   <HudPill class="gap-1 sm:gap-2 flex-nowrap items-center shrink-0 max-w-full">
     <!-- Selector Origen -->
-    <UInputMenu
-      arrow
+    <AirportSelectInput
       v-model="selectedOrigin"
-      variant="soft"
-      :items="airportItems"
+      mode="hud"
       placeholder="Origen"
       icon="i-lucide-plane-takeoff"
-      size="sm"
-      class="hud-custom-input w-22 sm:w-28 md:w-36 shrink-0 font-mono font-semibold text-xs sm:text-sm"
     />
 
     <!-- Botón Intercambiar Origen / Destino -->
@@ -67,15 +58,11 @@ function handleSearch() {
     />
 
     <!-- Selector Destino -->
-    <UInputMenu
-      arrow
+    <AirportSelectInput
       v-model="selectedDestination"
-      :items="airportItems"
-      variant="soft"
+      mode="hud"
       placeholder="Destino"
       icon="i-lucide-plane-landing"
-      size="sm"
-      class="hud-custom-input w-22 sm:w-28 md:w-36 shrink-0 font-mono font-semibold text-xs sm:text-sm"
     />
 
     <USeparator

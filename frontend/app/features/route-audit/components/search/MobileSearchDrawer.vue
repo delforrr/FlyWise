@@ -4,7 +4,6 @@ import {
   today,
   getLocalTimeZone,
 } from "@internationalized/date";
-import { SEED_AIRPORTS } from "~/data/seedData";
 
 const {
   selectedOrigin,
@@ -17,8 +16,6 @@ const {
   clearSelection,
   triggerFit,
 } = useFlightSelection();
-
-const airportItems = computed(() => SEED_AIRPORTS.map((a) => a.iata));
 
 const defaultDate = shallowRef<DateValue>(today(getLocalTimeZone()));
 const rotation = ref(0);
@@ -148,15 +145,11 @@ function handleSearch() {
                 class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1"
               >
                 Aeropuerto de Origen
-                <UInputMenu
-                  arrow
+                <AirportSelectInput
                   v-model="selectedOrigin"
-                  :items="airportItems"
-                  variant="soft"
+                  mode="drawer"
                   placeholder="Seleccionar origen (ej. EZE)"
                   icon="i-lucide-plane-takeoff"
-                  size="lg"
-                  class="hud-custom-input w-full font-mono font-semibold"
                 />
               </label>
             </div>
@@ -179,15 +172,11 @@ function handleSearch() {
                 class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1"
               >
                 Aeropuerto de Destino
-                <UInputMenu
-                  arrow
+                <AirportSelectInput
                   v-model="selectedDestination"
-                  :items="airportItems"
-                  variant="soft"
+                  mode="drawer"
                   placeholder="Seleccionar destino (ej. MAD)"
                   icon="i-lucide-plane-landing"
-                  size="lg"
-                  class="hud-custom-input w-full font-mono font-semibold"
                 />
               </label>
             </div>

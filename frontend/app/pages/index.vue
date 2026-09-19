@@ -68,7 +68,7 @@ const navs: HudHeaderNav[] = [
         <div
           class="w-full lg:col-span-5 flex items-center justify-center relative z-10"
         >
-          <HeroInput class="w-full max-w-lg lg:max-w-none" />
+          <HeroSearchCard class="w-full max-w-lg lg:max-w-none" />
         </div>
       </main>
 
