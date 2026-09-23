@@ -31,7 +31,7 @@ const fields: AuthFormField[] = [
   },
   {
     name: "remember",
-    label: "Recordar sesión en este equipo",
+    label: "Recordar sesión",
     type: "checkbox",
     defaultValue: false,
   },
@@ -59,51 +59,53 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 <template>
   <PaperBezel class="max-w-xl" core-class="p-4 sm:p-7">
     <UAuthForm
-          :schema="schema"
-          :fields="fields"
-          :validate-on="['blur', 'change']"
-          title="Acceso Restringido"
-          icon="i-lucide-shield-lock"
-          :submit="{
-            label: 'Autenticarse',
-            variant: 'subtle',
-            class: 'btn-hud-primary h-12 sm:h-13 text-base sm:text-lg font-semibold w-full justify-center shadow-lg active:scale-[0.98]',
-          }"
-          @submit="onSubmit"
+      :schema="schema"
+      :fields="fields"
+      :validate-on="['blur', 'change']"
+      title="Acceso Restringido"
+      icon="i-lucide-shield-lock"
+      :submit="{
+        label: 'Autenticarse',
+        variant: 'subtle',
+        class:
+          'btn-hud-primary h-12 sm:h-13 text-base sm:text-lg font-semibold w-full justify-center shadow-lg active:scale-[0.98]',
+      }"
+      @submit="onSubmit"
+    >
+      <template #description>
+        Acceso exclusivo para administradores y auditores de telemetría de
+        FlyWise.
+      </template>
+
+      <template #password-hint>
+        <ULink
+          to="#"
+          class="text-xs text-primary hover:underline font-semibold"
+          tabindex="-1"
         >
-          <template #description>
-            Acceso exclusivo para administradores y auditores de telemetría de FlyWise.
-          </template>
+          ¿Olvidaste tu contraseña?
+        </ULink>
+      </template>
 
-          <template #password-hint>
-            <ULink
-              to="#"
-              class="text-xs text-primary hover:underline font-semibold"
-              tabindex="-1"
-            >
-              ¿Olvidaste tu contraseña?
-            </ULink>
-          </template>
+      <template #validation>
+        <UAlert
+          v-if="hasError"
+          color="error"
+          icon="i-lucide-alert-triangle"
+          title="Error de Autenticación"
+          description="Las credenciales ingresadas son incorrectas o no cuentan con privilegios administrativos."
+          class="mb-3"
+        />
+      </template>
 
-          <template #validation>
-            <UAlert
-              v-if="hasError"
-              color="error"
-              icon="i-lucide-alert-triangle"
-              title="Error de Autenticación"
-              description="Las credenciales ingresadas son incorrectas o no cuentan con privilegios administrativos."
-              class="mb-3"
-            />
-          </template>
-
-          <template #footer>
-            <div class="text-xs text-text-muted text-center pt-2">
-              Volver a la página de
-              <ULink to="/" class="text-primary hover:underline font-semibold">
-                Bienvenida
-              </ULink>.
-            </div>
-          </template>
-        </UAuthForm>
+      <template #footer>
+        <div class="text-xs text-text-muted text-center pt-2">
+          Volver a la página de
+          <ULink to="/" class="text-primary hover:underline font-semibold">
+            Bienvenida </ULink
+          >.
+        </div>
+      </template>
+    </UAuthForm>
   </PaperBezel>
 </template>
