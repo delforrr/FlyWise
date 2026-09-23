@@ -1,7 +1,7 @@
-import { Map, LngLatBounds, type IControl, type GeoJSONSource } from "maplibre-gl";
+import { Map, LngLatBounds, type IControl } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { ArcLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { ArcLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { Airport } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { SEED_AIRPORTS } from "~/data/seedData";
@@ -15,127 +15,6 @@ const isLoaded = ref<boolean>(false);
 const currentPitch = ref<number>(0);
 const currentZoom = ref<number>(0);
 let resilienceTimer: ReturnType<typeof setTimeout> | null = null;
-
-const AIRPORTS_SOURCE_ID = "flywise-airports-source";
-const AIRPORTS_LABELS_LAYER_ID = "flywise-airports-labels";
-
-/**
- * Genera el GeoJSON FeatureCollection para las etiquetas de aeropuertos en MapLibre
- */
-function getAirportsGeoJSON(airports: Airport[]) {
-  return {
-    type: "FeatureCollection" as const,
-    features: (airports || []).map((a) => ({
-      type: "Feature" as const,
-      geometry: {
-        type: "Point" as const,
-        coordinates: a.coordinates,
-      },
-      properties: {
-        iata: a.iata,
-        name: a.name,
-        city: a.city,
-        type: a.type,
-      },
-    })),
-  };
-}
-
-/**
- * Verifica si el estilo base de MapLibre está inicializado y listo para recibir capas y fuentes
- */
-function isMapStyleReady(map: Map | null | undefined): boolean {
-  if (!map) return false;
-  try {
-    if (typeof map.isStyleLoaded === "function") {
-      return map.isStyleLoaded();
-    }
-  } catch {
-    // fallback
-  }
-  const style = map.style as unknown as { _loaded?: boolean } | undefined;
-  return Boolean(style && style._loaded);
-}
-
-/**
- * Registra o sincroniza la capa nativa de símbolos vectoriales en MapLibre GL
- */
-function syncMapLibreAirportLabels(
-  map: Map,
-  airports: Airport[],
-  isLight: boolean,
-): void {
-  if (!map) return;
-
-  const doSync = () => {
-    if (!isMapStyleReady(map)) return;
-
-    try {
-      const source = map.getSource(AIRPORTS_SOURCE_ID) as GeoJSONSource | undefined;
-      const geojson = getAirportsGeoJSON(airports);
-
-      if (!source) {
-        map.addSource(AIRPORTS_SOURCE_ID, {
-          type: "geojson",
-          data: geojson,
-        });
-      } else {
-        source.setData(geojson);
-      }
-
-      if (!map.getLayer(AIRPORTS_LABELS_LAYER_ID)) {
-        map.addLayer({
-          id: AIRPORTS_LABELS_LAYER_ID,
-          type: "symbol",
-          source: AIRPORTS_SOURCE_ID,
-          minzoom: 1.5, // Visible desde zoom global inicial (2.5)
-          layout: {
-            "text-field": ["get", "iata"],
-            "text-font": ["Open Sans Bold", "Noto Sans Regular"],
-            "text-size": [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              2, 9,
-              4, 11,
-              7, 13,
-            ],
-            "text-offset": [0, 1.2],
-            "text-anchor": "top",
-            "text-allow-overlap": true, // Evita que Carto oculte las etiquetas
-            "text-ignore-placement": true,
-          },
-          paint: {
-            "text-color": isLight ? "#0f172a" : "#dee3e8",
-            "text-halo-color": isLight
-              ? "rgba(255, 255, 255, 0.95)"
-              : "rgba(7, 11, 20, 0.95)",
-            "text-halo-width": 2,
-          },
-        });
-      } else {
-        map.setPaintProperty(
-          AIRPORTS_LABELS_LAYER_ID,
-          "text-color",
-          isLight ? "#0f172a" : "#dee3e8",
-        );
-        map.setPaintProperty(
-          AIRPORTS_LABELS_LAYER_ID,
-          "text-halo-color",
-          isLight ? "rgba(255, 255, 255, 0.95)" : "rgba(7, 11, 20, 0.95)",
-        );
-      }
-    } catch (err) {
-      console.warn("[FlyWise] Error en syncMapLibreAirportLabels:", err);
-    }
-  };
-
-  if (isMapStyleReady(map)) {
-    doSync();
-  } else {
-    map.once("style.load", doSync);
-  }
-}
 
 export const useFlightMap = () => {
   const {
@@ -273,28 +152,48 @@ export const useFlightMap = () => {
           getLineColor: [orig, dest, isLight],
         },
       }),
+
+      // Capa de Etiquetas IATA de Aeropuertos en WebGL
+      new TextLayer<Airport>({
+        id: "airports-labels",
+        data: visibleAirports,
+        pickable: true,
+        getPosition: (d: Airport) => d.coordinates,
+        getText: (d: Airport) => d.iata,
+        getSize: (d: Airport) => (d.iata === orig || d.iata === dest ? 13 : 11),
+        sizeUnits: "pixels",
+        sizeMinPixels: 9,
+        sizeMaxPixels: 16,
+        getColor: (d: Airport) => {
+          if (d.iata === orig) return isLight ? [2, 132, 199, 255] : [56, 189, 248, 255];
+          if (d.iata === dest) return isLight ? [5, 150, 105, 255] : [16, 185, 129, 255];
+          return isLight ? [15, 23, 42, 230] : [222, 227, 232, 230];
+        },
+        fontFamily: "JetBrains Mono, monospace, sans-serif",
+        fontWeight: "bold",
+        getTextAnchor: "middle",
+        getAlignmentBaseline: "top",
+        getPixelOffset: [0, 14],
+        background: true,
+        getBackgroundColor: () => (isLight ? [255, 255, 255, 180] : [15, 20, 24, 180]),
+        backgroundPadding: [4, 2, 4, 2],
+        updateTriggers: {
+          getSize: [orig, dest],
+          getColor: [orig, dest, isLight],
+          getBackgroundColor: [isLight],
+        },
+      }),
     ];
   }
 
   /**
-   * Refresca las capas en la GPU a través de MapboxOverlay y sincroniza etiquetas nativas MapLibre
+   * Refresca las capas en la GPU a través de MapboxOverlay
    */
   function updateLayers(): void {
     if (overlayInstance.value) {
       overlayInstance.value.setProps({
         layers: buildLayers(),
       });
-    }
-
-    if (mapInstance.value) {
-      const orig = selectedOrigin.value;
-      const dest = selectedDestination.value;
-      const hasSelection = Boolean(orig || dest);
-      const visibleRoutes = hasSelection ? matchingRoutes.value : [];
-      const visibleAirports = getVisibleAirports(hasSelection, orig, dest, visibleRoutes);
-      const isLight = colorMode.value === "light";
-
-      syncMapLibreAirportLabels(mapInstance.value, visibleAirports, isLight);
     }
   }
 
@@ -338,15 +237,11 @@ export const useFlightMap = () => {
   }
 
   /**
-   * Cambia el estilo base de Carto (light/dark) de forma resiliente
+   * Cambia el estilo base de Carto (light/dark)
    */
   function setBaseMapStyle(styleUrl: string): void {
     if (!mapInstance.value) return;
-    const map = mapInstance.value;
-    map.setStyle(styleUrl);
-    map.once("style.load", () => {
-      updateLayers();
-    });
+    mapInstance.value.setStyle(styleUrl);
   }
 
   /**
@@ -387,30 +282,6 @@ export const useFlightMap = () => {
       });
 
       mapInstance.value = map;
-
-      // Interacción directa por clic sobre las etiquetas IATA de MapLibre
-      map.on("click", AIRPORTS_LABELS_LAYER_ID, (e) => {
-        if (e.features && e.features[0]?.properties?.iata) {
-          const iata = e.features[0].properties.iata as string;
-          if (!selectedOrigin.value) {
-            setOrigin(iata);
-          } else if (selectedOrigin.value === iata) {
-            setOrigin(undefined);
-          } else if (!selectedDestination.value) {
-            setDestination(iata);
-          } else {
-            setOrigin(iata);
-          }
-        }
-      });
-
-      map.on("mouseenter", AIRPORTS_LABELS_LAYER_ID, () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-
-      map.on("mouseleave", AIRPORTS_LABELS_LAYER_ID, () => {
-        map.getCanvas().style.cursor = "";
-      });
 
       // 2. Acoplar MapboxOverlay de Deck.gl
       const deckOverlay = new MapboxOverlay({
@@ -455,8 +326,8 @@ export const useFlightMap = () => {
       overlayInstance.value = deckOverlay;
       map.addControl(deckOverlay as unknown as IControl);
 
-      // 3. Mecanismo para marcar mapa como listo y registrar capas nativas
-      const handleStyleOrReady = () => {
+      // 3. Mecanismo para marcar mapa como listo
+      const handleReady = () => {
         if (resilienceTimer) {
           clearTimeout(resilienceTimer);
           resilienceTimer = null;
@@ -468,35 +339,21 @@ export const useFlightMap = () => {
         updateLayers();
       };
 
-      if (isMapStyleReady(map)) {
-        handleStyleOrReady();
+      if (map.loaded()) {
+        handleReady();
       } else {
-        map.once("load", handleStyleOrReady);
-        map.once("style.load", handleStyleOrReady);
-        map.once("idle", handleStyleOrReady);
+        map.once("load", handleReady);
       }
 
       // Fallback de seguridad: si tras 800ms el mapa no disparó eventos, forzar isLoaded
       resilienceTimer = setTimeout(() => {
         if (!isLoaded.value && mapInstance.value) {
           console.info(
-            "[FlyWise useFlightMap] Fallback de seguridad (800ms) activado: forzando isLoaded y sincronización.",
+            "[FlyWise useFlightMap] Fallback de seguridad (800ms) activado: forzando isLoaded.",
           );
-          handleStyleOrReady();
+          handleReady();
         }
       }, 800);
-
-      // Escuchar style.load para recargar capas nativas tras cambios de estilo base (ej. tema claro/oscuro)
-      map.on("style.load", () => {
-        handleStyleOrReady();
-      });
-
-      // Si por alguna razón tras cambios de datos la capa de etiquetas falta, re-sincronizarla
-      map.on("styledata", () => {
-        if (isMapStyleReady(map) && !map.getLayer(AIRPORTS_LABELS_LAYER_ID)) {
-          updateLayers();
-        }
-      });
 
       map.on("error", (e) => {
         console.warn("[MapLibre Warning]", e);
