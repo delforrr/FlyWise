@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { AirlinePerformance } from "~/types/route";
+import type { RouteAirlinePerformance } from "~/types/route";
 
 defineProps<{
-  airline: AirlinePerformance;
+  airline: RouteAirlinePerformance;
 }>();
 </script>
 

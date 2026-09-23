@@ -809,3 +809,58 @@
     transparent 1.25px
   );
 }
+
+/* ==========================================
+   VIEW TRANSITIONS (MORPHING HUD DE CABINA)
+   ========================================== */
+
+/* 1. Anular el parpadeo de pantalla completa en root: el layout hero-split es persistente */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none !important;
+}
+
+/* 2. Interpolación física suave del chasis Bezel */
+::view-transition-group(hero-bezel-card) {
+  animation-duration: 0.55s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: clip;
+}
+
+/* 3. Evitar el destello blanco de plus-lighter y la deformación de inputs */
+::view-transition-old(hero-bezel-card),
+::view-transition-new(hero-bezel-card) {
+  height: 100%;
+  width: 100%;
+  mix-blend-mode: normal !important;
+  object-fit: none;
+  object-position: top center;
+}
+
+/* El contenido saliente se desvanece de forma rápida y limpia */
+::view-transition-old(hero-bezel-card) {
+  animation: hero-card-fade-out 0.18s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+/* El contenido entrante se revela suavemente mientras el chasis completa su expansión */
+::view-transition-new(hero-bezel-card) {
+  animation: hero-card-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.14s both;
+}
+
+@keyframes hero-card-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes hero-card-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -28,7 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
         </span>
       </div>
 
-      <!-- Título de Alto Impacto Editorial -->
+      <!-- Título -->
       <div class="flex flex-col gap-2 mb-10 lg:mb-5">
         <h1
           class="text-3xl sm:text-5xl lg:text-[3.25rem] font-display font-extrabold tracking-[-0.035em] text-text-main leading-[1.08] text-balance"
@@ -47,11 +47,11 @@ const props = withDefaults(defineProps<Props>(), {
         </p>
       </div>
 
-      <!-- Asymmetrical Telemetry Bento Grid (Desktop) -->
+      <!-- Features -->
       <div class="hidden lg:flex flex-col gap-3 pt-1">
         <!-- Grid Asimétrico en Desktop -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
-          <!-- Bento 1: Principal de Rutas y Radar (Col 7) -->
+          <!-- Bento 1: Rutas y Radar (Col 7) -->
           <div
             class="sm:col-span-7 p-4 rounded-2xl bg-surface-card dark:bg-surface-card/70 border border-border-subtle hover:border-primary/50 backdrop-blur-xl shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between gap-3 group"
           >
@@ -66,25 +66,21 @@ const props = withDefaults(defineProps<Props>(), {
                   <h3
                     class="text-xs font-mono uppercase tracking-wider text-text-dim"
                   >
-                    Malla Geodésica
+                    Exploración Global
                   </h3>
                   <h2 class="text-sm font-semibold text-text-main">
-                    Exploración Deck.gl
+                    Mapa Interactivo
                   </h2>
                 </div>
               </div>
-              <span
-                class="text-xs font-mono font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md"
-                >60 FPS</span
-              >
             </div>
             <p class="text-xs text-text-muted leading-relaxed">
-              Renderizado acelerado por hardware para arcos ortodrómicos y nodos
-              IATA globales.
+              Mirá en el mapa el estado de los vuelos comerciales de acuerdo a
+              un esquema de colores basado en el puntaje general.
             </p>
           </div>
 
-          <!-- Bento 2: Scorecard OTP-15 (Col 5) -->
+          <!-- Calculo OTP-15 (Col 5) -->
           <div
             class="sm:col-span-5 p-4 rounded-2xl bg-surface-card dark:bg-surface-card/70 border border-border-subtle hover:border-success/50 backdrop-blur-xl shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between gap-2 group"
           >
@@ -104,10 +100,6 @@ const props = withDefaults(defineProps<Props>(), {
                   Estándar OTP-15
                 </h3>
               </div>
-              <span
-                class="text-xs font-mono font-bold text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-md"
-                >≤ 15m</span
-              >
             </div>
             <div class="flex items-baseline gap-2">
               <span
