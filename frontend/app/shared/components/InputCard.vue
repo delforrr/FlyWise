@@ -20,7 +20,7 @@ interface Props {
 
   /**
    * Etiqueta descriptiva visible en el badge superior.
-   * Si no se especifica, se asigna automáticamente 'Origen' o 'Destino'.
+   * Si no se especifica, se asigna automáticamente 'Aeropuerto Origen' o 'Aeropuerto Destino'.
    */
   label?: string;
 
@@ -59,7 +59,7 @@ const isOrigin = computed(() => props.type === "origin");
 
 const resolvedLabel = computed(() => {
   if (props.label) return props.label;
-  return isOrigin.value ? "Origen" : "Destino";
+  return isOrigin.value ? "Aeropuerto Origen" : "Aeropuerto Destino";
 });
 
 const resolvedIcon = computed(() => {
@@ -71,6 +71,12 @@ const typeClass = computed(() => {
   return isOrigin.value ? "input-card--origin" : "input-card--destination";
 });
 
+const groupTypeClass = computed(() => {
+  return isOrigin.value
+    ? "input-card-group--origin"
+    : "input-card-group--destination";
+});
+
 const subtitleText = computed(() => {
   if (!props.airport) return "";
   const parts = [props.airport.city, props.airport.country].filter(Boolean);
@@ -79,65 +85,79 @@ const subtitleText = computed(() => {
 </script>
 
 <template>
-  <div
+  <fieldset
     :class="[
-      'input-card p-3 sm:p-4 md:p-5 gap-2.5 sm:gap-3',
-      typeClass,
+      'input-card-group flex flex-col gap-1.5 sm:gap-2 w-full min-w-0 border-0 p-0 m-0',
+      groupTypeClass,
       props.class,
     ]"
     :data-type="type"
-    role="group"
-    :aria-label="`Selector de aeropuerto de ${resolvedLabel.toLowerCase()}`"
   >
-    <!-- Cabecera de la tarjeta: Identifica inequívocamente Origen o Destino -->
-    <div class="flex items-center justify-between gap-2">
-      <div class="input-card-badge">
-        <UIcon :name="resolvedIcon" class="size-3.5 shrink-0" />
-        <span class="text-[11px] sm:text-xs">{{ resolvedLabel }}</span>
+    <legend class="sr-only">
+      {{ resolvedLabel }}
+    </legend>
+
+    <!-- Cabecera exterior: Título / Badge de rol (Origen o Destino) -->
+    <slot name="header">
+      <div
+        class="input-card-header flex items-center justify-between gap-2 px-1"
+      >
+        <div class="input-card-badge">
+          <UIcon :name="resolvedIcon" class="size-3.5 shrink-0" />
+          <span class="text-[11px] sm:text-xs tracking-wider">{{
+            resolvedLabel
+          }}</span>
+        </div>
+
+        <slot name="header-right" />
       </div>
+    </slot>
 
-      <slot name="header-right" />
-    </div>
-
-    <!-- Cuerpo interactivo: Badge IATA + Slot de Input Ghost + Subtítulo -->
-    <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-      <!-- Badge IATA si está seleccionado, o ícono placeholder cuando está vacío -->
-      <slot name="iata">
-        <div
-          v-if="iata"
-          class="input-iata flex items-center justify-center font-mono font-bold shrink-0 size-11 sm:size-13 md:size-14 text-sm sm:text-base md:text-lg"
-        >
-          {{ iata }}
-        </div>
-        <div
-          v-else
-          class="input-card-placeholder-icon flex items-center justify-center shrink-0 size-11 sm:size-13 md:size-14"
-          :title="`Seleccionar aeropuerto de ${resolvedLabel.toLowerCase()}`"
-        >
-          <UIcon :name="resolvedIcon" class="size-4 sm:size-5 opacity-60" />
-        </div>
-      </slot>
-
-      <!-- Contenedor del Input principal y detalles -->
-      <div class="flex flex-col flex-1 min-w-0">
-        <slot />
-
-        <!-- Subtítulo de ubicación (Ciudad, País) -->
-        <slot name="subtitle">
-          <p
-            v-if="subtitleText"
-            class="text-[11px] sm:text-xs text-text-muted px-1 sm:px-2.5 pt-0.5 truncate flex items-center gap-1.5"
+    <!-- Contenedor interactivo de la tarjeta de aeropuerto -->
+    <div
+      :class="['input-card p-3 sm:p-4 md:p-5 gap-2.5 sm:gap-3', typeClass]"
+      :data-type="type"
+    >
+      <!-- Cuerpo interactivo: Badge IATA + Slot de Input Ghost + Subtítulo -->
+      <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+        <!-- Badge IATA si está seleccionado, o ícono placeholder cuando está vacío -->
+        <slot name="iata">
+          <div
+            v-if="iata"
+            class="input-iata flex items-center justify-center font-mono font-bold shrink-0 size-11 sm:size-13 md:size-14 text-sm sm:text-base md:text-lg"
           >
-            <UIcon
-              name="i-lucide-map-pin"
-              class="size-3 text-text-dim shrink-0"
-            />
-            <span class="truncate">{{ subtitleText }}</span>
-          </p>
+            {{ iata }}
+          </div>
+          <div
+            v-else
+            class="input-card-placeholder-icon flex items-center justify-center shrink-0 size-11 sm:size-13 md:size-14"
+            :title="`Seleccionar ${resolvedLabel.toLowerCase()}`"
+          >
+            <UIcon :name="resolvedIcon" class="size-4 sm:size-5 opacity-60" />
+          </div>
         </slot>
-      </div>
-    </div>
 
-    <slot name="footer" />
-  </div>
+        <!-- Contenedor del Input principal y detalles -->
+        <div class="flex flex-col flex-1 min-w-0">
+          <slot />
+
+          <!-- Subtítulo de ubicación (Ciudad, País) -->
+          <slot name="subtitle">
+            <p
+              v-if="subtitleText"
+              class="text-[11px] sm:text-xs text-text-muted px-1 sm:px-2.5 pt-0.5 truncate flex items-center gap-1.5"
+            >
+              <UIcon
+                name="i-lucide-map-pin"
+                class="size-3 text-text-dim shrink-0"
+              />
+              <span class="truncate">{{ subtitleText }}</span>
+            </p>
+          </slot>
+        </div>
+      </div>
+
+      <slot name="footer" />
+    </div>
+  </fieldset>
 </template>
