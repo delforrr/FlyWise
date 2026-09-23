@@ -15,7 +15,7 @@
 
         <template #content>
           <div
-            class="w-64 p-3 bg-surface-elevated/95 backdrop-blur-xl border border-border-subtle rounded-xl shadow-2xl flex flex-col gap-2.5 select-none my-1"
+            class="w-64 p-3 bg-surface-accent/95 backdrop-blur-xl border border-border-subtle rounded-xl shadow-2xl flex flex-col gap-2.5 select-none my-1"
           >
             <!-- Cabecera de la Leyenda -->
             <div

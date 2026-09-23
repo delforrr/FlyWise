@@ -113,8 +113,11 @@
 
 .hud-legend {
   font-family: var(--font-mono);
-  font-weight: 500;
-  color: var(--text-dim);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-main);
 }
 
 /* Inputs de Cabina */
@@ -156,7 +159,11 @@
 .hud-box.is-interactive:hover,
 .hud-container.is-interactive:focus-within,
 .hud-box.is-interactive:focus-within {
-  background-color: var(--color-surface-elevated);
+  background-color: color-mix(
+    in srgb,
+    var(--color-primary) 12%,
+    var(--color-surface-accent)
+  );
   border-color: var(--color-primary);
   box-shadow: 0 0 14px color-mix(in srgb, var(--color-primary) 20%, transparent);
   transform: translateY(-1px);
@@ -601,27 +608,31 @@
 }
 
 .btn-hud-secondary {
-  background-color: var(--color-surface-card);
+  background-color: var(--color-surface-accent);
   color: var(--color-text-main);
   border: 1px solid var(--color-border-subtle);
-  border-radius: 0.5rem;
-  font-weight: 500;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 1px 3px rgba(11, 28, 48, 0.05);
+  border-radius: 0.75rem;
+  font-weight: 600;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-hud-secondary:hover {
-  background-color: var(--color-surface-accent);
-  border-color: var(--color-outline);
+  background-color: color-mix(
+    in srgb,
+    var(--color-primary) 12%,
+    var(--color-surface-accent)
+  );
+  border-color: var(--color-primary);
   color: var(--color-primary);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-primary) 20%, transparent);
   transform: translateY(-1px);
 }
 
 .btn-hud-secondary:active {
-  transform: scale(0.97) translateY(0);
+  transform: scale(0.98) translateY(0);
   box-shadow: 0 0 6px color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 
@@ -653,7 +664,11 @@
 .hud-pill:focus-within,
 .hud-pill.is-interactive:hover,
 .hud-pill.is-interactive:focus-within {
-  background-color: var(--color-surface-elevated);
+  background-color: color-mix(
+    in srgb,
+    var(--color-primary) 12%,
+    var(--color-surface-accent)
+  );
   border-color: var(--color-primary);
   box-shadow: 0 0 14px color-mix(in srgb, var(--color-primary) 20%, transparent);
   transform: translateY(-1px);
@@ -687,7 +702,7 @@
   border-bottom: 1px solid var(--color-border-subtle);
   background-color: color-mix(
     in srgb,
-    var(--color-surface-card) 75%,
+    var(--color-surface-accent) 85%,
     transparent
   );
   backdrop-filter: blur(16px);
@@ -703,7 +718,7 @@
   border-radius: 0.75rem;
   background-color: color-mix(
     in srgb,
-    var(--color-surface-base) 60%,
+    var(--color-surface-accent) 70%,
     transparent
   );
   border: 1px solid var(--color-border-subtle);
@@ -713,7 +728,11 @@
 }
 
 .hud-interactive-item:hover {
-  background-color: var(--color-surface-elevated);
+  background-color: color-mix(
+    in srgb,
+    var(--color-primary) 15%,
+    var(--color-surface-accent)
+  );
   border-color: var(--color-primary);
   transform: translateY(-1px);
 }

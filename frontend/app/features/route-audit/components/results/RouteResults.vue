@@ -60,7 +60,7 @@ function handleFocusRoute(route: FlightRoute) {
       class="fixed z-40 pointer-events-auto select-none transition-all duration-300 bottom-3 inset-x-3 max-h-[85vh] md:bottom-auto md:top-25 md:left-6 md:w-100 md:max-w-[calc(100vw-24px)]"
     >
       <div
-        class="hud-card border border-border-subtle/80 bg-surface-elevated/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all"
+        class="hud-card border border-border-subtle/80 bg-surface-accent/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all"
       >
         <!-- 1. Cabecera del Panel -->
         <RouteHeader

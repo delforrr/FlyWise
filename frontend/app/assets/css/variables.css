@@ -112,9 +112,9 @@
   --ui-error: var(--color-error);
 
   /* Tokens HUD & Glassmorphism en Modo Claro */
-  --hud-panel-bg: rgba(255, 255, 255, 0.94);
+  --hud-panel-bg: rgba(239, 244, 255, 0.94);
   --hud-panel-border: var(--color-outline-variant);
-  --hud-card-bg: #ffffff;
+  --hud-card-bg: var(--color-surface-accent);
   --hud-input-bg: #eff4ff;
 
   /* Arquitectura Double-Bezel (Modo Claro) */
@@ -229,7 +229,7 @@
   /* Tokens HUD & Glassmorphism en Modo Oscuro */
   --hud-panel-bg: rgba(11, 16, 27, 0.82);
   --hud-panel-border: rgba(255, 255, 255, 0.12);
-  --hud-card-bg: rgba(17, 24, 39, 0.78);
+  --hud-card-bg: rgba(15, 23, 40, 0.85);
   --hud-input-bg: rgba(7, 11, 20, 0.9);
 
   /* Arquitectura Double-Bezel (Modo Oscuro) */

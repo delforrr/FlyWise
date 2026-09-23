@@ -7,7 +7,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex flex-col gap-2.5 p-3.5 rounded-xl bg-surface-elevated/95 dark:bg-surface-card/85 border border-border-subtle shadow-xs">
+  <div class="flex flex-col gap-2.5 p-3.5 rounded-xl bg-surface-accent/80 dark:bg-surface-card/85 border border-border-subtle shadow-xs">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2 text-xs font-mono font-bold text-text-main">
         <UIcon name="i-lucide-plane-takeoff" class="w-4 h-4 text-primary" />
