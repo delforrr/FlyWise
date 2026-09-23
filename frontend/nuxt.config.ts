@@ -24,6 +24,10 @@ export default defineNuxtConfig({
       pathPrefix: false,
     },
     {
+      path: "~/features/etl-monitoring/components",
+      pathPrefix: false,
+    },
+    {
       path: "~/shared/components",
       pathPrefix: false,
     },
