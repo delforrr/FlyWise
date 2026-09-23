@@ -70,13 +70,17 @@ fs.createReadStream(filePath)
 
 ---
 
-## 3. Guardrail de Comandos de Terminal
+## 3. Guardrail de Comandos de Terminal y Gobernanza de Git
 
 - **Comandos Destructivos Restringidos:**
   - **NUNCA** ejecutar comandos que puedan provocar pérdida irreparable de datos o código sin confirmación explícita previa del usuario en el chat:
     - `git reset --hard` / `git push --force`
     - `rm -rf /` o eliminación recursiva de carpetas raíz.
     - `prisma migrate reset` o sentencias SQL `DROP DATABASE` / `TRUNCATE`.
+- **Gobernanza de Git por Roles de Agente:**
+  - `flywise-developer`: **PROHIBIDO** ejecutar `git commit`, `git push` o `git merge`. Solo ejecuta comandos de lectura (`git status`, `git diff`), compilación y tests (`npm run test`, `tsc --noEmit`).
+  - `flywise-qa`: **ÚNICO AGENTE AUTORIZADO** para ejecutar `git add` y `git commit` tras superar el pipeline de validación adversarial. **PROHIBIDO** ejecutar `git push` o `git merge` de forma autónoma; debe solicitar la confirmación explícita del usuario en el chat.
+  - `flywise-architect`: Orquesta, consolida y reporta al usuario, gestionando la integración solo con autorización expresa.
 - **Modificaciones de Base de Datos:**
   - Priorizar migraciones incrementales mediante `npx prisma migrate dev --name <nombre_migracion>`.
   - Asegurarse de que los contenedores Docker (`flywise_postgres`, `flywise_redis`) estén en ejecución antes de lanzar migraciones o tests.
