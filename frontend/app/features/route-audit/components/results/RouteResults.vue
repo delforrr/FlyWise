@@ -152,9 +152,9 @@ function handleFocusRoute(route: FlightRoute) {
             />
             <template v-else>
               <UEmpty
-                icon="i-lucide-plane-off"
+                icon="i-lucide-plane"
                 title="Aeropuerto sin rutas activas"
-                description="No registramos rutas comerciales conectadas para este aeropuerto en el dataset."
+                description="No registramos rutas comerciales conectadas para este aeropuerto."
                 variant="naked"
                 size="sm"
                 class="py-4 text-center"
