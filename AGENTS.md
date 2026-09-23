@@ -104,5 +104,7 @@ Antes de considerar concluida cualquier tarea o informar al usuario que un cambi
 1. **Compilación Estricta de TypeScript (Sin Errores de Tipos):**
    - Backend: `npm run build` o `npx tsc --noEmit` en `backend/` finalizando con código de salida `0`.
    - Frontend: `npx nuxi typecheck` o `npm run build` en `frontend/` sin errores de compilación.
-2. **Ausencia de `any` injustificado:** No introducir tipos `any` implícitos ni suprimir errores con `@ts-ignore` sin justificación documentada.
-3. **Limpieza de Git:** Verificar con `git status` que no hayan quedado archivos basura temporales (`.bak`, logs, temporales).
+2. **Pruebas Automatizadas (100% Verde):**
+   - Ejecutar `npm test` tanto en `backend/` como en `frontend/` asegurando que todos los tests pasen sin fallos.
+3. **Ausencia de `any` injustificado:** No introducir tipos `any` implícitos ni suprimir errores con `@ts-ignore` sin justificación documentada.
+4. **Limpieza de Git:** Verificar con `git status` que no hayan quedado archivos basura temporales (`.bak`, logs, temporales).
