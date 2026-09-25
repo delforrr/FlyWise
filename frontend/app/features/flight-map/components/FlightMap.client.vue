@@ -108,7 +108,9 @@ onMounted(async () => {
     (document.getElementById("flywise-map-container") as HTMLDivElement | null);
 
   if (!containerElement) {
-    console.error("[FlyWise FlightMap] Error crítico: no se encontró el contenedor del mapa.");
+    console.error(
+      "[FlyWise FlightMap] Error crítico: no se encontró el contenedor del mapa.",
+    );
     return;
   }
 
@@ -164,14 +166,25 @@ onUnmounted(() => {
       >
         <div class="relative flex items-center justify-center">
           <!-- Anillos pulsantes de radar -->
-          <div class="absolute w-28 h-28 rounded-full border border-primary/20 animate-ping" />
-          <div class="absolute w-20 h-20 rounded-full border border-primary/40 animate-pulse" />
-          <div class="w-12 h-12 rounded-full border border-primary/60 flex items-center justify-center bg-surface-elevated/80 shadow-[0_0_20px_rgba(56,189,248,0.3)]">
-            <UIcon name="i-lucide-plane" class="w-6 h-6 text-primary animate-pulse" />
+          <div
+            class="absolute w-28 h-28 rounded-full border border-primary/20 animate-ping"
+          />
+          <div
+            class="absolute w-20 h-20 rounded-full border border-primary/40 animate-pulse"
+          />
+          <div
+            class="w-12 h-12 rounded-full border border-primary/60 flex items-center justify-center bg-surface-elevated/80 shadow-[0_0_20px_rgba(56,189,248,0.3)]"
+          >
+            <UIcon
+              name="i-lucide-plane"
+              class="w-6 h-6 text-primary animate-pulse"
+            />
           </div>
         </div>
-        <p class="mt-4 font-mono text-xs text-text-muted tracking-widest uppercase">
-          Iniciando Telemetría WebGL...
+        <p
+          class="mt-4 font-mono text-xs text-text-muted tracking-widest uppercase"
+        >
+          Cargando Explorador Global ...
         </p>
       </div>
     </Transition>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { EtlPipeline } from '../types/etl';
+import type { EtlPipeline } from "../types/etl";
 
 interface Props {
   pipeline: EtlPipeline;
@@ -8,21 +8,25 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: 'trigger-sync', pipeline: EtlPipeline): void;
-  (e: 'pause', id: EtlPipeline['id']): void;
-  (e: 'resume', id: EtlPipeline['id']): void;
-  (e: 'retry', id: EtlPipeline['id']): void;
-  (e: 'view-discarded', pipeline: EtlPipeline): void;
+  (e: "trigger-sync", pipeline: EtlPipeline): void;
+  (e: "pause", id: EtlPipeline["id"]): void;
+  (e: "resume", id: EtlPipeline["id"]): void;
+  (e: "retry", id: EtlPipeline["id"]): void;
+  (e: "view-discarded", pipeline: EtlPipeline): void;
 }>();
 </script>
 
 <template>
-  <div class="p-5 rounded-xl border border-border-subtle bg-surface-card transition-colors flex flex-col justify-between">
+  <div
+    class="p-5 rounded-xl border border-border-subtle bg-surface-card transition-colors flex flex-col justify-between"
+  >
     <!-- Cabecera de la tarjeta: Título, Fuente y Badge de Estado -->
     <div>
       <div class="flex items-start justify-between gap-3">
         <div class="flex items-start gap-3">
-          <div class="w-10 h-10 rounded-lg border border-border-subtle bg-surface-accent flex items-center justify-center text-primary flex-shrink-0">
+          <div
+            class="w-10 h-10 rounded-lg border border-border-subtle bg-surface-accent flex items-center justify-center text-primary flex-shrink-0"
+          >
             <UIcon :name="pipeline.icon" class="w-5 h-5" />
           </div>
           <div>
@@ -85,14 +89,21 @@ const emit = defineEmits<{
       </p>
 
       <!-- Barra de Progreso Minimalista Sólida (Visible cuando está corriendo o pausado) -->
-      <div v-if="pipeline.status === 'running' || pipeline.status === 'paused'" class="mt-4 pt-3 border-t border-border-subtle/60">
-        <div class="flex items-center justify-between text-xs mb-1.5 font-medium">
+      <div
+        v-if="pipeline.status === 'running' || pipeline.status === 'paused'"
+        class="mt-4 pt-3 border-t border-border-subtle/60"
+      >
+        <div
+          class="flex items-center justify-between text-xs mb-1.5 font-medium"
+        >
           <span class="text-text-muted">Progreso de importación</span>
           <span class="font-mono text-text-main font-semibold">
             {{ pipeline.progressPercent }}%
           </span>
         </div>
-        <div class="w-full bg-surface-accent h-2 rounded-full overflow-hidden border border-border-subtle/50">
+        <div
+          class="w-full bg-surface-accent h-2 rounded-full overflow-hidden border border-border-subtle/50"
+        >
           <div
             class="h-full bg-primary transition-all duration-300 rounded-full"
             :style="{ width: `${pipeline.progressPercent}%` }"
@@ -104,33 +115,51 @@ const emit = defineEmits<{
       </div>
 
       <!-- Ficha de Datos Comprensibles -->
-      <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-border-subtle/60 text-xs">
+      <div
+        class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-border-subtle/60 text-xs"
+      >
         <div>
-          <span class="text-text-muted block text-[11px]">Filas procesadas</span>
+          <span class="text-text-muted block text-[11px]"
+            >Filas procesadas</span
+          >
           <span class="font-mono font-semibold text-text-main">
             {{ pipeline.processedRows.toLocaleString() }}
           </span>
         </div>
         <div>
-          <span class="text-text-muted block text-[11px]">Registros descartados</span>
+          <span class="text-text-muted block text-[11px]"
+            >Registros descartados</span
+          >
           <button
             type="button"
             class="font-mono font-semibold inline-flex items-center gap-1 hover:underline cursor-pointer"
-            :class="pipeline.discardedRows > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-text-muted'"
+            :class="
+              pipeline.discardedRows > 0
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-text-muted'
+            "
             @click="emit('view-discarded', pipeline)"
           >
             {{ pipeline.discardedRows }}
-            <UIcon v-if="pipeline.discardedRows > 0" name="i-lucide-alert-circle" class="w-3.5 h-3.5" />
+            <UIcon
+              v-if="pipeline.discardedRows > 0"
+              name="i-lucide-alert-circle"
+              class="w-3.5 h-3.5"
+            />
           </button>
         </div>
         <div>
-          <span class="text-text-muted block text-[11px]">Última sincronización</span>
+          <span class="text-text-muted block text-[11px]"
+            >Última sincronización</span
+          >
           <span class="text-text-main truncate block">
-            {{ pipeline.lastSyncAt || 'Sin registros' }}
+            {{ pipeline.lastSyncAt || "Sin registros" }}
           </span>
         </div>
         <div>
-          <span class="text-text-muted block text-[11px]">Próxima programada</span>
+          <span class="text-text-muted block text-[11px]"
+            >Próxima programada</span
+          >
           <span class="text-text-main truncate block">
             {{ pipeline.scheduleDescription }}
           </span>
@@ -139,7 +168,9 @@ const emit = defineEmits<{
     </div>
 
     <!-- Botones de Acción Operativa Directa -->
-    <div class="mt-5 pt-3 border-t border-border-subtle flex items-center justify-between gap-2">
+    <div
+      class="mt-5 pt-3 border-t border-border-subtle flex items-center justify-between gap-2"
+    >
       <!-- Botón secundario para ver descartes -->
       <UButton
         v-if="pipeline.discardedRows > 0"
