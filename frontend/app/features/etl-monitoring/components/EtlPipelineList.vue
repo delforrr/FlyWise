@@ -106,21 +106,13 @@ const filterTabs = computed(() => [
     </div>
 
     <!-- Estado vacío cuando el filtro no arroja resultados -->
-    <div
+    <UEmpty
       v-else
+      icon="i-lucide-inbox"
+      title="No se encontraron pipelines"
+      description="Ningún dataset coincide con los criterios de búsqueda o filtro seleccionados."
+      variant="naked"
       class="p-8 text-center rounded-xl border border-border-subtle bg-surface-card"
-    >
-      <UIcon
-        name="i-lucide-inbox"
-        class="w-8 h-8 mx-auto text-text-muted mb-2"
-      />
-      <h4 class="text-sm font-bold text-text-main">
-        No se encontraron pipelines
-      </h4>
-      <p class="text-xs text-text-muted mt-1">
-        Ningún dataset coincide con los criterios de búsqueda o filtro
-        seleccionados.
-      </p>
-    </div>
+    />
   </div>
 </template>
