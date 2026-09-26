@@ -1,17 +1,22 @@
 <template>
-  <HudPill vertical interactive class="p-1.5 sm:p-2 w-auto items-center">
+  <HudPill
+    vertical
+    interactive
+    class="p-1 sm:p-1.5 w-auto items-center shadow-2xl border border-border-subtle/80 border-t-white/30 dark:border-t-white/15 bg-surface-card/90 dark:bg-surface-base/85 backdrop-blur-xl"
+  >
     <!-- Botón Info Leyenda OTP (Visible en móviles encima de los controles de mapa) -->
     <div class="md:hidden flex flex-col items-center w-full">
       <UCollapsible :unmount-on-hide="false" class="flex flex-col items-center">
-        <UButton
-          icon="i-lucide-info"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          title="Leyenda OTP"
-          aria-label="Ver leyenda de confiabilidad OTP"
-          class="text-primary hover:text-primary/80 transition-colors"
-        />
+        <UTooltip text="Leyenda OTP" :content="{ side: 'left' }">
+          <UButton
+            icon="i-lucide-info"
+            color="neutral"
+            variant="ghost"
+            title="Leyenda OTP"
+            aria-label="Ver leyenda de confiabilidad OTP"
+            class="relative flex items-center justify-center w-10 h-10 min-w-10 min-h-10 p-0 rounded-xl text-primary hover:text-primary hover:bg-surface-accent/80 border border-transparent hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200"
+          />
+        </UTooltip>
 
         <template #content>
           <div
@@ -46,21 +51,41 @@
         </template>
       </UCollapsible>
 
-      <USeparator class="w-full opacity-60 my-1" size="xs" />
+      <USeparator class="w-6 opacity-60 my-1 border-t border-border-subtle" size="xs" />
     </div>
 
-    <!-- Sección Superior: Controles de Zoom -->
-    <div class="flex flex-col gap-1.5 sm:gap-2 items-center">
-      <ControlButton type="zoomIn" />
-      <ControlButton type="zoomOut" />
+    <!-- Clúster de Instrumentación: Grupo de Zoom (+ / -) -->
+    <div
+      class="flex flex-col gap-1 sm:gap-1.5 items-center"
+      role="group"
+      aria-label="Controles de zoom de mapa"
+    >
+      <UTooltip text="Acercar mapa (+)" :content="{ side: 'left' }">
+        <ControlButton type="zoomIn" />
+      </UTooltip>
+      <UTooltip text="Alejar mapa (-)" :content="{ side: 'left' }">
+        <ControlButton type="zoomOut" />
+      </UTooltip>
     </div>
 
-    <USeparator class="w-full opacity-60 my-1" size="xs" />
+    <!-- Micro-separador de Cabina -->
+    <USeparator class="w-6 opacity-60 my-1 border-t border-border-subtle" size="xs" />
 
-    <!-- Sección Inferior: Acciones -->
-    <div class="flex flex-col gap-1.5 sm:gap-2 items-center">
-      <ControlButton type="toggle3D" />
-      <ControlButton type="fitRoute" />
+    <!-- Clúster de Instrumentación: Grupo de Vista (3D / Rumbo Norte / Encuadre de Ruta) -->
+    <div
+      class="flex flex-col gap-1 sm:gap-1.5 items-center"
+      role="group"
+      aria-label="Controles de orientación y encuadre"
+    >
+      <UTooltip text="Alternar perspectiva 2D / 3D" :content="{ side: 'left' }">
+        <ControlButton type="toggle3D" />
+      </UTooltip>
+      <UTooltip text="Restablecer orientación al norte" :content="{ side: 'left' }">
+        <ControlButton type="resetNorth" />
+      </UTooltip>
+      <UTooltip text="Encuadrar ruta seleccionada" :content="{ side: 'left' }">
+        <ControlButton type="fitRoute" />
+      </UTooltip>
     </div>
   </HudPill>
 </template>
