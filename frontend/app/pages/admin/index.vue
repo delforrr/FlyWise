@@ -1,14 +1,17 @@
 ﻿<script setup lang="ts">
-import type { EtlPipeline, TriggerSyncOptions } from '~/features/etl-monitoring/types/etl';
+import type {
+  EtlPipeline,
+  TriggerSyncOptions,
+} from "~/features/etl-monitoring/types/etl";
 
 definePageMeta({
-  layout: 'admin',
+  layout: "admin",
 });
 
 useSeoMeta({
-  title: 'FlyWise — Centro de Ingesta y Monitoreo ETL',
+  title: "FlyWise — Centro de Ingesta y Monitoreo ETL",
   description:
-    'Monitoreo operativo y supervisión de pipelines de ingesta aeronáutica (OurAirports, OpenFlights, BTS TranStats, ANAC).',
+    "Monitoreo operativo y supervisión de pipelines de ingesta aeronáutica (OurAirports, OpenFlights, BTS TranStats, ANAC).",
 });
 
 const {
@@ -70,14 +73,13 @@ function handleRetryDiscarded() {
       @pause-all="pauseAll"
     />
 
-    <!-- 2. Sección Principal: Pipelines por Fuente Aeronáutica -->
+    <!-- 2. Sección Principal: Pipelines por Fuente -->
     <section class="space-y-4">
       <div>
-        <h2 class="text-base font-bold text-text-main">
-          Fuentes de Datos Aeronáuticos
-        </h2>
+        <h2 class="text-base font-bold text-text-main">Fuentes de Datos</h2>
         <p class="text-xs text-text-muted mt-0.5">
-          Control individual de sincronización, frecuencias programadas y auditoría de integridad.
+          Control individual de sincronización, frecuencias programadas y
+          auditoría de integridad.
         </p>
       </div>
 
@@ -98,17 +100,15 @@ function handleRetryDiscarded() {
           Auditoría de Eventos en Tiempo Real
         </h2>
         <p class="text-xs text-text-muted mt-0.5">
-          Trazabilidad de lotes procesados, descartes detectados y actividades de los workers.
+          Trazabilidad de lotes procesados, descartes detectados y actividades
+          de los workers.
         </p>
       </div>
 
-      <EtlLiveLogFeed
-        :logs="logs"
-        @clear-logs="clearLogs"
-      />
+      <EtlLiveLogFeed :logs="logs" @clear-logs="clearLogs" />
     </section>
 
-    <!-- Modales Operativos Accesibles -->
+    <!-- Modales Operativos -->
     <EtlTriggerModal
       :is-open="isTriggerModalOpen"
       :pipeline="activePipelineForTrigger"
