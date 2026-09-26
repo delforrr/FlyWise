@@ -118,8 +118,8 @@ export const useFlightMap = () => {
         getSourceColor: (d: FlightRoute) => {
           const isDirectActive = Boolean(
             hasBoth &&
-              ((d.originIata === orig && d.destinationIata === dest) ||
-                (d.originIata === dest && d.destinationIata === orig)),
+            ((d.originIata === orig && d.destinationIata === dest) ||
+              (d.originIata === dest && d.destinationIata === orig)),
           );
 
           if (isDirectActive) {
@@ -148,8 +148,8 @@ export const useFlightMap = () => {
         getTargetColor: (d: FlightRoute) => {
           const isDirectActive = Boolean(
             hasBoth &&
-              ((d.originIata === orig && d.destinationIata === dest) ||
-                (d.originIata === dest && d.destinationIata === orig)),
+            ((d.originIata === orig && d.destinationIata === dest) ||
+              (d.originIata === dest && d.destinationIata === orig)),
           );
 
           if (isDirectActive) {
@@ -301,8 +301,10 @@ export const useFlightMap = () => {
         sizeMinPixels: 9,
         sizeMaxPixels: 16,
         getColor: (d: Airport) => {
-          if (d.iata === orig) return isLight ? [2, 132, 199, 255] : [56, 189, 248, 255];
-          if (d.iata === dest) return isLight ? [5, 150, 105, 255] : [16, 185, 129, 255];
+          if (d.iata === orig)
+            return isLight ? [2, 132, 199, 255] : [56, 189, 248, 255];
+          if (d.iata === dest)
+            return isLight ? [5, 150, 105, 255] : [16, 185, 129, 255];
           return isLight ? [15, 23, 42, 230] : [222, 227, 232, 230];
         },
         fontFamily: "JetBrains Mono, monospace, sans-serif",
@@ -311,7 +313,8 @@ export const useFlightMap = () => {
         getAlignmentBaseline: "top",
         getPixelOffset: [0, 14],
         background: true,
-        getBackgroundColor: () => (isLight ? [255, 255, 255, 180] : [15, 20, 24, 180]),
+        getBackgroundColor: () =>
+          isLight ? [255, 255, 255, 180] : [15, 20, 24, 180],
         backgroundPadding: [4, 2, 4, 2],
         updateTriggers: {
           getSize: [orig, dest],
@@ -610,8 +613,8 @@ export const useFlightMap = () => {
       });
     } else {
       mapInstance.value.easeTo({
-        pitch: 60,
-        bearing: 45,
+        pitch: 40,
+        bearing: -25,
         duration: 1000,
       });
     }

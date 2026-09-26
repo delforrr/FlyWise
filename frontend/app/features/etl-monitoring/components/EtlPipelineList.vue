@@ -18,7 +18,7 @@ const emit = defineEmits<{
 }>();
 import EtlPipelineNavigator from "./EtlPipelineNavigator.vue";
 
-const currentFilter = ref<"all" | "running" | "success" | "has_issues">("all");
+const currentFilter = ref<"all" | "running" | "success" | "has_issues">("running");
 const searchQuery = ref("");
 
 const filteredPipelines = computed(() => {

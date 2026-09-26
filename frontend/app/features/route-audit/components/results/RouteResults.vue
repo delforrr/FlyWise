@@ -57,33 +57,33 @@ function handleFocusRoute(route: FlightRoute) {
   >
     <div
       v-if="selectedOrigin || selectedDestination"
-      class="fixed z-40 pointer-events-auto select-none transition-all duration-300 bottom-3 inset-x-3 max-h-[85vh] md:bottom-auto md:top-25 md:left-6 md:w-100 md:max-w-[calc(100vw-24px)]"
+      class="fixed z-40 pointer-events-auto select-none transition-all duration-300 bottom-3 inset-x-3 max-h-[85vh] md:bottom-auto md:top-25 md:left-6 md:w-115 xl:w-120 md:max-w-[calc(100vw-24px)]"
     >
       <div
         class="hud-card border border-border-subtle/80 bg-surface-accent/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all"
       >
+        <!-- 1. Cabecera del Panel (Control Directo de Colapso) -->
+        <RouteHeader
+          :selected-origin="selectedOrigin"
+          :selected-destination="selectedDestination"
+          :origin-airport="originAirport"
+          :destination-airport="destinationAirport"
+          :matching-count="matchingRoutes.length"
+          :is-collapsed="!isExpanded"
+          @toggle-collapse="isExpanded = !isExpanded"
+          @close="clearSelection"
+          @open-search="openMobileSearch"
+        />
+
+        <!-- 2. Contenido Expandible mediante UCollapsible de Nuxt UI -->
         <UCollapsible
           v-model:open="isExpanded"
           :unmount-on-hide="false"
           class="flex flex-col"
         >
-          <!-- 1. Cabecera del Panel -->
-          <RouteHeader
-            :selected-origin="selectedOrigin"
-            :selected-destination="selectedDestination"
-            :origin-airport="originAirport"
-            :destination-airport="destinationAirport"
-            :matching-count="matchingRoutes.length"
-            :is-collapsed="!isExpanded"
-            @toggle-collapse="isExpanded = !isExpanded"
-            @close="clearSelection"
-            @open-search="openMobileSearch"
-          />
-
-          <!-- 2. Contenido Expandible -->
           <template #content>
             <div
-              class="p-3 flex flex-col gap-3 max-h-[50vh] md:max-h-[60vh] overflow-y-auto hud-scrollable"
+              class="p-3.5 flex flex-col gap-3 max-h-[50vh] md:max-h-[60vh] overflow-y-auto hud-scrollable"
             >
               <!-- CASO A: Par Origen - Destino seleccionado -->
               <template v-if="selectedOrigin && selectedDestination">

@@ -106,7 +106,7 @@ function formatCoordinates(coords?: [number, number]): string {
           size="xs"
           class="text-text-muted hover:text-text-main transform-gpu transition-colors duration-150"
           aria-label="Minimizar panel de resultados"
-          @click="emit('toggleCollapse')"
+          @click.stop="emit('toggleCollapse')"
         />
         <UButton
           icon="i-lucide-x"

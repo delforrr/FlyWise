@@ -249,13 +249,13 @@ onUnmounted(() => {
             <span
               class="font-mono text-xs font-semibold text-text-main tracking-widest uppercase"
             >
-              Radar Cockpit Activo
+              FlyWise - Explorador Global
             </span>
           </div>
           <span
             class="font-mono text-[11px] text-text-muted tracking-wider uppercase"
           >
-            Sincronizando Cartografía Aeroespacial & WebGL
+            Cargando mapa interactivo, esto puede tomar tiempo...
           </span>
         </div>
       </div>
