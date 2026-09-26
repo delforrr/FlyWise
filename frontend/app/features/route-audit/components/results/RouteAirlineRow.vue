@@ -33,23 +33,38 @@ defineProps<{
       </div>
     </div>
 
-    <!-- Fila 2: Sub-barra de Telemetría Operativa (Demora Promedio y Cancelación) -->
+    <!-- Fila 2: Sub-barra de Telemetría Operativa (Demora, Tendencia Sparkline, Cancelación) -->
     <div
-      class="flex items-center justify-between pt-1.5 border-t border-border-subtle/40 text-[11px] text-text-muted font-mono"
+      class="flex items-center justify-between gap-1.5 pt-1.5 border-t border-border-subtle/40 text-[11px] text-text-muted font-mono"
     >
-      <div class="flex items-center gap-1.5">
-        <UIcon name="i-lucide-clock-3" class="w-3.5 h-3.5 text-text-dim" />
-        <span class="text-text-dim">Demora prom:</span>
+      <div
+        class="flex items-center gap-1.5 shrink-0"
+        :title="`Demora promedio estimada: ~${airline.avgDelayMinutes} minutos`"
+      >
+        <UIcon name="i-lucide-clock-3" class="w-3.5 h-3.5 text-text-dim shrink-0" />
+        <span class="text-text-dim">Demora:</span>
         <span class="tabular-nums font-semibold text-text-main">
           ~{{ airline.avgDelayMinutes }}m
         </span>
       </div>
 
-      <span class="text-border-subtle/60">·</span>
+      <span class="text-border-subtle/60 shrink-0 select-none">·</span>
 
-      <div class="flex items-center gap-1.5">
-        <UIcon name="i-lucide-circle-slash" class="w-3.5 h-3.5 text-text-dim" />
-        <span class="text-text-dim">Cancelación:</span>
+      <!-- Mini Sparkline de Confiabilidad Histórica (6 meses) -->
+      <div
+        class="flex items-center gap-1 shrink-0 transition-opacity duration-150 group-hover:opacity-100 opacity-90"
+      >
+        <AirlineOtpSparkline :current-otp="airline.otp15" />
+      </div>
+
+      <span class="text-border-subtle/60 shrink-0 select-none">·</span>
+
+      <div
+        class="flex items-center gap-1.5 shrink-0"
+        :title="`Tasa de cancelación histórica: ${airline.cancellationRate}%`"
+      >
+        <UIcon name="i-lucide-circle-slash" class="w-3.5 h-3.5 text-text-dim shrink-0" />
+        <span class="text-text-dim">Cancel:</span>
         <span
           :class="[
             'tabular-nums font-semibold',
