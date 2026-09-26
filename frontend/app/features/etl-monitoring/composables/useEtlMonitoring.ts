@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import type {
   EtlPipeline,
   PipelineId,
@@ -6,204 +6,28 @@ import type {
   EtlLogEntry,
   TriggerSyncOptions,
 } from '../types/etl';
+import { initialPipelines, initialLogs } from '../data/mockEtl';
 
-const initialPipelines: EtlPipeline[] = [
-  {
-    id: 'ourairports',
-    name: 'Catálogo de Aeropuertos y Pistas',
-    datasetName: 'OurAirports Open Data',
-    description:
-      'Coordenadas geográficas bajo estándar SRID 4326, códigos oficiales IATA/ICAO, elevación y pistas mundiales.',
-    icon: 'i-lucide-map-pin',
-    status: 'success',
-    progressPercent: 100,
-    processedRows: 78412,
-    totalEstimatedRows: 78500,
-    discardedRows: 88,
-    lastSyncAt: 'Hoy a las 04:15 UTC',
-    nextScheduledSync: 'Domingo 03:00 UTC',
-    scheduleDescription: 'Semanal (Domingos 03:00 UTC)',
-    averageSpeedRowsPerSec: 3200,
-    currentStepMessage: 'Al día — Coordenadas e identificadores normalizados.',
-    discardedSamples: [
-      {
-        id: 'disc-oa-1',
-        rowIndex: 1402,
-        rawSample: '"", "ZZZZ", "Pista Privada Sin Nombre", -999.0, 45.0',
-        reason: 'Coordenada de latitud fuera de rango astronómico [-90, 90]',
-        field: 'latitude_deg',
-        timestamp: 'Hoy a las 04:14 UTC',
-        resolved: false,
-      },
-      {
-        id: 'disc-oa-2',
-        rowIndex: 9811,
-        rawSample: '"", "", "Heliport Test Only", -34.6037, -58.3816',
-        reason: 'Identificador IATA e ICAO ausentes simultáneamente',
-        field: 'ident',
-        timestamp: 'Hoy a las 04:14 UTC',
-        resolved: false,
-      },
-    ],
-  },
-  {
-    id: 'openflights',
-    name: 'Red de Conexiones y Rutas',
-    datasetName: 'OpenFlights Global Routes',
-    description:
-      'Pares origen-destino, códigos IATA de aerolíneas operadoras, paradas técnicas y tipos de aeronaves asignadas.',
-    icon: 'i-lucide-git-commit-horizontal',
-    status: 'success',
-    progressPercent: 100,
-    processedRows: 67490,
-    totalEstimatedRows: 67663,
-    discardedRows: 173,
-    lastSyncAt: 'Ayer a las 23:30 UTC',
-    nextScheduledSync: 'Lunes 02:00 UTC',
-    scheduleDescription: 'Semanal (Lunes 02:00 UTC)',
-    averageSpeedRowsPerSec: 4100,
-    currentStepMessage: 'Al día — Red de conexiones y arcos geodésicos precalculados.',
-    discardedSamples: [
-      {
-        id: 'disc-of-1',
-        rowIndex: 4120,
-        rawSample: '"XX", "999", "AAA", "9999", "BBB", "Y"',
-        reason: 'Aeropuerto destino (BBB) no encontrado en el catálogo de aeropuertos',
-        field: 'destination_airport_id',
-        timestamp: 'Ayer a las 23:28 UTC',
-        resolved: false,
-      },
-      {
-        id: 'disc-of-2',
-        rowIndex: 12450,
-        rawSample: '"", "", "EZE", "123", "MAD", ""',
-        reason: 'Código de aerolínea vacío o inexistente',
-        field: 'airline_code',
-        timestamp: 'Ayer a las 23:29 UTC',
-        resolved: false,
-      },
-    ],
-  },
-  {
-    id: 'bts-transtats',
-    name: 'Telemetría y Puntualidad OTP-15',
-    datasetName: 'Bureau of Transportation Statistics (BTS)',
-    description:
-      'Registros de arribos, cálculo de demoras en minutos, cancelaciones y tuplas de agregación (Origen, Destino, Aerolínea, Periodo).',
-    icon: 'i-lucide-timer',
-    status: 'running',
-    progressPercent: 46,
-    processedRows: 207000,
-    totalEstimatedRows: 450000,
-    discardedRows: 342,
-    lastSyncAt: '12 Sep 2026 18:00 UTC',
-    nextScheduledSync: 'En ejecución',
-    scheduleDescription: 'Mensual (Día 15 de cada mes)',
-    averageSpeedRowsPerSec: 2850,
-    currentStepMessage: 'Procesando lote 83 de 180 — Agregando tuplas OTP-15 en lotes de 2.500 filas.',
-    discardedSamples: [
-      {
-        id: 'disc-bts-1',
-        rowIndex: 45020,
-        rawSample: '"2026-08-14", "AA", "1234", "JFK", "LAX", "NA", "NA", "1"',
-        reason: 'Vuelo marcado como cancelado sin especificar causa formal',
-        field: 'cancellation_code',
-        timestamp: 'Hace 5 minutos',
-        resolved: false,
-      },
-      {
-        id: 'disc-bts-2',
-        rowIndex: 112004,
-        rawSample: '"2026-08-15", "DL", "567", "ORD", "MIA", "9999", "-15"',
-        reason: 'Hora programada inválida fuera del rango 00:00 - 23:59',
-        field: 'crs_dep_time',
-        timestamp: 'Hace 2 minutos',
-        resolved: false,
-      },
-    ],
-  },
-  {
-    id: 'anac',
-    name: 'Registros Operativos Regionales',
-    datasetName: 'ANAC Telemetría Aérea',
-    description:
-      'Telemetría de vuelos comerciales en el cono sur (Argentina / Brasil), con factores de ocupación y horarios reales.',
-    icon: 'i-lucide-plane-takeoff',
-    status: 'idle',
-    progressPercent: 0,
-    processedRows: 118900,
-    totalEstimatedRows: 120000,
-    discardedRows: 24,
-    lastSyncAt: '18 Sep 2026 09:12 UTC',
-    nextScheduledSync: 'Mañana a las 05:00 UTC',
-    scheduleDescription: 'Diario (05:00 UTC)',
-    averageSpeedRowsPerSec: 2100,
-    currentStepMessage: 'En espera — Listo para sincronización manual o programada.',
-    discardedSamples: [
-      {
-        id: 'disc-anac-1',
-        rowIndex: 541,
-        rawSample: '"AR", "1302", "AEP", "COR", "2026-09-17", "NO_REPORTED"',
-        reason: 'Estado de demora no registrado por la operadora',
-        field: 'delay_minutes',
-        timestamp: '18 Sep 2026 09:10 UTC',
-        resolved: false,
-      },
-    ],
-  },
-];
+// Module-level singleton state for simulation interval to avoid duplicate tickers across multiple callers
+let tickerInterval: ReturnType<typeof setInterval> | null = null;
+let activeSimulationStep: (() => void) | null = null;
+let subscriberCount = 0;
 
-const initialLogs: EtlLogEntry[] = [
-  {
-    id: 'log-1',
-    timestamp: '17:34:10',
-    pipelineId: 'bts-transtats',
-    pipelineName: 'Telemetría OTP-15 (BTS)',
-    level: 'info',
-    message: 'Lote 82 procesado correctamente: 2.500 registros agregados a la base de datos.',
-    detail: 'Duración del lote: 820 ms. Memoria de worker estable en 142 MB.',
-  },
-  {
-    id: 'log-2',
-    timestamp: '17:33:45',
-    pipelineId: 'bts-transtats',
-    pipelineName: 'Telemetría OTP-15 (BTS)',
-    level: 'warn',
-    message: 'Fila 112.004 descartada: formato de hora de salida no conforme (9999).',
-    detail: 'Almacenado en auditoría de descartes para verificación posterior.',
-  },
-  {
-    id: 'log-3',
-    timestamp: '17:32:00',
-    pipelineId: 'bts-transtats',
-    pipelineName: 'Telemetría OTP-15 (BTS)',
-    level: 'info',
-    message: 'Lote 81 procesado correctamente: 2.500 registros agregados a la base de datos.',
-  },
-  {
-    id: 'log-4',
-    timestamp: '04:15:22',
-    pipelineId: 'ourairports',
-    pipelineName: 'Catálogo de Aeropuertos',
-    level: 'success',
-    message: 'Sincronización semanal finalizada con éxito. 78.412 aeropuertos actualizados.',
-    detail: 'Caché de consultas geoespaciales refrescada en Redis.',
-  },
-  {
-    id: 'log-5',
-    timestamp: 'Ayer 23:30',
-    pipelineId: 'openflights',
-    pipelineName: 'Red de Conexiones',
-    level: 'success',
-    message: 'Sincronización de rutas completada. 67.490 tramos listos para renderizado en Deck.gl.',
-  },
-];
+function runSimulationTicker() {
+  if (activeSimulationStep) {
+    activeSimulationStep();
+  }
+}
 
 export function useEtlMonitoring() {
-  const pipelines = ref<EtlPipeline[]>(JSON.parse(JSON.stringify(initialPipelines)));
-  const logs = ref<EtlLogEntry[]>([...initialLogs]);
-  const isSimulationActive = ref(true);
-  let tickerInterval: ReturnType<typeof setInterval> | null = null;
+  const toast = useToast();
+
+  // Shared reactive state across components
+  const pipelines = useState<EtlPipeline[]>('etl_pipelines', () =>
+    JSON.parse(JSON.stringify(initialPipelines))
+  );
+  const logs = useState<EtlLogEntry[]>('etl_logs', () => [...initialLogs]);
+  const isSimulationActive = useState<boolean>('etl_simulation_active', () => true);
 
   // KPIs globales computados
   const globalMetrics = computed<EtlGlobalMetrics>(() => {
@@ -268,22 +92,33 @@ export function useEtlMonitoring() {
     }
   }
 
-  // Disparar sincronización manual
-  function triggerSync(options: TriggerSyncOptions) {
-    const pipeline = pipelines.value.find((p) => p.id === options.pipelineId);
+  // Disparar sincronización manual (soporta TriggerSyncOptions o string PipelineId)
+  function triggerSync(options: TriggerSyncOptions | PipelineId) {
+    const pipelineId = typeof options === 'string' ? options : options.pipelineId;
+    const mode = typeof options === 'string' ? 'incremental' : options.mode;
+    const batchSize = typeof options === 'string' ? 2500 : options.batchSize;
+    const dryRun = typeof options === 'string' ? false : options.dryRun;
+
+    const pipeline = pipelines.value.find((p) => p.id === pipelineId);
     if (!pipeline) return;
 
     pipeline.status = 'running';
     pipeline.progressPercent = 0;
     pipeline.processedRows = 0;
-    pipeline.currentStepMessage = `Iniciando ingesta en modo ${options.mode === 'full' ? 'completo' : 'incremental'}...`;
+    pipeline.currentStepMessage = `Iniciando ingesta en modo ${mode === 'full' ? 'completo' : 'incremental'}...`;
 
     addLog(
       pipeline.id,
       'info',
-      `Iniciada sincronización manual de "${pipeline.name}" (${options.mode === 'full' ? 'Recarga completa' : 'Incremental'}).`,
-      `Tamaño de lote: ${options.batchSize} filas. Modo seguro: ${options.dryRun ? 'Sí' : 'No'}.`
+      `Iniciada sincronización manual de "${pipeline.name}" (${mode === 'full' ? 'Recarga completa' : 'Incremental'}).`,
+      `Tamaño de lote: ${batchSize} filas. Modo seguro: ${dryRun ? 'Sí' : 'No'}.`
     );
+
+    toast.add({
+      title: 'Ingesta iniciada',
+      description: `Iniciando ingesta para ${pipeline.name}`,
+      color: 'info',
+    });
   }
 
   // Pausar pipeline
@@ -294,6 +129,12 @@ export function useEtlMonitoring() {
     pipeline.status = 'paused';
     pipeline.currentStepMessage = 'Pausado por el operador. Los workers retendrán los lotes en cola.';
     addLog(pipeline.id, 'warn', `Ingesta pausada manualmente por el operador.`);
+
+    toast.add({
+      title: 'Pipeline pausado',
+      description: `Se pausó ${pipeline.name}`,
+      color: 'warning',
+    });
   }
 
   // Reanudar pipeline
@@ -304,6 +145,12 @@ export function useEtlMonitoring() {
     pipeline.status = 'running';
     pipeline.currentStepMessage = 'Reanudando ingesta de lotes asíncronos...';
     addLog(pipeline.id, 'info', `Ingesta reanudada por el operador.`);
+
+    toast.add({
+      title: 'Pipeline reanudado',
+      description: `Se reanudó ${pipeline.name}`,
+      color: 'success',
+    });
   }
 
   // Reintentar fallidos
@@ -335,6 +182,12 @@ export function useEtlMonitoring() {
       'info',
       'Orden global emitida: Todas las fuentes aeronáuticas sincronizando en paralelo.'
     );
+
+    toast.add({
+      title: 'Sincronización global iniciada',
+      description: 'Todos los pipelines activos han comenzado a sincronizar',
+      color: 'info',
+    });
   }
 
   // Pausar todos los activos
@@ -346,6 +199,12 @@ export function useEtlMonitoring() {
       }
     });
     addLog('bts-transtats', 'warn', 'Orden global emitida: Todas las ingestas activas han sido pausadas.');
+
+    toast.add({
+      title: 'Ingestas pausadas',
+      description: 'Se han pausado todos los pipelines',
+      color: 'warning',
+    });
   }
 
   // Limpiar feed de logs
@@ -406,13 +265,21 @@ export function useEtlMonitoring() {
   }
 
   onMounted(() => {
-    tickerInterval = setInterval(stepSimulation, 3500);
+    subscriberCount++;
+    activeSimulationStep = stepSimulation;
+    if (!tickerInterval && import.meta.client) {
+      tickerInterval = setInterval(runSimulationTicker, 3500);
+    }
   });
 
   onUnmounted(() => {
-    if (tickerInterval) {
-      clearInterval(tickerInterval);
-      tickerInterval = null;
+    subscriberCount = Math.max(0, subscriberCount - 1);
+    if (subscriberCount === 0) {
+      if (tickerInterval) {
+        clearInterval(tickerInterval);
+        tickerInterval = null;
+      }
+      activeSimulationStep = null;
     }
   });
 

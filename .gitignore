@@ -17,8 +17,9 @@ dist/
 .env.*
 !.env.examplenode_modules
 .env
-
 /generated/prisma
+backend/generated/
+**/__pycache__/
 
 # Compilados
 dist/

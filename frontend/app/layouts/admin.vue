@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="min-h-screen bg-background text-text-main flex flex-col font-sans">
     <!-- Cabecera Administrativa Minimalista (Sólida, sin blur, sin glow, borde nítido de 1px) -->
     <header class="sticky top-0 z-40 bg-surface-card border-b border-border-subtle">
@@ -10,37 +10,33 @@
               FlyWise
             </span>
           </NuxtLink>
-          <span class="h-4 w-px bg-border-subtle" />
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-surface-accent text-primary border border-border-subtle">
+          <USeparator orientation="vertical" class="h-4" />
+          <UBadge color="primary" variant="subtle" size="sm">
             Consola ETL
-          </span>
+          </UBadge>
         </div>
 
         <!-- Navegación y Controles de Cabecera -->
         <div class="flex items-center gap-3">
           <!-- Indicador de Salud de Workers -->
-          <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+          <UBadge color="success" variant="subtle" size="sm" class="hidden sm:inline-flex gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <span>Colas BullMQ Activas</span>
-          </div>
+          </UBadge>
 
           <!-- Acceso al Explorador Público -->
-          <NuxtLink
-            to="/explorar"
-            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-border-subtle bg-surface-card hover:bg-surface-accent text-text-muted hover:text-text-main transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <UIcon name="i-lucide-globe" class="w-3.5 h-3.5" />
-            <span class="hidden md:inline">Ver Mapa Global</span>
-          </NuxtLink>
+          <UButton to="/explorar" variant="outline" color="neutral" size="xs" icon="i-lucide-globe">
+            Ver Mapa Global
+          </UButton>
 
           <!-- Conmutador de Tema Claro/Oscuro (Auto-importado) -->
           <ThemeToggle />
 
+          <USeparator orientation="vertical" class="h-4" />
+
           <!-- Identificador de Operador -->
-          <div class="flex items-center gap-2 pl-2 border-l border-border-subtle">
-            <div class="w-7 h-7 rounded-full bg-surface-accent border border-border-subtle flex items-center justify-center text-xs font-bold text-primary">
-              OP
-            </div>
+          <div class="flex items-center gap-2">
+            <UAvatar text="OP" size="xs" />
             <span class="hidden lg:inline text-xs font-semibold text-text-main">
               Operador ETL
             </span>

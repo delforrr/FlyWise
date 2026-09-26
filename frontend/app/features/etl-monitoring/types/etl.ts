@@ -56,3 +56,6 @@ export interface TriggerSyncOptions {
   dryRun: boolean;
   batchSize: number;
 }
+
+export type Pipeline = EtlPipeline;
+export type LogEntry = EtlLogEntry;

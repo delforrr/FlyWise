@@ -17,15 +17,13 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div
-    class="p-5 rounded-xl border border-border-subtle bg-surface-card transition-colors flex flex-col justify-between"
-  >
+  <UCard class="flex flex-col justify-between h-full bg-surface-card border-border-subtle">
     <!-- Cabecera de la tarjeta: Título, Fuente y Badge de Estado -->
     <div>
       <div class="flex items-start justify-between gap-3">
         <div class="flex items-start gap-3">
           <div
-            class="w-10 h-10 rounded-lg border border-border-subtle bg-surface-accent flex items-center justify-center text-primary flex-shrink-0"
+            class="w-10 h-10 rounded-lg border border-border-subtle bg-surface-accent flex items-center justify-center text-primary shrink-0"
           >
             <UIcon :name="pipeline.icon" class="w-5 h-5" />
           </div>
@@ -39,56 +37,71 @@ const emit = defineEmits<{
           </div>
         </div>
 
-        <!-- Badge de Estado Minimalista (Sin glow, bordes nítidos de 1px) -->
+        <!-- Badge de Estado Nuxt UI -->
         <div>
-          <span
+          <UBadge
             v-if="pipeline.status === 'success'"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+            color="success"
+            variant="subtle"
+            size="sm"
+            class="gap-1.5"
           >
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             Al día
-          </span>
+          </UBadge>
 
-          <span
+          <UBadge
             v-else-if="pipeline.status === 'running'"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-400 border border-sky-500/20"
+            color="info"
+            variant="subtle"
+            size="sm"
+            class="gap-1.5"
           >
             <span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
             Sincronizando
-          </span>
+          </UBadge>
 
-          <span
+          <UBadge
             v-else-if="pipeline.status === 'paused'"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+            color="warning"
+            variant="subtle"
+            size="sm"
+            class="gap-1.5"
           >
             <span class="w-1.5 h-1.5 rounded-full bg-amber-500" />
             Pausado
-          </span>
+          </UBadge>
 
-          <span
+          <UBadge
             v-else-if="pipeline.status === 'error'"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
+            color="error"
+            variant="subtle"
+            size="sm"
+            class="gap-1.5"
           >
             <span class="w-1.5 h-1.5 rounded-full bg-rose-500" />
             Requiere atención
-          </span>
+          </UBadge>
 
-          <span
+          <UBadge
             v-else
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-accent text-text-muted border border-border-subtle"
+            color="neutral"
+            variant="subtle"
+            size="sm"
+            class="gap-1.5"
           >
-            <span class="w-1.5 h-1.5 rounded-full bg-text-dim" />
+            <span class="w-1.5 h-1.5 rounded-full bg-neutral-400" />
             En espera
-          </span>
+          </UBadge>
         </div>
       </div>
 
-      <!-- Explicación en lenguaje no técnico -->
+      <!-- Explicación -->
       <p class="text-xs text-text-muted mt-3 line-clamp-2 leading-relaxed">
         {{ pipeline.description }}
       </p>
 
-      <!-- Barra de Progreso Minimalista Sólida (Visible cuando está corriendo o pausado) -->
+      <!-- Barra de Progreso Nuxt UI (Visible cuando está corriendo o pausado) -->
       <div
         v-if="pipeline.status === 'running' || pipeline.status === 'paused'"
         class="mt-4 pt-3 border-t border-border-subtle/60"
@@ -101,20 +114,17 @@ const emit = defineEmits<{
             {{ pipeline.progressPercent }}%
           </span>
         </div>
-        <div
-          class="w-full bg-surface-accent h-2 rounded-full overflow-hidden border border-border-subtle/50"
-        >
-          <div
-            class="h-full bg-primary transition-all duration-300 rounded-full"
-            :style="{ width: `${pipeline.progressPercent}%` }"
-          />
-        </div>
+        <UProgress
+          :model-value="pipeline.progressPercent"
+          color="primary"
+          size="sm"
+        />
         <p class="text-[11px] text-text-dim mt-1.5 font-mono truncate">
           {{ pipeline.currentStepMessage }}
         </p>
       </div>
 
-      <!-- Ficha de Datos Comprensibles -->
+      <!-- Ficha de Datos -->
       <div
         class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-border-subtle/60 text-xs"
       >
@@ -168,66 +178,66 @@ const emit = defineEmits<{
     </div>
 
     <!-- Botones de Acción Operativa Directa -->
-    <div
-      class="mt-5 pt-3 border-t border-border-subtle flex items-center justify-between gap-2"
-    >
-      <!-- Botón secundario para ver descartes -->
-      <UButton
-        v-if="pipeline.discardedRows > 0"
-        size="xs"
-        variant="ghost"
-        color="neutral"
-        icon="i-lucide-file-text"
-        class="text-xs font-medium cursor-pointer"
-        @click="emit('view-discarded', pipeline)"
-      >
-        Auditar descartes
-      </UButton>
-      <span v-else class="text-[11px] text-text-dim flex items-center gap-1">
-        <UIcon name="i-lucide-check" class="w-3.5 h-3.5 text-emerald-500" />
-        Sin errores
-      </span>
-
-      <!-- Acciones de control -->
-      <div class="flex items-center gap-1.5">
-        <!-- Pausar si está corriendo -->
+    <template #footer>
+      <div class="flex items-center justify-between gap-2 w-full">
+        <!-- Botón secundario para ver descartes -->
         <UButton
-          v-if="pipeline.status === 'running'"
+          v-if="pipeline.discardedRows > 0"
           size="xs"
-          variant="outline"
+          variant="ghost"
           color="neutral"
-          icon="i-lucide-pause"
-          class="text-xs font-semibold cursor-pointer"
-          @click="emit('pause', pipeline.id)"
+          icon="i-lucide-file-text"
+          class="text-xs font-medium cursor-pointer"
+          @click="emit('view-discarded', pipeline)"
         >
-          Pausar
+          Auditar descartes
         </UButton>
+        <span v-else class="text-[11px] text-text-dim flex items-center gap-1">
+          <UIcon name="i-lucide-check" class="w-3.5 h-3.5 text-emerald-500" />
+          Sin errores
+        </span>
 
-        <!-- Reanudar si está pausado -->
-        <UButton
-          v-else-if="pipeline.status === 'paused'"
-          size="xs"
-          color="primary"
-          icon="i-lucide-play"
-          class="text-xs font-semibold cursor-pointer text-white"
-          @click="emit('resume', pipeline.id)"
-        >
-          Reanudar
-        </UButton>
+        <!-- Acciones de control -->
+        <div class="flex items-center gap-1.5">
+          <!-- Pausar si está corriendo -->
+          <UButton
+            v-if="pipeline.status === 'running'"
+            size="xs"
+            variant="outline"
+            color="neutral"
+            icon="i-lucide-pause"
+            class="text-xs font-semibold cursor-pointer"
+            @click="emit('pause', pipeline.id)"
+          >
+            Pausar
+          </UButton>
 
-        <!-- Sincronizar bajo demanda si está idle o success -->
-        <UButton
-          v-else
-          size="xs"
-          variant="outline"
-          color="primary"
-          icon="i-lucide-refresh-cw"
-          class="text-xs font-semibold cursor-pointer"
-          @click="emit('trigger-sync', pipeline)"
-        >
-          Sincronizar
-        </UButton>
+          <!-- Reanudar si está pausado -->
+          <UButton
+            v-else-if="pipeline.status === 'paused'"
+            size="xs"
+            color="primary"
+            icon="i-lucide-play"
+            class="text-xs font-semibold cursor-pointer text-white"
+            @click="emit('resume', pipeline.id)"
+          >
+            Reanudar
+          </UButton>
+
+          <!-- Sincronizar bajo demanda si está idle o success -->
+          <UButton
+            v-else
+            size="xs"
+            variant="outline"
+            color="primary"
+            icon="i-lucide-refresh-cw"
+            class="text-xs font-semibold cursor-pointer"
+            @click="emit('trigger-sync', pipeline)"
+          >
+            Sincronizar
+          </UButton>
+        </div>
       </div>
-    </div>
-  </div>
+    </template>
+  </UCard>
 </template>

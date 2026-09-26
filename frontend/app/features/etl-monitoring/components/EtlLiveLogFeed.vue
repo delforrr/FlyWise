@@ -35,7 +35,9 @@ const filteredLogs = computed(() => {
 <template>
   <div class="rounded-xl border border-border-subtle bg-surface-card overflow-hidden">
     <!-- Barra superior del visor de eventos -->
-    <div class="p-4 border-b border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-accent/40">
+    <div
+      class="p-4 border-b border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-accent/40"
+    >
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-terminal" class="w-4 h-4 text-text-muted" />
         <h3 class="text-sm font-bold text-text-main">
@@ -52,7 +54,11 @@ const filteredLogs = computed(() => {
           <button
             type="button"
             class="px-2.5 py-1 rounded-md cursor-pointer transition-colors"
-            :class="levelFilter === 'all' ? 'bg-surface-accent text-text-main font-semibold' : 'text-text-muted hover:text-text-main'"
+            :class="
+              levelFilter === 'all'
+                ? 'bg-surface-accent text-text-main font-semibold'
+                : 'text-text-muted hover:text-text-main'
+            "
             @click="levelFilter = 'all'"
           >
             Todos
@@ -60,7 +66,11 @@ const filteredLogs = computed(() => {
           <button
             type="button"
             class="px-2.5 py-1 rounded-md cursor-pointer transition-colors"
-            :class="levelFilter === 'success' ? 'bg-surface-accent text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-text-muted hover:text-text-main'"
+            :class="
+              levelFilter === 'success'
+                ? 'bg-surface-accent text-emerald-700 dark:text-emerald-400 font-semibold'
+                : 'text-text-muted hover:text-text-main'
+            "
             @click="levelFilter = 'success'"
           >
             Completados
@@ -68,7 +78,11 @@ const filteredLogs = computed(() => {
           <button
             type="button"
             class="px-2.5 py-1 rounded-md cursor-pointer transition-colors"
-            :class="levelFilter === 'warn_error' ? 'bg-surface-accent text-amber-700 dark:text-amber-400 font-semibold' : 'text-text-muted hover:text-text-main'"
+            :class="
+              levelFilter === 'warn_error'
+                ? 'bg-surface-accent text-amber-700 dark:text-amber-400 font-semibold'
+                : 'text-text-muted hover:text-text-main'
+            "
             @click="levelFilter = 'warn_error'"
           >
             Incidencias
@@ -97,32 +111,36 @@ const filteredLogs = computed(() => {
         class="p-3 text-xs hover:bg-surface-accent/30 transition-colors"
       >
         <div class="flex items-start gap-3">
-          <!-- Icono de estado -->
-          <div class="mt-0.5 flex-shrink-0">
-            <span
+          <!-- Icono de estado con UBadge -->
+          <div class="mt-0.5 shrink-0">
+            <UBadge
               v-if="log.level === 'success'"
-              class="w-5 h-5 rounded flex items-center justify-center bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-            >
-              <UIcon name="i-lucide-check" class="w-3.5 h-3.5" />
-            </span>
-            <span
+              color="success"
+              variant="subtle"
+              size="sm"
+              icon="i-lucide-check"
+            />
+            <UBadge
               v-else-if="log.level === 'warn'"
-              class="w-5 h-5 rounded flex items-center justify-center bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-            >
-              <UIcon name="i-lucide-alert-triangle" class="w-3.5 h-3.5" />
-            </span>
-            <span
+              color="warning"
+              variant="subtle"
+              size="sm"
+              icon="i-lucide-alert-triangle"
+            />
+            <UBadge
               v-else-if="log.level === 'error'"
-              class="w-5 h-5 rounded flex items-center justify-center bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-            >
-              <UIcon name="i-lucide-x-circle" class="w-3.5 h-3.5" />
-            </span>
-            <span
+              color="error"
+              variant="subtle"
+              size="sm"
+              icon="i-lucide-x-circle"
+            />
+            <UBadge
               v-else
-              class="w-5 h-5 rounded flex items-center justify-center bg-surface-accent text-primary border border-border-subtle"
-            >
-              <UIcon name="i-lucide-info" class="w-3.5 h-3.5" />
-            </span>
+              color="info"
+              variant="subtle"
+              size="sm"
+              icon="i-lucide-info"
+            />
           </div>
 
           <!-- Contenido del log -->
@@ -131,7 +149,7 @@ const filteredLogs = computed(() => {
               <span class="font-semibold text-text-main">
                 {{ log.pipelineName }}
               </span>
-              <span class="font-mono text-[11px] text-text-dim flex-shrink-0">
+              <span class="font-mono text-[11px] text-text-dim shrink-0">
                 {{ log.timestamp }}
               </span>
             </div>
@@ -140,33 +158,41 @@ const filteredLogs = computed(() => {
             </p>
 
             <!-- Detalle técnico colapsable -->
-            <div v-if="log.detail" class="mt-1.5">
-              <button
-                type="button"
-                class="text-[11px] text-primary hover:underline font-mono inline-flex items-center gap-1 cursor-pointer"
-                @click="toggleExpand(log.id)"
-              >
-                <span>{{ expandedLogs[log.id] ? 'Ocultar detalle técnico' : 'Ver detalle técnico' }}</span>
-                <UIcon
-                  :name="expandedLogs[log.id] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                  class="w-3 h-3"
-                />
-              </button>
+            <UCollapsible v-if="log.detail" v-model:open="expandedLogs[log.id]" class="mt-1.5">
+              <template #default="{ open }">
+                <button
+                  type="button"
+                  class="text-[11px] text-primary hover:underline font-mono inline-flex items-center gap-1 cursor-pointer"
+                  @click="toggleExpand(log.id)"
+                >
+                  <span>{{ open ? 'Ocultar detalle técnico' : 'Ver detalle técnico' }}</span>
+                  <UIcon
+                    :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                    class="w-3 h-3"
+                  />
+                </button>
+              </template>
 
-              <div
-                v-if="expandedLogs[log.id]"
-                class="mt-1 p-2 rounded bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim whitespace-pre-wrap break-all"
-              >
-                {{ log.detail }}
-              </div>
-            </div>
+              <template #content>
+                <div
+                  class="mt-1 p-2 rounded bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim whitespace-pre-wrap break-all"
+                >
+                  {{ log.detail }}
+                </div>
+              </template>
+            </UCollapsible>
           </div>
         </div>
       </div>
 
-      <!-- Estado vacío si no hay logs -->
-      <div v-if="filteredLogs.length === 0" class="p-8 text-center text-text-muted text-xs">
-        No hay eventos registrados en este momento.
+      <!-- Estado vacío utilizando Nuxt UI UEmpty -->
+      <div v-if="filteredLogs.length === 0" class="p-8">
+        <UEmpty
+          icon="i-lucide-inbox"
+          title="Sin eventos registrados"
+          description="No hay eventos en este nivel de filtro actualmente."
+          variant="subtle"
+        />
       </div>
     </div>
   </div>

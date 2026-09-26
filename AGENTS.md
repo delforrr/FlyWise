@@ -77,10 +77,9 @@ fs.createReadStream(filePath)
     - `git reset --hard` / `git push --force`
     - `rm -rf /` o eliminación recursiva de carpetas raíz.
     - `prisma migrate reset` o sentencias SQL `DROP DATABASE` / `TRUNCATE`.
-- **Gobernanza de Git por Roles de Agente:**
-  - `flywise-developer`: **PROHIBIDO** ejecutar `git commit`, `git push` o `git merge`. Solo ejecuta comandos de lectura (`git status`, `git diff`), compilación y tests (`npm run test`, `tsc --noEmit`).
-  - `flywise-qa`: **ÚNICO AGENTE AUTORIZADO** para ejecutar `git add` y `git commit` tras superar el pipeline de validación adversarial. **PROHIBIDO** ejecutar `git push` o `git merge` de forma autónoma; debe solicitar la confirmación explícita del usuario en el chat.
-  - `flywise-architect`: Orquesta, consolida y reporta al usuario, gestionando la integración solo con autorización expresa.
+- **Gobernanza de Commits y Control de Versiones:**
+  - Todo commit en ramas de trabajo debe ser atómico y realizarse **únicamente tras superar el Quality Gate** (compilación limpia y pruebas en verde).
+  - **PROHIBIDO** ejecutar `git push` o `git merge` de forma autónoma sin confirmación explícita previa del usuario en el chat.
 - **Modificaciones de Base de Datos:**
   - Priorizar migraciones incrementales mediante `npx prisma migrate dev --name <nombre_migracion>`.
   - Asegurarse de que los contenedores Docker (`flywise_postgres`, `flywise_redis`) estén en ejecución antes de lanzar migraciones o tests.

@@ -30,10 +30,10 @@ const scoreText = computed<string>(() => {
   return "< 60%";
 });
 
-const badgeClass = computed<string>(() => {
-  if (reliabilityLevel.value === "Alta") return "badge-otp-good";
-  if (reliabilityLevel.value === "Media") return "badge-otp-warning";
-  return "badge-otp-critical";
+const badgeColor = computed<"success" | "warning" | "error">(() => {
+  if (reliabilityLevel.value === "Alta") return "success";
+  if (reliabilityLevel.value === "Media") return "warning";
+  return "error";
 });
 
 const dotClass = computed<string>(() => {
@@ -44,16 +44,13 @@ const dotClass = computed<string>(() => {
 </script>
 
 <template>
-  <span
-    :class="[
-      'inline-flex items-center font-mono text-xs font-medium rounded-full px-2.5 py-0.5 shadow-sm transition-colors select-none',
-      badgeClass,
-    ]"
+  <UBadge
+    :color="badgeColor"
+    variant="subtle"
+    size="sm"
+    class="font-mono font-medium rounded-full select-none gap-1.5"
   >
-    <span
-      class="inline-block w-2 h-2 rounded-full mr-1.5 animate-pulse shrink-0"
-      :class="dotClass"
-    />
+    <span class="inline-block w-2 h-2 rounded-full shrink-0" :class="dotClass" />
     <span>{{ reliabilityLevel }} ({{ scoreText }})</span>
-  </span>
+  </UBadge>
 </template>
