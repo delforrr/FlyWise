@@ -613,8 +613,8 @@ export const useFlightMap = () => {
       });
     } else {
       mapInstance.value.easeTo({
-        pitch: 40,
-        bearing: -25,
+        pitch: 36,
+        bearing: currentBearing.value,
         duration: 1000,
       });
     }
