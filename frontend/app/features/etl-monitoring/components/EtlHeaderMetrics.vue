@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EtlGlobalMetrics } from "../types/etl";
+import AnimatedCounter from "~/shared/components/ui/AnimatedCounter.vue";
 
 interface Props {
   metrics: EtlGlobalMetrics;
@@ -107,11 +108,11 @@ const emit = defineEmits<{
           <UIcon name="i-lucide-layers" class="w-4 h-4 text-text-muted" />
         </div>
         <div class="mt-2.5">
-          <span
-            class="text-2xl font-bold font-mono tracking-tight text-text-main"
-          >
-            {{ metrics.totalAeroRecords.toLocaleString() }}
-          </span>
+          <AnimatedCounter
+            :value="metrics.totalAeroRecords"
+            format-locale
+            class="text-2xl font-bold text-text-main"
+          />
         </div>
         <p class="text-xs text-text-muted mt-1">
           Aeropuertos, rutas y telemetría
@@ -127,9 +128,10 @@ const emit = defineEmits<{
           <UIcon name="i-lucide-cpu" class="w-4 h-4 text-text-muted" />
         </div>
         <div class="mt-2.5 flex items-baseline gap-2">
-          <span class="text-2xl font-bold font-mono text-text-main">
-            {{ metrics.activeJobsCount }}
-          </span>
+          <AnimatedCounter
+            :value="metrics.activeJobsCount"
+            class="text-2xl font-bold text-text-main"
+          />
           <span class="text-xs text-text-muted">en ejecución</span>
         </div>
         <p class="text-xs text-text-muted mt-1">
@@ -149,11 +151,11 @@ const emit = defineEmits<{
           />
         </div>
         <div class="mt-2.5 flex items-baseline gap-2">
-          <span
-            class="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400"
-          >
-            {{ metrics.successRatePercent }}%
-          </span>
+          <AnimatedCounter
+            :value="metrics.successRatePercent"
+            suffix="%"
+            class="text-2xl font-bold text-emerald-600 dark:text-emerald-400"
+          />
           <span class="text-xs text-text-muted">éxito</span>
         </div>
         <p class="text-xs text-text-muted mt-1">

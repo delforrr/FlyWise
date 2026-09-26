@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Airport } from "~/types/airport";
+import AnimatedCounter from "~/shared/components/ui/AnimatedCounter.vue";
 
 const props = defineProps<{
   selectedOrigin?: string | null;
@@ -127,12 +128,19 @@ function formatCoordinates(coords?: [number, number]): string {
       <template v-if="selectedOrigin && selectedDestination">
         <div v-if="distanceKm !== null" class="flex items-center gap-1.5 shrink-0">
           <UIcon name="i-lucide-navigation" class="w-3 h-3 text-primary shrink-0" />
-          <span class="font-mono tabular-nums tracking-tight font-semibold text-text-main">
-            {{ distanceKm.toLocaleString() }} km
-          </span>
-          <span class="font-mono tabular-nums tracking-tight text-text-muted">
-            ({{ distanceNm?.toLocaleString() }} nm)
-          </span>
+          <AnimatedCounter
+            :value="distanceKm"
+            suffix=" km"
+            format-locale
+            class="font-semibold text-text-main"
+          />
+          <AnimatedCounter
+            :value="distanceNm ?? 0"
+            prefix="("
+            suffix=" nm)"
+            format-locale
+            class="text-text-muted"
+          />
         </div>
 
         <div v-if="distanceKm !== null" class="h-3 w-px bg-border-subtle/60 shrink-0" />
