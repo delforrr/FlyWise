@@ -1,12 +1,20 @@
 <template>
-  <div class="min-h-screen bg-background text-text-main flex flex-col font-sans">
+  <div
+    class="min-h-screen bg-background text-text-main flex flex-col font-sans"
+  >
     <!-- Cabecera Administrativa Minimalista (Sólida, sin blur, sin glow, borde nítido de 1px) -->
-    <header class="sticky top-0 z-40 bg-surface-card border-b border-border-subtle">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <header
+      class="sticky top-0 z-40 bg-surface-card border-b border-border-subtle"
+    >
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4"
+      >
         <!-- Logo y Badge Operativo -->
         <div class="flex items-center gap-3">
           <NuxtLink to="/" class="flex items-center gap-2 group cursor-pointer">
-            <span class="font-display font-bold text-xl text-text-main tracking-tight group-hover:text-primary transition-colors">
+            <span
+              class="font-display font-bold text-xl text-text-main tracking-tight group-hover:text-primary transition-colors"
+            >
               FlyWise
             </span>
           </NuxtLink>
@@ -19,13 +27,24 @@
         <!-- Navegación y Controles de Cabecera -->
         <div class="flex items-center gap-3">
           <!-- Indicador de Salud de Workers -->
-          <UBadge color="success" variant="subtle" size="sm" class="hidden sm:inline-flex gap-1.5">
+          <UBadge
+            color="success"
+            variant="subtle"
+            size="sm"
+            class="hidden sm:inline-flex gap-1.5"
+          >
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>Colas BullMQ Activas</span>
+            <span>Procesos Activos</span>
           </UBadge>
 
           <!-- Acceso al Explorador Público -->
-          <UButton to="/explorar" variant="outline" color="neutral" size="xs" icon="i-lucide-globe">
+          <UButton
+            to="/explorar"
+            variant="outline"
+            color="neutral"
+            size="xs"
+            icon="i-lucide-globe"
+          >
             Ver Mapa Global
           </UButton>
 
@@ -52,10 +71,10 @@
 
     <!-- Pie de Página Minimalista -->
     <footer class="border-t border-border-subtle bg-surface-card py-4 mt-auto">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-text-muted">
-        <div>
-          FlyWise Ingestion Engine — RNF-04 (Node.js Streams + BullMQ) & RNF-03 (PostGIS SRID 4326).
-        </div>
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-text-muted"
+      >
+        <div>FlyWise - 2026</div>
         <div class="font-mono text-[11px] text-text-dim">
           Sistema Operativo de Telecomunicaciones Aéreas
         </div>
