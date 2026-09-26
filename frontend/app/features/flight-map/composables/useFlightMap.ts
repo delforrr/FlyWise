@@ -14,7 +14,28 @@ const overlayInstance = shallowRef<MapboxOverlay | null>(null);
 const isLoaded = ref<boolean>(false);
 const currentPitch = ref<number>(0);
 const currentZoom = ref<number>(0);
+const currentBearing = ref<number>(0);
 let resilienceTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Retorna el padding adaptativo de la cámara según el viewport del dispositivo,
+ * asegurando que los paneles de interfaz (sidebar lateral en desktop ~424px, drawer inferior en mobile)
+ * no ocluyan los arcos de vuelo ni los hubs activos.
+ */
+function getAdaptivePadding(): {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+} {
+  if (typeof window === "undefined") {
+    return { top: 100, bottom: 100, left: 100, right: 100 };
+  }
+  if (window.innerWidth >= 768) {
+    return { top: 120, bottom: 90, left: 450, right: 70 };
+  }
+  return { top: 90, bottom: 330, left: 24, right: 24 };
+}
 
 export const useFlightMap = () => {
   const {
@@ -57,7 +78,7 @@ export const useFlightMap = () => {
   }
 
   /**
-   * Genera las capas activas de WebGL (ArcLayer y ScatterplotLayer).
+   * Genera las capas activas de WebGL (ArcLayer, ScatterplotLayer y Halo Rings).
    * REGLA: El mapa inicia sin arcos hasta que se selecciona un aeropuerto o ruta.
    */
   function buildLayers() {
@@ -71,7 +92,17 @@ export const useFlightMap = () => {
     const visibleRoutes = hasSelection ? matchingRoutes.value : [];
 
     // 2. Aeropuertos visibles (despejar pantalla si hay selección, o todos si está en vista general)
-    const visibleAirports = getVisibleAirports(hasSelection, orig, dest, visibleRoutes);
+    const visibleAirports = getVisibleAirports(
+      hasSelection,
+      orig,
+      dest,
+      visibleRoutes,
+    );
+
+    // 3. Aeropuertos activos seleccionados (origen y/o destino para halos de radar)
+    const activeSelectedAirports = visibleAirports.filter(
+      (a) => a.iata === orig || a.iata === dest,
+    );
 
     return [
       // Capa de Arcos Geodésicos 3D (Rutas y puntualidad OTP-15)
@@ -85,12 +116,62 @@ export const useFlightMap = () => {
         getSourcePosition: (d: FlightRoute) => d.originCoordinates,
         getTargetPosition: (d: FlightRoute) => d.destinationCoordinates,
         getSourceColor: (d: FlightRoute) => {
-          const baseColor = getOtpColor(d.averageOtp15);
-          return [baseColor[0], baseColor[1], baseColor[2], 255];
+          const isDirectActive = Boolean(
+            hasBoth &&
+              ((d.originIata === orig && d.destinationIata === dest) ||
+                (d.originIata === dest && d.destinationIata === orig)),
+          );
+
+          if (isDirectActive) {
+            // Gradiente de alto contraste para la ruta activa seleccionada:
+            // El origen emite en Aero Cyan de alta saturación
+            return d.originIata === orig
+              ? isLight
+                ? [2, 132, 199, 255]
+                : [56, 189, 248, 255]
+              : getOtpColor(d.averageOtp15, 255);
+          }
+
+          if (hasBoth) {
+            // Rutas de escala / conexión secundarias: contraste atenuado
+            const baseColor = getOtpColor(d.averageOtp15, 140);
+            return [baseColor[0], baseColor[1], baseColor[2], 140];
+          }
+
+          if (orig && d.originIata === orig) {
+            return isLight ? [2, 132, 199, 240] : [56, 189, 248, 240];
+          }
+
+          const baseColor = getOtpColor(d.averageOtp15, 220);
+          return [baseColor[0], baseColor[1], baseColor[2], 220];
         },
         getTargetColor: (d: FlightRoute) => {
-          const baseColor = getOtpColor(d.averageOtp15);
-          return [baseColor[0], baseColor[1], baseColor[2], 255];
+          const isDirectActive = Boolean(
+            hasBoth &&
+              ((d.originIata === orig && d.destinationIata === dest) ||
+                (d.originIata === dest && d.destinationIata === orig)),
+          );
+
+          if (isDirectActive) {
+            // El destino recibe en el color de performance OTP-15 (Esmeralda / Ámbar / Carmesí)
+            return d.destinationIata === dest
+              ? getOtpColor(d.averageOtp15, 255)
+              : isLight
+                ? [2, 132, 199, 255]
+                : [56, 189, 248, 255];
+          }
+
+          if (hasBoth) {
+            const baseColor = getOtpColor(d.averageOtp15, 140);
+            return [baseColor[0], baseColor[1], baseColor[2], 140];
+          }
+
+          if (dest && d.destinationIata === dest) {
+            return isLight ? [5, 150, 105, 240] : [16, 185, 129, 240];
+          }
+
+          const baseColor = getOtpColor(d.averageOtp15, 220);
+          return [baseColor[0], baseColor[1], baseColor[2], 220];
         },
         getWidth: (d: FlightRoute) => {
           if (!hasSelection) return 2.5;
@@ -99,17 +180,72 @@ export const useFlightMap = () => {
               (d.originIata === orig && d.destinationIata === dest) ||
               (d.originIata === dest && d.destinationIata === orig)
             ) {
-              return 6.5;
+              return 8.0; // Grosor elevado para destacar la ruta activa
             }
-            return 3.5;
+            return 3.0; // Conexiones secundarias
           }
           return 4.5;
         },
-        widthMinPixels: 1.5,
+        widthMinPixels: 2.0,
         updateTriggers: {
           getWidth: [orig, dest],
-          getSourceColor: [isLight],
-          getTargetColor: [isLight],
+          getSourceColor: [orig, dest, isLight],
+          getTargetColor: [orig, dest, isLight],
+        },
+      }),
+
+      // Capa de Anillo Exterior Sonar / Pulso Táctico para Hubs Activos
+      new ScatterplotLayer<Airport>({
+        id: "airports-radar-ring-outer",
+        data: activeSelectedAirports,
+        pickable: false,
+        getPosition: (d: Airport) => d.coordinates,
+        getRadius: 280000,
+        radiusMinPixels: 28,
+        radiusMaxPixels: 58,
+        stroked: true,
+        filled: false,
+        getLineColor: (d: Airport) => {
+          if (d.iata === orig) {
+            return isLight ? [2, 132, 199, 90] : [56, 189, 248, 100];
+          }
+          return isLight ? [5, 150, 105, 90] : [16, 185, 129, 100];
+        },
+        lineWidthMinPixels: 1.5,
+        lineWidthMaxPixels: 2.5,
+        updateTriggers: {
+          getLineColor: [orig, dest, isLight],
+        },
+      }),
+
+      // Capa de Halo Radar / Glow para Hubs Activos (Origen / Destino)
+      new ScatterplotLayer<Airport>({
+        id: "airports-radar-halo",
+        data: activeSelectedAirports,
+        pickable: false,
+        getPosition: (d: Airport) => d.coordinates,
+        getRadius: 160000,
+        radiusMinPixels: 18,
+        radiusMaxPixels: 38,
+        stroked: true,
+        filled: true,
+        getFillColor: (d: Airport) => {
+          if (d.iata === orig) {
+            return isLight ? [2, 132, 199, 45] : [56, 189, 248, 45]; // Aero Cyan translúcido
+          }
+          return isLight ? [5, 150, 105, 45] : [16, 185, 129, 45]; // Esmeralda translúcido
+        },
+        getLineColor: (d: Airport) => {
+          if (d.iata === orig) {
+            return isLight ? [2, 132, 199, 200] : [56, 189, 248, 220]; // Stroke de pulso cyan
+          }
+          return isLight ? [5, 150, 105, 200] : [16, 185, 129, 220]; // Stroke de pulso esmeralda
+        },
+        lineWidthMinPixels: 2,
+        lineWidthMaxPixels: 3.5,
+        updateTriggers: {
+          getFillColor: [orig, dest, isLight],
+          getLineColor: [orig, dest, isLight],
         },
       }),
 
@@ -123,7 +259,7 @@ export const useFlightMap = () => {
         getPosition: (d: Airport) => d.coordinates,
         getRadius: (d: Airport) => {
           if (d.iata === orig || d.iata === dest) {
-            return 80000;
+            return 90000;
           }
           return d.type === "large_airport" ? 45000 : 25000;
         },
@@ -131,10 +267,10 @@ export const useFlightMap = () => {
         radiusMaxPixels: 16,
         getFillColor: (d: Airport) => {
           if (d.iata === orig) {
-            return [56, 189, 248, 255]; // Aero Cyan (Origen)
+            return isLight ? [2, 132, 199, 255] : [56, 189, 248, 255]; // Aero Cyan (Origen)
           }
           if (d.iata === dest) {
-            return [16, 185, 129, 255]; // Emerald (Destino)
+            return isLight ? [5, 150, 105, 255] : [16, 185, 129, 255]; // Emerald (Destino)
           }
           return isLight ? [30, 41, 59, 230] : [222, 227, 232, 220];
         },
@@ -145,7 +281,7 @@ export const useFlightMap = () => {
           return isLight ? [255, 255, 255, 255] : [37, 43, 46, 255];
         },
         stroked: true,
-        lineWidthMinPixels: 1.5,
+        lineWidthMinPixels: 2,
         updateTriggers: {
           getRadius: [orig, dest],
           getFillColor: [orig, dest, isLight],
@@ -224,14 +360,9 @@ export const useFlightMap = () => {
     }
 
     mapInstance.value.fitBounds(bounds, {
-      padding: {
-        top: 150,
-        bottom: 120,
-        left: 80,
-        right: 80,
-      },
-      pitch: 32,
-      duration: 1800,
+      padding: getAdaptivePadding(),
+      pitch: 35,
+      duration: 1600,
       essential: true,
     });
   }
@@ -335,6 +466,7 @@ export const useFlightMap = () => {
         isLoaded.value = true;
         currentPitch.value = map.getPitch();
         currentZoom.value = map.getZoom();
+        currentBearing.value = map.getBearing();
         map.resize();
         updateLayers();
       };
@@ -365,6 +497,10 @@ export const useFlightMap = () => {
 
       map.on("zoom", () => {
         currentZoom.value = map.getZoom();
+      });
+
+      map.on("rotate", () => {
+        currentBearing.value = map.getBearing();
       });
     } catch (err) {
       console.error(
@@ -400,6 +536,7 @@ export const useFlightMap = () => {
     isLoaded.value = false;
     currentPitch.value = 0;
     currentZoom.value = 0;
+    currentBearing.value = 0;
   }
 
   function flyToAirport(
@@ -428,6 +565,7 @@ export const useFlightMap = () => {
     options?: {
       pitch?: number;
       duration?: number;
+      padding?: { top: number; bottom: number; left: number; right: number };
     },
   ): void {
     if (!mapInstance.value) return;
@@ -454,14 +592,9 @@ export const useFlightMap = () => {
     bounds.extend(dest);
 
     mapInstance.value.fitBounds(bounds, {
-      padding: {
-        top: 140,
-        bottom: 90,
-        left: 60,
-        right: 60,
-      },
+      padding: options?.padding ?? getAdaptivePadding(),
       pitch: options?.pitch ?? 35,
-      duration: options?.duration ?? 1800,
+      duration: options?.duration ?? 1600,
       essential: true,
     });
   }
@@ -510,7 +643,11 @@ export const useFlightMap = () => {
     overlayInstance,
     isLoaded,
     currentPitch,
+    pitch: currentPitch,
     currentZoom,
+    zoom: currentZoom,
+    currentBearing,
+    bearing: currentBearing,
     initMap,
     destroyMap,
     updateLayers,

@@ -26,6 +26,8 @@ const {
 const colorMode = useColorMode();
 
 let resizeObserver: ResizeObserver | null = null;
+let resizeRafId: number | null = null;
+let initRafId: number | null = null;
 
 // Suscripciones reactivas centralizadas en el ciclo de vida del mapa
 watch(selectedOrigin, (newOrigin) => {
@@ -124,22 +126,37 @@ onMounted(async () => {
 
   // Redimensionar el canvas inmediatamente para asegurar ajuste a las dimensiones reales
   mapInstance.value?.resize();
-  requestAnimationFrame(() => {
+  initRafId = requestAnimationFrame(() => {
+    initRafId = null;
     mapInstance.value?.resize();
   });
 
   // Observador de cambio de dimensiones para redimensionar el canvas WebGL fluidamente
   if (typeof ResizeObserver !== "undefined") {
     resizeObserver = new ResizeObserver(() => {
-      mapInstance.value?.resize();
+      if (resizeRafId !== null) return;
+      resizeRafId = requestAnimationFrame(() => {
+        resizeRafId = null;
+        mapInstance.value?.resize();
+      });
     });
     resizeObserver.observe(containerElement);
   }
 });
 
 onUnmounted(() => {
-  resizeObserver?.disconnect();
-  resizeObserver = null;
+  if (initRafId !== null) {
+    cancelAnimationFrame(initRafId);
+    initRafId = null;
+  }
+  if (resizeRafId !== null) {
+    cancelAnimationFrame(resizeRafId);
+    resizeRafId = null;
+  }
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
   destroyMap();
 });
 </script>
@@ -153,7 +170,7 @@ onUnmounted(() => {
       class="absolute inset-0 w-full h-full outline-none"
     />
 
-    <!-- Estado de Carga / Radar Scanner Cockpit -->
+    <!-- Estado de Carga / Radar Scanner Cockpit Táctico -->
     <Transition
       enter-active-class="transition-opacity duration-500 ease-out"
       leave-active-class="transition-opacity duration-500 ease-in pointer-events-none"
@@ -162,30 +179,85 @@ onUnmounted(() => {
     >
       <div
         v-if="!isLoaded"
-        class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md"
+        class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-background/85 backdrop-blur-md"
       >
+        <!-- Scanner Radar Circular -->
         <div class="relative flex items-center justify-center">
-          <!-- Anillos pulsantes de radar -->
+          <!-- Aro Perimetral y Contenedor del Radar -->
           <div
-            class="absolute w-28 h-28 rounded-full border border-primary/20 animate-ping"
-          />
-          <div
-            class="absolute w-20 h-20 rounded-full border border-primary/40 animate-pulse"
-          />
-          <div
-            class="w-12 h-12 rounded-full border border-primary/60 flex items-center justify-center bg-surface-elevated/80 shadow-[0_0_20px_rgba(56,189,248,0.3)]"
+            class="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full border border-primary/30 flex items-center justify-center overflow-hidden bg-surface-elevated/40 shadow-[0_0_35px_rgba(56,189,248,0.15)]"
           >
-            <UIcon
-              name="i-lucide-plane"
-              class="w-6 h-6 text-primary animate-pulse"
+            <!-- Ejes de Coordenadas Tácticos (Crosshairs) -->
+            <div
+              class="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-primary/20 pointer-events-none"
             />
+            <div
+              class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-primary/20 pointer-events-none"
+            />
+
+            <!-- Anillos Concéntricos de Rango -->
+            <div
+              class="absolute w-36 h-36 sm:w-40 sm:h-40 rounded-full border border-dashed border-primary/25 pointer-events-none"
+            />
+            <div
+              class="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full border border-primary/35 pointer-events-none"
+            />
+
+            <!-- Haz de Barrido Radar 360° con Rayo Guía (Sweep Beam) -->
+            <div
+              class="absolute inset-0 rounded-full radar-sweep-beam pointer-events-none"
+            >
+              <div
+                class="absolute top-0 right-1/2 w-0.5 h-1/2 bg-gradient-to-t from-primary to-transparent origin-bottom shadow-[0_0_8px_rgba(56,189,248,0.8)]"
+              />
+            </div>
+
+            <!-- Blips Tácticos Detectados -->
+            <div
+              class="absolute top-7 right-10 w-2 h-2 rounded-full bg-primary/80 animate-ping pointer-events-none"
+            />
+            <div
+              class="absolute top-7 right-10 w-2 h-2 rounded-full bg-primary pointer-events-none"
+            />
+            <div
+              class="absolute bottom-10 left-8 w-1.5 h-1.5 rounded-full bg-emerald-400/90 animate-pulse pointer-events-none"
+            />
+
+            <!-- Centro del Hub / Avionics Core -->
+            <div
+              class="relative z-10 w-11 h-11 rounded-full border border-primary/70 bg-surface-elevated/95 flex items-center justify-center shadow-[0_0_15px_rgba(56,189,248,0.4)]"
+            >
+              <UIcon
+                name="i-lucide-plane"
+                class="w-5 h-5 text-primary animate-pulse"
+              />
+            </div>
           </div>
         </div>
-        <p
-          class="mt-4 font-mono text-xs text-text-muted tracking-widest uppercase"
-        >
-          Cargando Explorador Global ...
-        </p>
+
+        <!-- Telemetría y Estado de Carga -->
+        <div class="mt-6 flex flex-col items-center gap-1.5 text-center">
+          <div class="flex items-center gap-2">
+            <span class="relative flex h-2 w-2">
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"
+              />
+              <span
+                class="relative inline-flex rounded-full h-2 w-2 bg-primary"
+              />
+            </span>
+            <span
+              class="font-mono text-xs font-semibold text-text-main tracking-widest uppercase"
+            >
+              Radar Cockpit Activo
+            </span>
+          </div>
+          <span
+            class="font-mono text-[11px] text-text-muted tracking-wider uppercase"
+          >
+            Sincronizando Cartografía Aeroespacial & WebGL
+          </span>
+        </div>
       </div>
     </Transition>
   </div>
@@ -198,6 +270,27 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
 }
+
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.radar-sweep-beam {
+  animation: radar-sweep 2.8s linear infinite;
+  background: conic-gradient(
+    from 0deg,
+    rgba(56, 189, 248, 0.4) 0deg,
+    rgba(56, 189, 248, 0.12) 35deg,
+    transparent 70deg,
+    transparent 360deg
+  );
+}
+
 :deep(.maplibregl-canvas) {
   outline: none;
 }
