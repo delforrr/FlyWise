@@ -34,19 +34,19 @@
 
   /* Contraste y Tipografía */
   --color-on-surface: #0b1c30;
-  --color-on-surface-variant: #3f4850;
+  --color-on-surface-variant: #334155;
   --color-inverse-surface: #213145;
   --color-inverse-on-surface: #eaf1ff;
 
   --color-text-main: #0b1c30;
-  --color-text-muted: #3f4850;
-  --color-text-dim: #707881;
+  --color-text-muted: #334155;
+  --color-text-dim: #64748b;
 
   /* Bordes y Líneas Estructurales */
-  --color-outline: #707881;
-  --color-outline-variant: #bfc7d2;
-  --color-border-subtle: #bfc7d2;
-  --color-border-hover: #707881;
+  --color-outline: #64748b;
+  --color-outline-variant: #cbd5e1;
+  --color-border-subtle: #cbd5e1;
+  --color-border-hover: #94a3b8;
 
   /* Identidad Aeronáutica y Acentos */
   --color-surface-tint: #006398;
@@ -111,43 +111,49 @@
   --ui-warning: var(--color-warning);
   --ui-error: var(--color-error);
 
+  /* Tokens de Luz Especular e Iluminación de Cabina (Modo Claro) */
+  --specular-border-top: rgba(255, 255, 255, 0.85);
+  --specular-border-bottom: rgba(11, 28, 48, 0.08);
+  --specular-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.80);
+  --specular-highlight-glow: 0 0 0 1px rgba(0, 97, 148, 0.35), 0 8px 24px -4px rgba(0, 97, 148, 0.18);
+
   /* Tokens HUD & Glassmorphism en Modo Claro */
-  --hud-panel-bg: rgba(239, 244, 255, 0.94);
-  --hud-panel-border: var(--color-outline-variant);
-  --hud-card-bg: var(--color-surface-accent);
+  --hud-panel-bg: rgba(248, 250, 255, 0.94);
+  --hud-panel-border: var(--color-border-subtle);
+  --hud-card-bg: rgba(255, 255, 255, 0.92);
   --hud-input-bg: #eff4ff;
 
   /* Arquitectura Double-Bezel (Modo Claro) */
-  --bezel-outer-bg: rgba(255, 255, 255, 0.9);
-  --bezel-outer-border: var(--color-outline-variant);
+  --bezel-outer-bg: rgba(255, 255, 255, 0.92);
+  --bezel-outer-border: var(--color-border-subtle);
   --bezel-inner-shadow:
     0 10px 25px -5px rgba(11, 28, 48, 0.06),
-    0 4px 6px -2px rgba(11, 28, 48, 0.03), inset 0 1px 0 #ffffff;
-  --bezel-highlight-glow:
-    0 0 0 1px rgba(0, 97, 148, 0.35), 0 12px 28px -4px rgba(0, 97, 148, 0.16);
+    0 4px 6px -2px rgba(11, 28, 48, 0.03),
+    var(--specular-inner-glow);
+  --bezel-highlight-glow: var(--specular-highlight-glow);
 }
 
 .dark {
-  /* Modo Oscuro — OLED Space Black & True Specular Glass */
-  --color-background: #05080f;
+  /* Modo Oscuro — Deep Titanium Slate & True Specular Glass */
+  --color-background: #06090e;
   --color-on-background: #f8fafc;
-  --color-bg-base: #05080f;
-  --color-bg-accent: #0a0f1d;
+  --color-bg-base: #06090e;
+  --color-bg-accent: #0b101b;
 
   --color-surface: #0b101b;
-  --color-surface-dim: #070b14;
+  --color-surface-dim: #06090e;
   --color-surface-bright: #131d31;
-  --color-surface-container-lowest: #05080f;
+  --color-surface-container-lowest: #06090e;
   --color-surface-container-low: #0b101b;
-  --color-surface-container: #0f1728;
+  --color-surface-container: #0e1524;
   --color-surface-container-high: #131d31;
   --color-surface-container-highest: #1a263e;
   --color-surface-variant: #1a263e;
 
-  --color-surface-base: #0b101b;
-  --color-surface-accent: #0f1728;
+  --color-surface-base: #06090e;
+  --color-surface-accent: #0e1524;
   --color-surface-elevated: #111827;
-  --color-surface-card: #131d31;
+  --color-surface-card: #0b101b;
 
   --color-on-surface: #f8fafc;
   --color-on-surface-variant: #94a3b8;
@@ -155,8 +161,8 @@
   --color-inverse-on-surface: #0b1c30;
 
   --color-outline: #64748b;
-  --color-outline-variant: rgba(255, 255, 255, 0.12);
-  --color-border-subtle: rgba(255, 255, 255, 0.1);
+  --color-outline-variant: rgba(255, 255, 255, 0.10);
+  --color-border-subtle: rgba(255, 255, 255, 0.10);
   --color-border-hover: rgba(255, 255, 255, 0.22);
 
   --color-text-main: #f8fafc;
@@ -217,6 +223,12 @@
   --color-warning: var(--color-otp-warning);
   --color-neutral: var(--color-text-muted);
 
+  /* Tokens de Luz Especular para Cristal de Cabina (Modo Oscuro) */
+  --specular-border-top: rgba(255, 255, 255, 0.15);
+  --specular-border-bottom: rgba(255, 255, 255, 0.05);
+  --specular-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --specular-highlight-glow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 8px 24px -4px rgba(0, 97, 148, 0.25);
+
   /* Puente Nuxt UI */
   --ui-primary: var(--color-primary);
   --ui-secondary: var(--color-secondary);
@@ -228,18 +240,17 @@
 
   /* Tokens HUD & Glassmorphism en Modo Oscuro */
   --hud-panel-bg: rgba(11, 16, 27, 0.82);
-  --hud-panel-border: rgba(255, 255, 255, 0.12);
+  --hud-panel-border: rgba(255, 255, 255, 0.10);
   --hud-card-bg: rgba(15, 23, 40, 0.85);
   --hud-input-bg: rgba(7, 11, 20, 0.9);
 
   /* Arquitectura Double-Bezel (Modo Oscuro) */
   --bezel-outer-bg: rgba(255, 255, 255, 0.04);
-  --bezel-outer-border: rgba(255, 255, 255, 0.1);
+  --bezel-outer-border: rgba(255, 255, 255, 0.10);
   --bezel-inner-shadow:
     0 12px 32px -4px rgba(0, 0, 0, 0.65),
-    inset 0 1px 1px rgba(255, 255, 255, 0.14);
-  --bezel-highlight-glow:
-    0 0 0 1px rgba(56, 189, 248, 0.35), 0 12px 28px -4px rgba(56, 189, 248, 0.2);
+    var(--specular-inner-glow);
+  --bezel-highlight-glow: var(--specular-highlight-glow);
 }
 
 :root,

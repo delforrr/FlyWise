@@ -102,5 +102,12 @@
   --color-otp-good: var(--color-otp-good);
   --color-otp-warning: var(--color-otp-warning);
   --color-otp-critical: var(--color-otp-critical);
+
+  /* Sombras y Efectos Especulares de Cabina */
+  --shadow-specular-glow: var(--specular-highlight-glow);
+  --shadow-specular-inner: var(--specular-inner-glow);
+
+  /* Curvas de Transición Cinética HUD */
+  --ease-hud: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
