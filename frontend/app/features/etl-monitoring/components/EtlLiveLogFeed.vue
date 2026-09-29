@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import type { EtlLogEntry } from '../types/etl';
+import { ref, computed, watch, nextTick } from 'vue';
+import type { EtlLogEntry, PipelineId } from '../types/etl';
 
 interface Props {
   logs: EtlLogEntry[];
@@ -13,98 +13,220 @@ const emit = defineEmits<{
 }>();
 
 const levelFilter = ref<'all' | 'success' | 'warn_error'>('all');
+const selectedSource = ref<'all' | PipelineId>('all');
+const searchQuery = ref('');
+const isAutoScroll = ref(true);
+const copiedId = ref<string | null>(null);
 const expandedLogs = ref<Record<string, boolean>>({});
+const logContainerRef = ref<HTMLElement | null>(null);
 
 function toggleExpand(id: string) {
   expandedLogs.value[id] = !expandedLogs.value[id];
 }
 
+async function copyLogDetail(id: string, text: string) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+    await navigator.clipboard.writeText(text);
+    copiedId.value = id;
+    setTimeout(() => {
+      if (copiedId.value === id) {
+        copiedId.value = null;
+      }
+    }, 1800);
+  }
+}
+
+function exportLogsAsJson() {
+  if (typeof window === 'undefined') return;
+  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(filteredLogs.value, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute('href', dataStr);
+  downloadAnchor.setAttribute('download', `flywise-etl-audit-logs-${Date.now()}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+}
+
 const filteredLogs = computed(() => {
   return props.logs.filter((log) => {
-    if (levelFilter.value === 'success') {
-      return log.level === 'success';
+    // 1. Filtro por nivel
+    if (levelFilter.value === 'success' && log.level !== 'success') {
+      return false;
     }
-    if (levelFilter.value === 'warn_error') {
-      return log.level === 'warn' || log.level === 'error';
+    if (levelFilter.value === 'warn_error' && log.level !== 'warn' && log.level !== 'error') {
+      return false;
     }
+
+    // 2. Filtro por fuente
+    if (selectedSource.value !== 'all' && log.pipelineId !== selectedSource.value) {
+      return false;
+    }
+
+    // 3. Filtro por búsqueda de texto
+    if (searchQuery.value.trim() !== '') {
+      const q = searchQuery.value.toLowerCase();
+      const matchMsg = log.message.toLowerCase().includes(q);
+      const matchPipe = log.pipelineName.toLowerCase().includes(q);
+      const matchDetail = log.detail ? log.detail.toLowerCase().includes(q) : false;
+      if (!matchMsg && !matchPipe && !matchDetail) return false;
+    }
+
     return true;
   });
 });
+
+// Autoscroll hacia el tope al ingresar nuevos logs si isAutoScroll está activo
+watch(
+  () => props.logs.length,
+  () => {
+    if (isAutoScroll.value && logContainerRef.value) {
+      nextTick(() => {
+        logContainerRef.value?.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+  }
+);
 </script>
 
 <template>
-  <div class="rounded-xl border border-border-subtle bg-surface-card overflow-hidden">
+  <div class="rounded-xl border border-border-subtle bg-surface-card overflow-hidden shadow-xs">
     <!-- Barra superior del visor de eventos -->
     <div
-      class="p-4 border-b border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-accent/40"
+      class="p-3.5 sm:p-4 border-b border-border-subtle flex flex-col gap-3 bg-surface-accent/40"
     >
-      <div class="flex items-center gap-2">
-        <UIcon name="i-lucide-terminal" class="w-4 h-4 text-text-muted" />
-        <h3 class="text-sm font-bold text-text-main">
-          Registro de Eventos y Auditoría en Vivo
-        </h3>
-        <span class="text-xs text-text-muted font-mono">
-          ({{ filteredLogs.length }} eventos)
-        </span>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <!-- Filtros de nivel -->
-        <div class="inline-flex p-0.5 rounded-lg border border-border-subtle bg-surface-card text-xs">
-          <button
-            type="button"
-            class="px-2.5 py-1 rounded-md cursor-pointer transition-colors"
-            :class="
-              levelFilter === 'all'
-                ? 'bg-surface-accent text-text-main font-semibold'
-                : 'text-text-muted hover:text-text-main'
-            "
-            @click="levelFilter = 'all'"
-          >
-            Todos
-          </button>
-          <button
-            type="button"
-            class="px-2.5 py-1 rounded-md cursor-pointer transition-colors"
-            :class="
-              levelFilter === 'success'
-                ? 'bg-surface-accent text-emerald-700 dark:text-emerald-400 font-semibold'
-                : 'text-text-muted hover:text-text-main'
-            "
-            @click="levelFilter = 'success'"
-          >
-            Completados
-          </button>
-          <button
-            type="button"
-            class="px-2.5 py-1 rounded-md cursor-pointer transition-colors"
-            :class="
-              levelFilter === 'warn_error'
-                ? 'bg-surface-accent text-amber-700 dark:text-amber-400 font-semibold'
-                : 'text-text-muted hover:text-text-main'
-            "
-            @click="levelFilter = 'warn_error'"
-          >
-            Incidencias
-          </button>
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <UIcon name="i-lucide-terminal" class="w-4 h-4 text-text-muted" />
+          <h3 class="text-sm font-bold font-mono tracking-tight text-text-main uppercase">
+            Registro de Eventos y Auditoría en Vivo
+          </h3>
+          <span class="text-xs text-text-muted font-mono tabular-nums">
+            ({{ filteredLogs.length }} eventos)
+          </span>
         </div>
 
-        <!-- Botón Limpiar -->
-        <UButton
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          icon="i-lucide-trash-2"
-          class="text-xs cursor-pointer"
-          @click="emit('clear-logs')"
-        >
-          Limpiar
-        </UButton>
+        <div class="flex items-center gap-2 self-start sm:self-auto font-mono text-xs">
+          <!-- Conmutador Autoscroll / Pin-to-live -->
+          <button
+            type="button"
+            class="px-2 py-1 rounded-md border text-[11px] font-semibold cursor-pointer inline-flex items-center gap-1.5 transition-colors"
+            :class="
+              isAutoScroll
+                ? 'bg-surface-card border-primary/50 text-primary shadow-xs'
+                : 'border-border-subtle text-text-dim hover:text-text-muted'
+            "
+            title="Mantener la vista enfocada en el flujo más reciente"
+            @click="isAutoScroll = !isAutoScroll"
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full"
+              :class="isAutoScroll ? 'bg-primary animate-pulse' : 'bg-neutral-400'"
+            />
+            <span>Autoscroll</span>
+          </button>
+
+          <!-- Exportar JSON -->
+          <UButton
+            size="xs"
+            variant="outline"
+            color="neutral"
+            icon="i-lucide-download"
+            class="text-[11px] font-medium cursor-pointer border-border-subtle"
+            title="Descargar eventos visibles en formato JSON"
+            @click="exportLogsAsJson"
+          >
+            Exportar
+          </UButton>
+
+          <!-- Botón Limpiar -->
+          <UButton
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-trash-2"
+            class="text-[11px] cursor-pointer text-text-muted hover:text-rose-500"
+            title="Limpiar registro de eventos"
+            @click="emit('clear-logs')"
+          >
+            Limpiar
+          </UButton>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1 text-xs">
+        <div class="flex items-center gap-2 flex-wrap font-mono">
+          <!-- Filtros de nivel -->
+          <div class="inline-flex p-0.5 rounded-lg border border-border-subtle bg-surface-card text-[11px]">
+            <button
+              type="button"
+              class="px-2.5 py-0.5 rounded-md cursor-pointer transition-colors"
+              :class="
+                levelFilter === 'all'
+                  ? 'bg-surface-accent text-text-main font-bold'
+                  : 'text-text-muted hover:text-text-main'
+              "
+              @click="levelFilter = 'all'"
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              class="px-2.5 py-0.5 rounded-md cursor-pointer transition-colors"
+              :class="
+                levelFilter === 'success'
+                  ? 'bg-surface-accent text-emerald-600 dark:text-emerald-400 font-bold'
+                  : 'text-text-muted hover:text-text-main'
+              "
+              @click="levelFilter = 'success'"
+            >
+              Éxito
+            </button>
+            <button
+              type="button"
+              class="px-2.5 py-0.5 rounded-md cursor-pointer transition-colors"
+              :class="
+                levelFilter === 'warn_error'
+                  ? 'bg-surface-accent text-amber-600 dark:text-amber-400 font-bold'
+                  : 'text-text-muted hover:text-text-main'
+              "
+              @click="levelFilter = 'warn_error'"
+            >
+              Incidencias
+            </button>
+          </div>
+
+          <!-- Selector de Fuente de Datos -->
+          <select
+            v-model="selectedSource"
+            class="text-[11px] font-mono px-2 py-1 rounded-lg border border-border-subtle bg-surface-card text-text-main focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+          >
+            <option value="all">Todas las fuentes</option>
+            <option value="ourairports">OurAirports</option>
+            <option value="openflights">OpenFlights</option>
+            <option value="bts-transtats">BTS TranStats</option>
+            <option value="anac-arg">ANAC Argentina</option>
+          </select>
+        </div>
+
+        <!-- Buscador de Texto en Logs -->
+        <div class="w-full sm:w-56">
+          <UInput
+            v-model="searchQuery"
+            icon="i-lucide-search"
+            placeholder="Filtrar eventos..."
+            size="xs"
+            class="w-full rounded-lg text-xs"
+          />
+        </div>
       </div>
     </div>
 
     <!-- Lista de eventos con scroll -->
-    <div class="divide-y divide-border-subtle/50 max-h-96 overflow-y-auto font-sans">
+    <div
+      ref="logContainerRef"
+      class="divide-y divide-border-subtle/50 max-h-96 overflow-y-auto font-sans"
+    >
       <div
         v-for="log in filteredLogs"
         :key="log.id"
@@ -146,10 +268,10 @@ const filteredLogs = computed(() => {
           <!-- Contenido del log -->
           <div class="flex-1 min-w-0">
             <div class="flex items-baseline justify-between gap-2">
-              <span class="font-semibold text-text-main">
+              <span class="font-semibold font-mono text-text-main">
                 {{ log.pipelineName }}
               </span>
-              <span class="font-mono text-[11px] text-text-dim shrink-0">
+              <span class="font-mono tabular-nums text-[11px] text-text-dim shrink-0">
                 {{ log.timestamp }}
               </span>
             </div>
@@ -157,25 +279,42 @@ const filteredLogs = computed(() => {
               {{ log.message }}
             </p>
 
-            <!-- Detalle técnico colapsable -->
+            <!-- Detalle técnico colapsable con botón de copia 1-clic -->
             <UCollapsible v-if="log.detail" v-model:open="expandedLogs[log.id]" class="mt-1.5">
               <template #default="{ open }">
-                <button
-                  type="button"
-                  class="text-[11px] text-primary hover:underline font-mono inline-flex items-center gap-1 cursor-pointer"
-                  @click="toggleExpand(log.id)"
-                >
-                  <span>{{ open ? 'Ocultar detalle técnico' : 'Ver detalle técnico' }}</span>
-                  <UIcon
-                    :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                    class="w-3 h-3"
-                  />
-                </button>
+                <div class="flex items-center gap-3">
+                  <button
+                    type="button"
+                    class="text-[11px] text-primary hover:underline font-mono inline-flex items-center gap-1 cursor-pointer"
+                    @click="toggleExpand(log.id)"
+                  >
+                    <span>{{ open ? 'Ocultar detalle técnico' : 'Ver detalle técnico' }}</span>
+                    <UIcon
+                      :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                      class="w-3 h-3"
+                    />
+                  </button>
+
+                  <button
+                    v-if="open"
+                    type="button"
+                    class="text-[11px] text-text-muted hover:text-text-main font-mono inline-flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Copiar payload técnico al portapapeles"
+                    @click="copyLogDetail(log.id, log.detail)"
+                  >
+                    <UIcon
+                      :name="copiedId === log.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                      class="w-3 h-3"
+                      :class="{ 'text-emerald-500': copiedId === log.id }"
+                    />
+                    <span>{{ copiedId === log.id ? 'Copiado!' : 'Copiar' }}</span>
+                  </button>
+                </div>
               </template>
 
               <template #content>
                 <div
-                  class="mt-1 p-2 rounded bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim whitespace-pre-wrap break-all"
+                  class="mt-1 p-2.5 rounded-lg bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim whitespace-pre-wrap break-all leading-relaxed shadow-inner"
                 >
                   {{ log.detail }}
                 </div>
@@ -190,7 +329,7 @@ const filteredLogs = computed(() => {
         <UEmpty
           icon="i-lucide-inbox"
           title="Sin eventos registrados"
-          description="No hay eventos en este nivel de filtro actualmente."
+          description="No hay eventos que coincidan con los criterios de búsqueda o filtro seleccionados."
           variant="subtle"
         />
       </div>

@@ -39,7 +39,7 @@ const errorRateFormatted = computed<string>(() => {
 </script>
 
 <template>
-  <UCard class="flex flex-col justify-between h-full bg-surface-card border-border-subtle">
+  <UCard class="flex flex-col justify-between h-full bg-surface-card border-border-subtle border-t-white/30 dark:border-t-white/10 shadow-xs">
     <!-- Cabecera de la tarjeta: Título, Fuente y Badge de Estado -->
     <div>
       <div class="flex items-start justify-between gap-3">
@@ -53,9 +53,14 @@ const errorRateFormatted = computed<string>(() => {
             <h3 class="text-base font-bold text-text-main leading-tight">
               {{ pipeline.name }}
             </h3>
-            <span class="text-xs font-medium text-text-muted">
-              {{ pipeline.datasetName }}
-            </span>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span class="text-xs font-medium text-text-muted">
+                {{ pipeline.datasetName }}
+              </span>
+              <span class="text-[10px] font-mono px-1 py-0.2 bg-surface-accent rounded text-text-dim border border-border-subtle/60">
+                Stream
+              </span>
+            </div>
           </div>
         </div>
 

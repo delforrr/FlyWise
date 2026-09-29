@@ -2,6 +2,8 @@
 import { ref, computed } from "vue";
 import type { EtlPipeline } from "../types/etl";
 import EtlPipelineCard from "./EtlPipelineCard.vue";
+import EtlPipelineTable from "./EtlPipelineTable.vue";
+import EtlPipelineNavigator from "./EtlPipelineNavigator.vue";
 
 interface Props {
   pipelines: EtlPipeline[];
@@ -16,8 +18,9 @@ const emit = defineEmits<{
   (e: "retry", id: EtlPipeline["id"]): void;
   (e: "view-discarded", pipeline: EtlPipeline): void;
 }>();
-import EtlPipelineNavigator from "./EtlPipelineNavigator.vue";
 
+// Vista por defecto: "table" (lista / tabla operativa densa), conmutador opcional a "cards"
+const viewMode = useState<"table" | "cards">("etl_view_mode", () => "table");
 const currentFilter = ref<"all" | "running" | "success" | "has_issues">("running");
 const searchQuery = ref("");
 
@@ -69,40 +72,87 @@ const filterTabs = computed(() => [
 
 <template>
   <div class="space-y-4">
-    <!-- Barra de Herramientas: Pestañas de filtro y Búsqueda rápida -->
+    <!-- Barra de Herramientas: Pestañas de filtro, Búsqueda y Selector de Vista -->
     <div
       class="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
     >
       <!-- Pestañas de estado -->
       <EtlPipelineNavigator v-model="currentFilter" :items="filterTabs" />
 
-      <!-- Buscador por nombre o dataset -->
-      <div class="w-full sm:w-64">
-        <UInput
-          v-model="searchQuery"
-          icon="i-lucide-search"
-          placeholder="Buscar fuente..."
-          size="md"
-          class="w-full rounded-lg text-xs"
-        />
+      <!-- Búsqueda rápida y Selector de Vista -->
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <div class="w-full sm:w-60">
+          <UInput
+            v-model="searchQuery"
+            icon="i-lucide-search"
+            placeholder="Buscar fuente..."
+            size="md"
+            class="w-full rounded-lg text-xs"
+          />
+        </div>
+
+        <!-- Conmutador de Vista (Lista / Tabla ⇄ Tarjetas) -->
+        <div
+          class="flex items-center border border-border-subtle rounded-lg p-0.5 bg-surface-accent/60 shrink-0 text-text-muted"
+          role="group"
+          aria-label="Modo de visualización"
+        >
+          <UTooltip text="Vista en Lista / Tabla">
+            <button
+              type="button"
+              class="p-1.5 rounded-md cursor-pointer transition-colors"
+              :class="viewMode === 'table' ? 'bg-surface-card text-primary font-bold shadow-xs' : 'hover:text-text-main'"
+              aria-label="Vista de lista / tabla"
+              @click="viewMode = 'table'"
+            >
+              <UIcon name="i-lucide-list" class="w-4 h-4" />
+            </button>
+          </UTooltip>
+
+          <UTooltip text="Vista en Tarjetas">
+            <button
+              type="button"
+              class="p-1.5 rounded-md cursor-pointer transition-colors"
+              :class="viewMode === 'cards' ? 'bg-surface-card text-primary font-bold shadow-xs' : 'hover:text-text-main'"
+              aria-label="Vista de tarjetas"
+              @click="viewMode = 'cards'"
+            >
+              <UIcon name="i-lucide-layout-grid" class="w-4 h-4" />
+            </button>
+          </UTooltip>
+        </div>
       </div>
     </div>
 
-    <!-- Grilla de Pipelines -->
-    <div
-      v-if="filteredPipelines.length > 0"
-      class="grid grid-cols-1 md:grid-cols-2 gap-4"
-    >
-      <EtlPipelineCard
-        v-for="p in filteredPipelines"
-        :key="p.id"
-        :pipeline="p"
+    <!-- Contenido de Pipelines según Modo de Vista -->
+    <div v-if="filteredPipelines.length > 0">
+      <!-- Vista 1: Lista / Tabla Operativa (Default) -->
+      <EtlPipelineTable
+        v-if="viewMode === 'table'"
+        :pipelines="filteredPipelines"
         @trigger-sync="emit('trigger-sync', $event)"
         @pause="emit('pause', $event)"
         @resume="emit('resume', $event)"
         @retry="emit('retry', $event)"
         @view-discarded="emit('view-discarded', $event)"
       />
+
+      <!-- Vista 2: Tarjetas -->
+      <div
+        v-else
+        class="grid grid-cols-1 md:grid-cols-2 gap-4"
+      >
+        <EtlPipelineCard
+          v-for="p in filteredPipelines"
+          :key="p.id"
+          :pipeline="p"
+          @trigger-sync="emit('trigger-sync', $event)"
+          @pause="emit('pause', $event)"
+          @resume="emit('resume', $event)"
+          @retry="emit('retry', $event)"
+          @view-discarded="emit('view-discarded', $event)"
+        />
+      </div>
     </div>
 
     <!-- Estado vacío cuando el filtro no arroja resultados -->

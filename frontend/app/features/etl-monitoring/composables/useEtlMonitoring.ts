@@ -28,6 +28,9 @@ export function useEtlMonitoring() {
   );
   const logs = useState<EtlLogEntry[]>('etl_logs', () => [...initialLogs]);
   const isSimulationActive = useState<boolean>('etl_simulation_active', () => true);
+  const refreshInterval = useState<number>('etl_refresh_interval', () => 5000);
+  const isRefreshing = useState<boolean>('etl_is_refreshing', () => false);
+  const simulatedLatencyMs = useState<number>('etl_simulated_latency', () => 14);
 
   // KPIs globales computados
   const globalMetrics = computed<EtlGlobalMetrics>(() => {
@@ -264,11 +267,33 @@ export function useEtlMonitoring() {
     }
   }
 
+  function setRefreshInterval(ms: number) {
+    refreshInterval.value = ms;
+    if (tickerInterval) {
+      clearInterval(tickerInterval);
+      tickerInterval = null;
+    }
+    if (ms > 0 && import.meta.client) {
+      tickerInterval = setInterval(runSimulationTicker, ms);
+    }
+  }
+
+  function triggerManualRefresh() {
+    isRefreshing.value = true;
+    simulatedLatencyMs.value = Math.floor(Math.random() * 8) + 10;
+    if (activeSimulationStep) {
+      activeSimulationStep();
+    }
+    setTimeout(() => {
+      isRefreshing.value = false;
+    }, 450);
+  }
+
   onMounted(() => {
     subscriberCount++;
     activeSimulationStep = stepSimulation;
-    if (!tickerInterval && import.meta.client) {
-      tickerInterval = setInterval(runSimulationTicker, 3500);
+    if (!tickerInterval && import.meta.client && refreshInterval.value > 0) {
+      tickerInterval = setInterval(runSimulationTicker, refreshInterval.value);
     }
   });
 
@@ -287,6 +312,11 @@ export function useEtlMonitoring() {
     pipelines,
     logs,
     globalMetrics,
+    refreshInterval,
+    isRefreshing,
+    simulatedLatencyMs,
+    setRefreshInterval,
+    triggerManualRefresh,
     triggerSync,
     pausePipeline,
     resumePipeline,

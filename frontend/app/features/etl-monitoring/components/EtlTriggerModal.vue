@@ -18,6 +18,23 @@ const mode = ref<'incremental' | 'full'>('incremental');
 const dryRun = ref(false);
 const batchSize = ref(2500);
 
+const estimatedDuration = computed(() => {
+  if (!props.pipeline || !props.pipeline.averageSpeedRowsPerSec) return null;
+  // In incremental mode, estimate ~15% volume of changes
+  const targetRows = mode.value === 'incremental'
+    ? Math.max(500, Math.round(props.pipeline.totalEstimatedRows * 0.15))
+    : props.pipeline.totalEstimatedRows;
+
+  const seconds = Math.max(1, Math.round(targetRows / props.pipeline.averageSpeedRowsPerSec));
+  const chunks = Math.ceil(targetRows / batchSize.value);
+
+  return {
+    targetRows,
+    seconds,
+    chunks,
+  };
+});
+
 watch(
   () => props.isOpen,
   (open) => {
@@ -47,11 +64,30 @@ function handleConfirm() {
     :open="isOpen && !!pipeline"
     :title="`Sincronizar ${pipeline?.name ?? ''}`"
     description="Configura los parámetros de la ingesta antes de iniciar el procesamiento."
-    :ui="{ content: 'max-w-lg' }"
+    :ui="{
+      content: 'max-w-lg bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
+    }"
     @update:open="(val: boolean) => { if (!val) emit('close'); }"
   >
     <template #body>
-      <div v-if="pipeline" class="space-y-4 text-xs">
+      <div v-if="pipeline" class="space-y-4 text-xs font-feature-tech">
+        <!-- Estimación de Rendimiento y Chunks -->
+        <div
+          v-if="estimatedDuration"
+          class="p-3 rounded-xl bg-surface-accent/70 border border-border-subtle flex items-center justify-between text-[11px]"
+        >
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-activity" class="w-4 h-4 text-primary" />
+            <span class="text-text-muted">Estimación calculada:</span>
+            <span class="font-mono font-bold text-text-main tabular-nums">
+              ~{{ estimatedDuration.seconds }}s
+            </span>
+          </div>
+          <div class="font-mono text-text-dim text-[10px]">
+            {{ estimatedDuration.chunks }} lotes &bull; ~{{ estimatedDuration.targetRows.toLocaleString() }} filas
+          </div>
+        </div>
+
         <!-- 1. Modo de Ingesta -->
         <div>
           <label class="block font-semibold text-text-main mb-1.5">

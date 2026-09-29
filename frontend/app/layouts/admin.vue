@@ -1,10 +1,23 @@
+<script setup lang="ts">
+import { useEtlMonitoring } from '~/features/etl-monitoring/composables/useEtlMonitoring';
+
+const {
+  globalMetrics,
+  refreshInterval,
+  isRefreshing,
+  simulatedLatencyMs,
+  setRefreshInterval,
+  triggerManualRefresh,
+} = useEtlMonitoring();
+</script>
+
 <template>
   <div
     class="min-h-screen bg-background text-text-main flex flex-col font-sans"
   >
-    <!-- Cabecera Administrativa Minimalista (Sólida, sin blur, sin glow, borde nítido de 1px) -->
+    <!-- Cabecera Administrativa Minimalista (Sólida, borde nítido de 1px con sutil specular highlight) -->
     <header
-      class="sticky top-0 z-40 bg-surface-card border-b border-border-subtle"
+      class="sticky top-0 z-40 bg-surface-card/95 backdrop-blur-md border-b border-border-subtle shadow-xs"
     >
       <div
         class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4"
@@ -19,23 +32,85 @@
             </span>
           </NuxtLink>
           <USeparator orientation="vertical" class="h-4" />
-          <UBadge color="primary" variant="subtle" size="sm">
+          <UBadge color="primary" variant="subtle" size="sm" class="font-mono text-xs font-semibold">
             Consola ETL
           </UBadge>
+
+          <!-- Heartbeat BullMQ / Redis en Vivo -->
+          <div
+            class="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface-accent/70 border border-border-subtle/80 text-[11px] font-mono text-text-muted"
+            title="Conexión en tiempo real con Redis y procesadores BullMQ"
+          >
+            <span class="relative flex h-2 w-2">
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+                :class="globalMetrics.systemHealth === 'attention_needed' ? 'bg-rose-400' : 'bg-emerald-400'"
+              />
+              <span
+                class="relative inline-flex rounded-full h-2 w-2"
+                :class="globalMetrics.systemHealth === 'attention_needed' ? 'bg-rose-500' : 'bg-emerald-500'"
+              />
+            </span>
+            <span class="font-medium text-text-main">BullMQ Pool</span>
+            <span class="text-text-dim">·</span>
+            <span class="font-mono tabular-nums font-semibold" :class="simulatedLatencyMs > 25 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'">
+              {{ simulatedLatencyMs }}ms
+            </span>
+          </div>
         </div>
 
         <!-- Navegación y Controles de Cabecera -->
-        <div class="flex items-center gap-3">
-          <!-- Indicador de Salud de Workers -->
-          <UBadge
-            color="success"
-            variant="subtle"
-            size="sm"
-            class="hidden sm:inline-flex gap-1.5"
+        <div class="flex items-center gap-2.5 sm:gap-3">
+          <!-- Selector de Cadencia de Auto-refresco -->
+          <div
+            class="hidden sm:flex items-center gap-0.5 border border-border-subtle rounded-lg p-0.5 bg-surface-accent/50 text-[11px] font-mono"
+            role="group"
+            aria-label="Frecuencia de actualización en vivo"
           >
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>Procesos Activos</span>
-          </UBadge>
+            <button
+              type="button"
+              class="px-2 py-0.5 rounded cursor-pointer transition-colors"
+              :class="refreshInterval === 5000 ? 'bg-surface-card text-text-main font-bold shadow-xs' : 'text-text-muted hover:text-text-main'"
+              title="Actualización continua cada 5 segundos"
+              @click="setRefreshInterval(5000)"
+            >
+              5s
+            </button>
+            <button
+              type="button"
+              class="px-2 py-0.5 rounded cursor-pointer transition-colors"
+              :class="refreshInterval === 15000 ? 'bg-surface-card text-text-main font-bold shadow-xs' : 'text-text-muted hover:text-text-main'"
+              title="Actualización cada 15 segundos"
+              @click="setRefreshInterval(15000)"
+            >
+              15s
+            </button>
+            <button
+              type="button"
+              class="px-2 py-0.5 rounded cursor-pointer transition-colors"
+              :class="refreshInterval === 0 ? 'bg-surface-card text-amber-600 dark:text-amber-400 font-bold shadow-xs' : 'text-text-muted hover:text-text-main'"
+              title="Congelar actualización automática para auditar incidencias"
+              @click="setRefreshInterval(0)"
+            >
+              Pausar
+            </button>
+            <UTooltip text="Refrescar métricas ahora">
+              <UButton
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                class="w-6 h-6 p-0 rounded cursor-pointer text-text-muted hover:text-primary flex items-center justify-center"
+                aria-label="Refrescar métricas ahora"
+                @click="triggerManualRefresh"
+              >
+                <UIcon
+                  name="i-lucide-refresh-cw"
+                  class="w-3.5 h-3.5"
+                  :class="{ 'animate-spin text-primary': isRefreshing }"
+                />
+              </UButton>
+            </UTooltip>
+          </div>
 
           <!-- Acceso al Explorador Público -->
           <UButton
@@ -44,19 +119,20 @@
             color="neutral"
             size="xs"
             icon="i-lucide-globe"
+            class="hidden md:inline-flex rounded-lg text-xs font-medium"
           >
             Ver Mapa Global
           </UButton>
 
-          <!-- Conmutador de Tema Claro/Oscuro (Auto-importado) -->
+          <!-- Conmutador de Tema Claro/Oscuro -->
           <ThemeToggle />
 
           <USeparator orientation="vertical" class="h-4" />
 
           <!-- Identificador de Operador -->
           <div class="flex items-center gap-2">
-            <UAvatar text="OP" size="xs" />
-            <span class="hidden lg:inline text-xs font-semibold text-text-main">
+            <UAvatar text="OP" size="xs" class="font-mono text-xs font-bold" />
+            <span class="hidden lg:inline text-xs font-semibold text-text-main font-mono">
               Operador ETL
             </span>
           </div>
