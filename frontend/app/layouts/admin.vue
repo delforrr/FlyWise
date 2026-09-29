@@ -76,7 +76,8 @@
       >
         <div>FlyWise - 2026</div>
         <div class="font-mono text-[11px] text-text-dim">
-          Sistema Operativo de Telecomunicaciones Aéreas
+          Sistema de Información de vuelos comerciales y Exploración de Rutas
+          Aéreas
         </div>
       </div>
     </footer>
