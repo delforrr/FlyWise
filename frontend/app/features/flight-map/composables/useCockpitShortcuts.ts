@@ -21,6 +21,11 @@ export function useCockpitShortcuts() {
   const shortcutsModal = useState<boolean>("cockpit_shortcuts_modal", () => false);
 
   function handleKeyDown(e: KeyboardEvent): void {
+    // 0. Limitar atajos de cabina exclusivamente a pantallas de escritorio (>= 768px)
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      return;
+    }
+
     // 1. Evitar interceptar atajos nativos del sistema o del navegador (Ctrl+F, Cmd+N, Alt+...)
     if (e.ctrlKey || e.metaKey || e.altKey) {
       return;

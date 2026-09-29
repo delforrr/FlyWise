@@ -71,17 +71,16 @@ const isPaletteOpen = useState('cockpit_command_palette_open', () => false);
 
     <!-- Botón de login y controles -->
     <template #right>
-      <ScenarioSelector v-if="hasControls" />
       <UButton
         icon="i-lucide-command"
         variant="ghost"
         color="neutral"
-        class="rounded-xl font-mono text-xs text-text-muted hover:text-text-main hover:bg-surface-accent border border-border-subtle/70"
+        class="hidden md:inline-flex rounded-xl font-mono text-xs text-text-muted hover:text-text-main hover:bg-surface-accent border border-border-subtle/70"
         @click="isPaletteOpen = true"
       >
-        <span class="hidden md:inline font-mono">Buscar...</span>
-        <UKbd value="meta" class="hidden sm:inline-flex" />
-        <UKbd value="k" class="hidden sm:inline-flex" />
+        <span class="font-mono">Buscar...</span>
+        <UKbd value="meta" />
+        <UKbd value="k" />
       </UButton>
       <ThemeToggle />
       <UButton
