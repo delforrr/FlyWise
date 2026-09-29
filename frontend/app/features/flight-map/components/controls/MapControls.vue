@@ -88,5 +88,19 @@
         <ControlButton type="fitRoute" />
       </UTooltip>
     </div>
+
+    <!-- Micro-separador de Cabina (Solo Desktop) -->
+    <USeparator class="hidden md:block w-6 opacity-60 my-1 border-t border-border-subtle" size="xs" />
+
+    <!-- Clúster de Instrumentación: Manual de Atajos de Cabina (Solo Desktop) -->
+    <div
+      class="hidden md:flex flex-col items-center"
+      role="group"
+      aria-label="Manual de atajos y ayuda"
+    >
+      <UTooltip text="Manual de atajos (?)" :content="{ side: 'left' }">
+        <ControlButton type="shortcuts" />
+      </UTooltip>
+    </div>
   </HudPill>
 </template>

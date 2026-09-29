@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<Props>(), {
   navs: () => [],
   hasLogin: false,
 });
+
+const isPaletteOpen = useState('cockpit_command_palette_open', () => false);
 </script>
 
 <template>
@@ -67,9 +69,19 @@ const props = withDefaults(defineProps<Props>(), {
       </div>
     </template>
 
-    <!-- Botón de login -->
+    <!-- Botón de login y controles -->
     <template #right>
-      <ScenarioSelector v-if="hasControls" />
+      <UButton
+        icon="i-lucide-command"
+        variant="ghost"
+        color="neutral"
+        class="hidden md:inline-flex rounded-xl font-mono text-xs text-text-muted hover:text-text-main hover:bg-surface-accent border border-border-subtle/70"
+        @click="isPaletteOpen = true"
+      >
+        <span class="font-mono">Buscar...</span>
+        <UKbd value="meta" />
+        <UKbd value="k" />
+      </UButton>
       <ThemeToggle />
       <UButton
         v-if="hasLogin"
@@ -83,4 +95,6 @@ const props = withDefaults(defineProps<Props>(), {
       />
     </template>
   </UHeader>
+
+  <CockpitCommandPalette />
 </template>

@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { useCockpitShortcuts } from "~/features/flight-map/composables/useCockpitShortcuts";
+
 useSeoMeta({
   title: "FlyWise — Explorador Global de Rutas y Puntualidad",
   description:
     "Visualización de confiabilidad histórica y métricas de aerolíneas en tiempo real.",
 });
+
+// Inicializar atajos de teclado aeronáuticos del cockpit
+useCockpitShortcuts();
 </script>
 
 <template>

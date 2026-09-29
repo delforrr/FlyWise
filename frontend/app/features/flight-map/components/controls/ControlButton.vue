@@ -6,7 +6,8 @@ export type actionType =
   | "zoomOut"
   | "toggle3D"
   | "fitRoute"
-  | "resetNorth";
+  | "resetNorth"
+  | "shortcuts";
 
 interface Props {
   /**
@@ -16,6 +17,7 @@ interface Props {
    * - 'toggle3D': Alternar perspectiva 2D cenital y 3D isométrica.
    * - 'fitRoute': Encuadrar mapa con la ruta o hub seleccionado.
    * - 'resetNorth': Restablecer rumbo al norte magnético (0°).
+   * - 'shortcuts': Abrir manual operativo de atajos de cabina (?).
    * @default 'zoomIn'
    */
   type?: actionType;
@@ -109,6 +111,10 @@ const mapAction = computed<() => void>(() => {
     return props.action;
   }
   switch (props.type) {
+    case "shortcuts":
+      return () => {
+        useState("cockpit_shortcuts_modal", () => false).value = true;
+      };
     case "fitRoute":
       return fitRoute;
     case "resetNorth":
@@ -127,6 +133,8 @@ const computedIcon = computed(() => {
   if (props.icon) return props.icon;
 
   switch (props.type) {
+    case "shortcuts":
+      return "i-lucide-keyboard";
     case "fitRoute":
       return "i-lucide-maximize";
     case "resetNorth":
@@ -145,6 +153,8 @@ const computedAriaLabel = computed(() => {
   if (props.ariaLabel) return props.ariaLabel;
 
   switch (props.type) {
+    case "shortcuts":
+      return "Manual de atajos de teclado (?)";
     case "fitRoute":
       return "Encuadrar ruta seleccionada";
     case "resetNorth":

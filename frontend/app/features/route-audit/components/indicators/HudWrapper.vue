@@ -5,7 +5,10 @@
     <!-- Leyenda de Confiabilidad OTP-15 (Desktop, posicionada a la izquierda de los controles de mapa) -->
     <ReliabilityLegend class="hidden md:block pointer-events-auto shrink-0" />
 
-    <!-- Clúster de Instrumentación HUD de Controles de Mapa -->
+    <!-- Clúster de Instrumentación HUD de Controles de Mapa (incluye Zoom, Vista y Manual de Atajos) -->
     <MapControls class="pointer-events-auto shrink-0" />
+
+    <!-- Modal de Manual de Atajos de Cabina -->
+    <CockpitShortcutsModal />
   </div>
 </template>
