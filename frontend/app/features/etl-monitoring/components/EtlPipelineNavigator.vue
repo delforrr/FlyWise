@@ -8,6 +8,7 @@ export interface NavigatorItem extends TabsItem {
 
 const props = defineProps<{
   items: (string | NavigatorItem)[];
+  defaultValue?: string | number;
 }>();
 
 const modelValue = defineModel<string | number>();
@@ -35,6 +36,7 @@ const ui = {
   <UTabs
     v-model="modelValue"
     :items="normalizedItems"
+    :default-value="props.defaultValue"
     color="primary"
     variant="pill"
     size="sm"
