@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
-import type { EtlLogEntry, PipelineId } from '../types/etl';
+import { ref, computed, watch, nextTick } from "vue";
+import type { EtlLogEntry, PipelineId } from "../types/etl";
 
 interface Props {
   logs: EtlLogEntry[];
@@ -9,23 +9,23 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: 'clear-logs'): void;
+  (e: "clear-logs"): void;
 }>();
 
-const levelFilter = ref<'all' | 'success' | 'warn_error'>('all');
-const selectedSource = ref<'all' | PipelineId>('all');
-const searchQuery = ref('');
+const levelFilter = ref<"all" | "success" | "warn_error">("all");
+const selectedSource = ref<"all" | PipelineId>("all");
+const searchQuery = ref("");
 const isAutoScroll = ref(true);
 const copiedId = ref<string | null>(null);
 const expandedLogs = ref<Record<string, boolean>>({});
 const logContainerRef = ref<HTMLElement | null>(null);
 
 const sourceOptions = [
-  { label: 'Todas las fuentes', value: 'all' },
-  { label: 'OurAirports', value: 'ourairports' },
-  { label: 'OpenFlights', value: 'openflights' },
-  { label: 'BTS TranStats', value: 'bts-transtats' },
-  { label: 'ANAC Argentina', value: 'anac-arg' },
+  { label: "Todas las fuentes", value: "all" },
+  { label: "OurAirports", value: "ourairports" },
+  { label: "OpenFlights", value: "openflights" },
+  { label: "BTS TranStats", value: "bts-transtats" },
+  { label: "ANAC Argentina", value: "anac-arg" },
 ];
 
 function toggleExpand(id: string) {
@@ -33,7 +33,7 @@ function toggleExpand(id: string) {
 }
 
 async function copyLogDetail(id: string, text: string) {
-  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+  if (typeof navigator !== "undefined" && navigator.clipboard) {
     await navigator.clipboard.writeText(text);
     copiedId.value = id;
     setTimeout(() => {
@@ -45,11 +45,16 @@ async function copyLogDetail(id: string, text: string) {
 }
 
 function exportLogsAsJson() {
-  if (typeof window === 'undefined') return;
-  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(filteredLogs.value, null, 2));
-  const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute('href', dataStr);
-  downloadAnchor.setAttribute('download', `flywise-etl-audit-logs-${Date.now()}.json`);
+  if (typeof window === "undefined") return;
+  const dataStr =
+    "data:text/json;charset=utf-8," +
+    encodeURIComponent(JSON.stringify(filteredLogs.value, null, 2));
+  const downloadAnchor = document.createElement("a");
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute(
+    "download",
+    `flywise-etl-audit-logs-${Date.now()}.json`,
+  );
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
@@ -58,24 +63,33 @@ function exportLogsAsJson() {
 const filteredLogs = computed(() => {
   return props.logs.filter((log) => {
     // 1. Filtro por nivel
-    if (levelFilter.value === 'success' && log.level !== 'success') {
+    if (levelFilter.value === "success" && log.level !== "success") {
       return false;
     }
-    if (levelFilter.value === 'warn_error' && log.level !== 'warn' && log.level !== 'error') {
+    if (
+      levelFilter.value === "warn_error" &&
+      log.level !== "warn" &&
+      log.level !== "error"
+    ) {
       return false;
     }
 
     // 2. Filtro por fuente
-    if (selectedSource.value !== 'all' && log.pipelineId !== selectedSource.value) {
+    if (
+      selectedSource.value !== "all" &&
+      log.pipelineId !== selectedSource.value
+    ) {
       return false;
     }
 
     // 3. Filtro por búsqueda de texto
-    if (searchQuery.value.trim() !== '') {
+    if (searchQuery.value.trim() !== "") {
       const q = searchQuery.value.toLowerCase();
       const matchMsg = log.message.toLowerCase().includes(q);
       const matchPipe = log.pipelineName.toLowerCase().includes(q);
-      const matchDetail = log.detail ? log.detail.toLowerCase().includes(q) : false;
+      const matchDetail = log.detail
+        ? log.detail.toLowerCase().includes(q)
+        : false;
       if (!matchMsg && !matchPipe && !matchDetail) return false;
     }
 
@@ -89,23 +103,29 @@ watch(
   () => {
     if (isAutoScroll.value && logContainerRef.value) {
       nextTick(() => {
-        logContainerRef.value?.scrollTo({ top: 0, behavior: 'smooth' });
+        logContainerRef.value?.scrollTo({ top: 0, behavior: "smooth" });
       });
     }
-  }
+  },
 );
 </script>
 
 <template>
-  <div class="rounded-xl border border-border-subtle bg-surface-card overflow-hidden shadow-xs">
+  <div
+    class="rounded-xl border border-border-subtle bg-surface-card overflow-hidden shadow-xs"
+  >
     <!-- Barra superior del visor de eventos -->
     <div
       class="p-3.5 sm:p-4 border-b border-border-subtle flex flex-col gap-3 bg-surface-accent/40"
     >
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      >
         <div class="flex items-center gap-2">
           <UIcon name="i-lucide-terminal" class="w-4 h-4 text-text-muted" />
-          <h3 class="text-sm font-bold font-mono tracking-tight text-text-main uppercase">
+          <h3
+            class="text-sm font-bold font-mono tracking-tight text-text-main uppercase"
+          >
             Registro de Eventos y Auditoría en Vivo
           </h3>
           <span class="text-xs text-text-muted font-mono tabular-nums">
@@ -113,8 +133,9 @@ watch(
           </span>
         </div>
 
-        <div class="flex items-center gap-2 self-start sm:self-auto font-mono text-xs">
-          <!-- Conmutador Autoscroll / Pin-to-live migrado a UButton -->
+        <div
+          class="flex items-center gap-2 self-start sm:self-auto font-mono text-xs"
+        >
           <UButton
             size="xs"
             :variant="isAutoScroll ? 'subtle' : 'outline'"
@@ -126,7 +147,9 @@ watch(
             <template #leading>
               <span
                 class="w-1.5 h-1.5 rounded-full"
-                :class="isAutoScroll ? 'bg-primary animate-pulse' : 'bg-neutral-400'"
+                :class="
+                  isAutoScroll ? 'bg-primary animate-pulse' : 'bg-neutral-400'
+                "
               />
             </template>
             Autoscroll
@@ -161,10 +184,14 @@ watch(
       </div>
 
       <!-- Barra de Filtros y Búsqueda -->
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1 text-xs">
+      <div
+        class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1 text-xs"
+      >
         <div class="flex items-center gap-2 flex-wrap font-mono">
           <!-- Filtros de nivel -->
-          <div class="inline-flex p-0.5 rounded-lg border border-border-subtle bg-surface-card text-[11px]">
+          <div
+            class="inline-flex p-0.5 rounded-lg border border-border-subtle bg-surface-card text-[11px]"
+          >
             <button
               type="button"
               class="px-2.5 py-0.5 rounded-md cursor-pointer transition-colors"
@@ -203,7 +230,7 @@ watch(
             </button>
           </div>
 
-          <!-- Selector de Fuente de Datos Nuxt UI -->
+          <!-- Selector de Fuente de Datos -->
           <USelect
             v-model="selectedSource"
             :items="sourceOptions"
@@ -236,7 +263,7 @@ watch(
         class="p-3 text-xs hover:bg-surface-accent/30 transition-colors"
       >
         <div class="flex items-start gap-3">
-          <!-- Icono de estado con UBadge -->
+          <!-- Icono de estado -->
           <div class="mt-0.5 shrink-0">
             <UBadge
               v-if="log.level === 'success'"
@@ -274,7 +301,9 @@ watch(
               <span class="font-semibold font-mono text-text-main">
                 {{ log.pipelineName }}
               </span>
-              <span class="font-mono tabular-nums text-[11px] text-text-dim shrink-0">
+              <span
+                class="font-mono tabular-nums text-[11px] text-text-dim shrink-0"
+              >
                 {{ log.timestamp }}
               </span>
             </div>
@@ -282,17 +311,25 @@ watch(
               {{ log.message }}
             </p>
 
-            <!-- Detalle técnico colapsable con UButton -->
-            <UCollapsible v-if="log.detail" v-model:open="expandedLogs[log.id]" class="mt-1.5">
+            <!-- Detalle técnico -->
+            <UCollapsible
+              v-if="log.detail"
+              v-model:open="expandedLogs[log.id]"
+              class="mt-1.5"
+            >
               <template #default="{ open }">
                 <div class="flex items-center gap-3">
                   <UButton
                     variant="link"
                     color="primary"
                     size="xs"
-                    :icon="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                    :icon="
+                      open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
+                    "
                     trailing
-                    :label="open ? 'Ocultar detalle técnico' : 'Ver detalle técnico'"
+                    :label="
+                      open ? 'Ocultar detalle técnico' : 'Ver detalle técnico'
+                    "
                     class="p-0 font-mono text-[11px] cursor-pointer"
                     @click="toggleExpand(log.id)"
                   />
@@ -302,7 +339,9 @@ watch(
                     variant="ghost"
                     color="neutral"
                     size="xs"
-                    :icon="copiedId === log.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                    :icon="
+                      copiedId === log.id ? 'i-lucide-check' : 'i-lucide-copy'
+                    "
                     :label="copiedId === log.id ? 'Copiado!' : 'Copiar'"
                     class="text-[11px] font-mono cursor-pointer p-1"
                     :class="{ 'text-emerald-500': copiedId === log.id }"
@@ -324,7 +363,7 @@ watch(
         </div>
       </div>
 
-      <!-- Estado vacío utilizando Nuxt UI UEmpty -->
+      <!-- Estado vacío -->
       <div v-if="filteredLogs.length === 0" class="p-8">
         <UEmpty
           icon="i-lucide-inbox"

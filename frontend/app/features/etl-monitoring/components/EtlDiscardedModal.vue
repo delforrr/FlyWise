@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import type { EtlPipeline } from '../types/etl';
+import { ref, computed } from "vue";
+import type { EtlPipeline } from "../types/etl";
 
 interface Props {
   isOpen: boolean;
@@ -10,12 +10,12 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: 'close'): void;
-  (e: 'resolve', recordId: string): void;
-  (e: 'retry-all'): void;
+  (e: "close"): void;
+  (e: "resolve", recordId: string): void;
+  (e: "retry-all"): void;
 }>();
 
-const fieldFilter = ref<string>('all');
+const fieldFilter = ref<string>("all");
 const copiedRecordId = ref<string | null>(null);
 
 const uniqueFields = computed<string[]>(() => {
@@ -26,7 +26,7 @@ const uniqueFields = computed<string[]>(() => {
 
 const fieldOptions = computed(() => {
   const total = props.pipeline?.discardedSamples.length ?? 0;
-  const options = [{ label: `Todos los campos (${total})`, value: 'all' }];
+  const options = [{ label: `Todos los campos (${total})`, value: "all" }];
   for (const f of uniqueFields.value) {
     options.push({ label: f, value: f });
   }
@@ -35,12 +35,14 @@ const fieldOptions = computed(() => {
 
 const filteredSamples = computed(() => {
   if (!props.pipeline?.discardedSamples) return [];
-  if (fieldFilter.value === 'all') return props.pipeline.discardedSamples;
-  return props.pipeline.discardedSamples.filter((s) => s.field === fieldFilter.value);
+  if (fieldFilter.value === "all") return props.pipeline.discardedSamples;
+  return props.pipeline.discardedSamples.filter(
+    (s) => s.field === fieldFilter.value,
+  );
 });
 
 async function copyRawSample(id: string, text: string) {
-  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+  if (typeof navigator !== "undefined" && navigator.clipboard) {
     await navigator.clipboard.writeText(text);
     copiedRecordId.value = id;
     setTimeout(() => {
@@ -52,27 +54,40 @@ async function copyRawSample(id: string, text: string) {
 }
 
 function exportDiscardedCsv() {
-  if (!props.pipeline?.discardedSamples || typeof window === 'undefined') return;
+  if (!props.pipeline?.discardedSamples || typeof window === "undefined")
+    return;
 
-  const headers = ['RowIndex', 'Field', 'Reason', 'RawSample', 'Resolved', 'Timestamp'];
+  const headers = [
+    "RowIndex",
+    "Field",
+    "Reason",
+    "RawSample",
+    "Resolved",
+    "Timestamp",
+  ];
   const rows = props.pipeline.discardedSamples.map((s) => [
     s.rowIndex,
     `"${s.field}"`,
-    `"${s.reason.replace(/"/g, '""')}"`,
-    `"${s.rawSample.replace(/"/g, '""')}"`,
-    s.resolved ? 'true' : 'false',
+    `"${s.reason.replaceAll('"', '""')}"`,
+    `"${s.rawSample.replaceAll('"', '""')}"`,
+    s.resolved ? "true" : "false",
     `"${s.timestamp}"`,
   ]);
 
-  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join(
+    "\n",
+  );
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `flywise-discarded-${props.pipeline.id}-${Date.now()}.csv`);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute(
+    "download",
+    `flywise-discarded-${props.pipeline.id}-${Date.now()}.csv`,
+  );
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  link.remove();
   URL.revokeObjectURL(url);
 }
 </script>
@@ -83,9 +98,14 @@ function exportDiscardedCsv() {
     :title="`Auditoría de Registros Descartados — ${pipeline?.name ?? ''}`"
     description="Registros omitidos durante la ingesta streaming por incumplimiento de reglas de integridad (RNF-03/04)."
     :ui="{
-      content: 'sm:max-w-2xl bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
+      content:
+        'sm:max-w-2xl bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
     }"
-    @update:open="(val: boolean) => { if (!val) emit('close'); }"
+    @update:open="
+      (val: boolean) => {
+        if (!val) emit('close');
+      }
+    "
   >
     <template #body>
       <div v-if="pipeline" class="space-y-4">
@@ -95,7 +115,9 @@ function exportDiscardedCsv() {
         >
           <div>
             <span class="text-text-muted">Total de registros observados:</span>
-            <span class="font-bold text-text-main ml-1.5 font-mono tabular-nums">
+            <span
+              class="font-bold text-text-main ml-1.5 font-mono tabular-nums"
+            >
               {{ pipeline.discardedRows }} filas
             </span>
           </div>
@@ -171,7 +193,11 @@ function exportDiscardedCsv() {
                 size="xs"
                 variant="subtle"
                 color="neutral"
-                :icon="copiedRecordId === record.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                :icon="
+                  copiedRecordId === record.id
+                    ? 'i-lucide-check'
+                    : 'i-lucide-copy'
+                "
                 :label="copiedRecordId === record.id ? 'Copiado' : 'Copiar'"
                 class="absolute top-2 right-2 text-[10px] font-mono cursor-pointer"
                 :class="{ 'text-emerald-500': copiedRecordId === record.id }"
@@ -185,7 +211,9 @@ function exportDiscardedCsv() {
     </template>
 
     <template #footer>
-      <div class="w-full flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-xs">
+      <div
+        class="w-full flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-xs"
+      >
         <UButton
           size="xs"
           variant="outline"

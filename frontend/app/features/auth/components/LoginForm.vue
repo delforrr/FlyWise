@@ -38,10 +38,7 @@ const fields: AuthFormField[] = [
 ];
 
 const schema = z.object({
-  email: z
-    .string()
-    .min(1, "El correo electrónico es requerido")
-    .email("Formato de correo electrónico inválido"),
+  email: z.email("Formato de correo electrónico inválido"),
   password: z
     .string()
     .min(1, "La contraseña es requerida")

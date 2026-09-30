@@ -14,14 +14,20 @@ const emit = defineEmits<{
   (e: "resume", id: EtlPipeline["id"]): void;
   (e: "retry", id: EtlPipeline["id"]): void;
   (e: "view-discarded", pipeline: EtlPipeline): void;
+  (e: "view-detail", pipeline: EtlPipeline): void;
 }>();
 
 // Formateo de tiempo de ejecución estimado según filas y velocidad promedio
 const executionTimeFormatted = computed<string | null>(() => {
-  if (!props.pipeline.averageSpeedRowsPerSec || props.pipeline.averageSpeedRowsPerSec <= 0) {
+  if (
+    !props.pipeline.averageSpeedRowsPerSec ||
+    props.pipeline.averageSpeedRowsPerSec <= 0
+  ) {
     return null;
   }
-  const totalSeconds = Math.round(props.pipeline.processedRows / props.pipeline.averageSpeedRowsPerSec);
+  const totalSeconds = Math.round(
+    props.pipeline.processedRows / props.pipeline.averageSpeedRowsPerSec,
+  );
   if (totalSeconds < 60) {
     return `${totalSeconds}s`;
   }
@@ -32,14 +38,18 @@ const executionTimeFormatted = computed<string | null>(() => {
 
 // Tasa porcentual de registros descartados
 const errorRateFormatted = computed<string>(() => {
-  if (!props.pipeline.processedRows || props.pipeline.processedRows <= 0) return "0.00%";
-  const rate = (props.pipeline.discardedRows / props.pipeline.processedRows) * 100;
+  if (!props.pipeline.processedRows || props.pipeline.processedRows <= 0)
+    return "0.00%";
+  const rate =
+    (props.pipeline.discardedRows / props.pipeline.processedRows) * 100;
   return `${rate.toFixed(2)}%`;
 });
 </script>
 
 <template>
-  <UCard class="flex flex-col justify-between h-full bg-surface-card border-border-subtle border-t-white/30 dark:border-t-white/10 shadow-xs">
+  <UCard
+    class="flex flex-col justify-between h-full bg-surface-card border-border-subtle border-t-white/30 dark:border-t-white/10 shadow-xs"
+  >
     <!-- Cabecera de la tarjeta: Título, Fuente y Badge de Estado -->
     <div>
       <div class="flex items-start justify-between gap-3">
@@ -57,14 +67,16 @@ const errorRateFormatted = computed<string>(() => {
               <span class="text-xs font-medium text-text-muted">
                 {{ pipeline.datasetName }}
               </span>
-              <span class="text-[10px] font-mono px-1 py-0.2 bg-surface-accent rounded text-text-dim border border-border-subtle/60">
+              <span
+                class="text-[10px] font-mono px-1 py-0.2 bg-surface-accent rounded text-text-dim border border-border-subtle/60"
+              >
                 Stream
               </span>
             </div>
           </div>
         </div>
 
-        <!-- Badges de Estado con bordes nítidos de 1px, pulso sutil y contraste limpio -->
+        <!-- Badges de Estado -->
         <div class="shrink-0">
           <UBadge
             v-if="pipeline.status === 'success'"
@@ -74,8 +86,12 @@ const errorRateFormatted = computed<string>(() => {
             class="gap-1.5 border border-emerald-500/30 dark:border-emerald-500/40 select-none font-mono tabular-nums text-xs"
           >
             <span class="relative flex h-2 w-2 shrink-0">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-25" />
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-25"
+              />
+              <span
+                class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
+              />
             </span>
             Al día
           </UBadge>
@@ -88,8 +104,12 @@ const errorRateFormatted = computed<string>(() => {
             class="gap-1.5 border border-sky-500/30 dark:border-sky-500/40 select-none font-mono tabular-nums text-xs"
           >
             <span class="relative flex h-2 w-2 shrink-0">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-sky-500" />
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"
+              />
+              <span
+                class="relative inline-flex rounded-full h-2 w-2 bg-sky-500"
+              />
             </span>
             Sincronizando
           </UBadge>
@@ -102,7 +122,9 @@ const errorRateFormatted = computed<string>(() => {
             class="gap-1.5 border border-amber-500/30 dark:border-amber-500/40 select-none font-mono tabular-nums text-xs"
           >
             <span class="relative flex h-2 w-2 shrink-0">
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+              <span
+                class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"
+              />
             </span>
             Pausado
           </UBadge>
@@ -115,8 +137,12 @@ const errorRateFormatted = computed<string>(() => {
             class="gap-1.5 border border-rose-500/30 dark:border-rose-500/40 select-none font-mono tabular-nums text-xs"
           >
             <span class="relative flex h-2 w-2 shrink-0">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-50" />
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-50"
+              />
+              <span
+                class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"
+              />
             </span>
             Error
           </UBadge>
@@ -129,7 +155,9 @@ const errorRateFormatted = computed<string>(() => {
             class="gap-1.5 border border-border-subtle/80 select-none font-mono tabular-nums text-xs"
           >
             <span class="relative flex h-2 w-2 shrink-0">
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-neutral-400" />
+              <span
+                class="relative inline-flex rounded-full h-2 w-2 bg-neutral-400"
+              />
             </span>
             En espera
           </UBadge>
@@ -141,7 +169,7 @@ const errorRateFormatted = computed<string>(() => {
         {{ pipeline.description }}
       </p>
 
-      <!-- Barra de Progreso Nuxt UI (Visible cuando está corriendo o pausado) -->
+      <!-- Barra de Progreso (Visible cuando está corriendo o pausado) -->
       <div
         v-if="pipeline.status === 'running' || pipeline.status === 'paused'"
         class="mt-4 pt-3 border-t border-border-subtle/60"
@@ -159,98 +187,54 @@ const errorRateFormatted = computed<string>(() => {
           color="primary"
           size="sm"
         />
-        <p class="text-[11px] text-text-dim mt-1.5 font-mono tabular-nums truncate">
+        <p
+          class="text-[11px] text-text-dim mt-1.5 font-mono tabular-nums truncate"
+        >
           {{ pipeline.currentStepMessage }}
         </p>
       </div>
-
-      <!-- Ficha de Datos Numéricos con alineación tabular estable -->
-      <div
-        class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-border-subtle/60 text-xs"
-      >
-        <div>
-          <span class="text-text-muted block text-[11px]"
-            >Filas procesadas</span
-          >
-          <span class="font-mono tabular-nums font-semibold text-text-main block">
-            {{ pipeline.processedRows.toLocaleString() }}
-          </span>
-          <span
-            v-if="executionTimeFormatted"
-            class="text-[10px] text-text-dim block font-mono tabular-nums mt-0.5"
-            :title="`Velocidad media: ${pipeline.averageSpeedRowsPerSec.toLocaleString()} filas/segundo`"
-          >
-            Tiempo: ~{{ executionTimeFormatted }} · {{ pipeline.averageSpeedRowsPerSec.toLocaleString() }} fil/s
-          </span>
-        </div>
-
-        <div>
-          <span class="text-text-muted block text-[11px]"
-            >Registros descartados</span
-          >
-          <button
-            type="button"
-            class="font-mono tabular-nums font-semibold inline-flex items-center gap-1 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card rounded px-1 -mx-1 transition-colors transform-gpu"
-            :class="
-              pipeline.discardedRows > 0
-                ? 'text-amber-600 dark:text-amber-400'
-                : 'text-text-muted'
-            "
-            @click="emit('view-discarded', pipeline)"
-          >
-            <span>{{ pipeline.discardedRows.toLocaleString() }}</span>
-            <UIcon
-              v-if="pipeline.discardedRows > 0"
-              name="i-lucide-alert-circle"
-              class="w-3.5 h-3.5 shrink-0"
-            />
-          </button>
-          <span
-            class="text-[10px] text-text-dim block font-mono tabular-nums mt-0.5"
-          >
-            {{ pipeline.discardedRows === 0 ? '0.00% descartes' : `${errorRateFormatted} descartes` }}
-          </span>
-        </div>
-
-        <div>
-          <span class="text-text-muted block text-[11px]"
-            >Última sincronización</span
-          >
-          <span class="text-text-main truncate block font-mono tabular-nums text-xs">
-            {{ pipeline.lastSyncAt || "Sin registros" }}
-          </span>
-        </div>
-
-        <div>
-          <span class="text-text-muted block text-[11px]"
-            >Próxima programada</span
-          >
-          <span class="text-text-main truncate block font-mono tabular-nums text-xs">
-            {{ pipeline.scheduleDescription }}
-          </span>
-        </div>
-      </div>
     </div>
 
-    <!-- Botones de Acción Operativa Directa con anillos de foco y sin desplazamientos -->
+    <!-- Botones de Acción Operativa Directa -->
     <template #footer>
       <div class="flex items-center justify-between gap-2 w-full">
-        <!-- Botón secundario para ver descartes -->
-        <UButton
-          v-if="pipeline.discardedRows > 0"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          icon="i-lucide-file-text"
-          class="text-xs font-medium cursor-pointer transform-gpu transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
-          @click="emit('view-discarded', pipeline)"
-        >
-          Auditar descartes
-        </UButton>
-        <span v-else class="text-[11px] text-text-dim flex items-center gap-1 font-mono tabular-nums">
-          <UIcon name="i-lucide-check" class="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-          Sin errores
-        </span>
+        <!-- Acciones secundarias: Ver detalle y auditar descartes -->
+        <div class="flex items-center gap-1.5">
+          <UButton
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-eye"
+            class="text-xs font-medium cursor-pointer transform-gpu transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
+            title="Ver detalle del pipeline"
+            aria-label="Ver detalle del pipeline"
+            @click="emit('view-detail', pipeline)"
+          >
+            Detalle
+          </UButton>
+
+          <UButton
+            v-if="pipeline.discardedRows > 0"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-file-text"
+            class="text-xs font-medium cursor-pointer transform-gpu transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
+            @click="emit('view-discarded', pipeline)"
+          >
+            Auditar descartes
+          </UButton>
+          <span
+            v-else
+            class="text-[11px] text-text-dim flex items-center gap-1 font-mono tabular-nums"
+          >
+            <UIcon
+              name="i-lucide-check"
+              class="w-3.5 h-3.5 text-emerald-500 shrink-0"
+            />
+            Sin errores
+          </span>
+        </div>
 
         <!-- Acciones de control -->
         <div class="flex items-center gap-1.5">
@@ -296,4 +280,3 @@ const errorRateFormatted = computed<string>(() => {
     </template>
   </UCard>
 </template>
-

@@ -17,11 +17,14 @@ const emit = defineEmits<{
   (e: "resume", id: EtlPipeline["id"]): void;
   (e: "retry", id: EtlPipeline["id"]): void;
   (e: "view-discarded", pipeline: EtlPipeline): void;
+  (e: "view-detail", pipeline: EtlPipeline): void;
 }>();
 
-// Vista por defecto: "table" (lista / tabla operativa densa), conmutador opcional a "cards"
+// Vista por defecto: "table", opcionalmente "cards"
 const viewMode = useState<"table" | "cards">("etl_view_mode", () => "table");
-const currentFilter = ref<"all" | "running" | "success" | "has_issues">("running");
+const currentFilter = ref<"all" | "running" | "success" | "has_issues">(
+  "running",
+);
 const searchQuery = ref("");
 
 const filteredPipelines = computed(() => {
@@ -91,10 +94,9 @@ const filterTabs = computed(() => [
           />
         </div>
 
-        <!-- Conmutador de Vista (Lista / Tabla ⇄ Tarjetas) con UButton -->
-        <div
+        <!-- Conmutador de Vista -->
+        <fieldset
           class="flex items-center border border-border-subtle rounded-lg p-0.5 bg-surface-accent/60 shrink-0 gap-0.5"
-          role="group"
           aria-label="Modo de visualización"
         >
           <UTooltip text="Vista en Lista / Tabla">
@@ -120,13 +122,13 @@ const filterTabs = computed(() => [
               @click="viewMode = 'cards'"
             />
           </UTooltip>
-        </div>
+        </fieldset>
       </div>
     </div>
 
-    <!-- Contenido de Pipelines según Modo de Vista -->
+    <!-- Contenido según Modo de Vista -->
     <div v-if="filteredPipelines.length > 0">
-      <!-- Vista 1: Lista / Tabla Operativa (Default) -->
+      <!-- Vista 1: Lista -->
       <EtlPipelineTable
         v-if="viewMode === 'table'"
         :pipelines="filteredPipelines"
@@ -135,13 +137,11 @@ const filterTabs = computed(() => [
         @resume="emit('resume', $event)"
         @retry="emit('retry', $event)"
         @view-discarded="emit('view-discarded', $event)"
+        @view-detail="emit('view-detail', $event)"
       />
 
       <!-- Vista 2: Tarjetas -->
-      <div
-        v-else
-        class="grid grid-cols-1 md:grid-cols-2 gap-4"
-      >
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <EtlPipelineCard
           v-for="p in filteredPipelines"
           :key="p.id"
@@ -151,6 +151,7 @@ const filterTabs = computed(() => [
           @resume="emit('resume', $event)"
           @retry="emit('retry', $event)"
           @view-discarded="emit('view-discarded', $event)"
+          @view-detail="emit('view-detail', $event)"
         />
       </div>
     </div>

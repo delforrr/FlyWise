@@ -40,14 +40,12 @@ function confirmSyncAll() {
               <h1
                 class="text-xl sm:text-2xl font-bold font-mono tracking-tight text-text-main uppercase"
               >
-                Centro de Ingesta y Monitoreo ETL
+                Panel de Administración
               </h1>
-              <span class="hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-surface-accent border border-border-subtle text-text-muted">
-                BullMQ v5
-              </span>
             </div>
             <p class="text-xs text-text-muted mt-0.5">
-              Supervisión operativa, lotes en streaming y auditoría de integridad aeronáutica.
+              Supervisión y Gestión de Información Aeronáutica de fuentes
+              externas
             </p>
           </div>
         </div>
@@ -78,11 +76,17 @@ function confirmSyncAll() {
     </div>
 
     <!-- Grilla de 4 KPIs Sólidos (Estilo Swiss Minimalist, bordes nítidos de 1px) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 font-feature-tech">
+    <div
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 font-feature-tech"
+    >
       <!-- 1. Estado General -->
-      <div class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between">
+      <div
+        class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between"
+      >
         <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono">
+          <span
+            class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
+          >
             Estado del Sistema
           </span>
           <UIcon
@@ -126,9 +130,13 @@ function confirmSyncAll() {
       </div>
 
       <!-- 2. Registros Aeronáuticos -->
-      <div class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between">
+      <div
+        class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between"
+      >
         <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono">
+          <span
+            class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
+          >
             Registros Almacenados
           </span>
           <UIcon name="i-lucide-database" class="w-4 h-4 text-text-muted" />
@@ -141,14 +149,18 @@ function confirmSyncAll() {
           />
         </div>
         <p class="text-[11px] text-text-dim mt-2 font-mono truncate">
-          Aeropuertos, rutas y telemetría WGS 84
+          Aeropuertos, rutas y telemetría
         </p>
       </div>
 
       <!-- 3. Tareas en Curso -->
-      <div class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between">
+      <div
+        class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between"
+      >
         <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono">
+          <span
+            class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
+          >
             Procesos Activos
           </span>
           <UIcon name="i-lucide-cpu" class="w-4 h-4 text-text-muted" />
@@ -158,7 +170,9 @@ function confirmSyncAll() {
             :value="metrics.activeJobsCount"
             class="text-2xl font-bold font-mono tabular-nums text-text-main tracking-tight"
           />
-          <span class="text-xs text-text-muted font-mono">/ 4 workers asignados</span>
+          <span class="text-xs text-text-muted font-mono"
+            >/ 4 workers asignados</span
+          >
         </div>
         <div class="mt-2">
           <UProgress
@@ -171,9 +185,13 @@ function confirmSyncAll() {
       </div>
 
       <!-- 4. Calidad y Descartes -->
-      <div class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between">
+      <div
+        class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between"
+      >
         <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono">
+          <span
+            class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
+          >
             Tasa de Confiabilidad
           </span>
           <UIcon
@@ -201,7 +219,8 @@ function confirmSyncAll() {
       title="Confirmar Sincronización Global de Fuentes"
       description="Esta acción iniciará la ingesta concurrente en los 4 pipelines activos."
       :ui="{
-        content: 'sm:max-w-md bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
+        content:
+          'sm:max-w-md bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
       }"
     >
       <template #body>
@@ -215,14 +234,13 @@ function confirmSyncAll() {
             <li>BTS TranStats (Telemetría de puntualidad OTP-15)</li>
             <li>ANAC Argentina (Vuelos comerciales de cabotaje)</li>
           </ul>
-          <div class="p-2.5 rounded-lg bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim">
-            <span class="font-semibold text-text-main">Nota RNF-04:</span> El procesamiento se realizará en lotes segmentados por streams para garantizar consumo controlado de memoria.
-          </div>
         </div>
       </template>
 
       <template #footer>
-        <div class="flex items-center justify-end gap-2 w-full font-mono text-xs">
+        <div
+          class="flex items-center justify-end gap-2 w-full font-mono text-xs"
+        >
           <UButton
             variant="ghost"
             color="neutral"

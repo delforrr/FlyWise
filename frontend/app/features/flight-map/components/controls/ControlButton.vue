@@ -189,7 +189,7 @@ function handleClick(event: MouseEvent) {
     class="relative flex items-center justify-center w-10 h-10 min-w-10 min-h-10 p-0 rounded-xl border border-border-subtle/80 border-t-white/35 dark:border-t-white/15 bg-surface-card/75 dark:bg-surface-base/75 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:text-primary hover:bg-surface-accent/80 hover:border-primary/40 hover:shadow-[0_0_14px_rgba(56,189,248,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background active:scale-95 transition-all duration-200 select-none cursor-pointer"
     :class="[
       is3DActive
-        ? '!text-primary !bg-primary/15 !border-primary/50 !shadow-[0_0_12px_rgba(56,189,248,0.3),inset_0_1px_0_rgba(56,189,248,0.4)]'
+        ? 'text-primary! bg-primary/15! border-primary/50! shadow-[0_0_12px_rgba(56,189,248,0.3),inset_0_1px_0_rgba(56,189,248,0.4)]!'
         : 'text-text-main',
     ]"
     @click="handleClick"

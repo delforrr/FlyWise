@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import type {
   EtlPipeline,
   TriggerSyncOptions,
@@ -35,6 +35,9 @@ const activePipelineForTrigger = ref<EtlPipeline | null>(null);
 const isDiscardedModalOpen = ref(false);
 const activePipelineForDiscarded = ref<EtlPipeline | null>(null);
 
+const isDetailModalOpen = ref(false);
+const activePipelineForDetail = ref<EtlPipeline | null>(null);
+
 function openTriggerModal(pipeline: EtlPipeline) {
   activePipelineForTrigger.value = pipeline;
   isTriggerModalOpen.value = true;
@@ -48,6 +51,21 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
 function openDiscardedModal(pipeline: EtlPipeline) {
   activePipelineForDiscarded.value = pipeline;
   isDiscardedModalOpen.value = true;
+}
+
+function openDetailModal(pipeline: EtlPipeline) {
+  activePipelineForDetail.value = pipeline;
+  isDetailModalOpen.value = true;
+}
+
+function handleDetailViewDiscarded(pipeline: EtlPipeline) {
+  isDetailModalOpen.value = false;
+  openDiscardedModal(pipeline);
+}
+
+function handleDetailTriggerSync(pipeline: EtlPipeline) {
+  isDetailModalOpen.value = false;
+  openTriggerModal(pipeline);
 }
 
 function handleResolveDiscarded(recordId: string) {
@@ -90,6 +108,7 @@ function handleRetryDiscarded() {
         @resume="resumePipeline"
         @retry="retryFailed"
         @view-discarded="openDiscardedModal"
+        @view-detail="openDetailModal"
       />
     </section>
 
@@ -109,6 +128,16 @@ function handleRetryDiscarded() {
     </section>
 
     <!-- Modales Operativos -->
+    <EtlPipelineDetailModal
+      :is-open="isDetailModalOpen"
+      :pipeline="activePipelineForDetail"
+      @close="isDetailModalOpen = false"
+      @trigger-sync="handleDetailTriggerSync"
+      @pause="pausePipeline"
+      @resume="resumePipeline"
+      @view-discarded="handleDetailViewDiscarded"
+    />
+
     <EtlTriggerModal
       :is-open="isTriggerModalOpen"
       :pipeline="activePipelineForTrigger"

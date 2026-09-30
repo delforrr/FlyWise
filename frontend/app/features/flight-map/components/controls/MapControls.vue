@@ -1,8 +1,9 @@
 <template>
   <HudContainer
-    variant="pill"
-    interactive
-    class="flex flex-col items-center p-1 sm:p-1.5 w-auto shadow-2xl border border-border-subtle/80 border-t-white/30 dark:border-t-white/15 bg-surface-card/90 dark:bg-surface-base/85 backdrop-blur-xl"
+    variant="container"
+    rounded="2xl"
+    :interactive="false"
+    class="flex flex-col items-center w-fit p-1 sm:p-1.5 shadow-2xl border border-border-subtle/80 border-t-white/30 dark:border-t-white/15 bg-surface-card/90 dark:bg-surface-base/85 backdrop-blur-xl"
   >
     <!-- Botón Info Leyenda OTP (Visible en móviles: despliega hacia la izquierda por fuera del panel de controles) -->
     <div class="md:hidden flex flex-col items-center w-full">
@@ -42,7 +43,7 @@
               </div>
             </div>
 
-            <!-- Badges de Confiabilidad con doble codificación sensorial -->
+            <!-- Badges de Confiabilidad -->
             <div class="flex flex-col gap-2">
               <OtpBadge message="Alta" />
               <OtpBadge message="Media" />
@@ -52,55 +53,67 @@
         </template>
       </UPopover>
 
-      <USeparator class="w-6 opacity-60 my-1 border-t border-border-subtle" size="xs" />
+      <USeparator
+        class="w-6 opacity-60 my-1 border-t border-border-subtle"
+        size="xs"
+      />
     </div>
 
-    <!-- Clúster de Instrumentación: Grupo de Zoom (+ / -) -->
-    <div
-      class="flex flex-col gap-1 sm:gap-1.5 items-center"
-      role="group"
+    <!-- Grupo de Zoom -->
+    <fieldset
+      class="m-0 p-0 border-0 min-w-0 flex flex-col gap-1 sm:gap-1.5 items-center"
       aria-label="Controles de zoom de mapa"
     >
+      <legend class="sr-only">Controles de zoom de mapa</legend>
       <UTooltip text="Acercar mapa (+)" :content="{ side: 'left' }">
         <ControlButton type="zoomIn" />
       </UTooltip>
       <UTooltip text="Alejar mapa (-)" :content="{ side: 'left' }">
         <ControlButton type="zoomOut" />
       </UTooltip>
-    </div>
+    </fieldset>
 
-    <!-- Micro-separador de Cabina -->
-    <USeparator class="w-6 opacity-60 my-1 border-t border-border-subtle" size="xs" />
+    <!-- Micro-separador -->
+    <USeparator
+      class="w-6 opacity-60 my-1 border-t border-border-subtle"
+      size="xs"
+    />
 
-    <!-- Clúster de Instrumentación: Grupo de Vista (3D / Rumbo Norte / Encuadre de Ruta) -->
-    <div
-      class="flex flex-col gap-1 sm:gap-1.5 items-center"
-      role="group"
+    <!-- Grupo de Vista -->
+    <fieldset
+      class="m-0 p-0 border-0 min-w-0 flex flex-col gap-1 sm:gap-1.5 items-center"
       aria-label="Controles de orientación y encuadre"
     >
+      <legend class="sr-only">Controles de orientación y encuadre</legend>
       <UTooltip text="Alternar perspectiva 2D / 3D" :content="{ side: 'left' }">
         <ControlButton type="toggle3D" />
       </UTooltip>
-      <UTooltip text="Restablecer orientación al norte" :content="{ side: 'left' }">
+      <UTooltip
+        text="Restablecer orientación al norte"
+        :content="{ side: 'left' }"
+      >
         <ControlButton type="resetNorth" />
       </UTooltip>
       <UTooltip text="Encuadrar ruta seleccionada" :content="{ side: 'left' }">
         <ControlButton type="fitRoute" />
       </UTooltip>
-    </div>
+    </fieldset>
 
-    <!-- Micro-separador de Cabina (Solo Desktop) -->
-    <USeparator class="hidden md:block w-6 opacity-60 my-1 border-t border-border-subtle" size="xs" />
+    <!-- Micro-separador (Solo Desktop) -->
+    <USeparator
+      class="hidden md:block w-6 opacity-60 my-1 border-t border-border-subtle"
+      size="xs"
+    />
 
-    <!-- Clúster de Instrumentación: Manual de Atajos de Cabina (Solo Desktop) -->
-    <div
-      class="hidden md:flex flex-col items-center"
-      role="group"
+    <!-- Manual de Atajos (Solo Desktop) -->
+    <fieldset
+      class="m-0 p-0 border-0 min-w-0 hidden md:flex flex-col items-center"
       aria-label="Manual de atajos y ayuda"
     >
+      <legend class="sr-only">Manual de atajos y ayuda</legend>
       <UTooltip text="Manual de atajos (?)" :content="{ side: 'left' }">
         <ControlButton type="shortcuts" />
       </UTooltip>
-    </div>
+    </fieldset>
   </HudContainer>
 </template>

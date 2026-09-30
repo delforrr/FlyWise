@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import type { EtlPipeline, TriggerSyncOptions } from '../types/etl';
+import { ref, watch } from "vue";
+import type { EtlPipeline, TriggerSyncOptions } from "../types/etl";
 
 interface Props {
   isOpen: boolean;
@@ -10,22 +10,26 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: 'close'): void;
-  (e: 'confirm', options: TriggerSyncOptions): void;
+  (e: "close"): void;
+  (e: "confirm", options: TriggerSyncOptions): void;
 }>();
 
-const mode = ref<'incremental' | 'full'>('incremental');
+const mode = ref<"incremental" | "full">("incremental");
 const dryRun = ref(false);
 const batchSize = ref(2500);
 
 const estimatedDuration = computed(() => {
   if (!props.pipeline || !props.pipeline.averageSpeedRowsPerSec) return null;
   // In incremental mode, estimate ~15% volume of changes
-  const targetRows = mode.value === 'incremental'
-    ? Math.max(500, Math.round(props.pipeline.totalEstimatedRows * 0.15))
-    : props.pipeline.totalEstimatedRows;
+  const targetRows =
+    mode.value === "incremental"
+      ? Math.max(500, Math.round(props.pipeline.totalEstimatedRows * 0.15))
+      : props.pipeline.totalEstimatedRows;
 
-  const seconds = Math.max(1, Math.round(targetRows / props.pipeline.averageSpeedRowsPerSec));
+  const seconds = Math.max(
+    1,
+    Math.round(targetRows / props.pipeline.averageSpeedRowsPerSec),
+  );
   const chunks = Math.ceil(targetRows / batchSize.value);
 
   return {
@@ -39,23 +43,23 @@ watch(
   () => props.isOpen,
   (open) => {
     if (open) {
-      mode.value = 'incremental';
+      mode.value = "incremental";
       dryRun.value = false;
       batchSize.value = 2500;
     }
-  }
+  },
 );
 
 function handleConfirm() {
   if (!props.pipeline) return;
 
-  emit('confirm', {
+  emit("confirm", {
     pipelineId: props.pipeline.id,
     mode: mode.value,
     dryRun: dryRun.value,
     batchSize: batchSize.value,
   });
-  emit('close');
+  emit("close");
 }
 </script>
 
@@ -65,9 +69,14 @@ function handleConfirm() {
     :title="`Sincronizar ${pipeline?.name ?? ''}`"
     description="Configura los parámetros de la ingesta antes de iniciar el procesamiento."
     :ui="{
-      content: 'max-w-lg bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
+      content:
+        'max-w-lg bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
     }"
-    @update:open="(val: boolean) => { if (!val) emit('close'); }"
+    @update:open="
+      (val: boolean) => {
+        if (!val) emit('close');
+      }
+    "
   >
     <template #body>
       <div v-if="pipeline" class="space-y-4 text-xs font-feature-tech">
@@ -84,7 +93,10 @@ function handleConfirm() {
             </span>
           </div>
           <div class="font-mono text-text-dim text-[10px]">
-            {{ estimatedDuration.chunks }} lotes &bull; ~{{ estimatedDuration.targetRows.toLocaleString() }} filas
+            {{ estimatedDuration.chunks }} lotes &bull; ~{{
+              estimatedDuration.targetRows.toLocaleString()
+            }}
+            filas
           </div>
         </div>
 
@@ -124,7 +136,10 @@ function handleConfirm() {
               @click="mode = 'full'"
             >
               <div class="flex items-center gap-1.5 mb-1">
-                <UIcon name="i-lucide-rotate-ccw" class="w-3.5 h-3.5 text-amber-500" />
+                <UIcon
+                  name="i-lucide-rotate-ccw"
+                  class="w-3.5 h-3.5 text-amber-500"
+                />
                 <span class="text-xs font-bold">Completa</span>
               </div>
               <p class="text-[11px] font-normal leading-normal text-text-muted">
@@ -140,7 +155,8 @@ function handleConfirm() {
             Tamaño de lote (registros por worker)
           </label>
           <p class="text-[11px] text-text-muted mb-2">
-            Procesa en chunks desacoplados para proteger la memoria RAM (RNF-04).
+            Procesa en chunks desacoplados para proteger la memoria RAM
+            (RNF-04).
           </p>
           <div class="flex items-center gap-2">
             <UButton
