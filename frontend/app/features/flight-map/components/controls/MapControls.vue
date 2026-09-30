@@ -1,8 +1,8 @@
 <template>
-  <HudPill
-    vertical
+  <HudContainer
+    variant="pill"
     interactive
-    class="p-1 sm:p-1.5 w-auto items-center shadow-2xl border border-border-subtle/80 border-t-white/30 dark:border-t-white/15 bg-surface-card/90 dark:bg-surface-base/85 backdrop-blur-xl"
+    class="flex flex-col items-center p-1 sm:p-1.5 w-auto shadow-2xl border border-border-subtle/80 border-t-white/30 dark:border-t-white/15 bg-surface-card/90 dark:bg-surface-base/85 backdrop-blur-xl"
   >
     <!-- Botón Info Leyenda OTP (Visible en móviles: despliega hacia la izquierda por fuera del panel de controles) -->
     <div class="md:hidden flex flex-col items-center w-full">
@@ -102,5 +102,5 @@
         <ControlButton type="shortcuts" />
       </UTooltip>
     </div>
-  </HudPill>
+  </HudContainer>
 </template>

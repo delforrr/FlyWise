@@ -95,29 +95,26 @@ function getAriaLabel(route: FlightRoute, dest: ReturnType<typeof getConnectedDe
         </span>
       </div>
 
-      <!-- Buscador de destino instantáneo -->
-      <div class="relative flex items-center">
-        <UIcon
-          name="i-lucide-search"
-          class="w-3.5 h-3.5 text-text-dim absolute left-2.5 pointer-events-none"
-        />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Buscar por destino o ciudad..."
-          aria-label="Filtrar rutas por destino o ciudad"
-          class="w-full text-xs font-mono py-1 pl-8 pr-7 rounded-lg bg-surface-base/60 border border-border-subtle/70 text-text-main placeholder:text-text-dim placeholder:font-sans focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/40 transition-all"
-        />
-        <button
-          v-if="searchQuery"
-          type="button"
-          aria-label="Limpiar búsqueda"
-          class="absolute right-2 text-text-dim hover:text-text-main transition-colors p-0.5 rounded cursor-pointer"
-          @click="searchQuery = ''"
-        >
-          <UIcon name="i-lucide-x" class="w-3 h-3" />
-        </button>
-      </div>
+      <!-- Buscador de destino instantáneo con UInput de Nuxt UI -->
+      <UInput
+        v-model="searchQuery"
+        icon="i-lucide-search"
+        placeholder="Buscar por destino o ciudad..."
+        aria-label="Filtrar rutas por destino o ciudad"
+        size="xs"
+        class="w-full font-mono text-xs"
+      >
+        <template v-if="searchQuery" #trailing>
+          <UButton
+            icon="i-lucide-x"
+            variant="ghost"
+            size="xs"
+            aria-label="Limpiar búsqueda"
+            class="text-text-dim hover:text-text-main p-0.5 cursor-pointer"
+            @click="searchQuery = ''"
+          />
+        </template>
+      </UInput>
 
       <!-- Chips de Filtro Rápido (Todas, Alta puntualidad, Con demoras) -->
       <div class="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Filtros de rutas conectadas">
@@ -269,14 +266,14 @@ function getAriaLabel(route: FlightRoute, dest: ReturnType<typeof getConnectedDe
       <p class="text-[11px] text-text-muted mb-2.5 max-w-[220px]">
         No encontramos conexiones que coincidan con la búsqueda o filtro activo.
       </p>
-      <button
-        type="button"
-        class="text-[11px] font-mono font-medium text-primary hover:underline inline-flex items-center gap-1 cursor-pointer focus-visible:outline-none"
+      <UButton
+        icon="i-lucide-rotate-ccw"
+        variant="link"
+        size="xs"
+        label="Restablecer filtros"
+        class="text-[11px] font-mono font-medium text-primary hover:underline p-0 cursor-pointer"
         @click="resetFilters"
-      >
-        <UIcon name="i-lucide-rotate-ccw" class="w-3 h-3" />
-        <span>Restablecer filtros</span>
-      </button>
+      />
     </div>
   </div>
 </template>

@@ -91,34 +91,34 @@ const filterTabs = computed(() => [
           />
         </div>
 
-        <!-- Conmutador de Vista (Lista / Tabla ⇄ Tarjetas) -->
+        <!-- Conmutador de Vista (Lista / Tabla ⇄ Tarjetas) con UButton -->
         <div
-          class="flex items-center border border-border-subtle rounded-lg p-0.5 bg-surface-accent/60 shrink-0 text-text-muted"
+          class="flex items-center border border-border-subtle rounded-lg p-0.5 bg-surface-accent/60 shrink-0 gap-0.5"
           role="group"
           aria-label="Modo de visualización"
         >
           <UTooltip text="Vista en Lista / Tabla">
-            <button
-              type="button"
-              class="p-1.5 rounded-md cursor-pointer transition-colors"
-              :class="viewMode === 'table' ? 'bg-surface-card text-primary font-bold shadow-xs' : 'hover:text-text-main'"
+            <UButton
+              size="xs"
+              :variant="viewMode === 'table' ? 'solid' : 'ghost'"
+              :color="viewMode === 'table' ? 'primary' : 'neutral'"
+              icon="i-lucide-list"
               aria-label="Vista de lista / tabla"
+              class="cursor-pointer"
               @click="viewMode = 'table'"
-            >
-              <UIcon name="i-lucide-list" class="w-4 h-4" />
-            </button>
+            />
           </UTooltip>
 
           <UTooltip text="Vista en Tarjetas">
-            <button
-              type="button"
-              class="p-1.5 rounded-md cursor-pointer transition-colors"
-              :class="viewMode === 'cards' ? 'bg-surface-card text-primary font-bold shadow-xs' : 'hover:text-text-main'"
+            <UButton
+              size="xs"
+              :variant="viewMode === 'cards' ? 'solid' : 'ghost'"
+              :color="viewMode === 'cards' ? 'primary' : 'neutral'"
+              icon="i-lucide-layout-grid"
               aria-label="Vista de tarjetas"
+              class="cursor-pointer"
               @click="viewMode = 'cards'"
-            >
-              <UIcon name="i-lucide-layout-grid" class="w-4 h-4" />
-            </button>
+            />
           </UTooltip>
         </div>
       </div>

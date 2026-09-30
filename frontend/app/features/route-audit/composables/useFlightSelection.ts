@@ -1,30 +1,8 @@
+import { computed } from "vue";
 import { type Airport } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { type MapPickingInfo } from "~/types/map";
-import { SEED_ROUTES } from "~/data/seedData";
-
-// Índices Map precalculados a nivel de módulo para búsquedas O(1) ultra-rápidas
-const routeByIdMap = new Map<string, FlightRoute>();
-const routesByAirportMap = new Map<string, FlightRoute[]>();
-const outgoingRoutesMap = new Map<string, FlightRoute[]>();
-const incomingRoutesMap = new Map<string, FlightRoute[]>();
-
-for (const route of SEED_ROUTES) {
-  routeByIdMap.set(route.id, route);
-  routeByIdMap.set(`${route.originIata}-${route.destinationIata}`, route);
-
-  if (!routesByAirportMap.has(route.originIata)) routesByAirportMap.set(route.originIata, []);
-  routesByAirportMap.get(route.originIata)!.push(route);
-
-  if (!routesByAirportMap.has(route.destinationIata)) routesByAirportMap.set(route.destinationIata, []);
-  routesByAirportMap.get(route.destinationIata)!.push(route);
-
-  if (!outgoingRoutesMap.has(route.originIata)) outgoingRoutesMap.set(route.originIata, []);
-  outgoingRoutesMap.get(route.originIata)!.push(route);
-
-  if (!incomingRoutesMap.has(route.destinationIata)) incomingRoutesMap.set(route.destinationIata, []);
-  incomingRoutesMap.get(route.destinationIata)!.push(route);
-}
+import { findRouteBetween, queryMatchingRoutes } from "../utils/routeGraph";
 
 let hoverRafId: number | null = null;
 
@@ -36,10 +14,6 @@ export const useFlightSelection = () => {
     () => undefined,
   );
   const hoveredEntity = useState<MapPickingInfo>("flight_hovered", () => null);
-  const activeScenarioId = useState<string | undefined>(
-    "flight_scenario_id",
-    () => undefined,
-  );
   const mapFitTrigger = useState<number>("flight_map_fit_trigger", () => 0);
   const isMobileSearchOpen = useState<boolean>(
     "flight_mobile_search_open",
@@ -63,59 +37,15 @@ export const useFlightSelection = () => {
   });
 
   const selectedRouteData = computed<FlightRoute | null>(() => {
-    const orig = selectedOrigin.value;
-    const dest = selectedDestination.value;
-    if (!orig || !dest) return null;
-    return (
-      routeByIdMap.get(`${orig}-${dest}`) ??
-      routeByIdMap.get(`${dest}-${orig}`) ??
-      null
-    );
+    return findRouteBetween(selectedOrigin.value, selectedDestination.value);
   });
 
   /**
    * Rutas coincidentes con el input actual:
-   * - Si se selecciona solo origen/destino: devuelve todas las rutas del Hub en O(1).
-   * - Si se seleccionan ambos: devuelve directa + conexiones de 1 escala.
-   * - Si no hay selección: devuelve la totalidad de rutas.
+   * Delegado al módulo de grafo O(1) routeGraph.ts (SRP).
    */
   const matchingRoutes = computed<FlightRoute[]>(() => {
-    const orig = selectedOrigin.value;
-    const dest = selectedDestination.value;
-
-    if (orig && dest) {
-      const directRoute =
-        routeByIdMap.get(`${orig}-${dest}`) ??
-        routeByIdMap.get(`${dest}-${orig}`);
-      const direct = directRoute ? [directRoute] : [];
-
-      const outgoing = outgoingRoutesMap.get(orig) ?? [];
-      const incoming = incomingRoutesMap.get(dest) ?? [];
-      const incomingByOrigin = new Map<string, FlightRoute>();
-      for (const inLeg of incoming) {
-        incomingByOrigin.set(inLeg.originIata, inLeg);
-      }
-
-      const connecting: FlightRoute[] = [];
-      for (const leg1 of outgoing) {
-        const leg2 = incomingByOrigin.get(leg1.destinationIata);
-        if (leg2 && !direct.some((d) => d.id === leg1.id || d.id === leg2.id)) {
-          connecting.push(leg1, leg2);
-        }
-      }
-
-      return [...direct, ...connecting];
-    }
-
-    if (orig) {
-      return routesByAirportMap.get(orig) ?? [];
-    }
-
-    if (dest) {
-      return routesByAirportMap.get(dest) ?? [];
-    }
-
-    return SEED_ROUTES;
+    return queryMatchingRoutes(selectedOrigin.value, selectedDestination.value);
   });
 
   // Set de IDs para resolución instantánea O(1)
@@ -158,7 +88,6 @@ export const useFlightSelection = () => {
     }
 
     selectedOrigin.value = iata;
-    activeScenarioId.value = undefined;
   }
 
   /**
@@ -183,7 +112,6 @@ export const useFlightSelection = () => {
     }
 
     selectedDestination.value = iata;
-    activeScenarioId.value = undefined;
   }
 
   /**
@@ -193,25 +121,10 @@ export const useFlightSelection = () => {
     if (originIata && destIata && originIata === destIata) {
       selectedOrigin.value = originIata;
       selectedDestination.value = undefined;
-      activeScenarioId.value = undefined;
       return;
     }
     selectedOrigin.value = originIata ?? undefined;
     selectedDestination.value = destIata ?? undefined;
-    activeScenarioId.value = undefined;
-  }
-
-  /**
-   * Aplica un escenario preconfigurado de prueba
-   */
-  function applyScenario(scenario: {
-    id?: string;
-    originIata?: string | null;
-    destinationIata?: string | null;
-  }): void {
-    activeScenarioId.value = scenario.id ?? undefined;
-    selectedOrigin.value = scenario.originIata ?? undefined;
-    selectedDestination.value = scenario.destinationIata ?? undefined;
   }
 
   /**
@@ -229,7 +142,6 @@ export const useFlightSelection = () => {
   function clearSelection(): void {
     selectedOrigin.value = undefined;
     selectedDestination.value = undefined;
-    activeScenarioId.value = undefined;
   }
 
   /**
@@ -283,7 +195,6 @@ export const useFlightSelection = () => {
     selectedDestination,
     hoveredEntity,
     activeRouteId,
-    activeScenarioId,
     hasActiveRoute,
     hasAnySelection,
     selectedRouteData,
@@ -297,7 +208,6 @@ export const useFlightSelection = () => {
     setOrigin,
     setDestination,
     setRoute,
-    applyScenario,
     swapAirports,
     clearSelection,
     setHoveredEntity,

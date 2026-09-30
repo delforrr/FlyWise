@@ -24,6 +24,15 @@ const uniqueFields = computed<string[]>(() => {
   return Array.from(fields);
 });
 
+const fieldOptions = computed(() => {
+  const total = props.pipeline?.discardedSamples.length ?? 0;
+  const options = [{ label: `Todos los campos (${total})`, value: 'all' }];
+  for (const f of uniqueFields.value) {
+    options.push({ label: f, value: f });
+  }
+  return options;
+});
+
 const filteredSamples = computed(() => {
   if (!props.pipeline?.discardedSamples) return [];
   if (fieldFilter.value === 'all') return props.pipeline.discardedSamples;
@@ -93,15 +102,12 @@ function exportDiscardedCsv() {
 
           <div class="flex items-center gap-2 font-mono">
             <span class="text-text-dim text-[11px]">Filtrar campo:</span>
-            <select
+            <USelect
               v-model="fieldFilter"
-              class="text-[11px] font-mono px-2 py-0.5 rounded border border-border-subtle bg-surface-card text-text-main focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-            >
-              <option value="all">Todos los campos ({{ pipeline.discardedSamples.length }})</option>
-              <option v-for="f in uniqueFields" :key="f" :value="f">
-                {{ f }}
-              </option>
-            </select>
+              :items="fieldOptions"
+              size="xs"
+              class="w-52 font-mono text-[11px]"
+            />
           </div>
         </div>
 
@@ -154,26 +160,24 @@ function exportDiscardedCsv() {
               {{ record.reason }}
             </p>
 
-            <!-- Datos crudos recibidos con botón de copia rápida -->
+            <!-- Datos crudos recibidos con botón de copia rápida UButton -->
             <div class="relative group">
               <div
-                class="p-2.5 rounded-lg bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim break-all pr-16"
+                class="p-2.5 rounded-lg bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim break-all pr-20"
               >
                 {{ record.rawSample }}
               </div>
-              <button
-                type="button"
-                class="absolute top-2 right-2 px-2 py-0.5 rounded bg-surface-card border border-border-subtle text-[10px] font-mono text-text-muted hover:text-text-main transition-colors inline-flex items-center gap-1 cursor-pointer"
+              <UButton
+                size="xs"
+                variant="subtle"
+                color="neutral"
+                :icon="copiedRecordId === record.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                :label="copiedRecordId === record.id ? 'Copiado' : 'Copiar'"
+                class="absolute top-2 right-2 text-[10px] font-mono cursor-pointer"
+                :class="{ 'text-emerald-500': copiedRecordId === record.id }"
                 title="Copiar datos crudos"
                 @click="copyRawSample(record.id, record.rawSample)"
-              >
-                <UIcon
-                  :name="copiedRecordId === record.id ? 'i-lucide-check' : 'i-lucide-copy'"
-                  class="w-3 h-3"
-                  :class="{ 'text-emerald-500': copiedRecordId === record.id }"
-                />
-                <span>{{ copiedRecordId === record.id ? 'Copiado' : 'Copiar' }}</span>
-              </button>
+              />
             </div>
           </div>
         </div>

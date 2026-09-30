@@ -1,46 +1,14 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
-
 /**
  * Estado reactivo compartido para el modal de atajos de cabina.
  * Compartido con useCockpitShortcuts() y activable mediante tecla '?' o botón HUD.
  */
 const isOpen = useState<boolean>('cockpit_shortcuts_modal', () => false);
 
-/**
- * Listener de teclado local para alternar o cerrar el modal con '?' cuando está activo,
- * respetando el aislamiento de campos de texto interactivos.
- */
-function handleKeyDown(e: KeyboardEvent): void {
-  if (!isOpen.value) return;
-
-  const target = e.target as HTMLElement | null;
-  if (
-    target &&
-    (target.tagName === 'INPUT' ||
-      target.tagName === 'TEXTAREA' ||
-      target.isContentEditable ||
-      Boolean(target.closest('[role="combobox"]')))
-  ) {
-    return;
-  }
-
-  if (e.key === '?' || (e.shiftKey && e.key === '/')) {
-    e.preventDefault();
-    isOpen.value = false;
-  }
-}
-
-onMounted(() => {
-  if (typeof window !== 'undefined') {
-    window.addEventListener('keydown', handleKeyDown);
-  }
-});
-
-onUnmounted(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('keydown', handleKeyDown);
-  }
+defineShortcuts({
+  '?': () => {
+    isOpen.value = !isOpen.value;
+  },
 });
 </script>
 
@@ -51,6 +19,7 @@ onUnmounted(() => {
     description="Atajos de teclado tácticos para control de mapa y navegación"
     close-icon="i-lucide-x"
     :ui="{
+      overlay: 'bg-black/60 backdrop-blur-sm',
       content:
         'sm:max-w-2xl bg-surface-card/95 dark:bg-surface-base/95 backdrop-blur-2xl border border-border-subtle border-t-white/35 dark:border-t-white/15 rounded-2xl shadow-2xl p-0 overflow-hidden divide-y divide-border-subtle/60',
       header:
@@ -139,7 +108,7 @@ onUnmounted(() => {
                 size="md"
                 class="font-mono font-bold text-xs shadow-xs px-2.5 py-0.5 shrink-0 tabular-nums border border-border-subtle/80"
               >
-                3
+                M
               </UKbd>
             </div>
 

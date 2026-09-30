@@ -16,7 +16,7 @@ export interface AirportOption {
 export interface AirportSelectInputProps {
   /**
    * Modo visual y de densidad del selector:
-   * - 'hud': Compacto para la barra de navegación / HudPill (muestra solo el código IATA al seleccionar).
+   * - 'hud': Compacto para la barra de navegación / HudContainer (pill) (muestra solo el código IATA al seleccionar).
    * - 'hero': Estilo transparente sin bordes para embeber dentro de InputCard en la landing.
    * - 'drawer': Estilo táctil amplio para modales y drawer móvil.
    * @default 'hud'

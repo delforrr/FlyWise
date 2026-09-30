@@ -36,8 +36,9 @@ function handleSearch() {
 </script>
 
 <template>
-  <HudPill
-    class="w-full max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl gap-1 sm:gap-2 flex-nowrap items-center px-2 sm:px-3 py-1.5 min-w-0"
+  <HudContainer
+    variant="pill"
+    class="flex items-center w-full max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl gap-1 sm:gap-2 flex-nowrap px-2 sm:px-3 py-1.5 min-w-0"
   >
     <!-- Selector Origen -->
     <AirportSelectInput
@@ -128,5 +129,5 @@ function handleSearch() {
       aria-label="Restablecer filtros"
       @click="clearSelection"
     />
-  </HudPill>
+  </HudContainer>
 </template>

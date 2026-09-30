@@ -190,24 +190,20 @@ function handleSearch() {
               Hubs Populares
             </span>
             <div class="flex flex-wrap gap-1.5">
-              <button
+              <UButton
                 v-for="hub in quickHubs"
                 :key="hub.iata"
-                type="button"
-                class="px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all border"
-                :class="[
-                  selectedOrigin === hub.iata ||
-                  selectedDestination === hub.iata
-                    ? 'bg-primary text-inverted border-primary shadow-sm'
-                    : 'bg-surface-base text-text-muted hover:text-text-main border-border-subtle hover:border-primary/40',
-                ]"
+                size="xs"
+                :variant="selectedOrigin === hub.iata || selectedDestination === hub.iata ? 'solid' : 'outline'"
+                :color="selectedOrigin === hub.iata || selectedDestination === hub.iata ? 'primary' : 'neutral'"
+                class="font-mono text-xs font-semibold rounded-lg cursor-pointer"
                 @click="handleSelectHub(hub.iata)"
               >
                 {{ hub.iata }}
                 <span class="text-[10px] font-sans opacity-70 font-normal">
                   {{ hub.city }}
                 </span>
-              </button>
+              </UButton>
             </div>
           </div>
 

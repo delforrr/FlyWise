@@ -4,6 +4,5 @@
  * organizados modularmente en carpetas descriptivas.
  */
 
-export * from "./mock/scenarios";
 export * from "./mock/airports";
 export * from "./mock/routes";

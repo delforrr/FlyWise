@@ -189,7 +189,7 @@ const groups = computed<PaletteGroup[]>(() => [
         label: 'Alternar perspectiva 2D / 3D',
         description: 'Cambiar inclinación y ángulo visual del mapa de navegación',
         icon: 'i-lucide-box',
-        kbds: ['3'],
+        kbds: ['M'],
         onSelect: () => handleToggle3D(),
       },
       {
@@ -289,19 +289,10 @@ const groups = computed<PaletteGroup[]>(() => [
 // -------------------------------------------------------------
 // Listener Global de Atajo (Ctrl+K / Cmd+K)
 // -------------------------------------------------------------
-function handleGlobalKeydown(e: KeyboardEvent) {
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
+defineShortcuts({
+  meta_k: () => {
     isPaletteOpen.value = !isPaletteOpen.value;
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleGlobalKeydown);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleGlobalKeydown);
+  },
 });
 
 function handlePaletteSelect(item: unknown) {
@@ -317,9 +308,9 @@ function handlePaletteSelect(item: unknown) {
     title="Paleta de Comandos de Cabina"
     description="Acceso rápido a aeropuertos, controles de mapa y navegación de vuelo"
     :ui="{
-      overlay: 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50',
+      overlay: 'bg-black/60 backdrop-blur-sm',
       content:
-        'relative top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-xl sm:max-w-2xl bg-surface-card/95 dark:bg-surface-base/95 backdrop-blur-2xl border border-border-subtle shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden ring-1 ring-white/10 z-50 focus:outline-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-primary/50 before:to-transparent',
+        'sm:max-w-2xl bg-surface-card/95 dark:bg-surface-base/95 backdrop-blur-2xl border border-border-subtle border-t-white/35 dark:border-t-white/15 rounded-2xl shadow-2xl p-0 overflow-hidden ring-1 ring-white/10',
     }"
   >
     <template #content>

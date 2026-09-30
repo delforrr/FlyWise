@@ -20,6 +20,14 @@ const copiedId = ref<string | null>(null);
 const expandedLogs = ref<Record<string, boolean>>({});
 const logContainerRef = ref<HTMLElement | null>(null);
 
+const sourceOptions = [
+  { label: 'Todas las fuentes', value: 'all' },
+  { label: 'OurAirports', value: 'ourairports' },
+  { label: 'OpenFlights', value: 'openflights' },
+  { label: 'BTS TranStats', value: 'bts-transtats' },
+  { label: 'ANAC Argentina', value: 'anac-arg' },
+];
+
 function toggleExpand(id: string) {
   expandedLogs.value[id] = !expandedLogs.value[id];
 }
@@ -106,24 +114,23 @@ watch(
         </div>
 
         <div class="flex items-center gap-2 self-start sm:self-auto font-mono text-xs">
-          <!-- Conmutador Autoscroll / Pin-to-live -->
-          <button
-            type="button"
-            class="px-2 py-1 rounded-md border text-[11px] font-semibold cursor-pointer inline-flex items-center gap-1.5 transition-colors"
-            :class="
-              isAutoScroll
-                ? 'bg-surface-card border-primary/50 text-primary shadow-xs'
-                : 'border-border-subtle text-text-dim hover:text-text-muted'
-            "
+          <!-- Conmutador Autoscroll / Pin-to-live migrado a UButton -->
+          <UButton
+            size="xs"
+            :variant="isAutoScroll ? 'subtle' : 'outline'"
+            :color="isAutoScroll ? 'primary' : 'neutral'"
+            class="text-[11px] font-semibold cursor-pointer"
             title="Mantener la vista enfocada en el flujo más reciente"
             @click="isAutoScroll = !isAutoScroll"
           >
-            <span
-              class="w-1.5 h-1.5 rounded-full"
-              :class="isAutoScroll ? 'bg-primary animate-pulse' : 'bg-neutral-400'"
-            />
-            <span>Autoscroll</span>
-          </button>
+            <template #leading>
+              <span
+                class="w-1.5 h-1.5 rounded-full"
+                :class="isAutoScroll ? 'bg-primary animate-pulse' : 'bg-neutral-400'"
+              />
+            </template>
+            Autoscroll
+          </UButton>
 
           <!-- Exportar JSON -->
           <UButton
@@ -196,17 +203,13 @@ watch(
             </button>
           </div>
 
-          <!-- Selector de Fuente de Datos -->
-          <select
+          <!-- Selector de Fuente de Datos Nuxt UI -->
+          <USelect
             v-model="selectedSource"
-            class="text-[11px] font-mono px-2 py-1 rounded-lg border border-border-subtle bg-surface-card text-text-main focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-          >
-            <option value="all">Todas las fuentes</option>
-            <option value="ourairports">OurAirports</option>
-            <option value="openflights">OpenFlights</option>
-            <option value="bts-transtats">BTS TranStats</option>
-            <option value="anac-arg">ANAC Argentina</option>
-          </select>
+            :items="sourceOptions"
+            size="xs"
+            class="w-44 font-mono text-[11px]"
+          />
         </div>
 
         <!-- Buscador de Texto en Logs -->
@@ -279,36 +282,33 @@ watch(
               {{ log.message }}
             </p>
 
-            <!-- Detalle técnico colapsable con botón de copia 1-clic -->
+            <!-- Detalle técnico colapsable con UButton -->
             <UCollapsible v-if="log.detail" v-model:open="expandedLogs[log.id]" class="mt-1.5">
               <template #default="{ open }">
                 <div class="flex items-center gap-3">
-                  <button
-                    type="button"
-                    class="text-[11px] text-primary hover:underline font-mono inline-flex items-center gap-1 cursor-pointer"
+                  <UButton
+                    variant="link"
+                    color="primary"
+                    size="xs"
+                    :icon="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                    trailing
+                    :label="open ? 'Ocultar detalle técnico' : 'Ver detalle técnico'"
+                    class="p-0 font-mono text-[11px] cursor-pointer"
                     @click="toggleExpand(log.id)"
-                  >
-                    <span>{{ open ? 'Ocultar detalle técnico' : 'Ver detalle técnico' }}</span>
-                    <UIcon
-                      :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                      class="w-3 h-3"
-                    />
-                  </button>
+                  />
 
-                  <button
+                  <UButton
                     v-if="open"
-                    type="button"
-                    class="text-[11px] text-text-muted hover:text-text-main font-mono inline-flex items-center gap-1 cursor-pointer transition-colors"
+                    variant="ghost"
+                    color="neutral"
+                    size="xs"
+                    :icon="copiedId === log.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                    :label="copiedId === log.id ? 'Copiado!' : 'Copiar'"
+                    class="text-[11px] font-mono cursor-pointer p-1"
+                    :class="{ 'text-emerald-500': copiedId === log.id }"
                     title="Copiar payload técnico al portapapeles"
                     @click="copyLogDetail(log.id, log.detail)"
-                  >
-                    <UIcon
-                      :name="copiedId === log.id ? 'i-lucide-check' : 'i-lucide-copy'"
-                      class="w-3 h-3"
-                      :class="{ 'text-emerald-500': copiedId === log.id }"
-                    />
-                    <span>{{ copiedId === log.id ? 'Copiado!' : 'Copiar' }}</span>
-                  </button>
+                  />
                 </div>
               </template>
 
