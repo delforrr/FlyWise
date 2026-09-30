@@ -1,0 +1,66 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Frontend: Nuxt + Firefox",
+      "type": "firefox",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend",
+      "preLaunchTask": "npm: dev (frontend)",
+      "reAttach": true,
+      "pathMappings": [
+        { 
+          "url": "webpack:///",
+          "path": "${workspaceFolder}/frontend/"
+        },
+        {
+          "url": "vite:///",
+          "path": "${workspaceFolder}/frontend/"
+        }
+      ]
+    },
+    {
+      "name": "Backend: NestJS (Debug)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run start:debug",
+      "cwd": "${workspaceFolder}/backend"
+    },
+    {
+      "name": "Attach to NestJS",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "sourceMaps": true,
+      "cwd": "${workspaceFolder}/backend"
+    },
+    {
+      "name": "Attach to Firefox",
+      "type": "firefox",
+      "request": "attach",
+      "port": 6000,
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend",
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack (NestJS + Nuxt + Firefox)",
+      "configurations": [
+        "Backend: NestJS (Debug)",
+        "Frontend: Nuxt + Firefox"
+      ],
+      "stopAll": true
+    },
+    {
+      "name": "Full Stack (Attach All)",
+      "configurations": [
+        "Attach to NestJS",
+        "Attach to Firefox"
+      ],
+      "stopAll": false
+    }
+  ]
+}

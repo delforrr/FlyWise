@@ -1,0 +1,45 @@
+/* ==========================================
+   REGLAS BASE Y RESET GLOBAL
+   Responsabilidad: Estilos fundamentales de la página,
+   cuerpo del documento y selección de texto.
+   ========================================== */
+
+html,
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  min-height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#__nuxt {
+  min-height: 100%;
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  color: var(--color-tertiary);
+}
+
+/* Alineación tabular en fuentes numéricas y telemetría */
+.font-mono,
+[class*="font-mono"],
+table,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+

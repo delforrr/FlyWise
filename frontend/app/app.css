@@ -1,0 +1,18 @@
+/* 1. Tipografía y Fuentes Externas */
+@import "./assets/css/fonts.css";
+
+/* 2. Frameworks Base */
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* 3. Tokens de Color y Variables (:root / .dark) */
+@import "./assets/css/variables.css";
+
+/* 4. Configuración del Tema Tailwind CSS v4 (@theme) */
+@import "./assets/css/theme.css";
+
+/* 5. Reglas Base del Documento */
+@import "./assets/css/base.css";
+
+/* 6. Sistema de Diseño HUD y Componentes Visuales */
+@import "./assets/css/hud.css";
