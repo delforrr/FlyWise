@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useEtlMonitoring } from '~/features/etl-monitoring/composables/useEtlMonitoring';
+import { useEtlMonitoring } from "~/features/etl-monitoring/composables/useEtlMonitoring";
 
 const {
   globalMetrics,
@@ -32,45 +32,31 @@ const {
             </span>
           </NuxtLink>
           <USeparator orientation="vertical" class="h-4" />
-          <UBadge color="primary" variant="subtle" size="sm" class="font-mono text-xs font-semibold">
+          <UBadge
+            color="primary"
+            variant="subtle"
+            size="sm"
+            class="font-mono text-xs font-semibold"
+          >
             Consola ETL
           </UBadge>
-
-          <!-- Heartbeat BullMQ / Redis en Vivo -->
-          <div
-            class="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface-accent/70 border border-border-subtle/80 text-[11px] font-mono text-text-muted"
-            title="Conexión en tiempo real con Redis y procesadores BullMQ"
-          >
-            <span class="relative flex h-2 w-2">
-              <span
-                class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
-                :class="globalMetrics.systemHealth === 'attention_needed' ? 'bg-rose-400' : 'bg-emerald-400'"
-              />
-              <span
-                class="relative inline-flex rounded-full h-2 w-2"
-                :class="globalMetrics.systemHealth === 'attention_needed' ? 'bg-rose-500' : 'bg-emerald-500'"
-              />
-            </span>
-            <span class="font-medium text-text-main">BullMQ Pool</span>
-            <span class="text-text-dim">·</span>
-            <span class="font-mono tabular-nums font-semibold" :class="simulatedLatencyMs > 25 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'">
-              {{ simulatedLatencyMs }}ms
-            </span>
-          </div>
         </div>
 
         <!-- Navegación y Controles de Cabecera -->
         <div class="flex items-center gap-2.5 sm:gap-3">
           <!-- Selector de Cadencia de Auto-refresco -->
-          <div
+          <fieldset
             class="hidden sm:flex items-center gap-0.5 border border-border-subtle rounded-lg p-0.5 bg-surface-accent/50 text-[11px] font-mono"
-            role="group"
             aria-label="Frecuencia de actualización en vivo"
           >
             <button
               type="button"
               class="px-2 py-0.5 rounded cursor-pointer transition-colors"
-              :class="refreshInterval === 5000 ? 'bg-surface-card text-text-main font-bold shadow-xs' : 'text-text-muted hover:text-text-main'"
+              :class="
+                refreshInterval === 5000
+                  ? 'bg-surface-card text-text-main font-bold shadow-xs'
+                  : 'text-text-muted hover:text-text-main'
+              "
               title="Actualización continua cada 5 segundos"
               @click="setRefreshInterval(5000)"
             >
@@ -79,7 +65,11 @@ const {
             <button
               type="button"
               class="px-2 py-0.5 rounded cursor-pointer transition-colors"
-              :class="refreshInterval === 15000 ? 'bg-surface-card text-text-main font-bold shadow-xs' : 'text-text-muted hover:text-text-main'"
+              :class="
+                refreshInterval === 15000
+                  ? 'bg-surface-card text-text-main font-bold shadow-xs'
+                  : 'text-text-muted hover:text-text-main'
+              "
               title="Actualización cada 15 segundos"
               @click="setRefreshInterval(15000)"
             >
@@ -88,7 +78,11 @@ const {
             <button
               type="button"
               class="px-2 py-0.5 rounded cursor-pointer transition-colors"
-              :class="refreshInterval === 0 ? 'bg-surface-card text-amber-600 dark:text-amber-400 font-bold shadow-xs' : 'text-text-muted hover:text-text-main'"
+              :class="
+                refreshInterval === 0
+                  ? 'bg-surface-card text-amber-600 dark:text-amber-400 font-bold shadow-xs'
+                  : 'text-text-muted hover:text-text-main'
+              "
               title="Congelar actualización automática para auditar incidencias"
               @click="setRefreshInterval(0)"
             >
@@ -110,7 +104,7 @@ const {
                 />
               </UButton>
             </UTooltip>
-          </div>
+          </fieldset>
 
           <!-- Acceso al Explorador Público -->
           <UButton
@@ -132,7 +126,9 @@ const {
           <!-- Identificador de Operador -->
           <div class="flex items-center gap-2">
             <UAvatar text="OP" size="xs" class="font-mono text-xs font-bold" />
-            <span class="hidden lg:inline text-xs font-semibold text-text-main font-mono">
+            <span
+              class="hidden lg:inline text-xs font-semibold text-text-main font-mono"
+            >
               Operador ETL
             </span>
           </div>

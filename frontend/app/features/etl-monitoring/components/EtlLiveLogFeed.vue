@@ -28,10 +28,6 @@ const sourceOptions = [
   { label: "ANAC Argentina", value: "anac-arg" },
 ];
 
-function toggleExpand(id: string) {
-  expandedLogs.value[id] = !expandedLogs.value[id];
-}
-
 async function copyLogDetail(id: string, text: string) {
   if (typeof navigator !== "undefined" && navigator.clipboard) {
     await navigator.clipboard.writeText(text);
@@ -318,44 +314,41 @@ watch(
               class="mt-1.5"
             >
               <template #default="{ open }">
-                <div class="flex items-center gap-3">
-                  <UButton
-                    variant="link"
-                    color="primary"
-                    size="xs"
-                    :icon="
-                      open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
-                    "
-                    trailing
-                    :label="
-                      open ? 'Ocultar detalle técnico' : 'Ver detalle técnico'
-                    "
-                    class="p-0 font-mono text-[11px] cursor-pointer"
-                    @click="toggleExpand(log.id)"
-                  />
+                <UButton
+                  variant="link"
+                  color="primary"
+                  size="xs"
+                  :icon="
+                    open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
+                  "
+                  trailing
+                  :label="
+                    open ? 'Ocultar detalle técnico' : 'Ver detalle técnico'
+                  "
+                  class="p-0 font-mono text-[11px] cursor-pointer"
+                />
+              </template>
 
+              <template #content>
+                <div class="relative group mt-1.5">
+                  <div
+                    class="p-2.5 rounded-lg bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim whitespace-pre-wrap break-all leading-relaxed shadow-inner pr-20"
+                  >
+                    {{ log.detail }}
+                  </div>
                   <UButton
-                    v-if="open"
-                    variant="ghost"
-                    color="neutral"
                     size="xs"
+                    variant="subtle"
+                    color="neutral"
                     :icon="
                       copiedId === log.id ? 'i-lucide-check' : 'i-lucide-copy'
                     "
                     :label="copiedId === log.id ? 'Copiado!' : 'Copiar'"
-                    class="text-[11px] font-mono cursor-pointer p-1"
+                    class="absolute top-2 right-2 text-[10px] font-mono cursor-pointer"
                     :class="{ 'text-emerald-500': copiedId === log.id }"
                     title="Copiar payload técnico al portapapeles"
                     @click="copyLogDetail(log.id, log.detail)"
                   />
-                </div>
-              </template>
-
-              <template #content>
-                <div
-                  class="mt-1 p-2.5 rounded-lg bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim whitespace-pre-wrap break-all leading-relaxed shadow-inner"
-                >
-                  {{ log.detail }}
                 </div>
               </template>
             </UCollapsible>
