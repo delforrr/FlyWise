@@ -18,16 +18,6 @@ const props = withDefaults(defineProps<Props>(), {
     ]"
   >
     <div class="relative z-10 flex flex-col gap-4 sm:gap-6">
-      <!-- Eyebrow Tag -->
-      <div class="flex items-center gap-2">
-        <span
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold tracking-wider uppercase text-primary bg-primary/10 border border-primary/25 shadow-2xs"
-        >
-          <span class="size-1.5 rounded-full bg-primary animate-pulse" />
-          v1.0
-        </span>
-      </div>
-
       <!-- Título -->
       <div class="flex flex-col gap-2 mb-10 lg:mb-5">
         <h1

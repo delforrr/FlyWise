@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const isPaletteOpen = useState('cockpit_command_palette_open', () => false);
-const searchTerm = ref('');
+const isPaletteOpen = useState("cockpit_command_palette_open", () => false);
+const searchTerm = ref("");
 
 const route = useRoute();
 const colorMode = useColorMode();
@@ -30,49 +30,49 @@ interface PaletteGroup {
 // -------------------------------------------------------------
 async function selectAirport(iata: string) {
   isPaletteOpen.value = false;
-  searchTerm.value = '';
+  searchTerm.value = "";
   flightSelection.setOrigin(iata);
-  if (route.path !== '/explorar') {
-    await navigateTo('/explorar');
+  if (route.path !== "/explorar") {
+    await navigateTo("/explorar");
   }
 }
 
 async function handleToggle3D() {
   isPaletteOpen.value = false;
-  searchTerm.value = '';
-  if (route.path !== '/explorar') {
-    await navigateTo('/explorar');
+  searchTerm.value = "";
+  if (route.path !== "/explorar") {
+    await navigateTo("/explorar");
   }
   flightMap.toggle3D();
 }
 
 async function handleResetNorth() {
   isPaletteOpen.value = false;
-  searchTerm.value = '';
-  if (route.path !== '/explorar') {
-    await navigateTo('/explorar');
+  searchTerm.value = "";
+  if (route.path !== "/explorar") {
+    await navigateTo("/explorar");
   }
   flightMap.resetNorth();
 }
 
 async function handleFitRoute() {
   isPaletteOpen.value = false;
-  searchTerm.value = '';
-  if (route.path !== '/explorar') {
-    await navigateTo('/explorar');
+  searchTerm.value = "";
+  if (route.path !== "/explorar") {
+    await navigateTo("/explorar");
   }
   flightSelection.triggerFit();
 }
 
 function handleClearSelection() {
   isPaletteOpen.value = false;
-  searchTerm.value = '';
+  searchTerm.value = "";
   flightSelection.clearSelection();
 }
 
 async function handleNavigate(path: string) {
   isPaletteOpen.value = false;
-  searchTerm.value = '';
+  searchTerm.value = "";
   if (route.path !== path) {
     await navigateTo(path);
   }
@@ -80,14 +80,14 @@ async function handleNavigate(path: string) {
 
 function handleToggleTheme() {
   isPaletteOpen.value = false;
-  searchTerm.value = '';
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark';
+  searchTerm.value = "";
+  colorMode.preference = colorMode.value === "dark" ? "light" : "dark";
 }
 
 function handleOpenShortcuts() {
   isPaletteOpen.value = false;
-  searchTerm.value = '';
-  useState('cockpit_shortcuts_modal', () => false).value = true;
+  searchTerm.value = "";
+  useState("cockpit_shortcuts_modal", () => false).value = true;
 }
 
 // -------------------------------------------------------------
@@ -95,191 +95,196 @@ function handleOpenShortcuts() {
 // -------------------------------------------------------------
 const groups = computed<PaletteGroup[]>(() => [
   {
-    id: 'airports',
-    label: '🛫 Aeropuertos Populares & Hubs',
+    id: "airports",
+    label: "🛫 Aeropuertos Populares & Hubs",
     items: [
       {
-        id: 'airport-eze',
-        label: 'EZE — Buenos Aires (Ezeiza)',
-        description: 'Aeropuerto Internacional Ministro Pistarini, Argentina',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Cono Sur',
-        onSelect: () => selectAirport('EZE'),
+        id: "airport-eze",
+        label: "EZE — Buenos Aires (Ezeiza)",
+        description: "Aeropuerto Internacional Ministro Pistarini, Argentina",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Cono Sur",
+        onSelect: () => selectAirport("EZE"),
       },
       {
-        id: 'airport-mad',
-        label: 'MAD — Madrid (Barajas)',
-        description: 'Aeropuerto Adolfo Suárez Madrid-Barajas, España',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Europa',
-        onSelect: () => selectAirport('MAD'),
+        id: "airport-mad",
+        label: "MAD — Madrid (Barajas)",
+        description: "Aeropuerto Adolfo Suárez Madrid-Barajas, España",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Europa",
+        onSelect: () => selectAirport("MAD"),
       },
       {
-        id: 'airport-mia',
-        label: 'MIA — Miami International',
-        description: 'Miami International Airport, Estados Unidos',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Norte',
-        onSelect: () => selectAirport('MIA'),
+        id: "airport-mia",
+        label: "MIA — Miami International",
+        description: "Miami International Airport, Estados Unidos",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Norte",
+        onSelect: () => selectAirport("MIA"),
       },
       {
-        id: 'airport-jfk',
-        label: 'JFK — New York (JFK)',
-        description: 'John F. Kennedy International Airport, Estados Unidos',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Costa Este',
-        onSelect: () => selectAirport('JFK'),
+        id: "airport-jfk",
+        label: "JFK — New York (JFK)",
+        description: "John F. Kennedy International Airport, Estados Unidos",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Costa Este",
+        onSelect: () => selectAirport("JFK"),
       },
       {
-        id: 'airport-bog',
-        label: 'BOG — Bogotá (El Dorado)',
-        description: 'Aeropuerto Internacional El Dorado, Colombia',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Andino',
-        onSelect: () => selectAirport('BOG'),
+        id: "airport-bog",
+        label: "BOG — Bogotá (El Dorado)",
+        description: "Aeropuerto Internacional El Dorado, Colombia",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Andino",
+        onSelect: () => selectAirport("BOG"),
       },
       {
-        id: 'airport-gru',
-        label: 'GRU — São Paulo (Guarulhos)',
-        description: 'Aeroporto Internacional de São Paulo-Guarulhos, Brasil',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Sudamérica',
-        onSelect: () => selectAirport('GRU'),
+        id: "airport-gru",
+        label: "GRU — São Paulo (Guarulhos)",
+        description: "Aeroporto Internacional de São Paulo-Guarulhos, Brasil",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Sudamérica",
+        onSelect: () => selectAirport("GRU"),
       },
       {
-        id: 'airport-scl',
-        label: 'SCL — Santiago de Chile',
-        description: 'Aeropuerto Internacional Arturo Merino Benítez, Chile',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Pacífico',
-        onSelect: () => selectAirport('SCL'),
+        id: "airport-scl",
+        label: "SCL — Santiago de Chile",
+        description: "Aeropuerto Internacional Arturo Merino Benítez, Chile",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Pacífico",
+        onSelect: () => selectAirport("SCL"),
       },
       {
-        id: 'airport-cor',
-        label: 'COR — Córdoba (Pajas Blancas)',
-        description: 'Aeropuerto Internacional Ing. Ambrosio Taravella, Argentina',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Central',
-        onSelect: () => selectAirport('COR'),
+        id: "airport-cor",
+        label: "COR — Córdoba (Pajas Blancas)",
+        description:
+          "Aeropuerto Internacional Ing. Ambrosio Taravella, Argentina",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Central",
+        onSelect: () => selectAirport("COR"),
       },
       {
-        id: 'airport-lim',
-        label: 'LIM — Lima (Jorge Chávez)',
-        description: 'Aeropuerto Internacional Jorge Chávez, Perú',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Pacífico',
-        onSelect: () => selectAirport('LIM'),
+        id: "airport-lim",
+        label: "LIM — Lima (Jorge Chávez)",
+        description: "Aeropuerto Internacional Jorge Chávez, Perú",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Pacífico",
+        onSelect: () => selectAirport("LIM"),
       },
       {
-        id: 'airport-gig',
-        label: 'GIG — Río de Janeiro (Galeão)',
-        description: 'Aeroporto Internacional Antônio Carlos Jobim, Brasil',
-        icon: 'i-lucide-plane-takeoff',
-        suffix: 'Hub Atlántico',
-        onSelect: () => selectAirport('GIG'),
+        id: "airport-gig",
+        label: "GIG — Río de Janeiro (Galeão)",
+        description: "Aeroporto Internacional Antônio Carlos Jobim, Brasil",
+        icon: "i-lucide-plane-takeoff",
+        suffix: "Hub Atlántico",
+        onSelect: () => selectAirport("GIG"),
       },
     ],
   },
   {
-    id: 'map-actions',
-    label: '⚡ Acciones Rápidas de Mapa',
+    id: "map-actions",
+    label: "⚡ Acciones Rápidas de Mapa",
     items: [
       {
-        id: 'action-toggle-3d',
-        label: 'Alternar perspectiva 2D / 3D',
-        description: 'Cambiar inclinación y ángulo visual del mapa de navegación',
-        icon: 'i-lucide-box',
-        kbds: ['M'],
+        id: "action-toggle-3d",
+        label: "Alternar perspectiva 2D / 3D",
+        description:
+          "Cambiar inclinación y ángulo visual del mapa de navegación",
+        icon: "i-lucide-box",
+        kbds: ["M"],
         onSelect: () => handleToggle3D(),
       },
       {
-        id: 'action-reset-north',
-        label: 'Orientar mapa al Norte (0°)',
-        description: 'Restablecer orientación azimutal de navegación a 0°',
-        icon: 'i-lucide-compass',
-        kbds: ['N'],
+        id: "action-reset-north",
+        label: "Orientar mapa al Norte (0°)",
+        description: "Restablecer orientación azimutal de navegación a 0°",
+        icon: "i-lucide-compass",
+        kbds: ["N"],
         onSelect: () => handleResetNorth(),
       },
       {
-        id: 'action-fit-route',
-        label: 'Reencuadrar cámara a la ruta',
-        description: 'Ajustar la cámara a los puntos de vuelo y hubs seleccionados',
-        icon: 'i-lucide-focus',
-        kbds: ['F'],
+        id: "action-fit-route",
+        label: "Reencuadrar cámara a la ruta",
+        description:
+          "Ajustar la cámara a los puntos de vuelo y hubs seleccionados",
+        icon: "i-lucide-focus",
+        kbds: ["F"],
         onSelect: () => handleFitRoute(),
       },
       {
-        id: 'action-clear-selection',
-        label: 'Limpiar selección de ruta',
-        description: 'Deseleccionar origen, destino y reiniciar visualización global',
-        icon: 'i-lucide-rotate-ccw',
-        kbds: ['Esc'],
+        id: "action-clear-selection",
+        label: "Limpiar selección de ruta",
+        description:
+          "Deseleccionar origen, destino y reiniciar visualización global",
+        icon: "i-lucide-rotate-ccw",
+        kbds: ["Esc"],
         onSelect: () => handleClearSelection(),
       },
     ],
   },
   {
-    id: 'navigation',
-    label: '🧭 Navegación del Sistema',
+    id: "navigation",
+    label: "🧭 Navegación del Sistema",
     items: [
       {
-        id: 'nav-explorar',
-        label: 'Explorador de Rutas y Puntualidad',
-        description: 'Visualizador geoespacial interactivo y auditoría OTP-15',
-        icon: 'i-lucide-map',
-        suffix: '/explorar',
-        onSelect: () => handleNavigate('/explorar'),
+        id: "nav-explorar",
+        label: "Explorador de Rutas y Puntualidad",
+        description: "Visualizador geoespacial interactivo y auditoría OTP-15",
+        icon: "i-lucide-map",
+        suffix: "/explorar",
+        onSelect: () => handleNavigate("/explorar"),
       },
       {
-        id: 'nav-admin',
-        label: 'Consola de Monitoreo ETL',
-        description: 'Estado de pipelines, métricas de ingesta y auditoría de descartes',
-        icon: 'i-lucide-activity',
-        suffix: '/admin',
-        onSelect: () => handleNavigate('/admin'),
+        id: "nav-admin",
+        label: "Consola de Monitoreo ETL",
+        description:
+          "Estado de pipelines, métricas de ingesta y auditoría de descartes",
+        icon: "i-lucide-activity",
+        suffix: "/admin",
+        onSelect: () => handleNavigate("/admin"),
       },
       {
-        id: 'nav-login',
-        label: 'Iniciar Sesión Administrativa',
-        description: 'Panel de acceso y credenciales para operadores',
-        icon: 'i-lucide-lock',
-        suffix: '/login',
-        onSelect: () => handleNavigate('/login'),
+        id: "nav-login",
+        label: "Iniciar Sesión Administrativa",
+        description: "Panel de acceso y credenciales para operadores",
+        icon: "i-lucide-lock",
+        suffix: "/login",
+        onSelect: () => handleNavigate("/login"),
       },
       {
-        id: 'nav-home',
-        label: 'Inicio / Portada',
-        description: 'Pantalla principal del sistema FlyWise',
-        icon: 'i-lucide-home',
-        suffix: '/',
-        onSelect: () => handleNavigate('/'),
+        id: "nav-home",
+        label: "Inicio / Portada",
+        description: "Pantalla principal del sistema FlyWise",
+        icon: "i-lucide-home",
+        suffix: "/",
+        onSelect: () => handleNavigate("/"),
       },
     ],
   },
   {
-    id: 'cabin',
-    label: '🌓 Preferencia de Cabina',
+    id: "cabin",
+    label: "🌓 Preferencia de Cabina",
     items: [
       {
-        id: 'action-toggle-theme',
-        label: 'Alternar Modo Claro / Oscuro',
-        description: 'Cambiar el esquema de iluminación instrumental de cabina',
-        icon: 'i-lucide-sun-moon',
-        kbds: ['T'],
+        id: "action-toggle-theme",
+        label: "Alternar Modo Claro / Oscuro",
+        description: "Cambiar el esquema de iluminación instrumental de cabina",
+        icon: "i-lucide-sun-moon",
+        kbds: ["T"],
         onSelect: () => handleToggleTheme(),
       },
     ],
   },
   {
-    id: 'manual',
-    label: '❓ Manual de Cabina',
+    id: "manual",
+    label: "❓ Manual de Cabina",
     items: [
       {
-        id: 'action-shortcuts',
-        label: 'Ver atajos de teclado (?)',
-        description: 'Desplegar la guía de comandos y atajos operacionales',
-        icon: 'i-lucide-help-circle',
-        kbds: ['?'],
+        id: "action-shortcuts",
+        label: "Ver atajos de teclado (?)",
+        description: "Desplegar la guía de comandos y atajos operacionales",
+        icon: "i-lucide-help-circle",
+        kbds: ["?"],
         onSelect: () => handleOpenShortcuts(),
       },
     ],
@@ -296,9 +301,9 @@ defineShortcuts({
 });
 
 function handlePaletteSelect(item: unknown) {
-  if (!item || typeof item !== 'object') return;
+  if (!item || typeof item !== "object") return;
   isPaletteOpen.value = false;
-  searchTerm.value = '';
+  searchTerm.value = "";
 }
 </script>
 
@@ -328,12 +333,7 @@ function handlePaletteSelect(item: unknown) {
             <span
               class="font-mono text-xs font-bold text-text-main tracking-tight uppercase"
             >
-              Cockpit Command Center
-            </span>
-            <span
-              class="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-mono font-semibold uppercase tracking-wider"
-            >
-              Avionics
+              Atajos de Teclado
             </span>
           </div>
         </div>
@@ -352,7 +352,7 @@ function handlePaletteSelect(item: unknown) {
         </div>
       </div>
 
-      <!-- Paleta de Comandos Nuxt UI -->
+      <!-- Paleta de Comandos -->
       <UCommandPalette
         v-model:search-term="searchTerm"
         :groups="groups"
@@ -401,15 +401,6 @@ function handlePaletteSelect(item: unknown) {
                 <UKbd value="esc" size="sm" />
                 <span class="text-text-dim text-[10px]">Cerrar</span>
               </span>
-            </div>
-
-            <div
-              class="hidden sm:flex items-center gap-1.5 text-[10px] text-text-dim font-mono"
-            >
-              <span
-                class="size-1.5 rounded-full bg-emerald-500 animate-pulse"
-              />
-              <span>SISTEMA AVIONICS: ACTIVO</span>
             </div>
           </div>
         </template>

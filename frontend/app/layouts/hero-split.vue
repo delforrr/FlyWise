@@ -52,14 +52,6 @@ const navs: HudHeaderNav[] = [
         <div
           class="relative w-full lg:col-span-7 flex items-center justify-center"
         >
-          <!-- Radar HUD Lateral Asimétrico Sutil (~580px) -->
-          <div
-            class="hidden lg:flex absolute lg:-top-8 lg:-left-12 pointer-events-none z-0 items-center justify-center overflow-visible opacity-45 dark:opacity-35 transition-opacity duration-700 lg:w-145 lg:h-145"
-            aria-hidden="true"
-          >
-            <RadarBackground class="w-full h-full" />
-          </div>
-
           <AppHero class="w-full relative z-10" />
         </div>
 
