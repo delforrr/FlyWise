@@ -25,9 +25,6 @@ interface PaletteGroup {
   [key: string]: unknown;
 }
 
-// -------------------------------------------------------------
-// Acciones operativas de cabina
-// -------------------------------------------------------------
 async function selectAirport(iata: string) {
   isPaletteOpen.value = false;
   searchTerm.value = "";
@@ -90,9 +87,6 @@ function handleOpenShortcuts() {
   useState("cockpit_shortcuts_modal", () => false).value = true;
 }
 
-// -------------------------------------------------------------
-// Catálogo de Comandos Tácticos Categorizados
-// -------------------------------------------------------------
 const groups = computed<PaletteGroup[]>(() => [
   {
     id: "airports",
@@ -291,9 +285,6 @@ const groups = computed<PaletteGroup[]>(() => [
   },
 ]);
 
-// -------------------------------------------------------------
-// Listener Global de Atajo (Ctrl+K / Cmd+K)
-// -------------------------------------------------------------
 defineShortcuts({
   meta_k: () => {
     isPaletteOpen.value = !isPaletteOpen.value;
@@ -310,49 +301,31 @@ function handlePaletteSelect(item: unknown) {
 <template>
   <UModal
     v-model:open="isPaletteOpen"
-    title="Paleta de Comandos de Cabina"
+    title="Atajos de Teclado"
     description="Acceso rápido a aeropuertos, controles de mapa y navegación de vuelo"
     :ui="{
       overlay: 'bg-black/60 backdrop-blur-sm',
       content:
         'sm:max-w-2xl bg-surface-card/95 dark:bg-surface-base/95 backdrop-blur-2xl border border-border-subtle border-t-white/35 dark:border-t-white/15 rounded-2xl shadow-2xl p-0 overflow-hidden ring-1 ring-white/10',
+      header:
+        'px-4 py-3 border-b border-border-subtle/70 bg-surface-card/40 flex items-center justify-between',
+      title:
+        'font-mono text-xs font-bold text-text-main tracking-tight uppercase flex items-center gap-2',
+      body: 'p-0',
     }"
   >
-    <template #content>
-      <!-- Cabezal Táctico Avionics -->
-      <div
-        class="flex items-center justify-between px-4 py-3 border-b border-border-subtle/70 bg-surface-card/40"
-      >
-        <div class="flex items-center gap-2.5">
-          <div
-            class="flex items-center justify-center size-6 rounded-lg bg-primary/10 border border-primary/20 text-primary shadow-xs"
-          >
-            <UIcon name="i-lucide-command" class="size-3.5" />
-          </div>
-          <div class="flex items-center gap-2">
-            <span
-              class="font-mono text-xs font-bold text-text-main tracking-tight uppercase"
-            >
-              Atajos de Teclado
-            </span>
-          </div>
+    <template #title>
+      <div class="flex items-center gap-2.5">
+        <div
+          class="flex items-center justify-center size-6 rounded-lg bg-primary/10 border border-primary/20 text-primary shadow-xs"
+        >
+          <UIcon name="i-lucide-command" class="size-3.5" />
         </div>
-
-        <div class="flex items-center gap-2">
-          <UKbd value="esc" size="sm" class="font-mono text-[10px]" />
-          <UButton
-            icon="i-lucide-x"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            class="rounded-lg text-text-muted hover:text-text-main cursor-pointer"
-            aria-label="Cerrar paleta de comandos"
-            @click="isPaletteOpen = false"
-          />
-        </div>
+        <span>Atajos de Teclado</span>
       </div>
+    </template>
 
-      <!-- Paleta de Comandos -->
+    <template #body>
       <UCommandPalette
         v-model:search-term="searchTerm"
         :groups="groups"

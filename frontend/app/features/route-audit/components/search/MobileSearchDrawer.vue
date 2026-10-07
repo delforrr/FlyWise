@@ -56,7 +56,7 @@ function handleSearch() {
 
 <template>
   <div>
-    <!-- 1. Cápsula de búsqueda flotante en móvil (visible solo cuando NO hay selección activa) -->
+    <!-- 1. Cápsula de búsqueda flotante en móvil con UButton nativo -->
     <Transition
       enter-active-class="transition duration-300 ease-out"
       leave-active-class="transition duration-200 ease-in"
@@ -67,9 +67,12 @@ function handleSearch() {
         v-if="!selectedOrigin && !selectedDestination"
         class="fixed bottom-4 inset-x-4 z-30 md:hidden pointer-events-auto select-none"
       >
-        <button
-          type="button"
-          class="w-full hud-card border border-border-subtle/80 bg-surface-elevated/90 backdrop-blur-xl shadow-2xl p-3.5 rounded-2xl flex items-center justify-between gap-3 text-left transition-all active:scale-[0.98]"
+        <UButton
+          block
+          color="neutral"
+          variant="outline"
+          size="xl"
+          class="w-full bg-surface-elevated/90 backdrop-blur-xl shadow-2xl p-3.5 rounded-2xl flex items-center justify-between gap-3 text-left border-border-subtle/80 hover:border-primary/50 transition-all active:scale-[0.98] cursor-pointer"
           aria-label="Abrir búsqueda de vuelos"
           @click="openMobileSearch"
         >
@@ -79,7 +82,7 @@ function handleSearch() {
             >
               <UIcon name="i-lucide-search" class="w-5 h-5" />
             </div>
-            <div class="truncate">
+            <div class="truncate text-left">
               <span class="block text-xs font-semibold text-text-main truncate">
                 ¿A dónde querés volar?
               </span>
@@ -89,7 +92,7 @@ function handleSearch() {
             </div>
           </div>
 
-          <div class="flex items-center gap-1.5 shrink-0">
+          <div class="flex items-center gap-1.5 shrink-0 ml-auto">
             <UBadge
               variant="subtle"
               size="xs"
@@ -99,7 +102,7 @@ function handleSearch() {
             </UBadge>
             <UIcon name="i-lucide-chevron-up" class="w-4 h-4 text-text-muted" />
           </div>
-        </button>
+        </UButton>
       </div>
     </Transition>
 

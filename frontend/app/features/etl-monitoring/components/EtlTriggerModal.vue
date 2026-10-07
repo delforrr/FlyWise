@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import type { EtlPipeline, TriggerSyncOptions } from "../types/etl";
 
 interface Props {
@@ -17,6 +17,19 @@ const emit = defineEmits<{
 const mode = ref<"incremental" | "full">("incremental");
 const dryRun = ref(false);
 const batchSize = ref(2500);
+
+const modeOptions = [
+  {
+    value: "incremental",
+    label: "Incremental",
+    description: "Solo registros nuevos o modificados. Rápido y recomendado.",
+  },
+  {
+    value: "full",
+    label: "Completa",
+    description: "Re-escaneo total desde la fuente. Requiere más tiempo.",
+  },
+];
 
 const estimatedDuration = computed(() => {
   if (!props.pipeline || !props.pipeline.averageSpeedRowsPerSec) return null;
@@ -100,56 +113,27 @@ function handleConfirm() {
           </div>
         </div>
 
-        <!-- 1. Modo de Ingesta -->
+        <!-- 1. Modo de Ingesta con URadioGroup variant="card" -->
         <div>
           <label class="block font-semibold text-text-main mb-1.5">
             Tipo de sincronización
           </label>
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              class="p-3 rounded-lg border text-left cursor-pointer transition-colors"
-              :class="
-                mode === 'incremental'
-                  ? 'border-primary bg-surface-accent font-semibold text-text-main ring-1 ring-primary'
-                  : 'border-border-subtle bg-surface-card text-text-muted hover:border-text-muted'
-              "
-              @click="mode = 'incremental'"
-            >
-              <div class="flex items-center gap-1.5 mb-1">
-                <UIcon name="i-lucide-zap" class="w-3.5 h-3.5 text-primary" />
-                <span class="text-xs font-bold">Incremental</span>
-              </div>
-              <p class="text-[11px] font-normal leading-normal text-text-muted">
-                Solo registros nuevos o modificados. Rápido y recomendado.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              class="p-3 rounded-lg border text-left cursor-pointer transition-colors"
-              :class="
-                mode === 'full'
-                  ? 'border-primary bg-surface-accent font-semibold text-text-main ring-1 ring-primary'
-                  : 'border-border-subtle bg-surface-card text-text-muted hover:border-text-muted'
-              "
-              @click="mode = 'full'"
-            >
-              <div class="flex items-center gap-1.5 mb-1">
-                <UIcon
-                  name="i-lucide-rotate-ccw"
-                  class="w-3.5 h-3.5 text-amber-500"
-                />
-                <span class="text-xs font-bold">Completa</span>
-              </div>
-              <p class="text-[11px] font-normal leading-normal text-text-muted">
-                Re-escaneo total desde la fuente. Requiere más tiempo.
-              </p>
-            </button>
-          </div>
+          <URadioGroup
+            v-model="mode"
+            :items="modeOptions"
+            variant="card"
+            orientation="horizontal"
+            :ui="{
+              fieldset: 'grid grid-cols-2 gap-2 w-full',
+              item: 'cursor-pointer transition-colors border-border-subtle bg-surface-card p-3',
+              label: 'text-xs font-bold text-text-main',
+              description:
+                'text-[11px] font-normal leading-normal text-text-muted mt-0.5',
+            }"
+          />
         </div>
 
-        <!-- 2. Tamaño de Lote (Chunk Size) -->
+        <!-- 2. Tamaño de Lote (Chunk Size) con UFieldGroup -->
         <div>
           <label class="block font-semibold text-text-main mb-1">
             Tamaño de lote (registros por worker)
@@ -158,7 +142,7 @@ function handleConfirm() {
             Procesa en chunks desacoplados para proteger la memoria RAM
             (RNF-04).
           </p>
-          <div class="flex items-center gap-2">
+          <UFieldGroup class="w-full flex">
             <UButton
               v-for="size in [1000, 2500, 5000]"
               :key="size"
@@ -170,7 +154,7 @@ function handleConfirm() {
             >
               {{ size.toLocaleString() }} filas
             </UButton>
-          </div>
+          </UFieldGroup>
         </div>
 
         <!-- 3. Modo Seguro Dry Run con UCheckbox -->

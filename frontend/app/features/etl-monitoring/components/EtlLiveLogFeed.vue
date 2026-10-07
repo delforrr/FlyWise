@@ -20,6 +20,12 @@ const copiedId = ref<string | null>(null);
 const expandedLogs = ref<Record<string, boolean>>({});
 const logContainerRef = ref<HTMLElement | null>(null);
 
+const levelTabs = [
+  { label: "Todos", value: "all" },
+  { label: "Éxito", value: "success" },
+  { label: "Incidencias", value: "warn_error" },
+];
+
 const sourceOptions = [
   { label: "Todas las fuentes", value: "all" },
   { label: "OurAirports", value: "ourairports" },
@@ -184,47 +190,14 @@ watch(
         class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1 text-xs"
       >
         <div class="flex items-center gap-2 flex-wrap font-mono">
-          <!-- Filtros de nivel -->
-          <div
-            class="inline-flex p-0.5 rounded-lg border border-border-subtle bg-surface-card text-[11px]"
-          >
-            <button
-              type="button"
-              class="px-2.5 py-0.5 rounded-md cursor-pointer transition-colors"
-              :class="
-                levelFilter === 'all'
-                  ? 'bg-surface-accent text-text-main font-bold'
-                  : 'text-text-muted hover:text-text-main'
-              "
-              @click="levelFilter = 'all'"
-            >
-              Todos
-            </button>
-            <button
-              type="button"
-              class="px-2.5 py-0.5 rounded-md cursor-pointer transition-colors"
-              :class="
-                levelFilter === 'success'
-                  ? 'bg-surface-accent text-emerald-600 dark:text-emerald-400 font-bold'
-                  : 'text-text-muted hover:text-text-main'
-              "
-              @click="levelFilter = 'success'"
-            >
-              Éxito
-            </button>
-            <button
-              type="button"
-              class="px-2.5 py-0.5 rounded-md cursor-pointer transition-colors"
-              :class="
-                levelFilter === 'warn_error'
-                  ? 'bg-surface-accent text-amber-600 dark:text-amber-400 font-bold'
-                  : 'text-text-muted hover:text-text-main'
-              "
-              @click="levelFilter = 'warn_error'"
-            >
-              Incidencias
-            </button>
-          </div>
+          <!-- Filtro de nivel mediante UTabs -->
+          <UTabs
+            v-model="levelFilter"
+            :items="levelTabs"
+            :content="false"
+            size="xs"
+            class="w-fit font-mono"
+          />
 
           <!-- Selector de Fuente de Datos -->
           <USelect

@@ -20,6 +20,11 @@ function confirmSyncAll() {
   emit("sync-all");
   isConfirmSyncAllOpen.value = false;
 }
+
+const kpiCardUi = {
+  root: "rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between",
+  body: "p-4 flex flex-col justify-between h-full",
+};
 </script>
 
 <template>
@@ -75,14 +80,12 @@ function confirmSyncAll() {
       </div>
     </div>
 
-    <!-- Grilla de 4 KPIs Sólidos (Estilo Swiss Minimalist, bordes nítidos de 1px) -->
+    <!-- Grilla de 4 KPIs Sólidos con UCard -->
     <div
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 font-feature-tech"
     >
       <!-- 1. Estado General -->
-      <div
-        class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between"
-      >
+      <UCard :ui="kpiCardUi">
         <div class="flex items-center justify-between">
           <span
             class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
@@ -127,12 +130,10 @@ function confirmSyncAll() {
         <p class="text-[11px] text-text-dim mt-2 font-mono tabular-nums">
           Último chequeo: {{ metrics.lastGlobalSync }}
         </p>
-      </div>
+      </UCard>
 
       <!-- 2. Registros Aeronáuticos -->
-      <div
-        class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between"
-      >
+      <UCard :ui="kpiCardUi">
         <div class="flex items-center justify-between">
           <span
             class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
@@ -151,12 +152,10 @@ function confirmSyncAll() {
         <p class="text-[11px] text-text-dim mt-2 font-mono truncate">
           Aeropuertos, rutas y telemetría
         </p>
-      </div>
+      </UCard>
 
       <!-- 3. Tareas en Curso -->
-      <div
-        class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between"
-      >
+      <UCard :ui="kpiCardUi">
         <div class="flex items-center justify-between">
           <span
             class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
@@ -182,12 +181,10 @@ function confirmSyncAll() {
             class="h-1.5 rounded-full"
           />
         </div>
-      </div>
+      </UCard>
 
       <!-- 4. Calidad y Descartes -->
-      <div
-        class="p-4 rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between"
-      >
+      <UCard :ui="kpiCardUi">
         <div class="flex items-center justify-between">
           <span
             class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
@@ -210,7 +207,7 @@ function confirmSyncAll() {
         <p class="text-[11px] text-text-dim mt-2 font-mono tabular-nums">
           {{ metrics.totalDiscardedCount.toLocaleString() }} filas descartadas
         </p>
-      </div>
+      </UCard>
     </div>
 
     <!-- Modal de Confirmación para Sincronización Global -->

@@ -94,15 +94,12 @@ const filterTabs = computed(() => [
           />
         </div>
 
-        <!-- Conmutador de Vista -->
-        <fieldset
-          class="flex items-center border border-border-subtle rounded-lg p-0.5 bg-surface-accent/60 shrink-0 gap-0.5"
-          aria-label="Modo de visualización"
-        >
+        <!-- Conmutador de Vista con UFieldGroup -->
+        <UFieldGroup class="shrink-0">
           <UTooltip text="Vista en Lista / Tabla">
             <UButton
               size="xs"
-              :variant="viewMode === 'table' ? 'solid' : 'ghost'"
+              :variant="viewMode === 'table' ? 'solid' : 'outline'"
               :color="viewMode === 'table' ? 'primary' : 'neutral'"
               icon="i-lucide-list"
               aria-label="Vista de lista / tabla"
@@ -114,7 +111,7 @@ const filterTabs = computed(() => [
           <UTooltip text="Vista en Tarjetas">
             <UButton
               size="xs"
-              :variant="viewMode === 'cards' ? 'solid' : 'ghost'"
+              :variant="viewMode === 'cards' ? 'solid' : 'outline'"
               :color="viewMode === 'cards' ? 'primary' : 'neutral'"
               icon="i-lucide-layout-grid"
               aria-label="Vista de tarjetas"
@@ -122,7 +119,7 @@ const filterTabs = computed(() => [
               @click="viewMode = 'cards'"
             />
           </UTooltip>
-        </fieldset>
+        </UFieldGroup>
       </div>
     </div>
 
