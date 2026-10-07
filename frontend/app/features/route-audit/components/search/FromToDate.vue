@@ -44,7 +44,7 @@ function handleSearch() {
     <AirportSelectInput
       v-model="selectedOrigin"
       mode="hud"
-      placeholder="Origen (IATA o Ciudad)"
+      placeholder="Origen"
       icon="i-lucide-plane-takeoff"
     />
 
@@ -64,7 +64,7 @@ function handleSearch() {
     <AirportSelectInput
       v-model="selectedDestination"
       mode="hud"
-      placeholder="Destino (IATA o Ciudad)"
+      placeholder="Destino"
       icon="i-lucide-plane-landing"
     />
 
@@ -118,15 +118,15 @@ function handleSearch() {
       @click="handleSearch"
     />
 
-    <!-- Botón Reset si hay selección -->
+    <!-- Botón Limpiar si hay selección -->
     <UButton
       v-if="selectedOrigin || selectedDestination"
-      icon="i-lucide-rotate-ccw"
+      icon="i-lucide-x"
       variant="ghost"
       size="xs"
-      class="text-text-muted hover:text-text-main rounded-full shrink-0"
-      title="Restablecer búsqueda"
-      aria-label="Restablecer filtros"
+      class="text-text-muted hover:text-text-main hover:bg-surface-accent rounded-full shrink-0"
+      title="Limpiar búsqueda"
+      aria-label="Limpiar búsqueda"
       @click="clearSelection"
     />
   </HudContainer>

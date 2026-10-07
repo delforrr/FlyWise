@@ -55,11 +55,11 @@ function getAriaLabel(route: FlightRoute): string {
             </span>
 
             <span
-              class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-surface-accent/90 border border-border-subtle/60 text-text-muted truncate max-w-[140px]"
+              class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-surface-accent/90 border border-border-subtle/60 text-text-muted"
               :title="`Aerolínea principal: ${cRoute.primaryAirline}`"
             >
               <UIcon name="i-lucide-plane" class="w-2.5 h-2.5 text-text-dim shrink-0" />
-              <span class="truncate">{{ cRoute.primaryAirline }}</span>
+              <span>{{ cRoute.primaryAirline }}</span>
             </span>
           </div>
 
@@ -105,12 +105,12 @@ function getAriaLabel(route: FlightRoute): string {
         </div>
 
         <!-- Fila 3: Detalle de ciudades y prompt interactivo -->
-        <div class="flex items-center justify-between pt-1.5 border-t border-border-subtle/40 text-[10px] font-mono text-text-dim">
-          <span class="truncate max-w-[180px]">
+        <div class="flex items-center justify-between pt-1.5 border-t border-border-subtle/40 text-[10px] font-mono text-text-dim flex-wrap gap-1">
+          <span class="leading-snug">
             {{ cRoute.originCity }} ➔ {{ cRoute.destinationCity }}
           </span>
 
-          <span class="inline-flex items-center gap-1 text-text-dim group-hover:text-primary transition-colors font-medium shrink-0 ml-2">
+          <span class="inline-flex items-center gap-1 text-text-dim group-hover:text-primary transition-colors font-medium shrink-0 ml-auto">
             <UIcon name="i-lucide-crosshair" class="w-3 h-3 text-primary/70 group-hover:text-primary" />
             <span>Click para enfocar en mapa</span>
           </span>
