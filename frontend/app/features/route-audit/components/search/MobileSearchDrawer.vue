@@ -244,7 +244,7 @@ function handleSearch() {
             icon="i-lucide-search"
             block
             size="lg"
-            class="btn-hud-primary flex-1 h-12 rounded-xl font-bold text-sm shadow-lg flex items-center justify-center"
+            class="flex-1 h-12 rounded-xl font-bold text-sm shadow-lg flex items-center justify-center bg-linear-to-r from-secondary to-primary text-white hover:brightness-105 active:scale-98 transition-all"
             label="Auditar Vuelo y Ver Mapa"
             @click="handleSearch"
           />

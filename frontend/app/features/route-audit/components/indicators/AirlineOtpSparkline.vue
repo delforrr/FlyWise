@@ -155,10 +155,10 @@ const ariaLabel = computed<string>(() => {
 </script>
 
 <template>
-  <div
+  <span
+    role="img"
     class="inline-flex items-center shrink-0 cursor-help"
     :title="tooltipText"
-    role="img"
     :aria-label="ariaLabel"
   >
     <svg
@@ -234,5 +234,5 @@ const ariaLabel = computed<string>(() => {
         />
       </g>
     </svg>
-  </div>
+  </span>
 </template>

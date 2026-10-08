@@ -95,12 +95,12 @@ function handleBackToHub() {
     <!-- 2. Panel Lateral Izquierdo de Resultados (Contenedor Nativo UCard) -->
     <div
       v-if="(selectedOrigin || selectedDestination) && isExpanded"
-      class="fixed z-40 pointer-events-auto select-none bottom-3 inset-x-3 max-h-[85vh] md:max-h-none md:bottom-4 md:top-26 md:left-6 md:w-[520px] lg:w-[560px] xl:w-[620px] md:max-w-[calc(100vw-32px)] md:h-[calc(100vh-8rem)]"
+      class="fixed z-40 pointer-events-auto select-none bottom-3 inset-x-3 max-h-[85vh] md:max-h-none md:bottom-4 md:top-26 md:left-6 md:w-130 lg:w-140 xl:w-155 md:max-w-[calc(100vw-32px)] md:h-[calc(100vh-8rem)]"
     >
       <UCard
         variant="subtle"
         :ui="{
-          root: 'hud-card border-border-subtle/80 bg-surface-card/95 dark:bg-surface-base/92 backdrop-blur-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full',
+          root: 'border-border-subtle/80 bg-surface-card/95 dark:bg-surface-base/92 backdrop-blur-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full',
           header: 'p-0 sm:p-0',
           body: 'p-3.5 sm:p-4 flex flex-col gap-3.5 flex-1 overflow-y-auto hud-scrollable',
         }"

@@ -66,7 +66,7 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
         label: 'Autenticarse',
         variant: 'subtle',
         class:
-          'btn-hud-primary h-12 sm:h-13 text-base sm:text-lg font-semibold w-full justify-center shadow-lg active:scale-[0.98]',
+          'bg-linear-to-r from-secondary to-primary text-white hover:brightness-105 h-12 sm:h-13 text-base sm:text-lg font-semibold w-full justify-center shadow-lg active:scale-[0.98] transition-all',
       }"
       @submit="onSubmit"
     >

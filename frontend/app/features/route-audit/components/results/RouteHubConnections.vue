@@ -201,10 +201,12 @@ function getAriaLabel(
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-1.5">
           <UIcon name="i-lucide-network" class="w-3.5 h-3.5 text-primary" />
-          <span class="hud-section-label"> Rutas Conectadas: </span>
-          <span class="hud-counter-badge text-[10px]">
-            {{ filteredRoutes.length }} / {{ routes.length }}
+          <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-dim">
+            Rutas Conectadas:
           </span>
+          <UBadge color="primary" variant="subtle" size="xs" class="font-mono tabular-nums">
+            {{ filteredRoutes.length }} / {{ routes.length }}
+          </UBadge>
         </div>
 
         <span class="text-[10px] font-mono text-text-dim">
@@ -260,16 +262,13 @@ function getAriaLabel(
 
     <!-- 3. Lista de rutas conectadas o Empty State -->
     <div v-if="filteredRoutes.length > 0" class="flex flex-col gap-2.5">
-      <div
+      <button
         v-for="route in filteredRoutes"
         :key="route.id"
-        role="button"
-        tabindex="0"
+        type="button"
         :aria-label="getAriaLabel(route, getConnectedDestination(route))"
-        class="group relative flex flex-col gap-2 p-3 rounded-xl bg-surface-base/60 hover:bg-surface-accent/80 border border-border-subtle/70 hover:border-primary/50 shadow-xs cursor-pointer select-none transform-gpu hover:translate-x-0.5 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
+        class="group relative flex flex-col gap-2 p-3 rounded-xl bg-surface-base/60 hover:bg-surface-accent/80 border border-border-subtle/70 hover:border-primary/50 shadow-xs cursor-pointer select-none transform-gpu hover:translate-x-0.5 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card w-full text-left"
         @click="handleClick(route)"
-        @keydown.enter.prevent="handleClick(route)"
-        @keydown.space.prevent="handleClick(route)"
       >
         <!-- Fila 1: IATA Badge + Ciudad Destino (izquierda) y OTP Badge + Chevron (derecha) -->
         <div class="flex items-center justify-between gap-2.5">
@@ -345,7 +344,7 @@ function getAriaLabel(
             <span>{{ route.distanceKm.toLocaleString() }} km</span>
           </div>
         </div>
-      </div>
+      </button>
     </div>
 
     <!-- Empty State Limpio para Filtros -->

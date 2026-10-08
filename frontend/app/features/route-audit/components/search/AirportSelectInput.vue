@@ -138,12 +138,12 @@ const resolvedPlaceholder = computed(() => {
 const resolvedClass = computed(() => {
   const classes: string[] = [];
   if (props.mode === "hero") {
-    classes.push("w-full flex-1 input-ghost");
+    classes.push("w-full flex-1");
   } else if (props.mode === "drawer") {
-    classes.push("hud-custom-input w-full font-mono font-semibold");
+    classes.push("w-full font-mono font-semibold border-none");
   } else {
     classes.push(
-      "hud-custom-input flex-1 min-w-[140px] sm:min-w-[180px] font-mono font-semibold text-xs sm:text-sm",
+      "flex-1 min-w-[140px] sm:min-w-[180px] font-mono font-semibold text-xs sm:text-sm border-none",
     );
   }
 

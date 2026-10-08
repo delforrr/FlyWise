@@ -203,7 +203,7 @@ onUnmounted(() => {
               class="absolute inset-0 rounded-full radar-sweep-beam pointer-events-none"
             >
               <div
-                class="absolute top-0 right-1/2 w-0.5 h-1/2 bg-gradient-to-t from-primary to-transparent origin-bottom shadow-[0_0_8px_rgba(56,189,248,0.8)]"
+                class="absolute top-0 right-1/2 w-0.5 h-1/2 bg-linear-to-t from-primary to-transparent origin-bottom shadow-[0_0_8px_rgba(56,189,248,0.8)]"
               />
             </div>
 

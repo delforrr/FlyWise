@@ -126,7 +126,7 @@ function swapAirports() {
     <div class="mt-4 sm:mt-5">
       <NuxtLink
         to="/explorar"
-        class="btn-hud-primary group w-full h-13 sm:h-14 px-5 sm:px-6 rounded-2xl flex items-center justify-between text-base sm:text-lg font-semibold active:scale-[0.98] transition-all cursor-pointer shadow-lg"
+        class="group w-full h-13 sm:h-14 px-5 sm:px-6 rounded-2xl flex items-center justify-between text-base sm:text-lg font-semibold bg-linear-to-r from-secondary to-primary text-white shadow-lg hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer"
       >
         <div class="flex items-center gap-2.5">
           <UIcon name="i-lucide-search" class="size-5 text-white/90" />

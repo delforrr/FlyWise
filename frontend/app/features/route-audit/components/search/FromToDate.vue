@@ -112,7 +112,7 @@ function handleSearch() {
     <UButton
       icon="i-lucide-locate"
       size="sm"
-      class="btn-hud-primary rounded-xl shrink-0 px-2 sm:px-3 shadow-md"
+      class="rounded-xl shrink-0 px-2 sm:px-3 shadow-md bg-linear-to-r from-secondary to-primary text-white hover:brightness-105 active:scale-95 transition-all"
       aria-label="Buscar vuelo y centrar cámara"
       title="Centrar en mapa"
       @click="handleSearch"

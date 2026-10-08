@@ -140,7 +140,7 @@ const bannerAccentClass = computed(() => {
     <!-- 4. Desglose de Aerolíneas Operadoras -->
     <div class="flex flex-col gap-1.5 border-t border-border-subtle/60 pt-2.5">
       <div class="flex items-center justify-between">
-        <span class="hud-section-label">
+        <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-dim">
           Desempeño por Aerolínea ({{ route.airlines.length }}):
         </span>
         <span class="text-[10px] font-mono text-text-dim">
