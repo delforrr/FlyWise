@@ -143,7 +143,7 @@ const resolvedClass = computed(() => {
     classes.push("w-full font-mono font-semibold border-none");
   } else {
     classes.push(
-      "flex-1 min-w-[140px] sm:min-w-[180px] font-mono font-semibold text-xs sm:text-sm border-none",
+      "flex-1 min-w-[95px] sm:min-w-[110px] md:min-w-[125px] lg:min-w-[140px] xl:min-w-[170px] font-mono font-semibold text-xs sm:text-sm border-none",
     );
   }
 

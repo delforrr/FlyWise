@@ -38,7 +38,7 @@ function handleSearch() {
 <template>
   <HudContainer
     variant="pill"
-    class="flex items-center w-full max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl gap-1 sm:gap-2 flex-nowrap px-2 sm:px-3 py-1.5 min-w-0"
+    class="flex items-center w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-2xl 2xl:max-w-3xl focus-within:max-w-md md:focus-within:max-w-lg lg:focus-within:max-w-xl xl:focus-within:max-w-2xl gap-1 sm:gap-1.5 lg:gap-2 flex-nowrap px-2 sm:px-2.5 lg:px-3 py-1.5 min-w-0 mx-auto transition-all duration-300 ease-out"
   >
     <!-- Selector Origen -->
     <AirportSelectInput
@@ -71,12 +71,12 @@ function handleSearch() {
     <USeparator
       v-if="hasDate"
       orientation="vertical"
-      class="h-4 hidden sm:block shrink-0"
+      class="h-4 hidden xl:block shrink-0"
       size="sm"
     />
 
     <!-- Selector de Fecha (Desktop) -->
-    <div v-if="hasDate" class="hidden md:flex items-center shrink-0">
+    <div v-if="hasDate" class="hidden xl:flex items-center shrink-0">
       <UPopover arrow>
         <UButton
           color="neutral"
@@ -97,7 +97,7 @@ function handleSearch() {
     <USeparator
       v-if="selectedOrigin || selectedDestination"
       orientation="vertical"
-      class="h-4 hidden sm:block shrink-0 mx-1 sm:mx-2"
+      class="h-4 hidden xl:block shrink-0 mx-1 sm:mx-2"
       size="sm"
     />
 
@@ -105,7 +105,7 @@ function handleSearch() {
     <RouteCounterBadge
       v-if="selectedOrigin || selectedDestination"
       :count="matchingRoutes.length"
-      class="hidden sm:inline-flex shrink-0"
+      class="hidden xl:inline-flex shrink-0"
     />
 
     <!-- Botón de Búsqueda / Encuadre HUD -->
