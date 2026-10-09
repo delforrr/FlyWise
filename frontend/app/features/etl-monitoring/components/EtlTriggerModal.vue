@@ -115,9 +115,9 @@ function handleConfirm() {
 
         <!-- 1. Modo de Ingesta con URadioGroup -->
         <div>
-          <label class="block font-semibold text-text-main mb-1.5">
+          <span class="block font-semibold text-text-main mb-1.5">
             Tipo de sincronización
-          </label>
+          </span>
           <URadioGroup
             v-model="mode"
             :items="modeOptions"
@@ -135,9 +135,9 @@ function handleConfirm() {
 
         <!-- 2. Tamaño de Lote (Chunk Size) con UFieldGroup -->
         <div>
-          <label class="block font-semibold text-text-main mb-1">
+          <span class="block font-semibold text-text-main mb-1">
             Tamaño de lote (registros por worker)
-          </label>
+          </span>
           <p class="text-[11px] text-text-muted mb-2">
             Procesa en chunks desacoplados para proteger la memoria RAM
             (RNF-04).

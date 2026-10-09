@@ -144,17 +144,18 @@ function handleSearch() {
           <!-- Selectores Origen y Destino -->
           <div class="flex flex-col gap-2.5">
             <div>
-              <label
+              <span
                 class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1"
               >
                 Aeropuerto de Origen
-                <AirportSelectInput
-                  v-model="selectedOrigin"
-                  mode="drawer"
-                  placeholder="Seleccionar origen (ej. EZE)"
-                  icon="i-lucide-plane-takeoff"
-                />
-              </label>
+              </span>
+              <AirportSelectInput
+                v-model="selectedOrigin"
+                mode="drawer"
+                placeholder="Seleccionar origen (ej. EZE)"
+                icon="i-lucide-plane-takeoff"
+                aria-label="Aeropuerto de Origen"
+              />
             </div>
 
             <!-- Botón Swap Centrado -->
@@ -171,17 +172,18 @@ function handleSearch() {
             </div>
 
             <div>
-              <label
+              <span
                 class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1"
               >
                 Aeropuerto de Destino
-                <AirportSelectInput
-                  v-model="selectedDestination"
-                  mode="drawer"
-                  placeholder="Seleccionar destino (ej. MAD)"
-                  icon="i-lucide-plane-landing"
-                />
-              </label>
+              </span>
+              <AirportSelectInput
+                v-model="selectedDestination"
+                mode="drawer"
+                placeholder="Seleccionar destino (ej. MAD)"
+                icon="i-lucide-plane-landing"
+                aria-label="Aeropuerto de Destino"
+              />
             </div>
           </div>
 
