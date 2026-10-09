@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import type { HudHeaderNav } from "~/types/hud";
-
 interface Props {
   hasControls?: boolean;
-  navs?: HudHeaderNav[];
   hasLogin?: boolean;
 }
 
@@ -54,19 +51,6 @@ const isPaletteOpen = useState("cockpit_command_palette_open", () => false);
         v-if="hasControls"
         class="hidden md:flex w-full justify-center"
       />
-      <div v-if="navs?.length" class="flex items-center gap-1.5 sm:gap-2">
-        <UButton
-          v-for="nav in navs"
-          :key="nav.text"
-          :to="nav.to"
-          :icon="nav.icon"
-          size="md"
-          variant="ghost"
-          class="rounded-xl font-medium text-xs sm:text-sm text-text-muted hover:text-primary hover:font-bold hover:bg-surface-accent transition-all active:scale-[0.98]"
-        >
-          {{ nav.text }}
-        </UButton>
-      </div>
     </template>
 
     <!-- Botón de login y controles -->
@@ -75,7 +59,7 @@ const isPaletteOpen = useState("cockpit_command_palette_open", () => false);
         icon="i-lucide-command"
         variant="ghost"
         color="neutral"
-        class="hidden md:flex rounded-xl font-mono text-xs text-text-muted hover:text-text-main hover:bg-surface-accent border border-border-subtle/70"
+        class="hidden lg:flex rounded-xl font-mono text-xs text-text-muted hover:text-text-main hover:bg-surface-accent border border-border-subtle/70"
         @click="isPaletteOpen = true"
       >
         <span class="font-mono">Buscar...</span>
@@ -92,6 +76,7 @@ const isPaletteOpen = useState("cockpit_command_palette_open", () => false);
         class="rounded-xl font-semibold text-xs sm:text-sm text-text-main hover:text-primary hover:bg-surface-accent border border-border-subtle dark:border-border-subtle/60 transition-all active:scale-[0.98]"
         aria-label="Acceso administrativo"
         label="Acceso Admin"
+        :ui="{ label: 'hidden xl:inline' }"
       />
     </template>
   </UHeader>

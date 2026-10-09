@@ -18,8 +18,10 @@
           class="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0"
           aria-hidden="true"
         />
-        <span class="font-mono text-xs font-bold uppercase tracking-wider text-text-main">
-          Leyenda Confiabilidad
+        <span
+          class="font-mono text-xs font-bold uppercase tracking-wider text-text-main"
+        >
+          Leyenda
         </span>
       </div>
     </UButton>
