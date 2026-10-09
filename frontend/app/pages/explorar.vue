@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useCockpitShortcuts } from "~/features/flight-map/composables/useCockpitShortcuts";
+import { useShortcuts } from "~/features/flight-map/composables/useShortcuts";
 
 useSeoMeta({
   title: "FlyWise — Explorador Global de Rutas y Puntualidad",
@@ -8,7 +8,7 @@ useSeoMeta({
 });
 
 // Inicializar atajos de teclado aeronáuticos del cockpit
-useCockpitShortcuts();
+useShortcuts();
 </script>
 
 <template>
@@ -26,7 +26,9 @@ useCockpitShortcuts();
         <AppHeader :has-controls="true" :has-login="true" />
       </div>
 
-      <main class="relative flex-1 overflow-hidden p-3 sm:p-6 pointer-events-none">
+      <main
+        class="relative flex-1 overflow-hidden p-3 sm:p-6 pointer-events-none"
+      >
         <!-- Panel Flotante de Resultados de Rutas / Desglose de Aerolíneas -->
         <RouteResults />
 

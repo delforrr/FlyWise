@@ -44,56 +44,49 @@ const {
 
         <!-- Navegación y Controles de Cabecera -->
         <div class="flex items-center gap-2.5 sm:gap-3">
-          <!-- Selector de Cadencia de Auto-refresco -->
-          <fieldset
-            class="hidden sm:flex items-center gap-0.5 border border-border-subtle rounded-lg p-0.5 bg-surface-accent/50 text-[11px] font-mono"
-            aria-label="Frecuencia de actualización en vivo"
+          <!-- Selector de Cadencia de Auto-refresco con UFieldGroup -->
+          <div
+            class="hidden sm:flex items-center gap-1.5 font-mono text-[11px]"
           >
-            <button
-              type="button"
-              class="px-2 py-0.5 rounded cursor-pointer transition-colors"
-              :class="
-                refreshInterval === 5000
-                  ? 'bg-surface-card text-text-main font-bold shadow-xs'
-                  : 'text-text-muted hover:text-text-main'
-              "
-              title="Actualización continua cada 5 segundos"
-              @click="setRefreshInterval(5000)"
-            >
-              5s
-            </button>
-            <button
-              type="button"
-              class="px-2 py-0.5 rounded cursor-pointer transition-colors"
-              :class="
-                refreshInterval === 15000
-                  ? 'bg-surface-card text-text-main font-bold shadow-xs'
-                  : 'text-text-muted hover:text-text-main'
-              "
-              title="Actualización cada 15 segundos"
-              @click="setRefreshInterval(15000)"
-            >
-              15s
-            </button>
-            <button
-              type="button"
-              class="px-2 py-0.5 rounded cursor-pointer transition-colors"
-              :class="
-                refreshInterval === 0
-                  ? 'bg-surface-card text-amber-600 dark:text-amber-400 font-bold shadow-xs'
-                  : 'text-text-muted hover:text-text-main'
-              "
-              title="Congelar actualización automática para auditar incidencias"
-              @click="setRefreshInterval(0)"
-            >
-              Pausar
-            </button>
+            <UFieldGroup size="xs">
+              <UButton
+                size="xs"
+                :variant="refreshInterval === 5000 ? 'solid' : 'outline'"
+                :color="refreshInterval === 5000 ? 'primary' : 'neutral'"
+                class="cursor-pointer font-bold px-2.5"
+                title="Actualización continua cada 5 segundos"
+                @click="setRefreshInterval(5000)"
+              >
+                5s
+              </UButton>
+              <UButton
+                size="xs"
+                :variant="refreshInterval === 15000 ? 'solid' : 'outline'"
+                :color="refreshInterval === 15000 ? 'primary' : 'neutral'"
+                class="cursor-pointer font-bold px-2.5"
+                title="Actualización cada 15 segundos"
+                @click="setRefreshInterval(15000)"
+              >
+                15s
+              </UButton>
+              <UButton
+                size="xs"
+                :variant="refreshInterval === 0 ? 'solid' : 'outline'"
+                :color="refreshInterval === 0 ? 'warning' : 'neutral'"
+                class="cursor-pointer font-bold px-2.5"
+                title="Congelar actualización automática para auditar incidencias"
+                @click="setRefreshInterval(0)"
+              >
+                Pausar
+              </UButton>
+            </UFieldGroup>
+
             <UTooltip text="Refrescar métricas ahora">
               <UButton
                 size="xs"
-                variant="ghost"
+                variant="outline"
                 color="neutral"
-                class="w-6 h-6 p-0 rounded cursor-pointer text-text-muted hover:text-primary flex items-center justify-center"
+                class="cursor-pointer"
                 aria-label="Refrescar métricas ahora"
                 @click="triggerManualRefresh"
               >
@@ -104,7 +97,7 @@ const {
                 />
               </UButton>
             </UTooltip>
-          </fieldset>
+          </div>
 
           <!-- Acceso al Explorador Público -->
           <UButton

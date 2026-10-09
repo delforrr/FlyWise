@@ -41,7 +41,7 @@ const distanceNm = computed<number>(() => {
         <UIcon name="i-lucide-plane-takeoff" class="w-3.5 h-3.5 text-text-dim shrink-0" />
         <span>Aerolínea principal:</span>
       </span>
-      <span class="font-medium text-text-main truncate max-w-[130px] text-right" :title="route.primaryAirline">
+      <span class="font-medium text-text-main truncate max-w-32.5 text-right" :title="route.primaryAirline">
         {{ route.primaryAirline }}
       </span>
     </div>

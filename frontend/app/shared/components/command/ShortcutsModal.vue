@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Estado reactivo compartido para el modal de atajos de cabina.
- * Compartido con useCockpitShortcuts() y activable mediante tecla '?' o botón HUD.
+ * Compartido con useShortcuts() y activable mediante tecla '?' o botón HUD.
  */
 const isOpen = useState<boolean>('cockpit_shortcuts_modal', () => false);
 
@@ -10,6 +10,35 @@ defineShortcuts({
     isOpen.value = !isOpen.value;
   },
 });
+
+interface ShortcutItem {
+  title: string;
+  desc: string;
+  key?: string;
+}
+
+const instrumentControls: ShortcutItem[] = [
+  {
+    title: 'Alternar perspectiva 2D / 3D',
+    desc: '36° pitch o cenital plano',
+    key: 'M',
+  },
+  {
+    title: 'Orientar rumbo al Norte',
+    desc: 'Norte magnético (0°)',
+    key: 'N',
+  },
+  {
+    title: 'Reencuadrar cámara',
+    desc: 'Ajusta a la ruta o hub (Fit View)',
+    key: 'F',
+  },
+  {
+    title: 'Limpiar selección activa',
+    desc: 'Deseleccionar y resetear mapa',
+    key: 'Esc',
+  },
+];
 </script>
 
 <template>
@@ -62,9 +91,7 @@ defineShortcuts({
 
     <!-- Cuerpo del Manual: Dos Columnas de Atajos Tácticos -->
     <template #body>
-      <div
-        class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 font-feature-tech"
-      >
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 font-mono">
         <!-- Columna A: 🎛️ Controles de Instrumentos de Vuelo -->
         <section
           class="flex flex-col gap-3 p-4 rounded-xl border border-border-subtle/80 bg-surface-accent/25 dark:bg-surface-elevated/20 shadow-xs"
@@ -90,97 +117,32 @@ defineShortcuts({
           </div>
 
           <div class="space-y-2.5">
-            <!-- 3: Alternar perspectiva 2D / 3D -->
             <div
+              v-for="item in instrumentControls"
+              :key="item.key"
               class="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border-subtle/70 bg-surface-card/70 dark:bg-surface-base/50 hover:border-primary/40 hover:bg-surface-card transition-colors"
             >
               <div class="flex flex-col min-w-0 pr-2">
                 <span class="text-xs font-semibold text-text-main leading-snug">
-                  Alternar perspectiva 2D / 3D
+                  {{ item.title }}
                 </span>
                 <span
                   class="text-[11px] font-mono text-text-muted mt-0.5 leading-tight"
                 >
-                  36° pitch o cenital plano
+                  {{ item.desc }}
                 </span>
               </div>
               <UKbd
                 size="md"
                 class="font-mono font-bold text-xs shadow-xs px-2.5 py-0.5 shrink-0 tabular-nums border border-border-subtle/80"
               >
-                M
-              </UKbd>
-            </div>
-
-            <!-- N: Orientar rumbo al Norte -->
-            <div
-              class="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border-subtle/70 bg-surface-card/70 dark:bg-surface-base/50 hover:border-primary/40 hover:bg-surface-card transition-colors"
-            >
-              <div class="flex flex-col min-w-0 pr-2">
-                <span class="text-xs font-semibold text-text-main leading-snug">
-                  Orientar rumbo al Norte
-                </span>
-                <span
-                  class="text-[11px] font-mono text-text-muted mt-0.5 leading-tight"
-                >
-                  Norte magnético (0°)
-                </span>
-              </div>
-              <UKbd
-                size="md"
-                class="font-mono font-bold text-xs shadow-xs px-2.5 py-0.5 shrink-0 tabular-nums border border-border-subtle/80"
-              >
-                N
-              </UKbd>
-            </div>
-
-            <!-- F: Reencuadrar cámara (Fit View) -->
-            <div
-              class="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border-subtle/70 bg-surface-card/70 dark:bg-surface-base/50 hover:border-primary/40 hover:bg-surface-card transition-colors"
-            >
-              <div class="flex flex-col min-w-0 pr-2">
-                <span class="text-xs font-semibold text-text-main leading-snug">
-                  Reencuadrar cámara
-                </span>
-                <span
-                  class="text-[11px] font-mono text-text-muted mt-0.5 leading-tight"
-                >
-                  Ajusta a la ruta o hub (Fit View)
-                </span>
-              </div>
-              <UKbd
-                size="md"
-                class="font-mono font-bold text-xs shadow-xs px-2.5 py-0.5 shrink-0 tabular-nums border border-border-subtle/80"
-              >
-                F
-              </UKbd>
-            </div>
-
-            <!-- Esc: Limpiar selección y resetear mapa -->
-            <div
-              class="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border-subtle/70 bg-surface-card/70 dark:bg-surface-base/50 hover:border-primary/40 hover:bg-surface-card transition-colors"
-            >
-              <div class="flex flex-col min-w-0 pr-2">
-                <span class="text-xs font-semibold text-text-main leading-snug">
-                  Limpiar selección activa
-                </span>
-                <span
-                  class="text-[11px] font-mono text-text-muted mt-0.5 leading-tight"
-                >
-                  Deseleccionar y resetear mapa
-                </span>
-              </div>
-              <UKbd
-                size="md"
-                class="font-mono font-bold text-xs shadow-xs px-2 py-0.5 shrink-0 tabular-nums border border-border-subtle/80"
-              >
-                Esc
+                {{ item.key }}
               </UKbd>
             </div>
           </div>
         </section>
 
-        <!-- Columna B: ⚡ Comandos Globales de Cabina -->
+        <!-- Columna B: Comandos Globales de Cabina -->
         <section
           class="flex flex-col gap-3 p-4 rounded-xl border border-border-subtle/80 bg-surface-accent/25 dark:bg-surface-elevated/20 shadow-xs"
           aria-labelledby="heading-cockpit-commands"
@@ -205,7 +167,7 @@ defineShortcuts({
           </div>
 
           <div class="space-y-2.5">
-            <!-- Cmd+K / Ctrl+K: Cockpit Command Palette -->
+            <!-- Cmd+K / Ctrl+K: Command Palette -->
             <div
               class="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border-subtle/70 bg-surface-card/70 dark:bg-surface-base/50 hover:border-primary/40 hover:bg-surface-card transition-colors"
             >
@@ -216,7 +178,7 @@ defineShortcuts({
                 <span
                   class="text-[11px] font-mono text-text-muted mt-0.5 leading-tight"
                 >
-                  Abrir Cockpit Command Palette
+                  Abrir Command Palette
                 </span>
               </div>
               <div class="flex items-center gap-1 shrink-0 font-mono">

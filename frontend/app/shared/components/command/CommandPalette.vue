@@ -21,13 +21,11 @@ interface PaletteItem {
 interface PaletteGroup {
   id: string;
   label: string;
+  icon?: string;
   items: PaletteItem[];
   [key: string]: unknown;
 }
 
-// -------------------------------------------------------------
-// Acciones operativas de cabina
-// -------------------------------------------------------------
 async function selectAirport(iata: string) {
   isPaletteOpen.value = false;
   searchTerm.value = "";
@@ -84,19 +82,20 @@ function handleToggleTheme() {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";
 }
 
-function handleOpenShortcuts() {
+async function handleOpenShortcuts() {
   isPaletteOpen.value = false;
   searchTerm.value = "";
+  if (route.path !== "/explorar") {
+    await navigateTo("/explorar");
+  }
   useState("cockpit_shortcuts_modal", () => false).value = true;
 }
 
-// -------------------------------------------------------------
-// Catálogo de Comandos Tácticos Categorizados
-// -------------------------------------------------------------
 const groups = computed<PaletteGroup[]>(() => [
   {
     id: "airports",
-    label: "🛫 Aeropuertos Populares & Hubs",
+    label: "Aeropuertos Populares & Hubs",
+    icon: "i-lucide-plane-takeoff",
     items: [
       {
         id: "airport-eze",
@@ -183,7 +182,8 @@ const groups = computed<PaletteGroup[]>(() => [
   },
   {
     id: "map-actions",
-    label: "⚡ Acciones Rápidas de Mapa",
+    label: "Acciones Rápidas de Mapa",
+    icon: "i-lucide-zap",
     items: [
       {
         id: "action-toggle-3d",
@@ -224,7 +224,8 @@ const groups = computed<PaletteGroup[]>(() => [
   },
   {
     id: "navigation",
-    label: "🧭 Navegación del Sistema",
+    label: "Navegación del Sistema",
+    icon: "i-lucide-compass",
     items: [
       {
         id: "nav-explorar",
@@ -263,7 +264,8 @@ const groups = computed<PaletteGroup[]>(() => [
   },
   {
     id: "cabin",
-    label: "🌓 Preferencia de Cabina",
+    label: "Preferencia de Cabina",
+    icon: "i-lucide-sun-moon",
     items: [
       {
         id: "action-toggle-theme",
@@ -277,7 +279,8 @@ const groups = computed<PaletteGroup[]>(() => [
   },
   {
     id: "manual",
-    label: "❓ Manual de Cabina",
+    label: "Manual de Cabina",
+    icon: "i-lucide-circle-help",
     items: [
       {
         id: "action-shortcuts",
@@ -291,12 +294,12 @@ const groups = computed<PaletteGroup[]>(() => [
   },
 ]);
 
-// -------------------------------------------------------------
-// Listener Global de Atajo (Ctrl+K / Cmd+K)
-// -------------------------------------------------------------
 defineShortcuts({
-  meta_k: () => {
-    isPaletteOpen.value = !isPaletteOpen.value;
+  meta_k: {
+    usingInput: true,
+    handler: () => {
+      isPaletteOpen.value = !isPaletteOpen.value;
+    },
   },
 });
 
@@ -310,49 +313,31 @@ function handlePaletteSelect(item: unknown) {
 <template>
   <UModal
     v-model:open="isPaletteOpen"
-    title="Paleta de Comandos de Cabina"
+    title="Atajos de Teclado"
     description="Acceso rápido a aeropuertos, controles de mapa y navegación de vuelo"
     :ui="{
       overlay: 'bg-black/60 backdrop-blur-sm',
       content:
         'sm:max-w-2xl bg-surface-card/95 dark:bg-surface-base/95 backdrop-blur-2xl border border-border-subtle border-t-white/35 dark:border-t-white/15 rounded-2xl shadow-2xl p-0 overflow-hidden ring-1 ring-white/10',
+      header:
+        'px-4 py-3 border-b border-border-subtle/70 bg-surface-card/40 flex items-center justify-between',
+      title:
+        'font-mono text-xs font-bold text-text-main tracking-tight uppercase flex items-center gap-2',
+      body: 'p-0',
     }"
   >
-    <template #content>
-      <!-- Cabezal Táctico Avionics -->
-      <div
-        class="flex items-center justify-between px-4 py-3 border-b border-border-subtle/70 bg-surface-card/40"
-      >
-        <div class="flex items-center gap-2.5">
-          <div
-            class="flex items-center justify-center size-6 rounded-lg bg-primary/10 border border-primary/20 text-primary shadow-xs"
-          >
-            <UIcon name="i-lucide-command" class="size-3.5" />
-          </div>
-          <div class="flex items-center gap-2">
-            <span
-              class="font-mono text-xs font-bold text-text-main tracking-tight uppercase"
-            >
-              Atajos de Teclado
-            </span>
-          </div>
+    <template #title>
+      <div class="flex items-center gap-2.5">
+        <div
+          class="flex items-center justify-center size-6 rounded-lg bg-primary/10 border border-primary/20 text-primary shadow-xs"
+        >
+          <UIcon name="i-lucide-command" class="size-3.5" />
         </div>
-
-        <div class="flex items-center gap-2">
-          <UKbd value="esc" size="sm" class="font-mono text-[10px]" />
-          <UButton
-            icon="i-lucide-x"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            class="rounded-lg text-text-muted hover:text-text-main cursor-pointer"
-            aria-label="Cerrar paleta de comandos"
-            @click="isPaletteOpen = false"
-          />
-        </div>
+        <span>Atajos de Teclado</span>
       </div>
+    </template>
 
-      <!-- Paleta de Comandos -->
+    <template #body>
       <UCommandPalette
         v-model:search-term="searchTerm"
         :groups="groups"
@@ -383,6 +368,17 @@ function handlePaletteSelect(item: unknown) {
         }"
         @update:model-value="handlePaletteSelect"
       >
+        <template #group-label="{ group, label }">
+          <div class="flex items-center gap-1.5">
+            <UIcon
+              v-if="group.icon"
+              :name="group.icon"
+              class="size-3.5 shrink-0 text-text-muted"
+            />
+            <span>{{ label }}</span>
+          </div>
+        </template>
+
         <template #footer>
           <div
             class="flex items-center justify-between px-3.5 py-2.5 text-[11px] font-mono text-text-muted border-t border-border-subtle/60 bg-surface-card/60"

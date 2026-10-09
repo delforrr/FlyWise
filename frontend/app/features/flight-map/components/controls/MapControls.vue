@@ -15,8 +15,8 @@
           icon="i-lucide-info"
           color="neutral"
           variant="ghost"
-          title="Leyenda OTP"
-          aria-label="Ver leyenda de confiabilidad OTP"
+          title="Leyenda"
+          aria-label="Ver leyenda de confiabilidad"
           class="relative flex items-center justify-center w-10 h-10 min-w-10 min-h-10 p-0 rounded-xl text-primary hover:text-primary hover:bg-surface-accent/80 border border-transparent hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200"
         />
 
@@ -99,15 +99,15 @@
       </UTooltip>
     </fieldset>
 
-    <!-- Micro-separador (Solo Desktop) -->
+    <!-- Micro-separador (Solo Desktop lg+) -->
     <USeparator
-      class="hidden md:block w-6 opacity-60 my-1 border-t border-border-subtle"
+      class="hidden lg:block w-6 opacity-60 my-1 border-t border-border-subtle"
       size="xs"
     />
 
-    <!-- Manual de Atajos (Solo Desktop) -->
+    <!-- Manual de Atajos (Solo Desktop lg+) -->
     <fieldset
-      class="m-0 p-0 border-0 min-w-0 hidden md:flex flex-col items-center"
+      class="m-0 p-0 border-0 min-w-0 hidden lg:flex flex-col items-center"
       aria-label="Manual de atajos y ayuda"
     >
       <legend class="sr-only">Manual de atajos y ayuda</legend>

@@ -56,7 +56,7 @@ function handleSearch() {
 
 <template>
   <div>
-    <!-- 1. Cápsula de búsqueda flotante en móvil (visible solo cuando NO hay selección activa) -->
+    <!-- 1. Cápsula de búsqueda flotante en móvil con UButton nativo -->
     <Transition
       enter-active-class="transition duration-300 ease-out"
       leave-active-class="transition duration-200 ease-in"
@@ -67,9 +67,12 @@ function handleSearch() {
         v-if="!selectedOrigin && !selectedDestination"
         class="fixed bottom-4 inset-x-4 z-30 md:hidden pointer-events-auto select-none"
       >
-        <button
-          type="button"
-          class="w-full hud-card border border-border-subtle/80 bg-surface-elevated/90 backdrop-blur-xl shadow-2xl p-3.5 rounded-2xl flex items-center justify-between gap-3 text-left transition-all active:scale-[0.98]"
+        <UButton
+          block
+          color="neutral"
+          variant="outline"
+          size="xl"
+          class="w-full bg-surface-elevated/90 backdrop-blur-xl shadow-2xl p-3.5 rounded-2xl flex items-center justify-between gap-3 text-left border-border-subtle/80 hover:border-primary/50 transition-all active:scale-[0.98] cursor-pointer"
           aria-label="Abrir búsqueda de vuelos"
           @click="openMobileSearch"
         >
@@ -79,7 +82,7 @@ function handleSearch() {
             >
               <UIcon name="i-lucide-search" class="w-5 h-5" />
             </div>
-            <div class="truncate">
+            <div class="truncate text-left">
               <span class="block text-xs font-semibold text-text-main truncate">
                 ¿A dónde querés volar?
               </span>
@@ -88,70 +91,50 @@ function handleSearch() {
               </span>
             </div>
           </div>
-
-          <div class="flex items-center gap-1.5 shrink-0">
-            <UBadge
-              variant="subtle"
-              size="xs"
-              class="rounded-lg text-[10px] font-mono font-medium px-2 py-0.5"
-            >
-              Filtros
-            </UBadge>
-            <UIcon name="i-lucide-chevron-up" class="w-4 h-4 text-text-muted" />
-          </div>
-        </button>
+        </UButton>
       </div>
     </Transition>
 
-    <!-- 2. Drawer Vaul desde abajo con snap-points: 460px y full screen (1) -->
+    <!-- 2. Drawer -->
     <UDrawer
       v-model:open="isMobileSearchOpen"
       direction="bottom"
-      :snap-points="['460px', 1]"
+      :snap-points="[0.6]"
       :handle="true"
       title="Buscar Vuelo"
       description="Auditoría de puntualidad histórica y conexiones"
       class="md:hidden"
     >
       <template #body>
-        <div class="flex flex-col gap-4 pb-2">
+        <div class="flex flex-col gap-4">
           <!-- Título y Reset -->
-          <div class="flex items-center justify-between pt-1">
-            <div>
-              <h2 class="text-base font-bold text-text-main">
-                Buscar Ruta y Puntualidad
-              </h2>
-              <p class="text-xs text-text-muted">
-                Puntualidad OTP-15 y conexiones aéreas
-              </p>
-            </div>
-            <UButton
-              v-if="selectedOrigin || selectedDestination"
-              icon="i-lucide-rotate-ccw"
-              variant="ghost"
-              size="xs"
-              label="Limpiar"
-              class="text-text-muted hover:text-text-main"
-              @click="clearSelection"
-            />
-          </div>
+          <UButton
+            v-if="selectedOrigin && selectedDestination"
+            icon="i-lucide-rotate-ccw"
+            variant="ghost"
+            size="xs"
+            label="Limpiar"
+            class="text-text-muted hover:text-text-main"
+            @click="clearSelection"
+          />
 
           <USeparator size="sm" class="my-3 sm:my-4 opacity-75" />
 
           <!-- Selectores Origen y Destino -->
           <div class="flex flex-col gap-2.5">
             <div>
-              <label
+              <span
                 class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1"
               >
                 Aeropuerto de Origen
-                <AirportSelectInput
-                  v-model="selectedOrigin"
-                  mode="drawer"
-                  placeholder="Seleccionar origen (ej. EZE)"
-                  icon="i-lucide-plane-takeoff"
-                />
-              </label>
+              </span>
+              <AirportSelectInput
+                v-model="selectedOrigin"
+                mode="drawer"
+                placeholder="Seleccionar origen (ej. EZE)"
+                icon="i-lucide-plane-takeoff"
+                aria-label="Aeropuerto de Origen"
+              />
             </div>
 
             <!-- Botón Swap Centrado -->
@@ -168,17 +151,18 @@ function handleSearch() {
             </div>
 
             <div>
-              <label
+              <span
                 class="block text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1"
               >
                 Aeropuerto de Destino
-                <AirportSelectInput
-                  v-model="selectedDestination"
-                  mode="drawer"
-                  placeholder="Seleccionar destino (ej. MAD)"
-                  icon="i-lucide-plane-landing"
-                />
-              </label>
+              </span>
+              <AirportSelectInput
+                v-model="selectedDestination"
+                mode="drawer"
+                placeholder="Seleccionar destino (ej. MAD)"
+                icon="i-lucide-plane-landing"
+                aria-label="Aeropuerto de Destino"
+              />
             </div>
           </div>
 
@@ -194,8 +178,18 @@ function handleSearch() {
                 v-for="hub in quickHubs"
                 :key="hub.iata"
                 size="xs"
-                :variant="selectedOrigin === hub.iata || selectedDestination === hub.iata ? 'solid' : 'outline'"
-                :color="selectedOrigin === hub.iata || selectedDestination === hub.iata ? 'primary' : 'neutral'"
+                :variant="
+                  selectedOrigin === hub.iata ||
+                  selectedDestination === hub.iata
+                    ? 'solid'
+                    : 'outline'
+                "
+                :color="
+                  selectedOrigin === hub.iata ||
+                  selectedDestination === hub.iata
+                    ? 'primary'
+                    : 'neutral'
+                "
                 class="font-mono text-xs font-semibold rounded-lg cursor-pointer"
                 @click="handleSelectHub(hub.iata)"
               >
@@ -204,27 +198,6 @@ function handleSearch() {
                   {{ hub.city }}
                 </span>
               </UButton>
-            </div>
-          </div>
-
-          <!-- Selector de Fecha (Calendario visible al scrollear hacia arriba) -->
-          <div
-            class="flex flex-col gap-1.5 pt-2 border-t border-border-subtle/60"
-          >
-            <div class="flex items-center justify-between">
-              <span
-                class="text-[11px] font-semibold text-text-muted uppercase tracking-wider"
-              >
-                Fecha del Vuelo
-              </span>
-              <span class="text-xs font-mono text-text-muted">
-                {{ defaultDate.toString() }}
-              </span>
-            </div>
-            <div
-              class="flex justify-center bg-surface-base/50 rounded-xl p-2 border border-border-subtle/50"
-            >
-              <UCalendar v-model="defaultDate" class="w-full justify-center" />
             </div>
           </div>
         </div>
@@ -241,7 +214,7 @@ function handleSearch() {
             icon="i-lucide-search"
             block
             size="lg"
-            class="btn-hud-primary flex-1 h-12 rounded-xl font-bold text-sm shadow-lg flex items-center justify-center"
+            class="flex-1 h-12 rounded-xl font-bold text-sm shadow-lg flex items-center justify-center bg-linear-to-r from-secondary to-primary text-white hover:brightness-105 active:scale-98 transition-all"
             label="Auditar Vuelo y Ver Mapa"
             @click="handleSearch"
           />

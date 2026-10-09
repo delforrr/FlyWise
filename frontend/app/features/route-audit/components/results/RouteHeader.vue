@@ -58,7 +58,9 @@ function formatCoordinates(coords?: [number, number]): string {
 </script>
 
 <template>
-  <div class="hud-panel-header !flex-col !items-stretch !p-3">
+  <div
+    class="flex flex-col items-stretch p-3 border-b border-border-subtle bg-surface-card/85 dark:bg-surface-base/85 backdrop-blur-md"
+  >
     <!-- Zona 1: Identificación de Ruta, Baliza y Controles de Ventana -->
     <div class="flex items-center justify-between gap-2 w-full">
       <div class="flex items-center gap-2 overflow-hidden min-w-0">
@@ -111,7 +113,9 @@ function formatCoordinates(coords?: [number, number]): string {
             </UButton>
           </div>
 
-          <p class="text-xs text-text-muted leading-snug mt-0.5 break-words">
+          <p
+            class="text-xs text-text-muted leading-snug mt-0.5 wrap-break-word"
+          >
             <template v-if="originAirport && destinationAirport">
               {{ originAirport.name }} ({{ originAirport.city }}) ➔
               {{ destinationAirport.name }} ({{ destinationAirport.city }})

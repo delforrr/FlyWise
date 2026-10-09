@@ -14,10 +14,10 @@ import { useFlightSelection } from "~/features/route-audit/composables/useFlight
  * - -: Zoom out en el mapa.
  *
  * Nota: Los atajos meta_k y '?' son administrados directamente por sus respectivos
- * componentes (CockpitCommandPalette.vue y CockpitShortcutsModal.vue) para evitar
+ * componentes (CommandPalette.vue y ShortcutsModal.vue) para evitar
  * listeners duplicados que abren y cierran el diálogo en el mismo tick.
  */
-export function useCockpitShortcuts() {
+export function useShortcuts() {
   const { toggle3D, resetNorth, zoomIn, zoomOut } = useFlightMap();
   const { triggerFit, clearSelection } = useFlightSelection();
   const shortcutsModal = useState<boolean>("cockpit_shortcuts_modal", () => false);
@@ -64,4 +64,5 @@ export function useCockpitShortcuts() {
   };
 }
 
-export default useCockpitShortcuts;
+export const useCockpitShortcuts = useShortcuts;
+export default useShortcuts;

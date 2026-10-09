@@ -22,7 +22,7 @@ defineProps<{
         </span>
 
         <!-- Nombre comercial -->
-        <span class="font-semibold text-text-main text-xs leading-tight break-words">
+        <span class="font-semibold text-text-main text-xs leading-tight wrap-break-word">
           {{ airline.airlineName }}
         </span>
       </div>
