@@ -28,6 +28,8 @@
     "esbuild@0.27.7": true
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.129"
+    "@iconify-json/lucide": "^1.2.129",
+    "@vue/test-utils": "^2.5.1",
+    "vitest": "^5.0.3"
   }
 }

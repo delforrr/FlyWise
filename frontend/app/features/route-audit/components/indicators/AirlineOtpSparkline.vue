@@ -32,7 +32,7 @@ const historicalData = computed<number[]>(() => {
   for (let i = 0; i < count - 1; i++) {
     // Variación armónica sutil determinista (±1.5%)
     const jitter = Math.sin((seed + i * 23) * 0.45) * 1.5;
-    const offset = pattern[i] + jitter;
+    const offset = (pattern[i] ?? 0) + jitter;
     // Límite de varianza ±4.5% alrededor de currentOtp
     const clampedOffset = Math.max(-4.5, Math.min(4.5, offset));
     const val = Math.max(0, Math.min(100, base + clampedOffset));
@@ -75,9 +75,10 @@ const coordinates = computed<Point[]>(() => {
 
   const usableWidth = props.width - paddingX * 2;
   const usableHeight = props.height - paddingY * 2;
+  const divisor = Math.max(data.length - 1, 1);
 
   return data.map((val, idx) => {
-    const x = paddingX + (idx / (data.length - 1)) * usableWidth;
+    const x = paddingX + (idx / divisor) * usableWidth;
     const norm = (val - effectiveMin) / ySpan;
     // Mayor OTP = menor coordenada Y (más alto en el gráfico)
     const y = props.height - paddingY - norm * usableHeight;
@@ -91,20 +92,23 @@ const coordinates = computed<Point[]>(() => {
 // Generación de trayectoria curva suave (Catmull-Rom a Bezier cúbico)
 const linePath = computed<string>(() => {
   const pts = coordinates.value;
-  if (pts.length === 0) return "";
-  if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
-  if (pts.length === 2) {
-    return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
+  const first = pts[0];
+  if (!first) return "";
+  if (pts.length === 1) return `M ${first.x} ${first.y}`;
+
+  const second = pts[1];
+  if (pts.length === 2 && second) {
+    return `M ${first.x} ${first.y} L ${second.x} ${second.y}`;
   }
 
-  let d = `M ${pts[0].x} ${pts[0].y}`;
+  let d = `M ${first.x} ${first.y}`;
   const tension = 0.16;
 
   for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[Math.max(0, i - 1)];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const p0 = pts[Math.max(0, i - 1)] ?? first;
+    const p1 = pts[i] ?? first;
+    const p2 = pts[i + 1] ?? p1;
+    const p3 = pts[Math.min(pts.length - 1, i + 2)] ?? p2;
 
     const cp1x = p1.x + (p2.x - p0.x) * tension;
     const cp1y = p1.y + (p2.y - p0.y) * tension;
@@ -122,20 +126,24 @@ const areaPath = computed<string>(() => {
   if (pts.length < 2 || !linePath.value) return "";
   const first = pts[0];
   const last = pts[pts.length - 1];
+  if (!first || !last) return "";
   return `${linePath.value} L ${last.x} ${props.height} L ${first.x} ${props.height} Z`;
 });
 
 // Punto final luminoso
 const lastPoint = computed<Point | null>(() => {
   const pts = coordinates.value;
-  return pts.length > 0 ? pts[pts.length - 1] : null;
+  if (pts.length === 0) return null;
+  return pts[pts.length - 1] ?? null;
 });
 
 // Descripción accesible y tooltip
 const trendDelta = computed<number>(() => {
   const data = historicalData.value;
-  if (data.length < 2) return 0;
-  return Number((data[data.length - 1] - data[0]).toFixed(1));
+  const first = data[0];
+  const last = data[data.length - 1];
+  if (first === undefined || last === undefined || data.length < 2) return 0;
+  return Number((last - first).toFixed(1));
 });
 
 const trendSummary = computed<string>(() => {
@@ -155,8 +163,7 @@ const ariaLabel = computed<string>(() => {
 </script>
 
 <template>
-  <span
-    role="img"
+  <img
     class="inline-flex items-center shrink-0 cursor-help"
     :title="tooltipText"
     :aria-label="ariaLabel"
@@ -234,5 +241,5 @@ const ariaLabel = computed<string>(() => {
         />
       </g>
     </svg>
-  </span>
+  </img>
 </template>

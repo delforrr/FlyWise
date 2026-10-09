@@ -12,9 +12,7 @@ const titleText = computed(() =>
 );
 
 const ariaLabel = computed(() =>
-  props.count === 1
-    ? "1 ruta disponible"
-    : `${props.count} rutas disponibles`,
+  props.count === 1 ? "1 ruta disponible" : `${props.count} rutas disponibles`,
 );
 </script>
 

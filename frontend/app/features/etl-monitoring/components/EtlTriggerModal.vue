@@ -113,7 +113,7 @@ function handleConfirm() {
           </div>
         </div>
 
-        <!-- 1. Modo de Ingesta con URadioGroup variant="card" -->
+        <!-- 1. Modo de Ingesta con URadioGroup -->
         <div>
           <label class="block font-semibold text-text-main mb-1.5">
             Tipo de sincronización

@@ -79,10 +79,7 @@ function handleBackToHub() {
       aria-label="Desplegar panel de resultados"
       @click="isExpanded = true"
     >
-      <span
-        v-if="selectedOrigin && selectedDestination"
-        class="tracking-tight"
-      >
+      <span v-if="selectedOrigin && selectedDestination" class="tracking-tight">
         {{ selectedOrigin }} ➔ {{ selectedDestination }}
       </span>
       <span v-else class="tracking-tight">
@@ -146,8 +143,8 @@ function handleBackToHub() {
             >
               <template #description>
                 <p class="text-xs text-text-muted max-w-xs mx-auto">
-                  No se encontraron vuelos comerciales directos ni con
-                  escala entre
+                  No se encontraron vuelos comerciales directos ni con escala
+                  entre
                   <span class="font-mono font-bold text-text-main">{{
                     selectedOrigin
                   }}</span>

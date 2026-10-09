@@ -145,7 +145,9 @@ function getAriaLabel(
     <div class="grid grid-cols-3 gap-2 font-mono">
       <UCard
         variant="subtle"
-        :ui="{ body: 'p-2 sm:p-2.5 flex flex-col items-center justify-center text-center' }"
+        :ui="{
+          body: 'p-2 sm:p-2.5 flex flex-col items-center justify-center text-center',
+        }"
         class="bg-surface-base/60 dark:bg-surface-elevated/40 border border-border-subtle/50 shadow-xs"
       >
         <span class="text-[9px] uppercase tracking-wider text-text-dim">
@@ -170,26 +172,34 @@ function getAriaLabel(
 
       <UCard
         variant="subtle"
-        :ui="{ body: 'p-2 sm:p-2.5 flex flex-col items-center justify-center text-center' }"
+        :ui="{
+          body: 'p-2 sm:p-2.5 flex flex-col items-center justify-center text-center',
+        }"
         class="bg-surface-base/60 dark:bg-surface-elevated/40 border border-border-subtle/50 shadow-xs"
       >
         <span class="text-[9px] uppercase tracking-wider text-text-dim">
           Conexiones
         </span>
-        <span class="text-xs font-bold font-mono text-primary tabular-nums mt-0.5">
+        <span
+          class="text-xs font-bold font-mono text-primary tabular-nums mt-0.5"
+        >
           {{ routes.length }} rutas
         </span>
       </UCard>
 
       <UCard
         variant="subtle"
-        :ui="{ body: 'p-2 sm:p-2.5 flex flex-col items-center justify-center text-center' }"
+        :ui="{
+          body: 'p-2 sm:p-2.5 flex flex-col items-center justify-center text-center',
+        }"
         class="bg-surface-base/60 dark:bg-surface-elevated/40 border border-border-subtle/50 shadow-xs"
       >
         <span class="text-[9px] uppercase tracking-wider text-text-dim">
           Ruta Más Larga
         </span>
-        <span class="text-xs font-bold font-mono text-text-main tabular-nums mt-0.5">
+        <span
+          class="text-xs font-bold font-mono text-text-main tabular-nums mt-0.5"
+        >
           {{ maxDistanceKm.toLocaleString() }} km
         </span>
       </UCard>
@@ -201,10 +211,17 @@ function getAriaLabel(
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-1.5">
           <UIcon name="i-lucide-network" class="w-3.5 h-3.5 text-primary" />
-          <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-dim">
+          <span
+            class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-dim"
+          >
             Rutas Conectadas:
           </span>
-          <UBadge color="primary" variant="subtle" size="xs" class="font-mono tabular-nums">
+          <UBadge
+            color="primary"
+            variant="subtle"
+            size="xs"
+            class="font-mono tabular-nums"
+          >
             {{ filteredRoutes.length }} / {{ routes.length }}
           </UBadge>
         </div>
@@ -246,7 +263,9 @@ function getAriaLabel(
         />
 
         <!-- Selector de Ordenamiento Rápido con USelect nativo -->
-        <div class="flex items-center gap-1.5 text-[10px] font-mono text-text-muted">
+        <div
+          class="flex items-center gap-1.5 text-[10px] font-mono text-text-muted"
+        >
           <span class="text-text-dim hidden sm:inline">Orden:</span>
           <USelect
             v-model="sortBy"
@@ -304,7 +323,7 @@ function getAriaLabel(
             name="i-lucide-building-2"
             class="w-3.5 h-3.5 text-text-dim shrink-0"
           />
-          <span class="font-normal text-text-muted break-words">
+          <span class="font-normal text-text-muted wrap-break-word">
             {{ getConnectedDestination(route).name }}
           </span>
         </div>
@@ -360,7 +379,7 @@ function getAriaLabel(
       <p class="text-xs font-semibold text-text-main mb-1">
         Sin rutas con los filtros aplicados
       </p>
-      <p class="text-[11px] text-text-muted mb-2.5 max-w-[220px]">
+      <p class="text-[11px] text-text-muted mb-2.5 max-w-55">
         No encontramos conexiones que coincidan con la búsqueda o filtro activo.
       </p>
       <UButton
