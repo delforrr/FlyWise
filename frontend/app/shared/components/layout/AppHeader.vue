@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<Props>(), {
   hasLogin: false,
 });
 
-const isPaletteOpen = useState('cockpit_command_palette_open', () => false);
+const isPaletteOpen = useState("cockpit_command_palette_open", () => false);
 </script>
 
 <template>
@@ -75,7 +75,7 @@ const isPaletteOpen = useState('cockpit_command_palette_open', () => false);
         icon="i-lucide-command"
         variant="ghost"
         color="neutral"
-        class="hidden md:inline-flex rounded-xl font-mono text-xs text-text-muted hover:text-text-main hover:bg-surface-accent border border-border-subtle/70"
+        class="hidden md:flex rounded-xl font-mono text-xs text-text-muted hover:text-text-main hover:bg-surface-accent border border-border-subtle/70"
         @click="isPaletteOpen = true"
       >
         <span class="font-mono">Buscar...</span>

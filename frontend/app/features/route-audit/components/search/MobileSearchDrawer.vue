@@ -91,53 +91,32 @@ function handleSearch() {
               </span>
             </div>
           </div>
-
-          <div class="flex items-center gap-1.5 shrink-0 ml-auto">
-            <UBadge
-              variant="subtle"
-              size="xs"
-              class="rounded-lg text-[10px] font-mono font-medium px-2 py-0.5"
-            >
-              Filtros
-            </UBadge>
-            <UIcon name="i-lucide-chevron-up" class="w-4 h-4 text-text-muted" />
-          </div>
         </UButton>
       </div>
     </Transition>
 
-    <!-- 2. Drawer Vaul desde abajo con snap-points: 460px y full screen (1) -->
+    <!-- 2. Drawer -->
     <UDrawer
       v-model:open="isMobileSearchOpen"
       direction="bottom"
-      :snap-points="['460px', 1]"
+      :snap-points="[0.6]"
       :handle="true"
       title="Buscar Vuelo"
       description="Auditoría de puntualidad histórica y conexiones"
       class="md:hidden"
     >
       <template #body>
-        <div class="flex flex-col gap-4 pb-2">
+        <div class="flex flex-col gap-4">
           <!-- Título y Reset -->
-          <div class="flex items-center justify-between pt-1">
-            <div>
-              <h2 class="text-base font-bold text-text-main">
-                Buscar Ruta y Puntualidad
-              </h2>
-              <p class="text-xs text-text-muted">
-                Puntualidad OTP-15 y conexiones aéreas
-              </p>
-            </div>
-            <UButton
-              v-if="selectedOrigin || selectedDestination"
-              icon="i-lucide-rotate-ccw"
-              variant="ghost"
-              size="xs"
-              label="Limpiar"
-              class="text-text-muted hover:text-text-main"
-              @click="clearSelection"
-            />
-          </div>
+          <UButton
+            v-if="selectedOrigin && selectedDestination"
+            icon="i-lucide-rotate-ccw"
+            variant="ghost"
+            size="xs"
+            label="Limpiar"
+            class="text-text-muted hover:text-text-main"
+            @click="clearSelection"
+          />
 
           <USeparator size="sm" class="my-3 sm:my-4 opacity-75" />
 
@@ -199,8 +178,18 @@ function handleSearch() {
                 v-for="hub in quickHubs"
                 :key="hub.iata"
                 size="xs"
-                :variant="selectedOrigin === hub.iata || selectedDestination === hub.iata ? 'solid' : 'outline'"
-                :color="selectedOrigin === hub.iata || selectedDestination === hub.iata ? 'primary' : 'neutral'"
+                :variant="
+                  selectedOrigin === hub.iata ||
+                  selectedDestination === hub.iata
+                    ? 'solid'
+                    : 'outline'
+                "
+                :color="
+                  selectedOrigin === hub.iata ||
+                  selectedDestination === hub.iata
+                    ? 'primary'
+                    : 'neutral'
+                "
                 class="font-mono text-xs font-semibold rounded-lg cursor-pointer"
                 @click="handleSelectHub(hub.iata)"
               >
@@ -209,27 +198,6 @@ function handleSearch() {
                   {{ hub.city }}
                 </span>
               </UButton>
-            </div>
-          </div>
-
-          <!-- Selector de Fecha (Calendario visible al scrollear hacia arriba) -->
-          <div
-            class="flex flex-col gap-1.5 pt-2 border-t border-border-subtle/60"
-          >
-            <div class="flex items-center justify-between">
-              <span
-                class="text-[11px] font-semibold text-text-muted uppercase tracking-wider"
-              >
-                Fecha del Vuelo
-              </span>
-              <span class="text-xs font-mono text-text-muted">
-                {{ defaultDate.toString() }}
-              </span>
-            </div>
-            <div
-              class="flex justify-center bg-surface-base/50 rounded-xl p-2 border border-border-subtle/50"
-            >
-              <UCalendar v-model="defaultDate" class="w-full justify-center" />
             </div>
           </div>
         </div>

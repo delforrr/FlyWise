@@ -74,7 +74,7 @@ function handleBackToHub() {
       variant="outline"
       size="sm"
       icon="i-lucide-panel-left-open"
-      class="fixed z-40 top-26 left-3 md:left-6 pointer-events-auto cursor-pointer bg-surface-card/95 backdrop-blur-xl border-border-subtle/80 hover:border-primary/50 shadow-xl font-mono font-bold text-xs"
+      class="fixed z-40 xs:top-18 sm:top-26 left-3 md:left-6 pointer-events-auto cursor-pointer bg-surface-card/95 backdrop-blur-xl border-border-subtle/80 hover:border-primary/50 shadow-xl font-mono font-bold text-xs"
       title="Desplegar panel de resultados"
       aria-label="Desplegar panel de resultados"
       @click="isExpanded = true"
