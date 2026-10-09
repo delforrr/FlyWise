@@ -82,9 +82,12 @@ function handleToggleTheme() {
   colorMode.preference = colorMode.value === "dark" ? "light" : "dark";
 }
 
-function handleOpenShortcuts() {
+async function handleOpenShortcuts() {
   isPaletteOpen.value = false;
   searchTerm.value = "";
+  if (route.path !== "/explorar") {
+    await navigateTo("/explorar");
+  }
   useState("cockpit_shortcuts_modal", () => false).value = true;
 }
 
@@ -292,8 +295,11 @@ const groups = computed<PaletteGroup[]>(() => [
 ]);
 
 defineShortcuts({
-  meta_k: () => {
-    isPaletteOpen.value = !isPaletteOpen.value;
+  meta_k: {
+    usingInput: true,
+    handler: () => {
+      isPaletteOpen.value = !isPaletteOpen.value;
+    },
   },
 });
 

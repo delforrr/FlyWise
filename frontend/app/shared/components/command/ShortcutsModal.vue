@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Estado reactivo compartido para el modal de atajos de cabina.
- * Compartido con useCockpitShortcuts() y activable mediante tecla '?' o botón HUD.
+ * Compartido con useShortcuts() y activable mediante tecla '?' o botón HUD.
  */
 const isOpen = useState<boolean>('cockpit_shortcuts_modal', () => false);
 
@@ -142,7 +142,7 @@ const instrumentControls: ShortcutItem[] = [
           </div>
         </section>
 
-        <!-- Columna B: ⚡ Comandos Globales de Cabina -->
+        <!-- Columna B: Comandos Globales de Cabina -->
         <section
           class="flex flex-col gap-3 p-4 rounded-xl border border-border-subtle/80 bg-surface-accent/25 dark:bg-surface-elevated/20 shadow-xs"
           aria-labelledby="heading-cockpit-commands"
@@ -167,7 +167,7 @@ const instrumentControls: ShortcutItem[] = [
           </div>
 
           <div class="space-y-2.5">
-            <!-- Cmd+K / Ctrl+K: Cockpit Command Palette -->
+            <!-- Cmd+K / Ctrl+K: Command Palette -->
             <div
               class="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border-subtle/70 bg-surface-card/70 dark:bg-surface-base/50 hover:border-primary/40 hover:bg-surface-card transition-colors"
             >
@@ -178,7 +178,7 @@ const instrumentControls: ShortcutItem[] = [
                 <span
                   class="text-[11px] font-mono text-text-muted mt-0.5 leading-tight"
                 >
-                  Abrir Cockpit Command Palette
+                  Abrir Command Palette
                 </span>
               </div>
               <div class="flex items-center gap-1 shrink-0 font-mono">

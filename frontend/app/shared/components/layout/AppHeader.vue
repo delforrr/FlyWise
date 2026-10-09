@@ -96,5 +96,5 @@ const isPaletteOpen = useState('cockpit_command_palette_open', () => false);
     </template>
   </UHeader>
 
-  <CockpitCommandPalette />
+  <CommandPalette />
 </template>
