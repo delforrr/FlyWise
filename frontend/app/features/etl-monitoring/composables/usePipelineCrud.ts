@@ -67,13 +67,15 @@ export function usePipelineCrud() {
   });
 
   // 1. Probar Conexión al Endpoint (Probe & Ping)
-  async function testEndpoint(connection: PipelineConnectionConfig): Promise<ProbeEndpointResult> {
+  async function testEndpoint(connection: PipelineConnectionConfig, simulatedDelayMs = 600): Promise<ProbeEndpointResult> {
     isTestingEndpoint.value = true;
     lastProbeResult.value = null;
 
     // Simulación reactiva realista con latencia de red
     const startTime = performance.now();
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    if (simulatedDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, simulatedDelayMs));
+    }
     const latencyMs = Math.round(performance.now() - startTime);
 
     if (!connection.endpointUrl || !connection.endpointUrl.startsWith('http')) {
@@ -275,6 +277,16 @@ export function usePipelineCrud() {
     }
   }
 
+  // 7. Restaurar Catálogo a Valores Predeterminados
+  function resetToDefaults() {
+    pipelines.value = JSON.parse(JSON.stringify(initialPipelines));
+    toast.add({
+      title: 'Catálogo restaurado',
+      description: 'Se han restablecido los servicios predeterminados.',
+      color: 'neutral',
+    });
+  }
+
   return {
     pipelines,
     filteredServices,
@@ -290,5 +302,6 @@ export function usePipelineCrud() {
     deletePipeline,
     duplicatePipeline,
     togglePipelineStatus,
+    resetToDefaults,
   };
 }

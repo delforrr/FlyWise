@@ -45,19 +45,27 @@ vi.mock("maplibre-gl", () => {
     }
     extend = vi.fn();
   }
+  function MapMock() {
+    return mockMap;
+  }
   return {
-    Map: vi.fn(() => mockMap),
+    Map: vi.fn().mockImplementation(MapMock),
     LngLatBounds,
     default: {
-      Map: vi.fn(() => mockMap),
+      Map: vi.fn().mockImplementation(MapMock),
       LngLatBounds,
     },
   };
 });
 
-vi.mock("@deck.gl/mapbox", () => ({
-  MapboxOverlay: vi.fn(() => mockOverlay),
-}));
+vi.mock("@deck.gl/mapbox", () => {
+  function OverlayMock() {
+    return mockOverlay;
+  }
+  return {
+    MapboxOverlay: vi.fn().mockImplementation(OverlayMock),
+  };
+});
 
 const mockFlightSelection = {
   setHoveredEntity: vi.fn(),
@@ -188,6 +196,56 @@ describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáutica
       );
     });
 
+    it("fitRoute() encuadra la cámara entre coordenadas de origen y destino con fitBounds", () => {
+      const flightMap = useFlightMap();
+      flightMap.fitRoute([-58.53, -34.82], [-80.29, 25.79]);
+
+      expect(mockFitBounds).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          pitch: 35,
+          duration: 1600,
+          essential: true,
+        }),
+      );
+    });
+
+    it("fitRoute() utiliza selectedRouteData cuando no se pasan coordenadas explícitas", () => {
+      const flightMap = useFlightMap();
+      mockFlightSelection.selectedRouteData.value = {
+        originCoordinates: [-58.53, -34.82],
+        destinationCoordinates: [-80.29, 25.79],
+      } as any;
+
+      flightMap.fitRoute();
+
+      expect(mockFitBounds).toHaveBeenCalled();
+      mockFlightSelection.selectedRouteData.value = null;
+    });
+
+    it("fitHub() encuadra las conexiones del aeropuerto o hace flyTo si no tiene rutas conectadas", () => {
+      const flightMap = useFlightMap();
+
+      // Hub con rutas conectadas en matchingRoutes (mock)
+      mockFlightSelection.matchingRoutes.value = [
+        { originIata: "EZE", destinationIata: "MIA", originCoordinates: [-58, -34], destinationCoordinates: [-80, 25] },
+      ] as any;
+      flightMap.fitHub("EZE");
+      expect(mockFitBounds).toHaveBeenCalled();
+
+      // Hub sin rutas conectadas: debe hacer flyTo
+      mockFlightSelection.matchingRoutes.value = [];
+      flightMap.fitHub("EZE");
+      expect(mockFlyTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          zoom: 5,
+        }),
+      );
+
+      // Código inexistente: no falla y retorna temprano
+      expect(() => flightMap.fitHub("NONEXISTENT")).not.toThrow();
+    });
+
     it("destroyMap() remueve controles, destruye la instancia de mapa y resetea estados", () => {
       const flightMap = useFlightMap();
       flightMap.destroyMap();
@@ -199,6 +257,30 @@ describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáutica
       expect(flightMap.isLoaded.value).toBe(false);
       expect(flightMap.currentPitch.value).toBe(0);
       expect(flightMap.currentZoom.value).toBe(0);
+    });
+  });
+
+  describe("Inicialización del Mapa con initMap()", () => {
+    it("instancia MapLibre GL, acopla MapboxOverlay y escucha eventos de navegación", () => {
+      const flightMap = useFlightMap();
+      flightMap.destroyMap();
+
+      const container = document.createElement("div");
+      flightMap.initMap(container, {
+        center: [-58.5, -34.8],
+        zoom: 4,
+        pitch: 25,
+        bearing: 10,
+      });
+
+      expect(flightMap.mapInstance.value).toBeDefined();
+      expect(flightMap.overlayInstance.value).toBeDefined();
+      expect(mockMap.addControl).toHaveBeenCalled();
+      expect(mockMap.on).toHaveBeenCalledWith("pitch", expect.any(Function));
+      expect(mockMap.on).toHaveBeenCalledWith("zoom", expect.any(Function));
+      expect(mockMap.on).toHaveBeenCalledWith("rotate", expect.any(Function));
+
+      flightMap.destroyMap();
     });
   });
 });

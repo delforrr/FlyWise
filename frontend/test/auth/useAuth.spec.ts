@@ -1,84 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref } from 'vue';
-
-// ---------------------------------------------------------------------------
-// Modelo de Referencia del Composable de Autenticación para Nuxt 4 + NestJS
-// Ilustra la lógica de sesión, persistencia de tokens JWT y llamadas API
-// ---------------------------------------------------------------------------
-interface User {
-  id: string;
-  email: string;
-  role: 'ADMIN' | 'OPERATOR';
-}
-
-interface AuthResponse {
-  accessToken: string;
-  user: User;
-}
-
-// Simulador del composable useAuth para la suite de pruebas unitarias
-function createAuthComposable(deps: {
-  mockFetch: ReturnType<typeof vi.fn>;
-  mockNavigateTo: ReturnType<typeof vi.fn>;
-  cookieStorage: { token: string | null };
-}) {
-  const user = ref<User | null>(null);
-  const token = ref<string | null>(deps.cookieStorage.token);
-  const isLoading = ref<boolean>(false);
-  const error = ref<string | null>(null);
-
-  const isAuthenticated = () => Boolean(token.value);
-
-  async function login(credentials: { email: string; password: string }) {
-    isLoading.value = true;
-    error.value = null;
-
-    try {
-      const response = await deps.mockFetch<AuthResponse>('/api/auth/login', {
-        method: 'POST',
-        body: credentials,
-      });
-
-      token.value = response.accessToken;
-      user.value = response.user;
-      deps.cookieStorage.token = response.accessToken;
-
-      await deps.mockNavigateTo('/admin');
-      return true;
-    } catch (err: any) {
-      error.value = err.data?.message || 'Error de autenticación';
-      token.value = null;
-      user.value = null;
-      deps.cookieStorage.token = null;
-      return false;
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  async function logout() {
-    token.value = null;
-    user.value = null;
-    deps.cookieStorage.token = null;
-    await deps.mockNavigateTo('/login');
-  }
-
-  return {
-    user,
-    token,
-    isLoading,
-    error,
-    isAuthenticated,
-    login,
-    logout,
-  };
-}
+import {
+  useAuth,
+  type User,
+  type AuthResponse,
+} from '../../app/features/auth/composables/useAuth';
 
 describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticación', () => {
   let mockFetch: ReturnType<typeof vi.fn>;
   let mockNavigateTo: ReturnType<typeof vi.fn>;
   let cookieStorage: { token: string | null };
-  let auth: ReturnType<typeof createAuthComposable>;
+  let auth: ReturnType<typeof useAuth>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -86,7 +17,7 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
     mockNavigateTo = vi.fn();
     cookieStorage = { token: null };
 
-    auth = createAuthComposable({
+    auth = useAuth({
       mockFetch,
       mockNavigateTo,
       cookieStorage,
@@ -104,7 +35,7 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
 
     it('inicia como autenticado si ya existe un token almacenado en cookies', () => {
       cookieStorage.token = 'existing-jwt-token-xyz';
-      const existingAuth = createAuthComposable({
+      const existingAuth = useAuth({
         mockFetch,
         mockNavigateTo,
         cookieStorage,
@@ -273,7 +204,7 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
   describe('Flujo de Cierre de Sesión (logout)', () => {
     it('revoca la sesión, limpia tokens de memoria/cookie y redirige a /login', async () => {
       cookieStorage.token = 'active-session-token';
-      const activeAuth = createAuthComposable({
+      const activeAuth = useAuth({
         mockFetch,
         mockNavigateTo,
         cookieStorage,

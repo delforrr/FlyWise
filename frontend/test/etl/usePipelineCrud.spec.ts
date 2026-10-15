@@ -1,154 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref, computed } from 'vue';
-import type {
-  EtlPipeline,
-  PipelineConnectionConfig,
-  ProbeEndpointResult,
-} from '../../app/features/etl-monitoring/types/etl';
-import { initialPipelines } from '../../app/features/etl-monitoring/data/mockEtl';
+import { usePipelineCrud } from '../../app/features/etl-monitoring/composables/usePipelineCrud';
+import type { PipelineConnectionConfig } from '../../app/features/etl-monitoring/types/etl';
 
-describe('usePipelineCrud - Composable de Gestión y CRUD de Pipelines', () => {
-  let pipelinesState: ReturnType<typeof ref<EtlPipeline[]>>;
-  let toastMock: { add: ReturnType<typeof vi.fn> };
+describe('usePipelineCrud — Composable Real de Gestión y CRUD de Pipelines', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-  // Simulador aislado de la lógica de usePipelineCrud para Vitest
-  function setupTestComposable() {
-    pipelinesState = ref<EtlPipeline[]>(JSON.parse(JSON.stringify(initialPipelines)));
-    toastMock = { add: vi.fn() };
-
-    const selectedEntityFilter = ref<'all' | 'airports' | 'routes' | 'otp_metrics'>('all');
-    const selectedSourceTypeFilter = ref<'all' | 'system' | 'custom'>('all');
-    const searchQuery = ref('');
-
-    const filteredServices = computed(() => {
-      return pipelinesState.value.filter((p) => {
-        if (selectedEntityFilter.value !== 'all' && p.targetEntity !== selectedEntityFilter.value) {
-          return false;
-        }
-        if (selectedSourceTypeFilter.value === 'system' && !p.isSystem) return false;
-        if (selectedSourceTypeFilter.value === 'custom' && p.isSystem) return false;
-        if (searchQuery.value.trim() !== '') {
-          const q = searchQuery.value.toLowerCase();
-          const matchName = p.name.toLowerCase().includes(q);
-          const matchEndpoint = p.connection?.endpointUrl.toLowerCase().includes(q) ?? false;
-          if (!matchName && !matchEndpoint) return false;
-        }
-        return true;
-      });
-    });
-
-    const serviceStats = computed(() => ({
-      total: pipelinesState.value.length,
-      systemCount: pipelinesState.value.filter((p) => p.isSystem).length,
-      customCount: pipelinesState.value.filter((p) => !p.isSystem).length,
-      activeCount: pipelinesState.value.filter((p) => p.status !== 'paused').length,
-      errorCount: pipelinesState.value.filter((p) => p.status === 'error').length,
-    }));
-
-    async function testEndpoint(connection: PipelineConnectionConfig): Promise<ProbeEndpointResult> {
-      if (!connection.endpointUrl || !connection.endpointUrl.startsWith('http')) {
-        return {
-          success: false,
-          statusCode: 400,
-          latencyMs: 10,
-          contentType: 'text/plain',
-          sampleRows: [],
-          detectedColumns: [],
-          errorMessage: 'URL inválida',
-        };
-      }
-      return {
-        success: true,
-        statusCode: 200,
-        latencyMs: 75,
-        contentType: 'text/csv; charset=utf-8',
-        sampleRows: [{ col1: 'val1', col2: 'val2' }],
-        detectedColumns: ['col1', 'col2'],
-        estimatedTotalSize: '~2.5 MB',
-      };
-    }
-
-    function createPipeline(data: Partial<EtlPipeline>): EtlPipeline {
-      const newPipeline: EtlPipeline = {
-        id: `custom-test-${Date.now()}`,
-        name: data.name || 'Servicio Test',
-        datasetName: data.datasetName || 'Dataset Test',
-        description: data.description || 'Descripción',
-        icon: data.icon || 'i-lucide-database',
-        status: 'idle',
-        progressPercent: 0,
-        processedRows: 0,
-        totalEstimatedRows: 10000,
-        discardedRows: 0,
-        lastSyncAt: null,
-        nextScheduledSync: 'Manual',
-        scheduleDescription: 'Manual',
-        averageSpeedRowsPerSec: 2500,
-        discardedSamples: [],
-        isSystem: false,
-        targetEntity: data.targetEntity || 'otp_metrics',
-        connection: data.connection || {
-          sourceType: 'http_stream',
-          endpointUrl: 'https://api.test.com/data.csv',
-          httpMethod: 'GET',
-          dataFormat: 'csv',
-        },
-      };
-      pipelinesState.value.unshift(newPipeline);
-      toastMock.add({ title: 'Servicio creado' });
-      return newPipeline;
-    }
-
-    function updatePipeline(id: string, patch: Partial<EtlPipeline>): boolean {
-      const idx = pipelinesState.value.findIndex((p) => p.id === id);
-      if (idx === -1) return false;
-      pipelinesState.value[idx] = { ...pipelinesState.value[idx]!, ...patch };
-      toastMock.add({ title: 'Servicio actualizado' });
-      return true;
-    }
-
-    function deletePipeline(id: string): boolean {
-      const target = pipelinesState.value.find((p) => p.id === id);
-      if (!target || target.isSystem) {
-        toastMock.add({ title: 'Acción bloqueada' });
-        return false;
-      }
-      pipelinesState.value = pipelinesState.value.filter((p) => p.id !== id);
-      toastMock.add({ title: 'Servicio eliminado' });
-      return true;
-    }
-
-    function togglePipelineStatus(id: string) {
-      const target = pipelinesState.value.find((p) => p.id === id);
-      if (!target) return;
-      target.status = target.status === 'paused' ? 'idle' : 'paused';
-    }
-
-    return {
-      pipelines: pipelinesState,
-      filteredServices,
-      serviceStats,
-      selectedEntityFilter,
-      selectedSourceTypeFilter,
-      searchQuery,
-      testEndpoint,
-      createPipeline,
-      updatePipeline,
-      deletePipeline,
-      togglePipelineStatus,
-      toastMock,
-    };
-  }
-
-  it('debe inicializar el catálogo con fuentes oficiales y personalizadas mockeadas', () => {
-    const crud = setupTestComposable();
+  it('debe inicializar el catálogo con fuentes oficiales y personalizadas', () => {
+    const crud = usePipelineCrud();
     expect(crud.serviceStats.value.total).toBeGreaterThanOrEqual(4);
     expect(crud.serviceStats.value.systemCount).toBe(4);
     expect(crud.serviceStats.value.customCount).toBeGreaterThanOrEqual(1);
+    expect(crud.serviceStats.value.activeCount).toBeGreaterThan(0);
   });
 
   it('debe registrar un nuevo servicio personalizado con endpoint y configuración', () => {
-    const crud = setupTestComposable();
+    const crud = usePipelineCrud();
     const initialCount = crud.pipelines.value.length;
 
     const created = crud.createPipeline({
@@ -165,12 +33,13 @@ describe('usePipelineCrud - Composable de Gestión y CRUD de Pipelines', () => {
 
     expect(crud.pipelines.value.length).toBe(initialCount + 1);
     expect(created.isSystem).toBe(false);
+    expect(created.name).toBe('AviationStack Realtime Feed');
     expect(created.connection?.endpointUrl).toBe('https://api.aviationstack.com/v1/flights');
-    expect(crud.toastMock.add).toHaveBeenCalled();
+    expect(crud.pipelines.value[0].id).toBe(created.id);
   });
 
-  it('debe actualizar los datos de conexión de un pipeline existente', () => {
-    const crud = setupTestComposable();
+  it('debe actualizar los datos de configuración de un pipeline existente', () => {
+    const crud = usePipelineCrud();
     const targetId = crud.pipelines.value[0]?.id;
     expect(targetId).toBeDefined();
 
@@ -181,10 +50,14 @@ describe('usePipelineCrud - Composable de Gestión y CRUD de Pipelines', () => {
     expect(success).toBe(true);
     const updated = crud.pipelines.value.find((p) => p.id === targetId);
     expect(updated?.name).toBe('Catálogo de Aeropuertos Renombrado');
+
+    // Retorna false si el id no existe
+    const fail = crud.updatePipeline('non-existent-id' as any, { name: 'X' });
+    expect(fail).toBe(false);
   });
 
   it('debe bloquear la eliminación de pipelines nativos del sistema', () => {
-    const crud = setupTestComposable();
+    const crud = usePipelineCrud();
     const systemPipeline = crud.pipelines.value.find((p) => p.isSystem);
     expect(systemPipeline).toBeDefined();
 
@@ -193,69 +66,139 @@ describe('usePipelineCrud - Composable de Gestión y CRUD de Pipelines', () => {
 
     expect(deleted).toBe(false);
     expect(crud.pipelines.value.length).toBe(initialLength);
-    expect(crud.toastMock.add).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Acción bloqueada' })
-    );
   });
 
   it('debe permitir eliminar servicios personalizados creados por el usuario', () => {
-    const crud = setupTestComposable();
+    const crud = usePipelineCrud();
     const created = crud.createPipeline({ name: 'Temp Custom Service' });
     const countBeforeDelete = crud.pipelines.value.length;
 
     const deleted = crud.deletePipeline(created.id);
     expect(deleted).toBe(true);
     expect(crud.pipelines.value.length).toBe(countBeforeDelete - 1);
+
+    // Retorna false si no existe
+    expect(crud.deletePipeline('non-existent' as any)).toBe(false);
+  });
+
+  it('debe duplicar un pipeline existente asignando sufijo (Copia) y marcándolo como no-sistema', () => {
+    const crud = usePipelineCrud();
+    const target = crud.pipelines.value[0]!;
+    const duplicated = crud.duplicatePipeline(target.id);
+
+    expect(duplicated).not.toBeNull();
+    expect(duplicated?.name).toBe(`${target.name} (Copia)`);
+    expect(duplicated?.isSystem).toBe(false);
+    expect(crud.pipelines.value.some((p) => p.id === duplicated?.id)).toBe(true);
+
+    // Retorna null si el id no existe
+    expect(crud.duplicatePipeline('invalid-id' as any)).toBeNull();
   });
 
   it('debe alternar el estado de un servicio entre activo y pausado', () => {
-    const crud = setupTestComposable();
+    const crud = usePipelineCrud();
     const pipeline = crud.pipelines.value[0]!;
-    const initialStatus = pipeline.status;
+    pipeline.status = 'idle';
 
     crud.togglePipelineStatus(pipeline.id);
-    expect(pipeline.status).toBe(initialStatus === 'paused' ? 'idle' : 'paused');
+    expect(pipeline.status).toBe('paused');
+
+    // Alternar de vuelta
+    crud.togglePipelineStatus(pipeline.id);
+    expect(pipeline.status).toBe('idle');
+
+    // No lanza error si el id no existe
+    expect(() => crud.togglePipelineStatus('inexistente' as any)).not.toThrow();
   });
 
-  it('debe validar la conectividad del endpoint y detectar columnas', async () => {
-    const crud = setupTestComposable();
+  it('debe restaurar el catálogo a los valores iniciales con resetToDefaults()', () => {
+    const crud = usePipelineCrud();
+    crud.createPipeline({ name: 'Disposable Service' });
+    expect(crud.pipelines.value.some((p) => p.name === 'Disposable Service')).toBe(true);
 
-    // Caso inválido
-    const failResult = await crud.testEndpoint({
-      sourceType: 'http_stream',
-      endpointUrl: 'ftp://bad-protocol',
-      httpMethod: 'GET',
-      dataFormat: 'csv',
-    });
+    crud.resetToDefaults();
+    expect(crud.pipelines.value.some((p) => p.name === 'Disposable Service')).toBe(false);
+  });
+
+  it('debe validar la conectividad del endpoint y detectar columnas con testEndpoint()', async () => {
+    const crud = usePipelineCrud();
+
+    // Caso inválido: URL sin http
+    const failResult = await crud.testEndpoint(
+      {
+        sourceType: 'http_stream',
+        endpointUrl: 'ftp://bad-protocol',
+        httpMethod: 'GET',
+        dataFormat: 'csv',
+      },
+      0
+    );
     expect(failResult.success).toBe(false);
     expect(failResult.statusCode).toBe(400);
+    expect(failResult.errorMessage).toContain('URL inválida');
 
-    // Caso exitoso
-    const successResult = await crud.testEndpoint({
-      sourceType: 'http_stream',
-      endpointUrl: 'https://ourairports.com/data/airports.csv',
-      httpMethod: 'GET',
-      dataFormat: 'csv',
-    });
-    expect(successResult.success).toBe(true);
-    expect(successResult.statusCode).toBe(200);
-    expect(successResult.detectedColumns.length).toBeGreaterThan(0);
+    // Caso exitoso con CSV
+    const csvResult = await crud.testEndpoint(
+      {
+        sourceType: 'http_stream',
+        endpointUrl: 'https://ourairports.com/data/airports.csv',
+        httpMethod: 'GET',
+        dataFormat: 'csv',
+      },
+      0
+    );
+    expect(csvResult.success).toBe(true);
+    expect(csvResult.statusCode).toBe(200);
+    expect(csvResult.contentType).toContain('csv');
+    expect(csvResult.detectedColumns.length).toBeGreaterThan(0);
+
+    // Caso exitoso con JSON
+    const jsonResult = await crud.testEndpoint(
+      {
+        sourceType: 'rest_api',
+        endpointUrl: 'https://api.aviation.org/data',
+        httpMethod: 'GET',
+        dataFormat: 'json',
+      },
+      0
+    );
+    expect(jsonResult.success).toBe(true);
+    expect(jsonResult.contentType).toContain('json');
   });
 
-  it('debe filtrar adecuadamente por entidad y por origen', () => {
-    const crud = setupTestComposable();
+  it('debe filtrar adecuadamente por entidad, origen y búsqueda de texto', () => {
+    const crud = usePipelineCrud();
 
-    // Filtrar solo aeropuertos
+    // 1. Filtrar solo aeropuertos
     crud.selectedEntityFilter.value = 'airports';
     for (const item of crud.filteredServices.value) {
       expect(item.targetEntity).toBe('airports');
     }
 
-    // Filtrar solo fuentes de sistema
+    // 2. Filtrar solo fuentes de sistema
     crud.selectedEntityFilter.value = 'all';
     crud.selectedSourceTypeFilter.value = 'system';
     for (const item of crud.filteredServices.value) {
       expect(item.isSystem).toBe(true);
+    }
+
+    // 3. Filtrar solo fuentes personalizadas
+    crud.selectedSourceTypeFilter.value = 'custom';
+    for (const item of crud.filteredServices.value) {
+      expect(item.isSystem).toBe(false);
+    }
+
+    // 4. Búsqueda por texto en nombre
+    crud.selectedSourceTypeFilter.value = 'all';
+    crud.searchQuery.value = 'ourairports';
+    expect(crud.filteredServices.value.length).toBeGreaterThan(0);
+    for (const item of crud.filteredServices.value) {
+      const match =
+        item.name.toLowerCase().includes('ourairports') ||
+        item.datasetName.toLowerCase().includes('ourairports') ||
+        item.description.toLowerCase().includes('ourairports') ||
+        (item.connection?.endpointUrl.toLowerCase().includes('ourairports') ?? false);
+      expect(match).toBe(true);
     }
   });
 });

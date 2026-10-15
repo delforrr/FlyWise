@@ -3,6 +3,7 @@ import {
   watch,
   onMounted,
   onUnmounted,
+  getCurrentInstance,
   toValue,
   type MaybeRefOrGetter,
   type Ref,
@@ -138,18 +139,24 @@ export function useAnimatedNumber(
     rafId = requestAnimationFrame(step);
   }
 
-  onMounted(() => {
-    const targetVal = getSafeTarget();
-    if (animateOnMount) {
-      if (from !== targetVal) {
-        animateTo(targetVal, from);
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      const targetVal = getSafeTarget();
+      if (animateOnMount) {
+        if (from !== targetVal) {
+          animateTo(targetVal, from);
+        } else {
+          displayValue.value = targetVal;
+        }
       } else {
         displayValue.value = targetVal;
       }
-    } else {
-      displayValue.value = targetVal;
-    }
-  });
+    });
+
+    onUnmounted(() => {
+      cancelAnimation();
+    });
+  }
 
   watch(
     () => getSafeTarget(),
@@ -157,10 +164,6 @@ export function useAnimatedNumber(
       animateTo(newVal);
     }
   );
-
-  onUnmounted(() => {
-    cancelAnimation();
-  });
 
   return displayValue;
 }

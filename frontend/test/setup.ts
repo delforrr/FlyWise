@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi, beforeEach } from 'vitest';
 import * as vue from 'vue';
 
 // Jest-compatible global bridge for test suites:
@@ -31,6 +31,10 @@ for (const [key, value] of Object.entries(vue)) {
 // Nuxt mock composable stubs for unit test execution in happy-dom
 const stateStore = new Map<string, any>();
 (globalThis as any).__clearStateStore = () => stateStore.clear();
+
+beforeEach(() => {
+  stateStore.clear();
+});
 
 if (typeof (globalThis as any).useState === 'undefined') {
   (globalThis as any).useState = (key: string, init?: () => any) => {

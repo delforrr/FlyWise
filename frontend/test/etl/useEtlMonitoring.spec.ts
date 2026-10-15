@@ -124,15 +124,16 @@ describe('useEtlMonitoring — Composable de Telemetría y Monitoreo ETL BullMQ'
       const etl = useEtlMonitoring();
       const pipeline = etl.pipelines.value.find((p) => p.discardedSamples && p.discardedSamples.length > 0);
 
-      if (pipeline && pipeline.discardedSamples.length > 0) {
-        const sample = pipeline.discardedSamples[0];
-        const initialDiscarded = pipeline.discardedRows;
+      expect(pipeline).toBeDefined();
+      expect(pipeline!.discardedSamples.length).toBeGreaterThan(0);
 
-        etl.resolveDiscardedSample(pipeline.id, sample.id);
+      const sample = pipeline!.discardedSamples[0];
+      const initialDiscarded = pipeline!.discardedRows;
 
-        expect(sample.resolved).toBe(true);
-        expect(pipeline.discardedRows).toBe(initialDiscarded - 1);
-      }
+      etl.resolveDiscardedSample(pipeline!.id, sample.id);
+
+      expect(sample.resolved).toBe(true);
+      expect(pipeline!.discardedRows).toBe(initialDiscarded - 1);
     });
   });
 });

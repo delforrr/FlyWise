@@ -231,5 +231,99 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
       // Destino activo con OTP 90 >= 85 es Emerald [16, 185, 129, 255]
       expect(targetColor).toEqual([16, 185, 129, 255]);
     });
+
+    it("soporta rutas con coordenadas en el antimeridiano (-180° / +180°) y polos sin distorsión", () => {
+      const antimeridianRoute: FlightRoute = {
+        id: "R-ANTI",
+        flightNumber: "NZ1",
+        airline: "Air New Zealand",
+        airlineIata: "NZ",
+        originIata: "AKL",
+        originCity: "Auckland",
+        originCoordinates: [174.79, -37.0],
+        destinationIata: "RAR",
+        destinationCity: "Rarotonga",
+        destinationCoordinates: [-159.8, -21.2],
+        distanceKm: 3000,
+        averageOtp15: 88.0,
+        totalFlights: 90,
+        delayMinutesAvg: 8,
+      };
+
+      const options: BuildLayersOptions = {
+        isLight: false,
+        selectedOrigin: "AKL",
+        selectedDestination: "RAR",
+        matchingRoutes: [antimeridianRoute],
+      };
+
+      const layers = buildFlightMapLayers(options);
+      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+      expect(arcLayer).toBeDefined();
+
+      const getSourcePos = (arcLayer?.props as any).getSourcePosition;
+      const getTargetPos = (arcLayer?.props as any).getTargetPosition;
+
+      expect(getSourcePos(antimeridianRoute)).toEqual([174.79, -37.0]);
+      expect(getTargetPos(antimeridianRoute)).toEqual([-159.8, -21.2]);
+      expect(arcLayer?.props.greatCircle).toBe(true);
+    });
+
+    it("distingue el grosor y opacidad entre la ruta directa activa (8px) y rutas secundarias de escala (3px)", () => {
+      const directRoute: FlightRoute = {
+        id: "R-DIR",
+        flightNumber: "AR1300",
+        airline: "Aerolineas Argentinas",
+        airlineIata: "AR",
+        originIata: "EZE",
+        originCity: "Buenos Aires",
+        originCoordinates: [-58.53, -34.82],
+        destinationIata: "MIA",
+        destinationCity: "Miami",
+        destinationCoordinates: [-80.29, 25.79],
+        distanceKm: 7100,
+        averageOtp15: 85.0,
+        totalFlights: 100,
+        delayMinutesAvg: 10,
+      };
+
+      const connectingRoute: FlightRoute = {
+        id: "R-CONN",
+        flightNumber: "LA500",
+        airline: "LATAM",
+        airlineIata: "LA",
+        originIata: "EZE",
+        originCity: "Buenos Aires",
+        originCoordinates: [-58.53, -34.82],
+        destinationIata: "SCL",
+        destinationCity: "Santiago",
+        destinationCoordinates: [-70.79, -33.39],
+        distanceKm: 1150,
+        averageOtp15: 78.0,
+        totalFlights: 150,
+        delayMinutesAvg: 18,
+      };
+
+      const options: BuildLayersOptions = {
+        isLight: false,
+        selectedOrigin: "EZE",
+        selectedDestination: "MIA",
+        matchingRoutes: [directRoute, connectingRoute],
+      };
+
+      const layers = buildFlightMapLayers(options);
+      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+      const getWidth = (arcLayer?.props as any).getWidth;
+      const getSourceColor = (arcLayer?.props as any).getSourceColor;
+
+      // Ruta directa: grosor elevado 8.0
+      expect(getWidth(directRoute)).toBe(8.0);
+      // Conexión secundaria: grosor atenuado 3.0
+      expect(getWidth(connectingRoute)).toBe(3.0);
+
+      // Conexión secundaria: alpha atenuado (140)
+      const connColor = getSourceColor(connectingRoute);
+      expect(connColor[3]).toBe(140);
+    });
   });
 });
