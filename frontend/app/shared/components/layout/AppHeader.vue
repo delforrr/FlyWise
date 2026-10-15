@@ -59,12 +59,16 @@ const isPaletteOpen = useState("cockpit_command_palette_open", () => false);
         icon="i-lucide-command"
         variant="ghost"
         color="neutral"
-        class="hidden lg:flex rounded-xl font-mono text-xs text-text-muted hover:text-text-main hover:bg-surface-accent border border-border-subtle/70"
+        class="hidden md:flex rounded-xl font-mono text-xs text-text-muted hover:text-text-main hover:bg-surface-accent border border-border-subtle/70 transition-all shrink-0 px-2 sm:px-2.5"
+        aria-label="Abrir paleta de comandos"
+        title="Buscar comandos (⌘K)"
         @click="isPaletteOpen = true"
       >
-        <span class="font-mono">Buscar...</span>
-        <UKbd value="meta" />
-        <UKbd value="k" />
+        <span class="hidden 2xl:inline font-mono">Buscar...</span>
+        <span class="hidden lg:inline-flex items-center gap-0.5">
+          <UKbd value="meta" />
+          <UKbd value="k" />
+        </span>
       </UButton>
       <ThemeToggle />
       <UButton

@@ -40,6 +40,30 @@ const {
           >
             Consola ETL
           </UBadge>
+
+          <!-- Enlaces de Navegación de la Consola -->
+          <nav class="hidden md:flex items-center gap-1.5 ml-3 pl-3 border-l border-border-subtle" aria-label="Navegación administrativa">
+            <UButton
+              to="/admin"
+              size="xs"
+              :variant="$route.path === '/admin' ? 'subtle' : 'ghost'"
+              :color="$route.path === '/admin' ? 'primary' : 'neutral'"
+              icon="i-lucide-activity"
+              class="text-xs font-semibold cursor-pointer"
+            >
+              Monitoreo
+            </UButton>
+            <UButton
+              to="/admin/servicios"
+              size="xs"
+              :variant="$route.path.startsWith('/admin/servicios') ? 'subtle' : 'ghost'"
+              :color="$route.path.startsWith('/admin/servicios') ? 'primary' : 'neutral'"
+              icon="i-lucide-database"
+              class="text-xs font-semibold cursor-pointer"
+            >
+              Servicios & Pipelines
+            </UButton>
+          </nav>
         </div>
 
         <!-- Navegación y Controles de Cabecera -->
