@@ -1,4 +1,4 @@
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, getCurrentInstance, onMounted, onUnmounted } from 'vue';
 import type {
   EtlPipeline,
   PipelineId,
@@ -289,24 +289,26 @@ export function useEtlMonitoring() {
     }, 450);
   }
 
-  onMounted(() => {
-    subscriberCount++;
-    activeSimulationStep = stepSimulation;
-    if (!tickerInterval && import.meta.client && refreshInterval.value > 0) {
-      tickerInterval = setInterval(runSimulationTicker, refreshInterval.value);
-    }
-  });
-
-  onUnmounted(() => {
-    subscriberCount = Math.max(0, subscriberCount - 1);
-    if (subscriberCount === 0) {
-      if (tickerInterval) {
-        clearInterval(tickerInterval);
-        tickerInterval = null;
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      subscriberCount++;
+      activeSimulationStep = stepSimulation;
+      if (!tickerInterval && import.meta.client && refreshInterval.value > 0) {
+        tickerInterval = setInterval(runSimulationTicker, refreshInterval.value);
       }
-      activeSimulationStep = null;
-    }
-  });
+    });
+
+    onUnmounted(() => {
+      subscriberCount = Math.max(0, subscriberCount - 1);
+      if (subscriberCount === 0) {
+        if (tickerInterval) {
+          clearInterval(tickerInterval);
+          tickerInterval = null;
+        }
+        activeSimulationStep = null;
+      }
+    });
+  }
 
   return {
     pipelines,

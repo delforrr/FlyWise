@@ -1,0 +1,235 @@
+import { describe, it, expect } from "vitest";
+import {
+  getVisibleAirports,
+  buildFlightMapLayers,
+  type BuildLayersOptions,
+} from "../../app/features/flight-map/utils/mapLayers";
+import { SEED_AIRPORTS, SEED_ROUTES } from "../../app/data/seedData";
+import type { FlightRoute } from "../../app/types/route";
+
+describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", () => {
+  describe("getVisibleAirports() — Filtrado reactivo de nodos aeroportuarios", () => {
+    it("retorna todos los SEED_AIRPORTS cuando hasSelection es false (vista general)", () => {
+      const result = getVisibleAirports(false, null, null, []);
+      expect(result).toHaveLength(SEED_AIRPORTS.length);
+      expect(result).toEqual(SEED_AIRPORTS);
+    });
+
+    it("filtra solo los aeropuertos involucrados cuando hay un origen seleccionado", () => {
+      const originIata = "EZE";
+      const connectedRoutes = SEED_ROUTES.filter((r) => r.originIata === originIata);
+      const result = getVisibleAirports(true, originIata, null, connectedRoutes);
+
+      // Debe incluir el origen
+      expect(result.some((a) => a.iata === originIata)).toBe(true);
+
+      // Debe incluir los destinos de las rutas conectadas
+      for (const route of connectedRoutes) {
+        expect(result.some((a) => a.iata === route.destinationIata)).toBe(true);
+      }
+
+      // NO debe incluir aeropuertos no relacionados
+      const unrelated = SEED_AIRPORTS.find(
+        (a) =>
+          a.iata !== originIata &&
+          !connectedRoutes.some((r) => r.destinationIata === a.iata),
+      );
+      if (unrelated) {
+        expect(result.some((a) => a.iata === unrelated.iata)).toBe(false);
+      }
+    });
+
+    it("filtra solo los aeropuertos involucrados cuando hay un destino seleccionado", () => {
+      const destIata = "MAD";
+      const connectedRoutes = SEED_ROUTES.filter((r) => r.destinationIata === destIata);
+      const result = getVisibleAirports(true, null, destIata, connectedRoutes);
+
+      expect(result.some((a) => a.iata === destIata)).toBe(true);
+      for (const route of connectedRoutes) {
+        expect(result.some((a) => a.iata === route.originIata)).toBe(true);
+      }
+    });
+
+    it("deduplica aeropuertos si un nodo aparece múltiples veces en las rutas activas", () => {
+      const mockRoutes: FlightRoute[] = [
+        {
+          id: "R-1",
+          flightNumber: "AR1300",
+          airline: "Aerolineas Argentinas",
+          airlineIata: "AR",
+          originIata: "EZE",
+          originCity: "Buenos Aires",
+          originCoordinates: [-58.5358, -34.8222],
+          destinationIata: "MIA",
+          destinationCity: "Miami",
+          destinationCoordinates: [-80.2906, 25.7959],
+          distanceKm: 7100,
+          averageOtp15: 86.5,
+          totalFlights: 300,
+          delayMinutesAvg: 12,
+        },
+        {
+          id: "R-2",
+          flightNumber: "AA900",
+          airline: "American Airlines",
+          airlineIata: "AA",
+          originIata: "EZE",
+          originCity: "Buenos Aires",
+          originCoordinates: [-58.5358, -34.8222],
+          destinationIata: "MIA",
+          destinationCity: "Miami",
+          destinationCoordinates: [-80.2906, 25.7959],
+          distanceKm: 7100,
+          averageOtp15: 82.0,
+          totalFlights: 250,
+          delayMinutesAvg: 15,
+        },
+      ];
+
+      const result = getVisibleAirports(true, "EZE", "MIA", mockRoutes);
+      const iatas = result.map((a) => a.iata);
+      const uniqueIatas = new Set(iatas);
+
+      expect(iatas.length).toBe(uniqueIatas.size);
+      expect(result.some((a) => a.iata === "EZE")).toBe(true);
+      expect(result.some((a) => a.iata === "MIA")).toBe(true);
+    });
+
+    it("maneja códigos IATA no registrados en SEED_AIRPORTS sin lanzar excepciones", () => {
+      const result = getVisibleAirports(true, "XYZ_NON_EXISTENT", null, []);
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.find((a) => a.iata === "XYZ_NON_EXISTENT")).toBeUndefined();
+    });
+  });
+
+  describe("buildFlightMapLayers() — Construcción de Capas Deck.gl WebGL", () => {
+    it("INVARIANTE RNF-02: Sin selección activa (hasSelection = false) visibleRoutes es vacío y la capa de arcos no tiene datos", () => {
+      const options: BuildLayersOptions = {
+        isLight: false,
+        selectedOrigin: null,
+        selectedDestination: null,
+        matchingRoutes: SEED_ROUTES,
+      };
+
+      const layers = buildFlightMapLayers(options);
+      expect(layers.length).toBeGreaterThanOrEqual(3);
+
+      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+      expect(arcLayer).toBeDefined();
+      // Verificamos que la capa de arcos no tenga datos a renderizar
+      expect(arcLayer?.props.data).toEqual([]);
+    });
+
+    it("con selección activa genera datos en la capa ArcLayer con greatCircle = true", () => {
+      const routes = SEED_ROUTES.slice(0, 3);
+      const options: BuildLayersOptions = {
+        isLight: false,
+        selectedOrigin: "EZE",
+        selectedDestination: null,
+        matchingRoutes: routes,
+      };
+
+      const layers = buildFlightMapLayers(options);
+      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+
+      expect(arcLayer).toBeDefined();
+      expect(arcLayer?.props.data).toEqual(routes);
+      expect(arcLayer?.props.greatCircle).toBe(true);
+      expect(arcLayer?.props.pickable).toBe(true);
+    });
+
+    it("configura capas de soporte: scatterplot de nodos core y capas de texto para etiquetas", () => {
+      const options: BuildLayersOptions = {
+        isLight: false,
+        selectedOrigin: "EZE",
+        selectedDestination: "MIA",
+        matchingRoutes: SEED_ROUTES.filter((r) => r.originIata === "EZE" && r.destinationIata === "MIA"),
+      };
+
+      const layers = buildFlightMapLayers(options);
+      const nodesLayer = layers.find((l) => l.id === "airports-nodes");
+      const labelsLayer = layers.find((l) => l.id === "airports-labels");
+      const haloLayer = layers.find((l) => l.id === "airports-radar-halo");
+      const ringLayer = layers.find((l) => l.id === "airports-radar-ring-outer");
+
+      expect(nodesLayer).toBeDefined();
+      expect(labelsLayer).toBeDefined();
+      expect(haloLayer).toBeDefined();
+      expect(ringLayer).toBeDefined();
+
+      // Los halos de radar solo contienen los aeropuertos seleccionados
+      const haloData = haloLayer?.props.data as any[];
+      expect(haloData.map((a) => a.iata)).toEqual(expect.arrayContaining(["EZE", "MIA"]));
+    });
+
+    it("aplica esquema de colores contrastantes en modo claro (isLight = true)", () => {
+      const optionsLight: BuildLayersOptions = {
+        isLight: true,
+        selectedOrigin: "EZE",
+        selectedDestination: "MIA",
+        matchingRoutes: SEED_ROUTES.slice(0, 2),
+      };
+
+      const layersLight = buildFlightMapLayers(optionsLight);
+      const arcLayer = layersLight.find((l) => l.id === "flight-routes-arc");
+      expect(arcLayer?.props.highlightColor).toEqual([2, 132, 199, 255]);
+    });
+
+    it("aplica esquema de colores en modo oscuro (isLight = false)", () => {
+      const optionsDark: BuildLayersOptions = {
+        isLight: false,
+        selectedOrigin: "EZE",
+        selectedDestination: "MIA",
+        matchingRoutes: SEED_ROUTES.slice(0, 2),
+      };
+
+      const layersDark = buildFlightMapLayers(optionsDark);
+      const arcLayer = layersDark.find((l) => l.id === "flight-routes-arc");
+      expect(arcLayer?.props.highlightColor).toEqual([56, 189, 248, 255]);
+    });
+
+    it("evalúa correctamente los accesores de color getSourceColor y getTargetColor en las rutas", () => {
+      const directRoute: FlightRoute = {
+        id: "R-DIR",
+        flightNumber: "TEST1",
+        airline: "Test Air",
+        airlineIata: "TA",
+        originIata: "EZE",
+        originCity: "Buenos Aires",
+        originCoordinates: [-58.5358, -34.8222],
+        destinationIata: "MIA",
+        destinationCity: "Miami",
+        destinationCoordinates: [-80.2906, 25.7959],
+        distanceKm: 7100,
+        averageOtp15: 90.0,
+        totalFlights: 100,
+        delayMinutesAvg: 10,
+      };
+
+      const options: BuildLayersOptions = {
+        isLight: false,
+        selectedOrigin: "EZE",
+        selectedDestination: "MIA",
+        matchingRoutes: [directRoute],
+      };
+
+      const layers = buildFlightMapLayers(options);
+      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+      expect(arcLayer).toBeDefined();
+
+      const getSourceColor = (arcLayer?.props as any).getSourceColor;
+      const getTargetColor = (arcLayer?.props as any).getTargetColor;
+
+      expect(typeof getSourceColor).toBe("function");
+      expect(typeof getTargetColor).toBe("function");
+
+      const sourceColor = getSourceColor(directRoute);
+      const targetColor = getTargetColor(directRoute);
+
+      // Origen activo seleccionado en modo oscuro es Aero Cyan [56, 189, 248, 255]
+      expect(sourceColor).toEqual([56, 189, 248, 255]);
+      // Destino activo con OTP 90 >= 85 es Emerald [16, 185, 129, 255]
+      expect(targetColor).toEqual([16, 185, 129, 255]);
+    });
+  });
+});
