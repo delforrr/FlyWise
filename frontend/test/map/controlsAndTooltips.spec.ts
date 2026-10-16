@@ -54,7 +54,7 @@ describe("Map Tooltips — Componentes Visuales del Mapa Aeronáutico", () => {
       country: "Argentina",
       coordinates: [-58.5358, -34.8222],
       type: "large_airport",
-      elevationFt: 67,
+      elevation: 67,
       connectionsCount: 42,
     };
 
@@ -117,20 +117,28 @@ describe("Map Tooltips — Componentes Visuales del Mapa Aeronáutico", () => {
   describe("RouteTooltipContent.vue — Ficha Táctica de Ruta y OTP-15", () => {
     const mockRoute: FlightRoute = {
       id: "R-EZE-MIA",
-      flightNumber: "AR1300",
-      airline: "Aerolíneas Argentinas",
-      airlineIata: "AR",
       originIata: "EZE",
+      originName: "Ministro Pistarini Int. Airport",
       originCity: "Buenos Aires",
       originCoordinates: [-58.5358, -34.8222],
       destinationIata: "MIA",
+      destinationName: "Miami International Airport",
       destinationCity: "Miami",
       destinationCoordinates: [-80.2906, 25.7959],
       distanceKm: 7100,
       averageOtp15: 88.5,
-      totalFlights: 320,
-      delayMinutesAvg: 11,
       primaryAirline: "Aerolíneas Argentinas",
+      flightType: "direct",
+      airlines: [
+        {
+          airlineCode: "AR",
+          airlineName: "Aerolíneas Argentinas",
+          otp15: 88.5,
+          avgDelayMinutes: 11,
+          cancellationRate: 0.8,
+          sampleFlightsCount: 320,
+        },
+      ],
     };
 
     it("renderiza el par de aeropuertos, ciudades y aerolínea principal", () => {
