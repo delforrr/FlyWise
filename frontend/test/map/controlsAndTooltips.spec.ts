@@ -152,9 +152,9 @@ describe("Map Tooltips — Componentes Visuales del Mapa Aeronáutico", () => {
         global: { stubs: { UIcon: UIconStub, OtpBadge: OtpBadgeStub } },
       });
 
-      // 7100 km / 1.852 ≈ 3834 nm
-      expect(wrapper.text()).toContain("7,100 km");
-      expect(wrapper.text()).toContain("3,834 nm");
+      // 7100 km / 1.852 ≈ 3834 nm (compatible con separador de miles '.' o ',')
+      expect(wrapper.text()).toMatch(/7[.,]100\s*km/);
+      expect(wrapper.text()).toMatch(/3[.,]834\s*nm/);
     });
 
     it("enlaza la métrica de puntualidad averageOtp15 con OtpBadge", () => {
