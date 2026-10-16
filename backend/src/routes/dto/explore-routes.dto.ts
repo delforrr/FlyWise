@@ -30,5 +30,5 @@ export class ExploreRoutesDto {
   @IsInt()
   @Min(1)
   @Max(500)
-  limit: number = 100;
+  limit?: number = 100;
 }

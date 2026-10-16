@@ -10,6 +10,9 @@ describe('CountriesService', () => {
       findMany: jest.Mock;
       findFirst: jest.Mock;
     };
+    airport: {
+      findMany: jest.Mock;
+    };
   };
 
   const mockCountry = {
