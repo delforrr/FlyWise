@@ -5,6 +5,8 @@ node_modules/
 # Compilados de NestJS y Nuxt
 dist/
 **/dist/
+coverage/
+**/coverage/
 .nuxt/
 **/.nuxt/
 .output/
