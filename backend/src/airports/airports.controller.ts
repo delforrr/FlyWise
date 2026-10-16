@@ -23,7 +23,8 @@ export class AirportsController {
 
   @Get('nearby')
   @ApiOperation({
-    summary: 'Búsqueda geoespacial de aeropuertos por radio mediante PostGIS',
+    summary:
+      'Búsqueda geoespacial de aeropuertos por radio de cobertura geográfica',
   })
   @ApiResponse({
     status: 200,

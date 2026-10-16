@@ -15,7 +15,7 @@ export class HealthController {
   @Get()
   @ApiOperation({
     summary:
-      'Verifica el estado de conectividad con la base de datos (PostGIS) y Redis',
+      'Verifica la disponibilidad general y el estado operacional del sistema',
   })
   @ApiResponse({
     status: 200,

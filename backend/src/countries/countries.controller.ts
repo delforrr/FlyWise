@@ -9,7 +9,8 @@ export class CountriesController {
 
   @Get()
   @ApiOperation({
-    summary: 'Obtiene el catálogo de países registrados en OpenFlights',
+    summary:
+      'Obtiene el catálogo de países registrados en el sistema aeronáutico',
   })
   @ApiResponse({ status: 200, description: 'Lista de países' })
   async findAll() {

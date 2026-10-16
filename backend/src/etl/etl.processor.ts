@@ -3,7 +3,7 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { EtlService } from './etl.service';
 import { PrismaService } from '../prisma/prisma.service';
-import * as path from 'path';
+import * as path from 'node:path';
 
 @Processor('etl-queue')
 export class EtlProcessor extends WorkerHost {

@@ -112,6 +112,8 @@ describe('AuthService', () => {
       });
       expect(result).toEqual({
         access_token: 'mocked.jwt.token',
+        accessToken: 'mocked.jwt.token',
+        user: mockUserDto,
       });
     });
   });

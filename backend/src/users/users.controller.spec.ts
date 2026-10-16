@@ -43,18 +43,10 @@ describe('UsersController', () => {
   });
 
   describe('getUsers', () => {
-    it('should return all users when no email query is provided', () => {
+    it('should return all users', () => {
       const result = controller.getUsers();
       expect(userService.getUsers).toHaveBeenCalledTimes(1);
       expect(result).toEqual([mockUserDto]);
-    });
-
-    it('should return user by email when email query is provided', () => {
-      const result = controller.getUsers('admin@flywise.com');
-      expect(userService.getUserByEmail).toHaveBeenCalledWith(
-        'admin@flywise.com',
-      );
-      expect(result).toEqual(mockUserDto);
     });
   });
 

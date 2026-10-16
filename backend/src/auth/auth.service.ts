@@ -35,8 +35,11 @@ export class AuthService {
       username: user.email,
       sub: user.id,
     };
+    const token = this.jwtService.sign(payload);
     return Promise.resolve({
-      access_token: this.jwtService.sign(payload),
+      access_token: token,
+      accessToken: token,
+      user,
     });
   }
 }

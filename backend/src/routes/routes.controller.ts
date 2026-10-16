@@ -17,7 +17,7 @@ export class RoutesController {
   @ApiResponse({
     status: 200,
     description:
-      'Arreglo de arcos geodésicos optimizados para la capa ArcLayer de Deck.gl con coordenadas WGS 84',
+      'Colección de rutas comerciales geodésicas con coordenadas y métricas de popularidad',
   })
   async explore(@Query() exploreDto: ExploreRoutesDto) {
     return this.routesService.explore(exploreDto);
