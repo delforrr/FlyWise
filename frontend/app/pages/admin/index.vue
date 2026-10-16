@@ -93,12 +93,24 @@ function handleRetryDiscarded() {
 
     <!-- 2. Sección Principal: Pipelines por Fuente -->
     <section class="space-y-4">
-      <div>
-        <h2 class="text-base font-bold text-text-main">Fuentes de Datos</h2>
-        <p class="text-xs text-text-muted mt-0.5">
-          Control individual de sincronización, frecuencias programadas y
-          auditoría de integridad.
-        </p>
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="text-base font-bold text-text-main">Fuentes de Datos</h2>
+          <p class="text-xs text-text-muted mt-0.5">
+            Control individual de sincronización, frecuencias programadas y
+            auditoría de integridad.
+          </p>
+        </div>
+        <UButton
+          to="/admin/servicios"
+          variant="outline"
+          color="primary"
+          size="xs"
+          icon="i-lucide-settings"
+          class="cursor-pointer font-bold shrink-0 self-start sm:self-auto"
+        >
+          Gestionar Servicios & Endpoints
+        </UButton>
       </div>
 
       <EtlPipelineList

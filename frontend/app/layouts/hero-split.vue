@@ -1,22 +1,7 @@
 <script setup lang="ts">
-import type { HudHeaderNav } from "~/types/hud";
-
 const route = useRoute();
 
 const hasLogin = computed(() => route.path !== "/login");
-
-const navs: HudHeaderNav[] = [
-  {
-    text: "Explorador Global",
-    icon: "i-lucide-globe",
-    to: "/explorar",
-  },
-  {
-    text: "Métricas",
-    icon: "i-lucide-circle-help",
-    to: "#",
-  },
-];
 </script>
 
 <template>
@@ -43,7 +28,7 @@ const navs: HudHeaderNav[] = [
 
     <!-- 2. Estructura de Contenido -->
     <div class="relative z-10 flex flex-col min-h-screen">
-      <AppHeader :navs="navs" :has-login="hasLogin" />
+      <AppHeader :has-login="hasLogin" />
 
       <main
         class="flex-1 w-full max-w-7xl xl:max-w-350 2xl:max-w-375 mx-auto flex flex-col lg:grid lg:grid-cols-12 lg:gap-8 xl:gap-12 items-center justify-center px-4 sm:px-6 lg:px-10 xl:px-14 py-4 lg:py-0"
@@ -52,14 +37,6 @@ const navs: HudHeaderNav[] = [
         <div
           class="relative w-full lg:col-span-7 flex items-center justify-center"
         >
-          <!-- Radar HUD Lateral Asimétrico Sutil (~580px) -->
-          <div
-            class="hidden lg:flex absolute lg:-top-8 lg:-left-12 pointer-events-none z-0 items-center justify-center overflow-visible opacity-45 dark:opacity-35 transition-opacity duration-700 lg:w-145 lg:h-145"
-            aria-hidden="true"
-          >
-            <RadarBackground class="w-full h-full" />
-          </div>
-
           <AppHero class="w-full relative z-10" />
         </div>
 

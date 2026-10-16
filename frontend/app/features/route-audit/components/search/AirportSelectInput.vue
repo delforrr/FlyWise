@@ -116,8 +116,12 @@ const resolvedArrow = computed(() => {
 
 const resolvedClear = computed(() => {
   if (props.clear !== undefined) return props.clear;
-  return props.mode === "hero";
+  return true;
 });
+
+function handleClear() {
+  modelValue.value = undefined;
+}
 
 const resolvedTrailingIcon = computed(() => {
   if (props.mode === "hero") return false;
@@ -134,12 +138,12 @@ const resolvedPlaceholder = computed(() => {
 const resolvedClass = computed(() => {
   const classes: string[] = [];
   if (props.mode === "hero") {
-    classes.push("w-full flex-1 input-ghost");
+    classes.push("w-full flex-1");
   } else if (props.mode === "drawer") {
-    classes.push("hud-custom-input w-full font-mono font-semibold");
+    classes.push("w-full font-mono font-semibold border-none");
   } else {
     classes.push(
-      "hud-custom-input flex-1 min-w-0 font-mono font-semibold text-xs sm:text-sm",
+      "flex-1 min-w-[95px] sm:min-w-[110px] md:min-w-[125px] lg:min-w-[140px] xl:min-w-[170px] font-mono font-semibold text-xs sm:text-sm border-none",
     );
   }
 
@@ -171,6 +175,9 @@ const resolvedUi = computed(() => {
   if (props.mode === "hud") {
     return {
       base: "truncate font-mono font-semibold text-xs sm:text-sm",
+      trailing: "pe-1.5 sm:pe-2",
+      trailingClear:
+        "text-text-muted hover:text-text-main transition-colors cursor-pointer",
       content: commonContent,
       itemLabel: "w-full min-w-0",
       ...baseUi,
@@ -178,6 +185,9 @@ const resolvedUi = computed(() => {
   }
 
   return {
+    trailing: "pe-2",
+    trailingClear:
+      "text-text-muted hover:text-text-main transition-colors cursor-pointer",
     content: commonContent,
     itemLabel: "w-full min-w-0",
     ...baseUi,
@@ -201,6 +211,7 @@ const resolvedUi = computed(() => {
     :trailing-icon="resolvedTrailingIcon"
     :class="resolvedClass"
     :ui="resolvedUi"
+    @clear="handleClear"
   >
     <template #item-label="{ item }">
       <div class="flex items-center justify-between gap-3 w-full min-w-0">

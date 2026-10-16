@@ -1,4 +1,4 @@
-import { Map, LngLatBounds, type IControl } from "maplibre-gl";
+import { Map, type IControl } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import type { Airport } from "~/types/airport";
@@ -185,7 +185,7 @@ export const useFlightMap = () => {
               if (!selectedOrigin.value) {
                 setOrigin(airport.iata);
               } else if (selectedOrigin.value === airport.iata) {
-                setOrigin(undefined);
+                setOrigin();
               } else if (!selectedDestination.value) {
                 setDestination(airport.iata);
               } else {

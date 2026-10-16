@@ -6,7 +6,7 @@ interface Props {
   transitionName?: string;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   as: "div",
   class: "",
   coreClass: "",
@@ -15,14 +15,15 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <component
-    :is="as"
-    class="double-bezel-shell w-full shadow-2xl"
-    :class="class"
-    :style="transitionName ? { viewTransitionName: transitionName } : undefined"
+  <UCard
+    :as="props.as"
+    :class="['double-bezel-shell w-full shadow-2xl p-0 ring-0', props.class]"
+    :ui="{
+      root: 'p-0 ring-0 divide-y-0',
+      body: ['double-bezel-core flex flex-col p-0', props.coreClass],
+    }"
+    :style="props.transitionName ? { viewTransitionName: props.transitionName } : undefined"
   >
-    <div class="double-bezel-core flex flex-col" :class="coreClass">
-      <slot />
-    </div>
-  </component>
+    <slot />
+  </UCard>
 </template>

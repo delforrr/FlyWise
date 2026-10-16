@@ -20,10 +20,4 @@ export type HudActionType =
   | "fitRoute"
   | "resetNorth";
 
-export interface HudHeaderNav {
-  text: string;
-  icon: string;
-  to?: string;
-}
-
 export type InputCardType = "origin" | "destination";

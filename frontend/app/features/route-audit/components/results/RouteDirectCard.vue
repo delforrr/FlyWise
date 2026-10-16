@@ -21,10 +21,10 @@ const otpColorClass = computed(() => {
   return "text-rose-500 dark:text-rose-400";
 });
 
-const progressBarClass = computed(() => {
-  if (props.route.averageOtp15 >= 85) return "bg-emerald-500";
-  if (props.route.averageOtp15 >= 60) return "bg-amber-500";
-  return "bg-rose-500";
+const otpColor = computed<"success" | "warning" | "error">(() => {
+  if (props.route.averageOtp15 >= 85) return "success";
+  if (props.route.averageOtp15 >= 60) return "warning";
+  return "error";
 });
 
 const bannerAccentClass = computed(() => {
@@ -128,24 +128,19 @@ const bannerAccentClass = computed(() => {
         </div>
       </div>
 
-      <!-- Barra de confiabilidad visual con indicador de avance -->
-      <div
-        class="h-1.5 w-full bg-surface-container rounded-full overflow-hidden relative"
-      >
-        <div
-          class="h-full rounded-full transition-all duration-300 ease-out"
-          :class="progressBarClass"
-          :style="{
-            width: `${Math.min(100, Math.max(0, route.averageOtp15))}%`,
-          }"
-        />
-      </div>
+      <!-- Barra de confiabilidad visual con UProgress nativo -->
+      <UProgress
+        :model-value="route.averageOtp15"
+        size="xs"
+        :color="otpColor"
+        class="w-full"
+      />
     </div>
 
     <!-- 4. Desglose de Aerolíneas Operadoras -->
     <div class="flex flex-col gap-1.5 border-t border-border-subtle/60 pt-2.5">
       <div class="flex items-center justify-between">
-        <span class="hud-section-label">
+        <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-dim">
           Desempeño por Aerolínea ({{ route.airlines.length }}):
         </span>
         <span class="text-[10px] font-mono text-text-dim">

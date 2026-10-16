@@ -170,7 +170,7 @@ onUnmounted(() => {
       class="absolute inset-0 w-full h-full outline-none"
     />
 
-    <!-- Estado de Carga / Radar Scanner Cockpit Táctico -->
+    <!-- Estado de Carga -->
     <Transition
       enter-active-class="transition-opacity duration-500 ease-out"
       leave-active-class="transition-opacity duration-500 ease-in pointer-events-none"
@@ -181,13 +181,10 @@ onUnmounted(() => {
         v-if="!isLoaded"
         class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-background/85 backdrop-blur-md"
       >
-        <!-- Scanner Radar Circular -->
         <div class="relative flex items-center justify-center">
-          <!-- Aro Perimetral y Contenedor del Radar -->
           <div
             class="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full border border-primary/30 flex items-center justify-center overflow-hidden bg-surface-elevated/40 shadow-[0_0_35px_rgba(56,189,248,0.15)]"
           >
-            <!-- Ejes de Coordenadas Tácticos (Crosshairs) -->
             <div
               class="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-primary/20 pointer-events-none"
             />
@@ -195,7 +192,6 @@ onUnmounted(() => {
               class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-primary/20 pointer-events-none"
             />
 
-            <!-- Anillos Concéntricos de Rango -->
             <div
               class="absolute w-36 h-36 sm:w-40 sm:h-40 rounded-full border border-dashed border-primary/25 pointer-events-none"
             />
@@ -203,16 +199,14 @@ onUnmounted(() => {
               class="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full border border-primary/35 pointer-events-none"
             />
 
-            <!-- Haz de Barrido Radar 360° con Rayo Guía (Sweep Beam) -->
             <div
               class="absolute inset-0 rounded-full radar-sweep-beam pointer-events-none"
             >
               <div
-                class="absolute top-0 right-1/2 w-0.5 h-1/2 bg-gradient-to-t from-primary to-transparent origin-bottom shadow-[0_0_8px_rgba(56,189,248,0.8)]"
+                class="absolute top-0 right-1/2 w-0.5 h-1/2 bg-linear-to-t from-primary to-transparent origin-bottom shadow-[0_0_8px_rgba(56,189,248,0.8)]"
               />
             </div>
 
-            <!-- Blips Tácticos Detectados -->
             <div
               class="absolute top-7 right-10 w-2 h-2 rounded-full bg-primary/80 animate-ping pointer-events-none"
             />
@@ -223,7 +217,6 @@ onUnmounted(() => {
               class="absolute bottom-10 left-8 w-1.5 h-1.5 rounded-full bg-emerald-400/90 animate-pulse pointer-events-none"
             />
 
-            <!-- Centro del Hub / Avionics Core -->
             <div
               class="relative z-10 w-11 h-11 rounded-full border border-primary/70 bg-surface-elevated/95 flex items-center justify-center shadow-[0_0_15px_rgba(56,189,248,0.4)]"
             >
@@ -235,7 +228,6 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Telemetría y Estado de Carga -->
         <div class="mt-6 flex flex-col items-center gap-1.5 text-center">
           <div class="flex items-center gap-2">
             <span class="relative flex h-2 w-2">

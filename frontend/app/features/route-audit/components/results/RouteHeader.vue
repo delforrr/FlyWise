@@ -16,11 +16,15 @@ const emit = defineEmits<{
   (e: "toggleCollapse"): void;
   (e: "close"): void;
   (e: "openSearch"): void;
+  (e: "backToHub"): void;
 }>();
 
 // Cálculo ortodrómico de distancia (km y millas náuticas nm)
 const distanceKm = computed<number | null>(() => {
-  if (!props.originAirport?.coordinates || !props.destinationAirport?.coordinates) {
+  if (
+    !props.originAirport?.coordinates ||
+    !props.destinationAirport?.coordinates
+  ) {
     return null;
   }
   const [lon1, lat1] = props.originAirport.coordinates;
@@ -54,43 +58,84 @@ function formatCoordinates(coords?: [number, number]): string {
 </script>
 
 <template>
-  <div class="hud-panel-header !flex-col !items-stretch !p-3">
+  <div
+    class="flex flex-col items-stretch p-3 border-b border-border-subtle bg-surface-card/85 dark:bg-surface-base/85 backdrop-blur-md"
+  >
     <!-- Zona 1: Identificación de Ruta, Baliza y Controles de Ventana -->
     <div class="flex items-center justify-between gap-2 w-full">
       <div class="flex items-center gap-2 overflow-hidden min-w-0">
-        <div class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shrink-0" />
+        <div
+          class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shrink-0"
+        />
         <div class="truncate">
-          <h3 class="text-xs font-bold font-mono text-text-main uppercase tracking-wider truncate flex items-center gap-1.5">
-            <template v-if="selectedOrigin && selectedDestination">
-              <span class="font-mono tabular-nums tracking-tight">{{ selectedOrigin }}</span>
-              <span class="text-primary font-bold">➔</span>
-              <span class="font-mono tabular-nums tracking-tight">{{ selectedDestination }}</span>
-            </template>
-            <template v-else-if="selectedOrigin">
-              <span>Hub</span>
-              <span class="font-mono tabular-nums tracking-tight text-primary">{{ selectedOrigin }}</span>
-            </template>
-            <template v-else>
-              <span>Destino</span>
-              <span class="font-mono tabular-nums tracking-tight text-primary">{{ selectedDestination }}</span>
-            </template>
-          </h3>
-          <p class="text-[10px] text-text-muted truncate leading-tight mt-0.5">
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3
+              class="text-xs font-bold font-mono text-text-main uppercase tracking-wider truncate flex items-center gap-1.5"
+            >
+              <template v-if="selectedOrigin && selectedDestination">
+                <span class="font-mono tabular-nums tracking-tight">{{
+                  selectedOrigin
+                }}</span>
+                <span class="text-primary font-bold">➔</span>
+                <span class="font-mono tabular-nums tracking-tight">{{
+                  selectedDestination
+                }}</span>
+              </template>
+              <template v-else-if="selectedOrigin">
+                <span>Hub</span>
+                <span
+                  class="font-mono tabular-nums tracking-tight text-primary"
+                  >{{ selectedOrigin }}</span
+                >
+              </template>
+              <template v-else>
+                <span>Destino</span>
+                <span
+                  class="font-mono tabular-nums tracking-tight text-primary"
+                  >{{ selectedDestination }}</span
+                >
+              </template>
+            </h3>
+
+            <!-- Botón para regresar a la vista de Hub si ambos están seleccionados -->
+            <UButton
+              v-if="selectedOrigin && selectedDestination"
+              icon="i-lucide-arrow-left"
+              variant="subtle"
+              color="neutral"
+              size="xs"
+              class="font-mono text-[10px] text-primary hover:text-primary/80 shrink-0 cursor-pointer"
+              title="Volver al listado de conexiones del Hub"
+              aria-label="Volver al listado de conexiones del Hub"
+              @click="emit('backToHub')"
+            >
+              Ver salidas de {{ selectedOrigin }}
+            </UButton>
+          </div>
+
+          <p
+            class="text-xs text-text-muted leading-snug mt-0.5 wrap-break-word"
+          >
             <template v-if="originAirport && destinationAirport">
-              {{ originAirport.city }} hacia {{ destinationAirport.city }}
+              {{ originAirport.name }} ({{ originAirport.city }}) ➔
+              {{ destinationAirport.name }} ({{ destinationAirport.city }})
             </template>
             <template v-else-if="originAirport">
-              {{ originAirport.name }}
+              {{ originAirport.name }} · {{ originAirport.city }},
+              {{ originAirport.country }}
             </template>
             <template v-else-if="destinationAirport">
-              Llegadas a {{ destinationAirport.city }}
+              Llegadas a {{ destinationAirport.name }} ·
+              {{ destinationAirport.city }}
             </template>
           </p>
         </div>
       </div>
 
       <!-- Zona de Controles con divisor nítido de 1px -->
-      <div class="flex items-center gap-1 shrink-0 border-l border-border-subtle/50 pl-2 ml-1">
+      <div
+        class="flex items-center gap-1 shrink-0 border-l border-border-subtle/50 pl-2 ml-1"
+      >
         <!-- Botón para reabrir drawer de búsqueda en móvil -->
         <UButton
           icon="i-lucide-search"
@@ -102,11 +147,22 @@ function formatCoordinates(coords?: [number, number]): string {
           @click="emit('openSearch')"
         />
         <UButton
-          :icon="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+          :icon="
+            isCollapsed
+              ? 'i-lucide-panel-left-open'
+              : 'i-lucide-panel-left-close'
+          "
           variant="ghost"
           size="xs"
           class="text-text-muted hover:text-text-main transform-gpu transition-colors duration-150"
-          aria-label="Minimizar panel de resultados"
+          :aria-label="
+            isCollapsed
+              ? 'Expandir panel de resultados'
+              : 'Minimizar panel a la izquierda'
+          "
+          :title="
+            isCollapsed ? 'Expandir panel' : 'Minimizar panel a la izquierda'
+          "
           @click.stop="emit('toggleCollapse')"
         />
         <UButton
@@ -114,7 +170,8 @@ function formatCoordinates(coords?: [number, number]): string {
           variant="ghost"
           size="xs"
           class="text-text-muted hover:text-text-main transform-gpu transition-colors duration-150"
-          aria-label="Cerrar resultados"
+          aria-label="Cerrar resultados y limpiar selección"
+          title="Cerrar resultados y limpiar selección"
           @click="emit('close')"
         />
       </div>
@@ -126,8 +183,14 @@ function formatCoordinates(coords?: [number, number]): string {
     >
       <!-- Par Origen y Destino con cálculo de distancia y coordenadas -->
       <template v-if="selectedOrigin && selectedDestination">
-        <div v-if="distanceKm !== null" class="flex items-center gap-1.5 shrink-0">
-          <UIcon name="i-lucide-navigation" class="w-3 h-3 text-primary shrink-0" />
+        <div
+          v-if="distanceKm !== null"
+          class="flex items-center gap-1.5 shrink-0"
+        >
+          <UIcon
+            name="i-lucide-navigation"
+            class="w-3 h-3 text-primary shrink-0"
+          />
           <AnimatedCounter
             :value="distanceKm"
             suffix=" km"
@@ -143,20 +206,28 @@ function formatCoordinates(coords?: [number, number]): string {
           />
         </div>
 
-        <div v-if="distanceKm !== null" class="h-3 w-px bg-border-subtle/60 shrink-0" />
+        <div
+          v-if="distanceKm !== null"
+          class="h-3 w-px bg-border-subtle/60 shrink-0"
+        />
 
-        <div class="truncate font-mono tabular-nums tracking-tight text-[10px] text-text-muted" :title="`Origen: ${formatCoordinates(originAirport?.coordinates)} | Destino: ${formatCoordinates(destinationAirport?.coordinates)}`">
+        <div
+          class="truncate font-mono tabular-nums tracking-tight text-[10px] text-text-muted"
+          :title="`Origen: ${formatCoordinates(originAirport?.coordinates)} | Destino: ${formatCoordinates(destinationAirport?.coordinates)}`"
+        >
           <span>{{ formatCoordinates(originAirport?.coordinates) }}</span>
         </div>
 
         <div class="h-3 w-px bg-border-subtle/60 shrink-0" />
 
         <div class="flex items-center gap-1 shrink-0">
-          <span class="font-mono tabular-nums tracking-tight font-bold text-text-main">
+          <span
+            class="font-mono tabular-nums tracking-tight font-bold text-text-main"
+          >
             {{ matchingCount }}
           </span>
           <span class="text-text-dim text-[10px]">
-            {{ matchingCount === 1 ? 'ruta' : 'rutas' }}
+            {{ matchingCount === 1 ? "ruta" : "rutas" }}
           </span>
         </div>
       </template>
@@ -164,20 +235,31 @@ function formatCoordinates(coords?: [number, number]): string {
       <!-- Exploración mononodal (Solo Origen o Solo Destino) -->
       <template v-else-if="originAirport || destinationAirport">
         <div class="flex items-center gap-1.5 truncate">
-          <UIcon name="i-lucide-map-pin" class="w-3 h-3 text-primary shrink-0" />
-          <span class="font-mono tabular-nums tracking-tight text-text-muted truncate">
-            {{ formatCoordinates(originAirport?.coordinates || destinationAirport?.coordinates) }}
+          <UIcon
+            name="i-lucide-map-pin"
+            class="w-3 h-3 text-primary shrink-0"
+          />
+          <span
+            class="font-mono tabular-nums tracking-tight text-text-muted truncate"
+          >
+            {{
+              formatCoordinates(
+                originAirport?.coordinates || destinationAirport?.coordinates,
+              )
+            }}
           </span>
         </div>
 
         <div class="h-3 w-px bg-border-subtle/60 shrink-0" />
 
         <div class="flex items-center gap-1 shrink-0">
-          <span class="font-mono tabular-nums tracking-tight font-bold text-text-main">
+          <span
+            class="font-mono tabular-nums tracking-tight font-bold text-text-main"
+          >
             {{ matchingCount }}
           </span>
           <span class="text-text-dim text-[10px]">
-            {{ matchingCount === 1 ? 'conexión' : 'conexiones' }}
+            {{ matchingCount === 1 ? "conexión" : "conexiones" }}
           </span>
         </div>
       </template>

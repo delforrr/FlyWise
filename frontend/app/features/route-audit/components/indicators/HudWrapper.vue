@@ -9,6 +9,6 @@
     <MapControls class="pointer-events-auto shrink-0" />
 
     <!-- Modal de Manual de Atajos de Cabina -->
-    <CockpitShortcutsModal />
+    <ShortcutsModal />
   </div>
 </template>

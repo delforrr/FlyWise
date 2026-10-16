@@ -21,7 +21,7 @@ function getAriaLabel(route: FlightRoute): string {
   <div v-if="routes.length > 0" class="flex flex-col gap-2">
     <!-- Encabezado de sección de Navegación Avionics -->
     <div class="flex items-center justify-between px-0.5">
-      <span class="hud-section-label">
+      <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-dim">
         <UIcon name="i-lucide-waypoints" class="w-3.5 h-3.5 text-primary" />
         <span>Alternativas con Escala / Conexión</span>
       </span>
@@ -32,16 +32,13 @@ function getAriaLabel(route: FlightRoute): string {
 
     <!-- Lista de tarjetas de navegación -->
     <div class="flex flex-col gap-2">
-      <div
+      <button
         v-for="cRoute in routes"
         :key="cRoute.id"
-        role="button"
-        tabindex="0"
+        type="button"
         :aria-label="getAriaLabel(cRoute)"
-        class="group relative flex flex-col gap-2 p-2.5 rounded-xl bg-surface-base/60 hover:bg-surface-accent/80 border border-border-subtle/70 hover:border-primary/50 shadow-xs cursor-pointer select-none transform-gpu hover:translate-x-1 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
+        class="group relative flex flex-col gap-2 p-2.5 rounded-xl bg-surface-base/60 hover:bg-surface-accent/80 border border-border-subtle/70 hover:border-primary/50 shadow-xs cursor-pointer select-none transform-gpu hover:translate-x-1 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card w-full text-left"
         @click="emit('focusRoute', cRoute)"
-        @keydown.enter.prevent="emit('focusRoute', cRoute)"
-        @keydown.space.prevent="emit('focusRoute', cRoute)"
       >
         <!-- Fila 1: Badges de Conexión + Desempeño OTP -->
         <div class="flex items-center justify-between gap-2">
@@ -55,11 +52,11 @@ function getAriaLabel(route: FlightRoute): string {
             </span>
 
             <span
-              class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-surface-accent/90 border border-border-subtle/60 text-text-muted truncate max-w-[140px]"
+              class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-surface-accent/90 border border-border-subtle/60 text-text-muted"
               :title="`Aerolínea principal: ${cRoute.primaryAirline}`"
             >
               <UIcon name="i-lucide-plane" class="w-2.5 h-2.5 text-text-dim shrink-0" />
-              <span class="truncate">{{ cRoute.primaryAirline }}</span>
+              <span>{{ cRoute.primaryAirline }}</span>
             </span>
           </div>
 
@@ -105,17 +102,17 @@ function getAriaLabel(route: FlightRoute): string {
         </div>
 
         <!-- Fila 3: Detalle de ciudades y prompt interactivo -->
-        <div class="flex items-center justify-between pt-1.5 border-t border-border-subtle/40 text-[10px] font-mono text-text-dim">
-          <span class="truncate max-w-[180px]">
+        <div class="flex items-center justify-between pt-1.5 border-t border-border-subtle/40 text-[10px] font-mono text-text-dim flex-wrap gap-1">
+          <span class="leading-snug">
             {{ cRoute.originCity }} ➔ {{ cRoute.destinationCity }}
           </span>
 
-          <span class="inline-flex items-center gap-1 text-text-dim group-hover:text-primary transition-colors font-medium shrink-0 ml-2">
+          <span class="inline-flex items-center gap-1 text-text-dim group-hover:text-primary transition-colors font-medium shrink-0 ml-auto">
             <UIcon name="i-lucide-crosshair" class="w-3 h-3 text-primary/70 group-hover:text-primary" />
             <span>Click para enfocar en mapa</span>
           </span>
         </div>
-      </div>
+      </button>
     </div>
   </div>
 </template>
