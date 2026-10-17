@@ -95,7 +95,19 @@ export class AuthController {
     status: 401,
     description: 'No autorizado - Token JWT inválido o no provisto.',
   })
-  logout(@Request() req: { logout: () => unknown }) {
-    return req.logout();
+  logout(
+    @Request()
+    req: {
+      logout?: (callback?: (err: unknown) => void) => unknown;
+    },
+  ) {
+    if (typeof req?.logout === 'function') {
+      try {
+        req.logout(() => {});
+      } catch {
+        // Safe fallback if session engine is absent
+      }
+    }
+    return { message: 'Sesión cerrada exitosamente.' };
   }
 }

@@ -77,14 +77,14 @@ describe('AuthController', () => {
   });
 
   describe('logout', () => {
-    it('should call req.logout', () => {
+    it('should call req.logout and return success message', () => {
       const mockReq = {
-        logout: jest.fn().mockReturnValue(true),
+        logout: jest.fn(),
       };
 
       const result = controller.logout(mockReq);
       expect(mockReq.logout).toHaveBeenCalledTimes(1);
-      expect(result).toBe(true);
+      expect(result).toEqual({ message: 'Sesión cerrada exitosamente.' });
     });
   });
 });
