@@ -9,7 +9,26 @@ export interface BuildLayersOptions {
   selectedOrigin?: string | null;
   selectedDestination?: string | null;
   matchingRoutes: FlightRoute[];
+  currentZoom?: number;
+  enableRadarRings?: boolean;
+  enableLODLabels?: boolean;
 }
+
+/**
+ * Catálogo de los 25 Mega-Hubs aeronáuticos más estratégicos a nivel global.
+ * Usado para Level-Of-Detail (LOD) en vista planetaria/general sin saturar el atlas de fuentes en dispositivos de bajos recursos.
+ */
+export const MEGA_HUBS_IATA = new Set<string>([
+  "ATL", "LHR", "JFK", "DXB", "HND", "CDG", "FRA", "SIN", "AMS",
+  "EZE", "MAD", "BOG", "MEX", "SCL", "GRU", "LAX", "ORD", "MIA",
+  "SYD", "ICN", "YYZ", "PTY", "LIM", "BCN", "DOH",
+]);
+
+// Accesores estáticos puros para evitar asignaciones de funciones inline en cada ciclo de render
+const getSourcePosition = (d: FlightRoute) => d.originCoordinates;
+const getTargetPosition = (d: FlightRoute) => d.destinationCoordinates;
+const getAirportPosition = (d: Airport) => d.coordinates;
+const getAirportIata = (d: Airport) => d.iata;
 
 /**
  * Determina los aeropuertos visibles según el estado de selección
@@ -37,15 +56,51 @@ export function getVisibleAirports(
 }
 
 /**
+ * Filtra los aeropuertos para etiquetas de texto según el nivel de zoom y el perfil de rendimiento (LOD)
+ */
+export function getLabelAirports(
+  airports: Airport[],
+  options: {
+    hasSelection: boolean;
+    currentZoom?: number;
+    enableLODLabels?: boolean;
+  },
+): Airport[] {
+  const { hasSelection, currentZoom = 2.5, enableLODLabels = false } = options;
+
+  // Si hay una selección activa (origen/destino), siempre mostramos los aeropuertos involucrados
+  if (hasSelection) {
+    return airports;
+  }
+
+  // Si el perfil de bajo rendimiento o LOD está activo y estamos en zoom general (< 4.0),
+  // limitamos las etiquetas de texto a los mega-hubs para no saturar el font atlas
+  if (enableLODLabels && currentZoom < 4.0) {
+    return airports.filter((a) => MEGA_HUBS_IATA.has(a.iata));
+  }
+
+  return airports;
+}
+
+/**
  * Genera las capas activas de WebGL (ArcLayer, ScatterplotLayer y Halo Rings).
- * REGLA: El mapa inicia sin arcos hasta que se selecciona un aeropuerto o ruta.
+ * REGLA RNF-02: El mapa inicia sin arcos hasta que se selecciona un aeropuerto o ruta.
  */
 export function buildFlightMapLayers(options: BuildLayersOptions) {
-  const { isLight, selectedOrigin: orig, selectedDestination: dest, matchingRoutes } = options;
+  const {
+    isLight,
+    selectedOrigin: orig,
+    selectedDestination: dest,
+    matchingRoutes,
+    currentZoom = 2.5,
+    enableRadarRings = true,
+    enableLODLabels = false,
+  } = options;
+
   const hasSelection = Boolean(orig || dest);
   const hasBoth = Boolean(orig && dest);
 
-  // 1. Filtrar rutas: Sin selección activa NO se renderiza ningún arco
+  // 1. Filtrar rutas: Sin selección activa NO se renderiza ningún arco (RNF-02)
   const visibleRoutes = hasSelection ? matchingRoutes : [];
 
   // 2. Aeropuertos visibles (despejar pantalla si hay selección, o todos si está en vista general)
@@ -61,7 +116,14 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
     (a) => a.iata === orig || a.iata === dest,
   );
 
-  return [
+  // 4. Aeropuertos con etiqueta visible según LOD de rendimiento
+  const labelAirports = getLabelAirports(visibleAirports, {
+    hasSelection,
+    currentZoom,
+    enableLODLabels,
+  });
+
+  const layers = [
     // Capa de Arcos Geodésicos 3D (Rutas y puntualidad OTP-15)
     new ArcLayer<FlightRoute>({
       id: "flight-routes-arc",
@@ -70,8 +132,8 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       autoHighlight: true,
       highlightColor: isLight ? [2, 132, 199, 255] : [56, 189, 248, 255],
       greatCircle: true,
-      getSourcePosition: (d: FlightRoute) => d.originCoordinates,
-      getTargetPosition: (d: FlightRoute) => d.destinationCoordinates,
+      getSourcePosition,
+      getTargetPosition,
       getSourceColor: (d: FlightRoute) => {
         const isDirectActive = Boolean(
           hasBoth &&
@@ -150,37 +212,43 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
         getTargetColor: [orig, dest, isLight],
       },
     }),
+  ];
 
-    // Capa de Anillo Exterior Sonar / Pulso Táctico para Hubs Activos
-    new ScatterplotLayer<Airport>({
-      id: "airports-radar-ring-outer",
-      data: activeSelectedAirports,
-      pickable: false,
-      getPosition: (d: Airport) => d.coordinates,
-      getRadius: 280000,
-      radiusMinPixels: 28,
-      radiusMaxPixels: 58,
-      stroked: true,
-      filled: false,
-      getLineColor: (d: Airport) => {
-        if (d.iata === orig) {
-          return isLight ? [2, 132, 199, 90] : [56, 189, 248, 100];
-        }
-        return isLight ? [5, 150, 105, 90] : [16, 185, 129, 100];
-      },
-      lineWidthMinPixels: 1.5,
-      lineWidthMaxPixels: 2.5,
-      updateTriggers: {
-        getLineColor: [orig, dest, isLight],
-      },
-    }),
+  // Capa de Anillo Exterior Sonar (omitida en móviles / low-end para reducir overdraw)
+  if (enableRadarRings) {
+    layers.push(
+      new ScatterplotLayer<Airport>({
+        id: "airports-radar-ring-outer",
+        data: activeSelectedAirports,
+        pickable: false,
+        getPosition: getAirportPosition,
+        getRadius: 280000,
+        radiusMinPixels: 28,
+        radiusMaxPixels: 58,
+        stroked: true,
+        filled: false,
+        getLineColor: (d: Airport) => {
+          if (d.iata === orig) {
+            return isLight ? [2, 132, 199, 90] : [56, 189, 248, 100];
+          }
+          return isLight ? [5, 150, 105, 90] : [16, 185, 129, 100];
+        },
+        lineWidthMinPixels: 1.5,
+        lineWidthMaxPixels: 2.5,
+        updateTriggers: {
+          getLineColor: [orig, dest, isLight],
+        },
+      }),
+    );
+  }
 
-    // Capa de Halo Radar / Glow para Hubs Activos (Origen / Destino)
+  // Capa de Halo Radar / Glow para Hubs Activos (Origen / Destino)
+  layers.push(
     new ScatterplotLayer<Airport>({
       id: "airports-radar-halo",
       data: activeSelectedAirports,
       pickable: false,
-      getPosition: (d: Airport) => d.coordinates,
+      getPosition: getAirportPosition,
       getRadius: 160000,
       radiusMinPixels: 18,
       radiusMaxPixels: 38,
@@ -213,7 +281,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       pickable: true,
       autoHighlight: true,
       highlightColor: isLight ? [2, 132, 199, 255] : [56, 189, 248, 255],
-      getPosition: (d: Airport) => d.coordinates,
+      getPosition: getAirportPosition,
       getRadius: (d: Airport) => {
         if (d.iata === orig || d.iata === dest) {
           return 90000;
@@ -249,10 +317,10 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
     // Capa de Etiquetas IATA de Aeropuertos en WebGL
     new TextLayer<Airport>({
       id: "airports-labels",
-      data: visibleAirports,
+      data: labelAirports,
       pickable: true,
-      getPosition: (d: Airport) => d.coordinates,
-      getText: (d: Airport) => d.iata,
+      getPosition: getAirportPosition,
+      getText: getAirportIata,
       getSize: (d: Airport) => (d.iata === orig || d.iata === dest ? 13 : 11),
       sizeUnits: "pixels",
       sizeMinPixels: 9,
@@ -279,5 +347,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
         getBackgroundColor: [isLight],
       },
     }),
-  ];
+  );
+
+  return layers;
 }

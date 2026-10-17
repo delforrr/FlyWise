@@ -3,6 +3,10 @@ import { mount } from "@vue/test-utils";
 import AirportTooltipContent from "../../app/features/flight-map/components/tooltips/AirportTooltipContent.vue";
 import RouteTooltipContent from "../../app/features/flight-map/components/tooltips/RouteTooltipContent.vue";
 import ControlButton from "../../app/features/flight-map/components/controls/ControlButton.vue";
+import MapTooltip from "../../app/features/flight-map/components/tooltips/MapTooltip.vue";
+import MapControls from "../../app/features/flight-map/components/controls/MapControls.vue";
+import { useMapPerformance } from "../../app/features/flight-map/composables/useMapPerformance";
+import { useFlightSelection } from "../../app/features/route-audit/composables/useFlightSelection";
 import type { Airport } from "../../app/types/airport";
 import type { FlightRoute } from "../../app/types/route";
 
@@ -29,6 +33,27 @@ const UButtonStub = {
   props: ["disabled", "ariaLabel", "title"],
   emits: ["click"],
   template: '<button :disabled="disabled" :aria-label="ariaLabel" @click="$emit(\'click\', $event)"><slot /></button>',
+};
+
+const UTooltipStub = {
+  name: "UTooltip",
+  props: ["text", "content"],
+  template: '<div class="u-tooltip-stub"><slot /></div>',
+};
+
+const HudContainerStub = {
+  name: "HudContainer",
+  template: '<div class="hud-container-stub"><slot /></div>',
+};
+
+const UPopoverStub = {
+  name: "UPopover",
+  template: '<div class="u-popover-stub"><slot /><slot name="content" /></div>',
+};
+
+const USeparatorStub = {
+  name: "USeparator",
+  template: '<hr class="u-separator-stub" />',
 };
 
 if (typeof (globalThis as any).useFlightMap === "undefined") {
@@ -220,6 +245,124 @@ describe("Map Tooltips — Componentes Visuales del Mapa Aeronáutico", () => {
 
       const button = wrapper.find("button");
       expect(button.attributes("disabled")).toBeDefined();
+    });
+  });
+
+  describe("MapTooltip.vue — Supresión de Tooltips según Rendimiento", () => {
+    it("no renderiza el tooltip cuando enableTooltips es false (móvil/touch) incluso con hoveredEntity activo", () => {
+      const perf = useMapPerformance();
+      perf.setPerformanceOverride({ isMobileOrTouch: true, isLowEnd: false });
+
+      const { hoveredEntity } = useFlightSelection();
+      hoveredEntity.value = {
+        type: "airport",
+        data: {
+          id: "eze",
+          iata: "EZE",
+          name: "Ezeiza",
+          coordinates: [-58.5, -34.8],
+          type: "large_airport",
+        } as any,
+        x: 100,
+        y: 100,
+      };
+
+      const wrapper = mount(MapTooltip, {
+        global: {
+          stubs: {
+            UIcon: UIconStub,
+            AirportTooltipContent: { template: '<div class="airport-tooltip-stub" />' },
+            RouteTooltipContent: { template: '<div class="route-tooltip-stub" />' },
+            Transition: false,
+          },
+        },
+      });
+
+      expect(wrapper.find(".fixed").exists()).toBe(false);
+    });
+
+    it("renderiza el tooltip cuando enableTooltips es true (desktop) con hoveredEntity activo", () => {
+      const perf = useMapPerformance();
+      perf.setPerformanceOverride({ isMobileOrTouch: false, isLowEnd: false });
+
+      const { hoveredEntity } = useFlightSelection();
+      hoveredEntity.value = {
+        type: "airport",
+        data: {
+          id: "eze",
+          iata: "EZE",
+          name: "Ezeiza",
+          coordinates: [-58.5, -34.8],
+          type: "large_airport",
+        } as any,
+        x: 100,
+        y: 100,
+      };
+
+      const wrapper = mount(MapTooltip, {
+        global: {
+          stubs: {
+            UIcon: UIconStub,
+            AirportTooltipContent: { template: '<div class="airport-tooltip-stub" />' },
+            RouteTooltipContent: { template: '<div class="route-tooltip-stub" />' },
+            Transition: false,
+          },
+        },
+      });
+
+      expect(wrapper.find(".fixed").exists()).toBe(true);
+    });
+  });
+
+  describe("MapControls.vue — Adaptación de Controles en Móviles", () => {
+    it("oculta el botón toggle3D cuando allow3D es false (móviles)", () => {
+      const perf = useMapPerformance();
+      perf.setPerformanceOverride({ isMobileOrTouch: true, isLowEnd: false });
+
+      const wrapper = mount(MapControls, {
+        global: {
+          stubs: {
+            HudContainer: HudContainerStub,
+            UTooltip: UTooltipStub,
+            UPopover: UPopoverStub,
+            USeparator: USeparatorStub,
+            UButton: UButtonStub,
+            ControlButton: true,
+            OtpBadge: true,
+          },
+        },
+      });
+
+      const controlButtons = wrapper.findAllComponents({ name: "ControlButton" });
+      const toggle3dButton = controlButtons.find(
+        (b) => b.attributes("type") === "toggle3D" || b.props("type") === "toggle3D",
+      );
+      expect(toggle3dButton).toBeUndefined();
+    });
+
+    it("muestra el botón toggle3D cuando allow3D es true (desktop)", () => {
+      const perf = useMapPerformance();
+      perf.setPerformanceOverride({ isMobileOrTouch: false, isLowEnd: false });
+
+      const wrapper = mount(MapControls, {
+        global: {
+          stubs: {
+            HudContainer: HudContainerStub,
+            UTooltip: UTooltipStub,
+            UPopover: UPopoverStub,
+            USeparator: USeparatorStub,
+            UButton: UButtonStub,
+            ControlButton: true,
+            OtpBadge: true,
+          },
+        },
+      });
+
+      const controlButtons = wrapper.findAllComponents({ name: "ControlButton" });
+      const toggle3dButton = controlButtons.find(
+        (b) => b.attributes("type") === "toggle3D" || b.props("type") === "toggle3D",
+      );
+      expect(toggle3dButton).toBeDefined();
     });
   });
 });

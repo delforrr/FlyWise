@@ -6,6 +6,7 @@ import type { FlightRoute } from "~/types/route";
 import { SEED_AIRPORTS } from "~/data/seedData";
 import { MAP_STYLES } from "../utils/mapUtils";
 import { buildFlightMapLayers } from "../utils/mapLayers";
+import { useMapPerformance } from "./useMapPerformance";
 
 // Estado del mapa compartido a nivel módulo (Singleton para sincronizar componentes HUD)
 const mapInstance = shallowRef<Map | null>(null);
@@ -51,9 +52,11 @@ export const useFlightMap = () => {
   } = useFlightSelection();
 
   const colorMode = useColorMode();
+  const performance = useMapPerformance();
 
   /**
    * Genera las capas activas de WebGL delegando a buildFlightMapLayers (SRP)
+   * inyectando las directivas adaptativas de rendimiento (LOD y poda de capas decorativas).
    */
   function buildLayers() {
     return buildFlightMapLayers({
@@ -61,6 +64,9 @@ export const useFlightMap = () => {
       selectedOrigin: selectedOrigin.value,
       selectedDestination: selectedDestination.value,
       matchingRoutes: matchingRoutes.value,
+      currentZoom: currentZoom.value,
+      enableRadarRings: performance.enableRadarRings.value,
+      enableLODLabels: performance.enableLODLabels.value,
     });
   }
 
@@ -101,9 +107,11 @@ export const useFlightMap = () => {
       bounds.extend(r.destinationCoordinates);
     }
 
+    const targetPitch = performance.allow3D.value ? 35 : 0;
+
     mapInstance.value.fitBounds(bounds, {
       padding: getAdaptivePadding(),
-      pitch: 35,
+      pitch: targetPitch,
       duration: 1600,
       essential: true,
     });
@@ -118,7 +126,8 @@ export const useFlightMap = () => {
   }
 
   /**
-   * Inicializa MapLibre GL inyectándolo en el contenedor DOM provisto y acopla Deck.gl.
+   * Inicializa MapLibre GL inyectándolo en el contenedor DOM provisto y acopla Deck.gl
+   * aplicando de forma automática y transparente el perfil de hardware idóneo.
    */
   function initMap(
     container: HTMLElement | string,
@@ -132,15 +141,17 @@ export const useFlightMap = () => {
     if (!container || mapInstance.value) return;
 
     try {
+      const isMobile = performance.isMobileOrTouch.value;
       const center: [number, number] = options?.center ?? [-30, 20];
       const zoom: number = options?.zoom ?? 2.5;
-      const pitch: number = options?.pitch ?? 30;
+      // En dispositivos móviles y táctiles, forzar perspectiva 2D plana estricta (pitch: 0)
+      const pitch: number = isMobile ? 0 : (options?.pitch ?? 30);
       const bearing: number = options?.bearing ?? 0;
 
       const activeStyle =
         colorMode.value === "light" ? MAP_STYLES.light : MAP_STYLES.dark;
 
-      // 1. Instanciación de MapLibre GL
+      // 1. Instanciación de MapLibre GL con optimizaciones de hardware
       const map = new maplibregl.Map({
         container,
         style: activeStyle,
@@ -150,6 +161,12 @@ export const useFlightMap = () => {
         bearing,
         minZoom: 1.5,
         maxZoom: 7.5, // Máximo zoom aeronáutico: evita renderizar calles y edificios
+        maxPitch: isMobile ? 0 : 60, // En móviles el pitch queda bloqueado en 0°
+        dragRotate: !isMobile, // Desactiva rotación accidental en móviles
+        touchPitch: !isMobile, // Desactiva inclinación con dos dedos en móviles
+        pitchWithRotate: !isMobile,
+        pixelRatio: performance.dpr.value, // Clamping dinámico de DPR (1.25 en móvil/low-end)
+        maxTileCacheSize: performance.maxTileCache.value, // Control conservador de memoria VRAM/RAM
         attributionControl: { compact: true },
         renderWorldCopies: false,
       });
@@ -159,10 +176,14 @@ export const useFlightMap = () => {
       // 2. Acoplar MapboxOverlay de Deck.gl
       const deckOverlay = new MapboxOverlay({
         interleaved: false,
-        pickingRadius: 10,
+        pickingRadius: isMobile ? 12 : 6,
         layers: buildLayers(),
         getCursor: ({ isHovering }) => (isHovering ? "pointer" : "default"),
         onHover: (info) => {
+          // En móviles/touch se elimina completamente el listener de picking en hover
+          // evitando bloqueos de pipeline en GPU (gl.readPixels) durante el paneo táctil
+          if (!performance.enableHoverPicking.value) return;
+
           if (info?.object) {
             const isRoute = "originIata" in (info.object as object);
             setHoveredEntity({
@@ -237,8 +258,18 @@ export const useFlightMap = () => {
         currentPitch.value = map.getPitch();
       });
 
+      let lastZoomCategory = map.getZoom() < 4.0;
       map.on("zoom", () => {
-        currentZoom.value = map.getZoom();
+        const z = map.getZoom();
+        currentZoom.value = z;
+        // Solo refresca capas si cruza el umbral de LOD 4.0 entre vista de mega-hubs y todos los aeropuertos
+        if (performance.enableLODLabels.value) {
+          const isLowZoom = z < 4.0;
+          if (isLowZoom !== lastZoomCategory) {
+            lastZoomCategory = isLowZoom;
+            updateLayers();
+          }
+        }
       });
 
       map.on("rotate", () => {
@@ -291,10 +322,12 @@ export const useFlightMap = () => {
       ? coords
       : [coords.lon, coords.lat];
 
+    const targetPitch = performance.allow3D.value ? 40 : 0;
+
     mapInstance.value.flyTo({
       center: [lon, lat],
       zoom,
-      pitch: 40,
+      pitch: targetPitch,
       speed: 1.2,
       curve: 1.42,
       essential: true,
@@ -333,9 +366,11 @@ export const useFlightMap = () => {
     const bounds = new maplibregl.LngLatBounds(orig, orig);
     bounds.extend(dest);
 
+    const defaultPitch = performance.allow3D.value ? 35 : 0;
+
     mapInstance.value.fitBounds(bounds, {
       padding: options?.padding ?? getAdaptivePadding(),
-      pitch: options?.pitch ?? 35,
+      pitch: options?.pitch ?? defaultPitch,
       duration: options?.duration ?? 1600,
       essential: true,
     });
@@ -343,6 +378,8 @@ export const useFlightMap = () => {
 
   function toggle3D(): void {
     if (!mapInstance.value) return;
+    // En móviles / touch, 3D está deshabilitado estrictamente
+    if (!performance.allow3D.value) return;
 
     if (currentPitch.value > 0) {
       mapInstance.value.easeTo({

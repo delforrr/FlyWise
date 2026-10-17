@@ -293,3 +293,19 @@
     opacity: 1;
   }
 }
+
+/* ==========================================
+   OPTIMIZACIONES DE RENDIMIENTO GRÁFICO (LOW-END & MOBILE)
+   Responsabilidad: Reducir sobrecarga del compositor del navegador
+   eliminando desenfoques de fondo (backdrop-filter) pesados sobre WebGL.
+   ========================================== */
+
+@media (max-width: 768px), (pointer: coarse) {
+  .hud-panel,
+  .hud-card,
+  .double-bezel-shell {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: var(--color-surface-elevated, #161b22) !important;
+  }
+}

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   getVisibleAirports,
+  getLabelAirports,
+  MEGA_HUBS_IATA,
   buildFlightMapLayers,
   type BuildLayersOptions,
 } from "../../app/features/flight-map/utils/mapLayers";
@@ -99,6 +101,54 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
       const result = getVisibleAirports(true, "XYZ_NON_EXISTENT", null, []);
       expect(Array.isArray(result)).toBe(true);
       expect(result.find((a) => a.iata === "XYZ_NON_EXISTENT")).toBeUndefined();
+    });
+  });
+
+  describe("getLabelAirports() — Filtrado de etiquetas por Level-Of-Detail (LOD)", () => {
+    it("retorna únicamente mega-hubs cuando enableLODLabels es true y zoom < 4.0 sin selección", () => {
+      const result = getLabelAirports(SEED_AIRPORTS, {
+        hasSelection: false,
+        currentZoom: 2.5,
+        enableLODLabels: true,
+      });
+
+      expect(result.length).toBeLessThanOrEqual(25);
+      expect(result.length).toBeGreaterThan(0);
+      for (const airport of result) {
+        expect(MEGA_HUBS_IATA.has(airport.iata)).toBe(true);
+      }
+    });
+
+    it("retorna todos los aeropuertos visibles cuando zoom >= 4.0 aun con enableLODLabels activo", () => {
+      const result = getLabelAirports(SEED_AIRPORTS, {
+        hasSelection: false,
+        currentZoom: 4.5,
+        enableLODLabels: true,
+      });
+
+      expect(result).toHaveLength(SEED_AIRPORTS.length);
+    });
+
+    it("retorna todos los aeropuertos involucrados cuando hay selección activa ignorando LOD", () => {
+      const selectionAirports = SEED_AIRPORTS.slice(0, 3);
+      const result = getLabelAirports(selectionAirports, {
+        hasSelection: true,
+        currentZoom: 2.0,
+        enableLODLabels: true,
+      });
+
+      expect(result).toHaveLength(3);
+      expect(result).toEqual(selectionAirports);
+    });
+
+    it("retorna todos los aeropuertos cuando enableLODLabels es false", () => {
+      const result = getLabelAirports(SEED_AIRPORTS, {
+        hasSelection: false,
+        currentZoom: 2.5,
+        enableLODLabels: false,
+      });
+
+      expect(result).toHaveLength(SEED_AIRPORTS.length);
     });
   });
 
@@ -324,6 +374,48 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
       // Conexión secundaria: alpha atenuado (140)
       const connColor = getSourceColor(connectingRoute);
       expect(connColor[3]).toBe(140);
+    });
+
+    it("omite la capa airports-radar-ring-outer cuando enableRadarRings es false", () => {
+      const options: BuildLayersOptions = {
+        isLight: false,
+        selectedOrigin: "EZE",
+        selectedDestination: "MIA",
+        matchingRoutes: SEED_ROUTES.slice(0, 2),
+        enableRadarRings: false,
+      };
+
+      const layers = buildFlightMapLayers(options);
+      const ringLayer = layers.find((l) => l.id === "airports-radar-ring-outer");
+      expect(ringLayer).toBeUndefined();
+
+      // Las demás capas deben permanecer activas
+      expect(layers.find((l) => l.id === "flight-routes-arc")).toBeDefined();
+      expect(layers.find((l) => l.id === "airports-radar-halo")).toBeDefined();
+      expect(layers.find((l) => l.id === "airports-nodes")).toBeDefined();
+      expect(layers.find((l) => l.id === "airports-labels")).toBeDefined();
+    });
+
+    it("limita la capa airports-labels a mega-hubs cuando enableLODLabels es true en zoom general", () => {
+      const options: BuildLayersOptions = {
+        isLight: false,
+        selectedOrigin: null,
+        selectedDestination: null,
+        matchingRoutes: [],
+        currentZoom: 2.5,
+        enableLODLabels: true,
+      };
+
+      const layers = buildFlightMapLayers(options);
+      const labelsLayer = layers.find((l) => l.id === "airports-labels");
+      expect(labelsLayer).toBeDefined();
+
+      const labelData = labelsLayer?.props.data as any[];
+      expect(labelData.length).toBeLessThanOrEqual(25);
+      expect(labelData.length).toBeGreaterThan(0);
+      for (const airport of labelData) {
+        expect(MEGA_HUBS_IATA.has(airport.iata)).toBe(true);
+      }
     });
   });
 });

@@ -81,10 +81,15 @@ const mockFlightSelection = {
 (globalThis as any).useFlightSelection = () => mockFlightSelection;
 
 import { useFlightMap } from "../../app/features/flight-map/composables/useFlightMap";
+import { useMapPerformance } from "../../app/features/flight-map/composables/useMapPerformance";
 
 describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáuticas", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useMapPerformance().setPerformanceOverride({
+      isMobileOrTouch: false,
+      isLowEnd: false,
+    });
   });
 
   describe("Operaciones de cámara sin mapa inicializado (Resiliencia SSR)", () => {
@@ -281,6 +286,71 @@ describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáutica
       expect(mockMap.on).toHaveBeenCalledWith("rotate", expect.any(Function));
 
       flightMap.destroyMap();
+    });
+  });
+
+  describe("Comportamiento en Dispositivos Móviles (Modo 2D Estricto)", () => {
+    beforeEach(() => {
+      useMapPerformance().setPerformanceOverride({
+        isMobileOrTouch: true,
+        isLowEnd: false,
+      });
+      const flightMap = useFlightMap();
+      flightMap.mapInstance.value = mockMap as any;
+      flightMap.overlayInstance.value = mockOverlay as any;
+    });
+
+    it("toggle3D() no ejecuta easeTo si allow3D es false (móvil exclusivamente 2D)", () => {
+      const flightMap = useFlightMap();
+      flightMap.currentPitch.value = 0;
+
+      flightMap.toggle3D();
+
+      expect(mockEaseTo).not.toHaveBeenCalled();
+    });
+
+    it("fitRoute() encuadra la cámara con pitch: 0 en dispositivos móviles", () => {
+      const flightMap = useFlightMap();
+      flightMap.fitRoute([-58.53, -34.82], [-80.29, 25.79]);
+
+      expect(mockFitBounds).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          pitch: 0,
+        }),
+      );
+    });
+
+    it("fitHub() encuadra las conexiones con pitch: 0 en dispositivos móviles", () => {
+      const flightMap = useFlightMap();
+      mockFlightSelection.matchingRoutes.value = [
+        {
+          originIata: "EZE",
+          destinationIata: "MIA",
+          originCoordinates: [-58, -34],
+          destinationCoordinates: [-80, 25],
+        },
+      ] as any;
+
+      flightMap.fitHub("EZE");
+
+      expect(mockFitBounds).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          pitch: 0,
+        }),
+      );
+    });
+
+    it("flyToAirport() vuela con pitch: 0 en dispositivos móviles", () => {
+      const flightMap = useFlightMap();
+      flightMap.flyToAirport([-58.5358, -34.8222], 5);
+
+      expect(mockFlyTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pitch: 0,
+        }),
+      );
     });
   });
 });

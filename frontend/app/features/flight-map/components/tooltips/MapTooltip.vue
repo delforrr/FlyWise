@@ -2,7 +2,10 @@
 import { computed } from "vue";
 import type { FlightRoute } from "~/types/route";
 import type { Airport } from "~/types/airport";
+import { useMapPerformance } from "../../composables/useMapPerformance";
+import { useFlightSelection } from "~/features/route-audit/composables/useFlightSelection";
 
+const performance = useMapPerformance();
 const { hoveredEntity } = useFlightSelection();
 
 const isRoute = computed(() => hoveredEntity.value?.type === "route");
@@ -90,7 +93,7 @@ const tooltipStyle = computed(() => {
     leave-to-class="opacity-0"
   >
     <div
-      v-if="hoveredEntity"
+      v-if="performance.enableTooltips.value && hoveredEntity"
       :style="tooltipStyle"
       class="fixed top-0 left-0 z-50 pointer-events-none w-72 p-3 bg-surface-elevated/95 backdrop-blur-xl border border-white/10 dark:border-white/15 shadow-2xl rounded-xl will-change-transform"
     >

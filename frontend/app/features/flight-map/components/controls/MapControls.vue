@@ -1,3 +1,9 @@
+<script setup lang="ts">
+import { useMapPerformance } from "../../composables/useMapPerformance";
+
+const performance = useMapPerformance();
+</script>
+
 <template>
   <HudContainer
     variant="container"
@@ -85,7 +91,11 @@
       aria-label="Controles de orientación y encuadre"
     >
       <legend class="sr-only">Controles de orientación y encuadre</legend>
-      <UTooltip text="Alternar perspectiva 2D / 3D" :content="{ side: 'left' }">
+      <UTooltip
+        v-if="performance.allow3D.value"
+        text="Alternar perspectiva 2D / 3D"
+        :content="{ side: 'left' }"
+      >
         <ControlButton type="toggle3D" />
       </UTooltip>
       <UTooltip

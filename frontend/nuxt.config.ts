@@ -81,6 +81,7 @@ export default defineNuxtConfig({
         "@math.gl/web-mercator",
         "mjolnir.js",
         "gl-matrix",
+        "@vue/devtools-core",
       ],
     },
   },

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { MAP_STYLES } from "../utils/mapUtils";
+import { useMapPerformance } from "../composables/useMapPerformance";
+import { useFlightMap } from "../composables/useFlightMap";
+import { useFlightSelection } from "~/features/route-audit/composables/useFlightSelection";
 
 const mapContainer = ref<HTMLDivElement | null>(null);
 
@@ -24,6 +27,7 @@ const {
 } = useFlightSelection();
 
 const colorMode = useColorMode();
+const performance = useMapPerformance();
 
 let resizeObserver: ResizeObserver | null = null;
 let resizeRafId: number | null = null;
@@ -70,7 +74,7 @@ watch(mapFitTrigger, () => {
     mapInstance.value.flyTo({
       center: [-30, 20],
       zoom: 2.5,
-      pitch: 30,
+      pitch: performance.allow3D.value ? 30 : 0,
       bearing: 0,
       duration: 1200,
     });
@@ -84,7 +88,7 @@ watch(
       mapInstance.value.flyTo({
         center: [-30, 20],
         zoom: 2.5,
-        pitch: 30,
+        pitch: performance.allow3D.value ? 30 : 0,
         bearing: 0,
         duration: 1200,
       });
@@ -116,11 +120,11 @@ onMounted(async () => {
     return;
   }
 
-  // Inicializar MapLibre GL + Deck.gl con perspectiva aeronáutica inicial
+  // Inicializar MapLibre GL + Deck.gl con perspectiva aeronáutica inicial (2D estricto en móviles)
   initMap(containerElement, {
     center: [-30, 20],
     zoom: 2.5,
-    pitch: 30,
+    pitch: performance.allow3D.value ? 30 : 0,
     bearing: 0,
   });
 
