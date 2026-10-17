@@ -45,6 +45,7 @@ export class AuthService {
     return {
       accessToken: token,
       access_token: token,
+      token_type: 'bearer',
       user: {
         id: user.id,
         email: user.email,

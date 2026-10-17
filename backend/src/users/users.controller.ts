@@ -18,6 +18,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiOAuth2,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -26,6 +27,7 @@ import {
 import { JwtAuthGuard } from '../auth/auth.guard';
 
 @ApiTags('users')
+@ApiOAuth2([])
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('users')

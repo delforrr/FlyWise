@@ -124,6 +124,7 @@ describe('AuthService', () => {
       expect(result).toEqual({
         access_token: 'mocked.jwt.token',
         accessToken: 'mocked.jwt.token',
+        token_type: 'bearer',
         user: {
           id: mockUserDto.id,
           email: mockUserDto.email,

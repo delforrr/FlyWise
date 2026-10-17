@@ -5,11 +5,13 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
+  ApiOAuth2,
 } from '@nestjs/swagger';
 import { EtlService } from './etl.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
 
 @ApiTags('etl')
+@ApiOAuth2([])
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('etl')

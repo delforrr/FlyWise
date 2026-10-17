@@ -15,6 +15,7 @@ import {
   ApiResponse,
   ApiBody,
   ApiBearerAuth,
+  ApiOAuth2,
 } from '@nestjs/swagger';
 import { LocalAuthGuard, JwtAuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
@@ -63,6 +64,7 @@ export class AuthController {
     return this.authService.register(createUserDto);
   }
 
+  @ApiOAuth2([])
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('/me')
@@ -81,6 +83,7 @@ export class AuthController {
     return user;
   }
 
+  @ApiOAuth2([])
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('/logout')

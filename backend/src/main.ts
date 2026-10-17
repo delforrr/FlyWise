@@ -29,6 +29,20 @@ async function bootstrap() {
       'FlyWise - Sistema de Inteligencia de Vuelos Comerciales y Exploración de Rutas',
     )
     .setVersion('1.0')
+    .addOAuth2(
+      {
+        type: 'oauth2',
+        description:
+          'Autenticación directa con Email y Contraseña. Ingresa tu correo en "username" y tu contraseña en "password".',
+        flows: {
+          password: {
+            tokenUrl: '/api/auth/login',
+            scopes: {},
+          },
+        },
+      },
+      'oauth2',
+    )
     .addBearerAuth(
       {
         type: 'http',
@@ -36,7 +50,7 @@ async function bootstrap() {
         bearerFormat: 'JWT',
         name: 'JWT',
         description:
-          'Ingresa el token JWT (accessToken) obtenido al ejecutar POST /api/auth/login. No debes ingresar email ni contraseña en este campo.',
+          'Alternativa: Ingresa directamente el token JWT (accessToken) obtenido en POST /api/auth/login.',
       },
       'bearer',
     )
