@@ -9,6 +9,7 @@ import type {
 } from '../types/etl';
 import { TARGET_FIELDS_CATALOG } from '../types/etl';
 import { initialPipelines } from '../data/mockEtl';
+import { pipelineSchema } from '../schemas/pipelineSchemas';
 
 export interface PipelineValidationResult {
   isValid: boolean;
@@ -16,70 +17,24 @@ export interface PipelineValidationResult {
 }
 
 export function validatePipeline(data: Partial<EtlPipeline>): PipelineValidationResult {
+  const result = pipelineSchema.safeParse(data);
+  if (result.success) {
+    return {
+      isValid: true,
+      errors: {},
+    };
+  }
+
   const errors: Record<string, string> = {};
-
-  // 1. Validar Identidad
-  const name = data.name?.trim() || '';
-  if (!name) {
-    errors.name = 'El nombre del servicio es obligatorio.';
-  } else if (name.length < 3) {
-    errors.name = 'El nombre del servicio debe contener al menos 3 caracteres.';
-  }
-
-  const datasetName = data.datasetName?.trim() || '';
-  if (!datasetName) {
-    errors.datasetName = 'El nombre del dataset es obligatorio.';
-  } else if (datasetName.length < 2) {
-    errors.datasetName = 'El nombre del dataset debe contener al menos 2 caracteres.';
-  }
-
-  // 2. Validar Conexión y Endpoint
-  const url = data.connection?.endpointUrl?.trim() || '';
-  if (!url || url === 'https://' || url === 'http://') {
-    errors.endpointUrl = 'La URL del endpoint es obligatoria.';
-  } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    errors.endpointUrl = 'La URL debe comenzar con http:// o https://.';
-  } else {
-    const sanitizedUrl = url.replace(/\{[^}]+\}/g, 'placeholder');
-    try {
-      new URL(sanitizedUrl);
-    } catch {
-      errors.endpointUrl = 'La sintaxis de la URL es inválida.';
-    }
-  }
-
-  if (data.connection?.dataFormat === 'csv' && data.connection.csvDelimiter !== undefined) {
-    if (!data.connection.csvDelimiter) {
-      errors.csvDelimiter = 'El delimitador CSV no puede estar vacío.';
-    }
-  }
-
-  // 3. Validar Mapeo Semántico
-  const targetEntity = data.targetEntity || 'otp_metrics';
-  const targetDefs = TARGET_FIELDS_CATALOG[targetEntity] || [];
-  const requiredDefs = targetDefs.filter((d) => d.required);
-  const mappings = data.schemaMapping || [];
-
-  const unmapped = requiredDefs.filter((def) => {
-    const rule = mappings.find((m) => m.targetField === def.key);
-    return !rule || !rule.sourceColumn || !rule.sourceColumn.trim();
-  });
-
-  if (unmapped.length > 0) {
-    errors.schemaMapping = `Faltan mapear los siguientes campos requeridos: ${unmapped.map((d) => d.label).join(', ')}.`;
-  }
-
-  // 4. Validar Planificación (si cron personalizado)
-  if (data.scheduleConfig?.cronPreset === 'custom') {
-    const cron = data.scheduleConfig.cronExpression?.trim() || '';
-    const parts = cron.split(/\s+/);
-    if (parts.length !== 5) {
-      errors.cronExpression = 'La expresión cron personalizada debe contener 5 campos (ej. 0 4 * * *).';
+  for (const issue of result.error.issues) {
+    const key = issue.path[0] ? String(issue.path[0]) : 'general';
+    if (!errors[key]) {
+      errors[key] = issue.message;
     }
   }
 
   return {
-    isValid: Object.keys(errors).length === 0,
+    isValid: false,
     errors,
   };
 }

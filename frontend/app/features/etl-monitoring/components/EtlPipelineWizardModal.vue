@@ -11,6 +11,12 @@ import type {
   ProbeEndpointResult,
 } from "../types/etl";
 import { TARGET_FIELDS_CATALOG } from "../types/etl";
+import {
+  pipelineIdentitySchema,
+  pipelineConnectionSchema,
+  pipelineScheduleConfigSchema,
+  pipelineSchema,
+} from "../schemas/pipelineSchemas";
 import EtlEndpointProbeCard from "./EtlEndpointProbeCard.vue";
 import EtlSchemaMapper from "./EtlSchemaMapper.vue";
 
@@ -68,87 +74,99 @@ const concurrency = ref(4);
 const timeoutSeconds = ref(300);
 const maxRetries = ref(3);
 
-// --- REGLAS DE VALIDACIÓN ESTRICTA ---
-// Validación Paso 1 (Identidad)
+// --- REGLAS DE VALIDACIÓN BASADAS EN ESQUEMAS ZOD ---
+// Validación Paso 1 (Identidad) mediante Zod
+const step1Validation = computed(() => {
+  return pipelineIdentitySchema.safeParse({
+    name: name.value,
+    datasetName: datasetName.value,
+    description: description.value,
+    icon: icon.value,
+    targetEntity: targetEntity.value,
+  });
+});
+
+const isStep1Valid = computed(() => step1Validation.value.success);
+
 const nameError = computed(() => {
-  const trimmed = name.value.trim();
-  if (!trimmed) return "El nombre del servicio es obligatorio.";
-  if (trimmed.length < 3) return "El nombre debe contener al menos 3 caracteres.";
-  return "";
+  if (step1Validation.value.success) return "";
+  const issue = step1Validation.value.error.issues.find(
+    (i) => i.path[0] === "name",
+  );
+  return issue ? issue.message : "";
 });
 
 const datasetNameError = computed(() => {
-  const trimmed = datasetName.value.trim();
-  if (!trimmed) return "El nombre del dataset o proveedor es obligatorio.";
-  if (trimmed.length < 2) return "El nombre del dataset debe contener al menos 2 caracteres.";
-  return "";
+  if (step1Validation.value.success) return "";
+  const issue = step1Validation.value.error.issues.find(
+    (i) => i.path[0] === "datasetName",
+  );
+  return issue ? issue.message : "";
 });
 
-const isStep1Valid = computed(() => !nameError.value && !datasetNameError.value);
+// Validación Paso 2 (Endpoint & Conexión) mediante Zod
+const step2Validation = computed(() => {
+  return pipelineConnectionSchema.safeParse(connectionConfig.value);
+});
 
-// Validación Paso 2 (Endpoint & Conexión)
-const isUrlValid = (val: string): boolean => {
-  const trimmed = val.trim();
-  if (!trimmed || trimmed === "https://" || trimmed === "http://") return false;
-  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false;
-  const sanitized = trimmed.replace(/\{[^}]+\}/g, "placeholder");
-  try {
-    new URL(sanitized);
-    return true;
-  } catch {
-    return false;
-  }
-};
+const isStep2Valid = computed(() => step2Validation.value.success);
 
 const endpointUrlError = computed(() => {
-  const trimmed = endpointUrl.value.trim();
-  if (!trimmed || trimmed === "https://" || trimmed === "http://") {
-    return "La URL del endpoint es obligatoria.";
-  }
-  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-    return "La URL debe comenzar con http:// o https://.";
-  }
-  if (!isUrlValid(trimmed)) {
-    return "La sintaxis de la URL es inválida (ej. https://api.fuente.org/data.csv).";
-  }
-  return "";
+  if (step2Validation.value.success) return "";
+  const issue = step2Validation.value.error.issues.find(
+    (i) => i.path[0] === "endpointUrl",
+  );
+  return issue ? issue.message : "";
 });
 
 const csvDelimiterError = computed(() => {
-  if (dataFormat.value === "csv" && !csvDelimiter.value) {
-    return "El delimitador CSV no puede estar vacío.";
-  }
-  return "";
+  if (step2Validation.value.success) return "";
+  const issue = step2Validation.value.error.issues.find(
+    (i) => i.path[0] === "csvDelimiter",
+  );
+  return issue ? issue.message : "";
 });
-
-const isStep2Valid = computed(() => !endpointUrlError.value && !csvDelimiterError.value);
 
 // Validación Paso 3 (Mapeo Semántico)
 const requiredTargetFields = computed(() => {
-  return (TARGET_FIELDS_CATALOG[targetEntity.value] || []).filter((f) => f.required);
+  return (TARGET_FIELDS_CATALOG[targetEntity.value] || []).filter(
+    (f) => f.required,
+  );
 });
 
 const unmappedRequiredFields = computed(() => {
   return requiredTargetFields.value.filter((targetDef) => {
-    const rule = schemaMapping.value.find((m) => m.targetField === targetDef.key);
+    const rule = schemaMapping.value.find(
+      (m) => m.targetField === targetDef.key,
+    );
     return !rule || !rule.sourceColumn || !rule.sourceColumn.trim();
   });
 });
 
 const isStep3Valid = computed(() => unmappedRequiredFields.value.length === 0);
 
-// Validación Paso 4 (Planificación)
-const customCronError = computed(() => {
-  if (cronPreset.value === "custom") {
-    const parts = customCron.value.trim().split(/\s+/);
-    if (parts.length !== 5) {
-      return "La expresión cron debe tener 5 campos (ej. 0 4 * * *).";
-    }
-  }
-  return "";
+// Validación Paso 4 (Planificación) mediante Zod
+const step4Validation = computed(() => {
+  return pipelineScheduleConfigSchema.safeParse({
+    cronPreset: cronPreset.value,
+    cronExpression: customCron.value,
+    scheduleDescription: "Cadencia",
+    batchSize: batchSize.value,
+    concurrency: concurrency.value,
+    timeoutSeconds: timeoutSeconds.value,
+    maxRetries: maxRetries.value,
+  });
 });
 
-const isStep4Valid = computed(() => !customCronError.value);
+const isStep4Valid = computed(() => step4Validation.value.success);
+
+const customCronError = computed(() => {
+  if (step4Validation.value.success) return "";
+  const issue = step4Validation.value.error.issues.find(
+    (i) => i.path[0] === "cronExpression",
+  );
+  return issue ? issue.message : "";
+});
 
 const availableIcons = [
   "i-lucide-database",
@@ -453,6 +471,11 @@ function handleSave() {
       maxRetries: maxRetries.value,
     },
   };
+
+  const validation = pipelineSchema.safeParse(payload);
+  if (!validation.success) {
+    return;
+  }
 
   emit("save", payload);
   emit("close");
