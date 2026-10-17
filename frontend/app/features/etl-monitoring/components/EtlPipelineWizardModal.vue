@@ -10,6 +10,13 @@ import type {
   IngestionDataFormat,
   ProbeEndpointResult,
 } from "../types/etl";
+import { TARGET_FIELDS_CATALOG } from "../types/etl";
+import {
+  pipelineIdentitySchema,
+  pipelineConnectionSchema,
+  pipelineScheduleConfigSchema,
+  pipelineSchema,
+} from "../schemas/pipelineSchemas";
 import EtlEndpointProbeCard from "./EtlEndpointProbeCard.vue";
 import EtlSchemaMapper from "./EtlSchemaMapper.vue";
 
@@ -27,6 +34,12 @@ const emit = defineEmits<{
 
 const currentStep = ref(1);
 const totalSteps = 4;
+
+// Flags de intento de interacción para mostrar errores
+const hasAttemptedStep1 = ref(false);
+const hasAttemptedStep2 = ref(false);
+const hasAttemptedStep3 = ref(false);
+const hasAttemptedStep4 = ref(false);
 
 // 1. Datos de Identidad
 const name = ref("");
@@ -60,6 +73,100 @@ const batchSize = ref(2500);
 const concurrency = ref(4);
 const timeoutSeconds = ref(300);
 const maxRetries = ref(3);
+
+// --- REGLAS DE VALIDACIÓN BASADAS EN ESQUEMAS ZOD ---
+// Validación Paso 1 (Identidad) mediante Zod
+const step1Validation = computed(() => {
+  return pipelineIdentitySchema.safeParse({
+    name: name.value,
+    datasetName: datasetName.value,
+    description: description.value,
+    icon: icon.value,
+    targetEntity: targetEntity.value,
+  });
+});
+
+const isStep1Valid = computed(() => step1Validation.value.success);
+
+const nameError = computed(() => {
+  if (step1Validation.value.success) return "";
+  const issue = step1Validation.value.error.issues.find(
+    (i) => i.path[0] === "name",
+  );
+  return issue ? issue.message : "";
+});
+
+const datasetNameError = computed(() => {
+  if (step1Validation.value.success) return "";
+  const issue = step1Validation.value.error.issues.find(
+    (i) => i.path[0] === "datasetName",
+  );
+  return issue ? issue.message : "";
+});
+
+// Validación Paso 2 (Endpoint & Conexión) mediante Zod
+const step2Validation = computed(() => {
+  return pipelineConnectionSchema.safeParse(connectionConfig.value);
+});
+
+const isStep2Valid = computed(() => step2Validation.value.success);
+
+const endpointUrlError = computed(() => {
+  if (step2Validation.value.success) return "";
+  const issue = step2Validation.value.error.issues.find(
+    (i) => i.path[0] === "endpointUrl",
+  );
+  return issue ? issue.message : "";
+});
+
+const csvDelimiterError = computed(() => {
+  if (step2Validation.value.success) return "";
+  const issue = step2Validation.value.error.issues.find(
+    (i) => i.path[0] === "csvDelimiter",
+  );
+  return issue ? issue.message : "";
+});
+
+// Validación Paso 3 (Mapeo Semántico)
+const requiredTargetFields = computed(() => {
+  return (TARGET_FIELDS_CATALOG[targetEntity.value] || []).filter(
+    (f) => f.required,
+  );
+});
+
+const unmappedRequiredFields = computed(() => {
+  return requiredTargetFields.value.filter((targetDef) => {
+    const rule = schemaMapping.value.find(
+      (m) => m.targetField === targetDef.key,
+    );
+    return !rule || !rule.sourceColumn || !rule.sourceColumn.trim();
+  });
+});
+
+const isStep3Valid = computed(() => unmappedRequiredFields.value.length === 0);
+
+// Validación Paso 4 (Planificación) mediante Zod
+const step4Validation = computed(() => {
+  return pipelineScheduleConfigSchema.safeParse({
+    cronPreset: cronPreset.value,
+    cronExpression: customCron.value,
+    scheduleDescription: "Cadencia",
+    batchSize: batchSize.value,
+    concurrency: concurrency.value,
+    timeoutSeconds: timeoutSeconds.value,
+    maxRetries: maxRetries.value,
+  });
+});
+
+const isStep4Valid = computed(() => step4Validation.value.success);
+
+const customCronError = computed(() => {
+  if (step4Validation.value.success) return "";
+  const issue = step4Validation.value.error.issues.find(
+    (i) => i.path[0] === "cronExpression",
+  );
+  return issue ? issue.message : "";
+});
 
 const availableIcons = [
   "i-lucide-database",
@@ -119,6 +226,10 @@ watch(
     if (open) {
       currentStep.value = 1;
       probeResult.value = null;
+      hasAttemptedStep1.value = false;
+      hasAttemptedStep2.value = false;
+      hasAttemptedStep3.value = false;
+      hasAttemptedStep4.value = false;
 
       if (props.pipelineToEdit) {
         // Cargar datos existentes
@@ -249,11 +360,42 @@ async function handleTestConnection() {
 
 function handleApplyDetectedColumns(columns: string[]) {
   detectedColumns.value = columns;
+  hasAttemptedStep2.value = false;
   // Avanzar al paso de mapeo
   currentStep.value = 3;
 }
 
+function goToStep(stepNum: number) {
+  if (stepNum > 1 && !isStep1Valid.value) {
+    hasAttemptedStep1.value = true;
+    currentStep.value = 1;
+    return;
+  }
+  if (stepNum > 2 && !isStep2Valid.value) {
+    hasAttemptedStep2.value = true;
+    currentStep.value = 2;
+    return;
+  }
+  if (stepNum > 3 && !isStep3Valid.value) {
+    hasAttemptedStep3.value = true;
+    currentStep.value = 3;
+    return;
+  }
+  currentStep.value = stepNum;
+}
+
 function handleNextStep() {
+  if (currentStep.value === 1) {
+    hasAttemptedStep1.value = true;
+    if (!isStep1Valid.value) return;
+  } else if (currentStep.value === 2) {
+    hasAttemptedStep2.value = true;
+    if (!isStep2Valid.value) return;
+  } else if (currentStep.value === 3) {
+    hasAttemptedStep3.value = true;
+    if (!isStep3Valid.value) return;
+  }
+
   if (currentStep.value < totalSteps) {
     currentStep.value++;
   }
@@ -266,6 +408,28 @@ function handlePrevStep() {
 }
 
 function handleSave() {
+  hasAttemptedStep1.value = true;
+  hasAttemptedStep2.value = true;
+  hasAttemptedStep3.value = true;
+  hasAttemptedStep4.value = true;
+
+  if (!isStep1Valid.value) {
+    currentStep.value = 1;
+    return;
+  }
+  if (!isStep2Valid.value) {
+    currentStep.value = 2;
+    return;
+  }
+  if (!isStep3Valid.value) {
+    currentStep.value = 3;
+    return;
+  }
+  if (!isStep4Valid.value) {
+    currentStep.value = 4;
+    return;
+  }
+
   let scheduleDesc = "Diario";
   let cronExpr = customCron.value;
 
@@ -289,8 +453,8 @@ function handleSave() {
   }
 
   const payload: Partial<EtlPipeline> = {
-    name: name.value.trim() || "Servicio Personalizado",
-    datasetName: datasetName.value.trim() || "Fuente Externa",
+    name: name.value.trim(),
+    datasetName: datasetName.value.trim(),
     description: description.value.trim() || "Pipeline de ingesta de datos aeronáuticos.",
     icon: icon.value,
     targetEntity: targetEntity.value,
@@ -307,6 +471,11 @@ function handleSave() {
       maxRetries: maxRetries.value,
     },
   };
+
+  const validation = pipelineSchema.safeParse(payload);
+  if (!validation.success) {
+    return;
+  }
 
   emit("save", payload);
   emit("close");
@@ -349,7 +518,7 @@ function handleSave() {
                   ? 'text-text-main font-semibold'
                   : 'text-text-dim hover:text-text-muted',
             ]"
-            @click="currentStep = step.num"
+            @click="goToStep(step.num)"
           >
             <span class="block text-[10px] uppercase font-mono">
               Paso {{ step.num }}
@@ -373,8 +542,16 @@ function handleSave() {
                 v-model="name"
                 placeholder="Ej. OpenSky Live Vectors"
                 size="sm"
+                :color="hasAttemptedStep1 && nameError ? 'error' : undefined"
                 class="w-full text-xs"
               />
+              <p
+                v-if="hasAttemptedStep1 && nameError"
+                class="text-rose-500 text-[11px] mt-1 flex items-center gap-1 font-sans font-medium"
+              >
+                <UIcon name="i-lucide-alert-circle" class="w-3.5 h-3.5 shrink-0" />
+                {{ nameError }}
+              </p>
             </div>
             <div>
               <label class="block font-semibold text-text-main mb-1">
@@ -384,8 +561,16 @@ function handleSave() {
                 v-model="datasetName"
                 placeholder="Ej. OpenSky Network API"
                 size="sm"
+                :color="hasAttemptedStep1 && datasetNameError ? 'error' : undefined"
                 class="w-full text-xs"
               />
+              <p
+                v-if="hasAttemptedStep1 && datasetNameError"
+                class="text-rose-500 text-[11px] mt-1 flex items-center gap-1 font-sans font-medium"
+              >
+                <UIcon name="i-lucide-alert-circle" class="w-3.5 h-3.5 shrink-0" />
+                {{ datasetNameError }}
+              </p>
             </div>
           </div>
 
@@ -510,9 +695,17 @@ function handleSave() {
               placeholder="https://api.aviation-feed.com/v1/delays.csv"
               size="sm"
               icon="i-lucide-link"
+              :color="hasAttemptedStep2 && endpointUrlError ? 'error' : undefined"
               class="w-full font-mono text-xs"
             />
-            <span class="text-[10px] text-text-dim mt-1 block">
+            <p
+              v-if="hasAttemptedStep2 && endpointUrlError"
+              class="text-rose-500 text-[11px] mt-1 flex items-center gap-1 font-sans font-medium"
+            >
+              <UIcon name="i-lucide-alert-circle" class="w-3.5 h-3.5 shrink-0" />
+              {{ endpointUrlError }}
+            </p>
+            <span v-else class="text-[10px] text-text-dim mt-1 block">
               Soporta interpolación dinámica de variables: {date}, {year}, {month}.
             </span>
           </div>
@@ -524,13 +717,20 @@ function handleSave() {
           >
             <div>
               <label class="block text-[11px] font-semibold text-text-muted mb-1">
-                Delimitador CSV:
+                Delimitador CSV: *
               </label>
               <UInput
                 v-model="csvDelimiter"
                 size="xs"
+                :color="hasAttemptedStep2 && csvDelimiterError ? 'error' : undefined"
                 class="w-24 font-mono text-center text-xs"
               />
+              <p
+                v-if="hasAttemptedStep2 && csvDelimiterError"
+                class="text-rose-500 text-[10px] mt-1 font-medium"
+              >
+                {{ csvDelimiterError }}
+              </p>
             </div>
             <div class="flex items-center pt-4">
               <UCheckbox
@@ -601,6 +801,25 @@ function handleSave() {
         <!-- PASO 3: Mapeo Semántico                         -->
         <!-- ============================================== -->
         <div v-show="currentStep === 3" class="space-y-4">
+          <!-- Alerta de validación de mapeo requerido -->
+          <div
+            v-if="hasAttemptedStep3 && !isStep3Valid"
+            class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-start gap-2.5"
+          >
+            <UIcon name="i-lucide-alert-triangle" class="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
+            <div class="space-y-1">
+              <span class="font-bold block text-text-main">
+                Faltan campos obligatorios por mapear
+              </span>
+              <p class="text-[11px] leading-relaxed text-text-muted">
+                Debes mapear una columna de origen para cada uno de los campos requeridos:
+                <strong class="text-rose-600 dark:text-rose-400 font-semibold">
+                  {{ unmappedRequiredFields.map((f) => f.label).join(", ") }}
+                </strong>.
+              </p>
+            </div>
+          </div>
+
           <EtlSchemaMapper
             v-model="schemaMapping"
             :target-entity="targetEntity"
@@ -636,14 +855,22 @@ function handleSave() {
 
           <div v-if="cronPreset === 'custom'">
             <label class="block text-[11px] font-semibold text-text-muted mb-1">
-              Expresión Cron Estándar (5 campos):
+              Expresión Cron Estándar (5 campos): *
             </label>
             <UInput
               v-model="customCron"
               placeholder="0 4 * * *"
               size="sm"
+              :color="hasAttemptedStep4 && customCronError ? 'error' : undefined"
               class="w-full font-mono text-xs"
             />
+            <p
+              v-if="hasAttemptedStep4 && customCronError"
+              class="text-rose-500 text-[11px] mt-1 flex items-center gap-1 font-sans font-medium"
+            >
+              <UIcon name="i-lucide-alert-circle" class="w-3.5 h-3.5 shrink-0" />
+              {{ customCronError }}
+            </p>
           </div>
 
           <!-- Guardrail RNF-04: Batch Size en BullMQ -->

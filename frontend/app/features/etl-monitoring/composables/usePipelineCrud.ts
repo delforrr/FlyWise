@@ -7,7 +7,37 @@ import type {
   TargetEntity,
   FieldMappingRule,
 } from '../types/etl';
+import { TARGET_FIELDS_CATALOG } from '../types/etl';
 import { initialPipelines } from '../data/mockEtl';
+import { pipelineSchema } from '../schemas/pipelineSchemas';
+
+export interface PipelineValidationResult {
+  isValid: boolean;
+  errors: Record<string, string>;
+}
+
+export function validatePipeline(data: Partial<EtlPipeline>): PipelineValidationResult {
+  const result = pipelineSchema.safeParse(data);
+  if (result.success) {
+    return {
+      isValid: true,
+      errors: {},
+    };
+  }
+
+  const errors: Record<string, string> = {};
+  for (const issue of result.error.issues) {
+    const key = issue.path[0] ? String(issue.path[0]) : 'general';
+    if (!errors[key]) {
+      errors[key] = issue.message;
+    }
+  }
+
+  return {
+    isValid: false,
+    errors,
+  };
+}
 
 export function usePipelineCrud() {
   const toast = useToast();
@@ -127,6 +157,13 @@ export function usePipelineCrud() {
 
   // 2. Crear Nuevo Pipeline
   function createPipeline(data: Partial<EtlPipeline>): EtlPipeline {
+    if (data.name !== undefined && !data.name.trim()) {
+      throw new Error('El nombre del servicio es obligatorio.');
+    }
+    if (data.connection?.endpointUrl !== undefined && !data.connection.endpointUrl.trim()) {
+      throw new Error('La URL del endpoint no puede estar vacía.');
+    }
+
     const slug = data.name
       ? data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       : `pipeline-${Date.now()}`;
@@ -253,10 +290,27 @@ export function usePipelineCrud() {
     return createPipeline(copyData);
   }
 
-  // 6. Activar / Pausar Pipeline
-  function togglePipelineStatus(id: PipelineId) {
+  // 6. Pausar Pipeline
+  function pausePipeline(id: PipelineId): boolean {
     const pipeline = pipelines.value.find((p) => p.id === id);
-    if (!pipeline) return;
+    if (!pipeline) return false;
+
+    if (pipeline.status !== 'paused') {
+      pipeline.status = 'paused';
+      pipeline.currentStepMessage = 'Servicio pausado manualmente por el operador.';
+      toast.add({
+        title: 'Servicio pausado',
+        description: `Se han congelado las ejecuciones automáticas de "${pipeline.name}".`,
+        color: 'warning',
+      });
+    }
+    return true;
+  }
+
+  // 7. Reanudar Pipeline
+  function resumePipeline(id: PipelineId): boolean {
+    const pipeline = pipelines.value.find((p) => p.id === id);
+    if (!pipeline) return false;
 
     if (pipeline.status === 'paused') {
       pipeline.status = 'idle';
@@ -266,18 +320,23 @@ export function usePipelineCrud() {
         description: `"${pipeline.name}" volverá a ejecutarse según su cronograma.`,
         color: 'success',
       });
+    }
+    return true;
+  }
+
+  // 8. Alternar Estado (Pausar / Reanudar)
+  function togglePipelineStatus(id: PipelineId) {
+    const pipeline = pipelines.value.find((p) => p.id === id);
+    if (!pipeline) return;
+
+    if (pipeline.status === 'paused') {
+      resumePipeline(id);
     } else {
-      pipeline.status = 'paused';
-      pipeline.currentStepMessage = 'Servicio pausado manualmente por el operador.';
-      toast.add({
-        title: 'Servicio pausado',
-        description: `Se han congelado las ejecuciones automáticas de "${pipeline.name}".`,
-        color: 'warning',
-      });
+      pausePipeline(id);
     }
   }
 
-  // 7. Restaurar Catálogo a Valores Predeterminados
+  // 9. Restaurar Catálogo a Valores Predeterminados
   function resetToDefaults() {
     pipelines.value = JSON.parse(JSON.stringify(initialPipelines));
     toast.add({
@@ -301,7 +360,10 @@ export function usePipelineCrud() {
     updatePipeline,
     deletePipeline,
     duplicatePipeline,
+    pausePipeline,
+    resumePipeline,
     togglePipelineStatus,
+    validatePipeline,
     resetToDefaults,
   };
 }

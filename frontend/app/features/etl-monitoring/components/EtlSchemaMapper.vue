@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import type { TargetEntity, FieldMappingRule } from "../types/etl";
+import { TARGET_FIELDS_CATALOG } from "../types/etl";
 
 interface Props {
   targetEntity: TargetEntity;
@@ -14,145 +15,24 @@ const emit = defineEmits<{
   (e: "update:modelValue", value: FieldMappingRule[]): void;
 }>();
 
-// Definición de campos canónicos según modelo en PostGIS / FlyWise
-interface TargetFieldDef {
-  key: string;
-  label: string;
-  description: string;
-  required: boolean;
-  type: string;
-}
-
-const targetFieldsCatalog: Record<TargetEntity, TargetFieldDef[]> = {
-  airports: [
-    {
-      key: "icaoCode",
-      label: "Código ICAO",
-      description: "Identificador oficial de 4 letras (ej. SAEZ, KJFK).",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "iataCode",
-      label: "Código IATA",
-      description: "Identificador comercial de 3 letras (ej. EZE, JFK).",
-      required: false,
-      type: "string",
-    },
-    {
-      key: "name",
-      label: "Nombre del Aeropuerto",
-      description: "Denominación pública oficial.",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "latitude",
-      label: "Latitud (SRID 4326)",
-      description: "Coordenada decimal [-90, 90].",
-      required: true,
-      type: "number",
-    },
-    {
-      key: "longitude",
-      label: "Longitud (SRID 4326)",
-      description: "Coordenada decimal [-180, 180].",
-      required: true,
-      type: "number",
-    },
-    {
-      key: "elevation",
-      label: "Elevación (Pies/Metros)",
-      description: "Altitud de la pista respecto al nivel del mar.",
-      required: false,
-      type: "number",
-    },
-  ],
-  routes: [
-    {
-      key: "routeId",
-      label: "ID de Conexión / Tramo",
-      description: "Identificador del par de ruta o segmento.",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "originId",
-      label: "Aeropuerto Origen",
-      description: "Código IATA o ICAO del nodo origen.",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "destinationId",
-      label: "Aeropuerto Destino",
-      description: "Código IATA o ICAO del nodo destino.",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "airlineId",
-      label: "Aerolínea Operadora",
-      description: "Código comercial o designador OACI.",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "aircraftType",
-      label: "Tipo de Aeronave",
-      description: "Modelo de avión asignado (ej. B738, A320).",
-      required: false,
-      type: "string",
-    },
-  ],
-  otp_metrics: [
-    {
-      key: "flightId",
-      label: "Identificador de Vuelo",
-      description: "Clave única del registro o número de vuelo.",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "originId",
-      label: "Origen (Tupla OTP)",
-      description: "Nodo de salida para la tupla analítica.",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "destinationId",
-      label: "Destino (Tupla OTP)",
-      description: "Nodo de arribo para la tupla analítica.",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "airlineId",
-      label: "Aerolínea (Tupla OTP)",
-      description: "Compañía responsable del itinerario.",
-      required: true,
-      type: "string",
-    },
-    {
-      key: "delayMinutes",
-      label: "Demora en Minutos",
-      description: "Retraso de arribo en minutos (cálculo OTP-15).",
-      required: true,
-      type: "number",
-    },
-    {
-      key: "isCancelled",
-      label: "Indicador de Cancelación",
-      description: "Bandera booleana de cancelación del vuelo.",
-      required: false,
-      type: "boolean",
-    },
-  ],
-};
-
 const currentTargetFields = computed(() => {
-  return targetFieldsCatalog[props.targetEntity] || [];
+  return TARGET_FIELDS_CATALOG[props.targetEntity] || [];
+});
+
+const totalRequiredCount = computed(() => {
+  return currentTargetFields.value.filter((f) => f.required).length;
+});
+
+const mappedRequiredCount = computed(() => {
+  return currentTargetFields.value.filter((f) => {
+    if (!f.required) return false;
+    const rule = props.modelValue.find((m) => m.targetField === f.key);
+    return !!rule && !!rule.sourceColumn && rule.sourceColumn.trim() !== "";
+  }).length;
+});
+
+const isMappingComplete = computed(() => {
+  return totalRequiredCount.value > 0 && mappedRequiredCount.value === totalRequiredCount.value;
 });
 
 const transformOptions = [
@@ -245,17 +125,40 @@ function autoDetectMapping() {
         </p>
       </div>
 
-      <UButton
-        v-if="detectedColumns.length > 0"
-        size="xs"
-        variant="outline"
-        color="primary"
-        icon="i-lucide-sparkles"
-        class="cursor-pointer font-bold shrink-0"
-        @click="autoDetectMapping"
-      >
-        Mapeo Heurístico Automático
-      </UButton>
+      <div class="flex items-center gap-2">
+        <UBadge
+          v-if="isMappingComplete"
+          color="success"
+          variant="subtle"
+          size="sm"
+          class="font-mono text-[10px] gap-1 shrink-0"
+        >
+          <UIcon name="i-lucide-check-circle" class="w-3.5 h-3.5" />
+          Obligatorios: {{ mappedRequiredCount }}/{{ totalRequiredCount }}
+        </UBadge>
+        <UBadge
+          v-else
+          color="error"
+          variant="subtle"
+          size="sm"
+          class="font-mono text-[10px] gap-1 shrink-0"
+        >
+          <UIcon name="i-lucide-alert-circle" class="w-3.5 h-3.5" />
+          Obligatorios: {{ mappedRequiredCount }}/{{ totalRequiredCount }} (Faltan {{ totalRequiredCount - mappedRequiredCount }})
+        </UBadge>
+
+        <UButton
+          v-if="detectedColumns.length > 0"
+          size="xs"
+          variant="outline"
+          color="primary"
+          icon="i-lucide-sparkles"
+          class="cursor-pointer font-bold shrink-0"
+          @click="autoDetectMapping"
+        >
+          Mapeo Automático
+        </UButton>
+      </div>
     </div>
 
     <!-- Lista de Campos del Modelo Destino -->
@@ -263,7 +166,12 @@ function autoDetectMapping() {
       <div
         v-for="target in currentTargetFields"
         :key="target.key"
-        class="p-3 rounded-xl border border-border-subtle bg-surface-card hover:border-primary/40 transition-colors space-y-2"
+        class="p-3 rounded-xl border transition-colors space-y-2"
+        :class="[
+          target.required && (!getMappingForField(target.key).sourceColumn || !getMappingForField(target.key).sourceColumn.trim())
+            ? 'border-rose-500/50 bg-rose-500/5 hover:border-rose-500/70'
+            : 'border-border-subtle bg-surface-card hover:border-primary/40'
+        ]"
       >
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-1.5">
@@ -280,8 +188,14 @@ function autoDetectMapping() {
               size="xs"
               class="font-mono text-[10px]"
             >
-              Requerido
+              Requerido *
             </UBadge>
+            <span
+              v-if="target.required && (!getMappingForField(target.key).sourceColumn || !getMappingForField(target.key).sourceColumn.trim())"
+              class="text-[10px] font-medium text-rose-500 ml-1 hidden sm:inline"
+            >
+              (Sin asignar)
+            </span>
           </div>
           <span class="text-[10px] font-mono text-text-muted">
             Tipo: {{ target.type }}

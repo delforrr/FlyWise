@@ -14,6 +14,142 @@ export interface FieldMappingRule {
   required?: boolean;
 }
 
+export interface TargetFieldDef {
+  key: string;
+  label: string;
+  description: string;
+  required: boolean;
+  type: string;
+}
+
+export const TARGET_FIELDS_CATALOG: Record<TargetEntity, TargetFieldDef[]> = {
+  airports: [
+    {
+      key: 'icaoCode',
+      label: 'Código ICAO',
+      description: 'Identificador oficial de 4 letras (ej. SAEZ, KJFK).',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'iataCode',
+      label: 'Código IATA',
+      description: 'Identificador comercial de 3 letras (ej. EZE, JFK).',
+      required: false,
+      type: 'string',
+    },
+    {
+      key: 'name',
+      label: 'Nombre del Aeropuerto',
+      description: 'Denominación pública oficial.',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'latitude',
+      label: 'Latitud (SRID 4326)',
+      description: 'Coordenada decimal [-90, 90].',
+      required: true,
+      type: 'number',
+    },
+    {
+      key: 'longitude',
+      label: 'Longitud (SRID 4326)',
+      description: 'Coordenada decimal [-180, 180].',
+      required: true,
+      type: 'number',
+    },
+    {
+      key: 'elevation',
+      label: 'Elevación (Pies/Metros)',
+      description: 'Altitud de la pista respecto al nivel del mar.',
+      required: false,
+      type: 'number',
+    },
+  ],
+  routes: [
+    {
+      key: 'routeId',
+      label: 'ID de Conexión / Tramo',
+      description: 'Identificador del par de ruta o segmento.',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'originId',
+      label: 'Aeropuerto Origen',
+      description: 'Código IATA o ICAO del nodo origen.',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'destinationId',
+      label: 'Aeropuerto Destino',
+      description: 'Código IATA o ICAO del nodo destino.',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'airlineId',
+      label: 'Aerolínea Operadora',
+      description: 'Código comercial o designador OACI.',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'aircraftType',
+      label: 'Tipo de Aeronave',
+      description: 'Modelo de avión asignado (ej. B738, A320).',
+      required: false,
+      type: 'string',
+    },
+  ],
+  otp_metrics: [
+    {
+      key: 'flightId',
+      label: 'Identificador de Vuelo',
+      description: 'Clave única del registro o número de vuelo.',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'originId',
+      label: 'Origen (Tupla OTP)',
+      description: 'Nodo de salida para la tupla analítica.',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'destinationId',
+      label: 'Destino (Tupla OTP)',
+      description: 'Nodo de arribo para la tupla analítica.',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'airlineId',
+      label: 'Aerolínea (Tupla OTP)',
+      description: 'Compañía responsable del itinerario.',
+      required: true,
+      type: 'string',
+    },
+    {
+      key: 'delayMinutes',
+      label: 'Demora en Minutos',
+      description: 'Retraso de arribo en minutos (cálculo OTP-15).',
+      required: true,
+      type: 'number',
+    },
+    {
+      key: 'isCancelled',
+      label: 'Indicador de Cancelación',
+      description: 'Bandera booleana de cancelación del vuelo.',
+      required: false,
+      type: 'boolean',
+    },
+  ],
+};
+
 export interface PipelineHeader {
   key: string;
   value: string;

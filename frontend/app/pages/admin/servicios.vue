@@ -5,13 +5,17 @@ import type {
   TargetEntity,
   TriggerSyncOptions,
 } from "~/features/etl-monitoring/types/etl";
-import { usePipelineCrud } from "~/features/etl-monitoring/composables/usePipelineCrud";
+import {
+  usePipelineCrud,
+  validatePipeline,
+} from "~/features/etl-monitoring/composables/usePipelineCrud";
 import { useEtlMonitoring } from "~/features/etl-monitoring/composables/useEtlMonitoring";
 
 import EtlServiceManagementHeader from "~/features/etl-monitoring/components/EtlServiceManagementHeader.vue";
 import EtlServiceTable from "~/features/etl-monitoring/components/EtlServiceTable.vue";
 import EtlPipelineWizardModal from "~/features/etl-monitoring/components/EtlPipelineWizardModal.vue";
 import EtlDeleteConfirmModal from "~/features/etl-monitoring/components/EtlDeleteConfirmModal.vue";
+import EtlPauseConfirmModal from "~/features/etl-monitoring/components/EtlPauseConfirmModal.vue";
 import EtlTriggerModal from "~/features/etl-monitoring/components/EtlTriggerModal.vue";
 
 definePageMeta({
@@ -46,6 +50,9 @@ const pipelineToEdit = ref<EtlPipeline | null>(null);
 const isDeleteModalOpen = ref(false);
 const pipelineToDelete = ref<EtlPipeline | null>(null);
 
+const isPauseModalOpen = ref(false);
+const pipelineToPause = ref<EtlPipeline | null>(null);
+
 const isTriggerModalOpen = ref(false);
 const pipelineForTrigger = ref<EtlPipeline | null>(null);
 
@@ -64,12 +71,39 @@ function handleOpenDelete(pipeline: EtlPipeline) {
   isDeleteModalOpen.value = true;
 }
 
+function handleToggleStatus(target: EtlPipeline | string) {
+  const pipeline =
+    typeof target === "string"
+      ? filteredServices.value.find((p) => p.id === target)
+      : target;
+  if (!pipeline) return;
+
+  if (pipeline.status === "paused") {
+    // Reanudación directa sin diálogo bloqueante
+    togglePipelineStatus(pipeline.id);
+  } else {
+    // Pausar requiere confirmación de seguridad
+    pipelineToPause.value = pipeline;
+    isPauseModalOpen.value = true;
+  }
+}
+
+function handleConfirmPause(id: string) {
+  togglePipelineStatus(id);
+  isPauseModalOpen.value = false;
+  pipelineToPause.value = null;
+}
+
 function handleOpenTrigger(pipeline: EtlPipeline) {
   pipelineForTrigger.value = pipeline;
   isTriggerModalOpen.value = true;
 }
 
 function handleSavePipeline(data: Partial<EtlPipeline>) {
+  const validation = validatePipeline(data);
+  if (!validation.isValid) {
+    return;
+  }
   if (pipelineToEdit.value) {
     updatePipeline(pipelineToEdit.value.id, data);
   } else {
@@ -156,7 +190,7 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
         @edit="handleOpenEdit"
         @duplicate="duplicatePipeline"
         @delete="handleOpenDelete"
-        @toggle-status="togglePipelineStatus"
+        @toggle-status="handleToggleStatus"
         @trigger-sync="handleOpenTrigger"
       />
     </div>
@@ -201,6 +235,13 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
       :pipeline="pipelineToDelete"
       @close="isDeleteModalOpen = false"
       @confirm="handleConfirmDelete"
+    />
+
+    <EtlPauseConfirmModal
+      :is-open="isPauseModalOpen"
+      :pipeline="pipelineToPause"
+      @close="isPauseModalOpen = false"
+      @confirm="handleConfirmPause"
     />
 
     <EtlTriggerModal

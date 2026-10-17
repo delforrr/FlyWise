@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import type { EtlPipeline, TriggerSyncOptions } from "../types/etl";
+import { triggerSyncSchema } from "../schemas/pipelineSchemas";
 
 interface Props {
   isOpen: boolean;
@@ -66,12 +67,19 @@ watch(
 function handleConfirm() {
   if (!props.pipeline) return;
 
-  emit("confirm", {
+  const payload: TriggerSyncOptions = {
     pipelineId: props.pipeline.id,
     mode: mode.value,
     dryRun: dryRun.value,
     batchSize: batchSize.value,
-  });
+  };
+
+  const validation = triggerSyncSchema.safeParse(payload);
+  if (!validation.success) {
+    return;
+  }
+
+  emit("confirm", payload);
   emit("close");
 }
 </script>
