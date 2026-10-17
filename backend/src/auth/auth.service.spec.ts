@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import { User } from '../users/interfaces/users.interface';
 import { UserDto } from '../users/dto/user.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -12,20 +13,27 @@ describe('AuthService', () => {
   let jwtService: jest.Mocked<JwtService>;
 
   const mockUser: User = {
-    id: 1,
+    id: 'd3b07384-d113-4a69-8d7b-9907f7b3b9b9',
     email: 'admin@flywise.com',
-    password: 'secretPassword',
+    passwordHash: '',
+    role: 'ADMIN',
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   const mockUserDto: UserDto = {
-    id: 1,
+    id: 'd3b07384-d113-4a69-8d7b-9907f7b3b9b9',
     email: 'admin@flywise.com',
+    role: 'ADMIN',
   };
 
   beforeEach(async () => {
+    mockUser.passwordHash = await bcrypt.hash('secretPassword', 10);
+
     const mockUsersService = {
       findByEmail: jest.fn(),
       createUser: jest.fn(),
+      getUserById: jest.fn().mockResolvedValue(mockUserDto),
     };
 
     const mockJwtService = {
@@ -57,21 +65,23 @@ describe('AuthService', () => {
 
   describe('validateUser', () => {
     it('should return user without password when credentials are valid', async () => {
-      usersService.findByEmail.mockReturnValue(mockUser);
+      usersService.findByEmail.mockResolvedValue(mockUser);
 
       const result = await service.validateUser(
         'admin@flywise.com',
         'secretPassword',
       );
       expect(result).toEqual({
-        id: 1,
+        id: mockUser.id,
         email: 'admin@flywise.com',
+        role: 'ADMIN',
+        createdAt: mockUser.createdAt,
       });
-      expect(result).not.toHaveProperty('password');
+      expect(result).not.toHaveProperty('passwordHash');
     });
 
     it('should return null when password does not match', async () => {
-      usersService.findByEmail.mockReturnValue(mockUser);
+      usersService.findByEmail.mockResolvedValue(mockUser);
 
       const result = await service.validateUser(
         'admin@flywise.com',
@@ -81,7 +91,7 @@ describe('AuthService', () => {
     });
 
     it('should return null when user is not found', async () => {
-      usersService.findByEmail.mockReturnValue(undefined);
+      usersService.findByEmail.mockResolvedValue(null);
 
       const result = await service.validateUser('unknown@flywise.com', 'any');
       expect(result).toBeNull();
@@ -94,7 +104,7 @@ describe('AuthService', () => {
         email: 'new@flywise.com',
         password: 'pass',
       };
-      usersService.createUser.mockReturnValue(mockUserDto);
+      usersService.createUser.mockResolvedValue(mockUserDto);
 
       const result = await service.register(createDto);
       expect(usersService.createUser).toHaveBeenCalledWith(createDto);
@@ -103,18 +113,31 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should sign a JWT token with username and sub payload', async () => {
-      const result = await service.login(mockUserDto);
+    it('should sign a JWT token with username and sub payload', () => {
+      const result = service.login(mockUserDto);
 
       expect(jwtService.sign).toHaveBeenCalledWith({
-        username: mockUserDto.email,
         sub: mockUserDto.id,
+        email: mockUserDto.email,
+        role: mockUserDto.role,
       });
       expect(result).toEqual({
         access_token: 'mocked.jwt.token',
         accessToken: 'mocked.jwt.token',
-        user: mockUserDto,
+        user: {
+          id: mockUserDto.id,
+          email: mockUserDto.email,
+          role: mockUserDto.role,
+        },
       });
+    });
+  });
+
+  describe('getProfile', () => {
+    it('should return the user profile by id', async () => {
+      const result = await service.getProfile(mockUserDto.id);
+      expect(usersService.getUserById).toHaveBeenCalledWith(mockUserDto.id);
+      expect(result).toEqual(mockUserDto);
     });
   });
 });

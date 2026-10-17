@@ -1,6 +1,7 @@
 import {
   Controller,
   UseGuards,
+  Get,
   Post,
   Request,
   HttpStatus,
@@ -41,7 +42,7 @@ export class AuthController {
     description: 'Credenciales inválidas.',
   })
   @HttpCode(HttpStatus.OK)
-  async loginRequest(@CurrentUser() user: UserDto) {
+  loginRequest(@CurrentUser() user: UserDto) {
     return this.authService.login(user);
   }
 
@@ -60,6 +61,24 @@ export class AuthController {
   })
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('/me')
+  @ApiOperation({
+    summary: 'Obtiene el perfil del usuario actualmente autenticado',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Perfil del usuario autenticado.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'No autorizado - Token JWT inválido o no provisto.',
+  })
+  getProfile(@CurrentUser() user: UserDto): UserDto {
+    return user;
   }
 
   @ApiBearerAuth()

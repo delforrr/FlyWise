@@ -6,7 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
@@ -44,19 +44,19 @@ export class UsersController {
     status: 401,
     description: 'No autorizado - Token JWT no provisto o expirado',
   })
-  getUsers(): UserDto[] {
+  async getUsers(): Promise<UserDto[]> {
     return this.userService.getUsers();
   }
 
   @Get('/:id')
   @ApiOperation({
-    summary: 'Obtiene el detalle de un usuario por su identificador',
+    summary: 'Obtiene el detalle de un usuario por su identificador UUID',
   })
   @ApiParam({
     name: 'id',
     required: true,
-    type: Number,
-    description: 'Identificador único del usuario',
+    type: String,
+    description: 'Identificador único del usuario (UUID)',
   })
   @ApiResponse({
     status: 200,
@@ -70,7 +70,9 @@ export class UsersController {
     status: 401,
     description: 'No autorizado - Token JWT no provisto o expirado',
   })
-  getUserById(@Param('id', ParseIntPipe) id: number): UserDto {
+  async getUserById(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<UserDto> {
     return this.userService.getUserById(id);
   }
 
@@ -91,7 +93,7 @@ export class UsersController {
     status: 401,
     description: 'No autorizado - Token JWT no provisto o expirado',
   })
-  postUser(@Body() createUserDto: CreateUserDto): UserDto {
+  async postUser(@Body() createUserDto: CreateUserDto): Promise<UserDto> {
     return this.userService.createUser(createUserDto);
   }
 
@@ -100,8 +102,8 @@ export class UsersController {
   @ApiParam({
     name: 'id',
     required: true,
-    type: Number,
-    description: 'Identificador único del usuario',
+    type: String,
+    description: 'Identificador único del usuario (UUID)',
   })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({
@@ -116,10 +118,10 @@ export class UsersController {
     status: 401,
     description: 'No autorizado - Token JWT no provisto o expirado',
   })
-  putUser(
-    @Param('id', ParseIntPipe) id: number,
+  async putUser(
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() updateUserDto: UpdateUserDto,
-  ): UserDto | undefined {
+  ): Promise<UserDto> {
     return this.userService.updateUser(id, updateUserDto);
   }
 
@@ -129,8 +131,8 @@ export class UsersController {
   @ApiParam({
     name: 'id',
     required: true,
-    type: Number,
-    description: 'Identificador único del usuario',
+    type: String,
+    description: 'Identificador único del usuario (UUID)',
   })
   @ApiResponse({
     status: 204,
@@ -144,7 +146,9 @@ export class UsersController {
     status: 401,
     description: 'No autorizado - Token JWT no provisto o expirado',
   })
-  deleteUser(@Param('id', ParseIntPipe) id: number) {
-    this.userService.deleteUser(id);
+  async deleteUser(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<void> {
+    await this.userService.deleteUser(id);
   }
 }

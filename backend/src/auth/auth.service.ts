@@ -1,45 +1,59 @@
 import { Injectable } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { User } from '../users/interfaces/users.interface';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UserDto } from '../users/dto/user.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
   ) {}
 
-  async validateUser(
-    email: string,
-    pass: string,
-  ): Promise<Omit<User, 'password'> | null> {
-    const user = this.usersService.findByEmail(email);
-    if (user && user.password === pass) {
-      return Promise.resolve({
+  async validateUser(email: string, pass: string): Promise<UserDto | null> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      return null;
+    }
+
+    const isMatch = await bcrypt.compare(pass, user.passwordHash);
+    if (isMatch) {
+      return {
         id: user.id,
         email: user.email,
-      });
+        role: user.role,
+        createdAt: user.createdAt,
+      };
     }
-    return Promise.resolve(null);
+
+    return null;
   }
 
   async register(createUserDto: CreateUserDto): Promise<UserDto> {
-    return Promise.resolve(this.usersService.createUser(createUserDto));
+    return this.usersService.createUser(createUserDto);
   }
 
-  async login(user: UserDto) {
+  login(user: UserDto) {
     const payload = {
-      username: user.email,
       sub: user.id,
+      email: user.email,
+      role: user.role,
     };
     const token = this.jwtService.sign(payload);
-    return Promise.resolve({
-      access_token: token,
+    return {
       accessToken: token,
-      user,
-    });
+      access_token: token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+    };
+  }
+
+  async getProfile(userId: string): Promise<UserDto> {
+    return this.usersService.getUserById(userId);
   }
 }

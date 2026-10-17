@@ -1,5 +1,10 @@
+export type UserRole = 'ADMIN' | 'OPERATOR';
+
 export interface User {
-  id: number;
+  id: string;
   email: string;
-  password: string;
+  passwordHash: string;
+  role: UserRole;
+  createdAt: Date;
+  updatedAt: Date;
 }
