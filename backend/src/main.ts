@@ -29,7 +29,17 @@ async function bootstrap() {
       'FlyWise - Sistema de Inteligencia de Vuelos Comerciales y Exploración de Rutas',
     )
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description:
+          'Ingresa el token JWT (accessToken) obtenido al ejecutar POST /api/auth/login. No debes ingresar email ni contraseña en este campo.',
+      },
+      'bearer',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
