@@ -14,6 +14,7 @@ describe('JwtStrategy', () => {
     };
 
     const mockAuthService = {
+      isSessionActive: jest.fn().mockResolvedValue(true),
       isTokenRevoked: jest.fn().mockResolvedValue(false),
     };
 
@@ -75,5 +76,14 @@ describe('JwtStrategy', () => {
     await expect(strategy.validate(mockReq, payload)).rejects.toThrow(
       UnauthorizedException,
     );
+  });
+  it('rechaza todos los JWT de una sesión revocada', async () => {
+    authService.isSessionActive.mockResolvedValueOnce(false);
+    await expect(
+      strategy.validate(
+        { headers: {} },
+        { sub: 'user-1', sid: 'revoked-session', email: 'admin@flywise.com' },
+      ),
+    ).rejects.toThrow(UnauthorizedException);
   });
 });

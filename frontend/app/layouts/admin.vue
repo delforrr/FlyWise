@@ -1,6 +1,19 @@
 <script setup lang="ts">
 import { useEtlMonitoring } from "~/features/etl-monitoring/composables/useEtlMonitoring";
 
+const { logout } = useAuth();
+const signingOut = ref(false);
+const logoutError = ref('');
+async function signOut() {
+  signingOut.value = true;
+  logoutError.value = '';
+  try { await logout(); } catch { logoutError.value = 'No pudimos cerrar la sesión. Intentá nuevamente.'; }
+  finally { signingOut.value = false; }
+}
+
+const route = useRoute();
+const isUsersPage = computed(() => route.path.startsWith("/admin/usuarios"));
+
 const {
   globalMetrics,
   refreshInterval,
@@ -17,7 +30,11 @@ const {
   >
     <!-- Cabecera Administrativa Minimalista (Sólida, borde nítido de 1px con sutil specular highlight) -->
     <header
-      class="sticky top-0 z-40 bg-surface-card/95 backdrop-blur-md border-b border-border-subtle shadow-xs"
+      :class="
+        isUsersPage
+          ? 'bg-surface-card border-b border-border-subtle/50'
+          : 'sticky top-0 z-40 bg-surface-card/95 backdrop-blur-md border-b border-border-subtle shadow-xs'
+      "
     >
       <div
         class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4"
@@ -33,16 +50,19 @@ const {
           </NuxtLink>
           <USeparator orientation="vertical" class="h-4" />
           <UBadge
-            color="primary"
+            color="neutral"
             variant="subtle"
             size="sm"
-            class="font-mono text-xs font-semibold"
+            class="text-xs font-medium"
           >
-            Consola ETL
+            Administración
           </UBadge>
 
           <!-- Enlaces de Navegación de la Consola -->
-          <nav class="hidden md:flex items-center gap-1.5 ml-3 pl-3 border-l border-border-subtle" aria-label="Navegación administrativa">
+          <nav
+            class="hidden lg:flex items-center gap-1.5 ml-3 pl-3 border-l border-border-subtle"
+            aria-label="Navegación administrativa"
+          >
             <UButton
               to="/admin"
               size="xs"
@@ -56,73 +76,33 @@ const {
             <UButton
               to="/admin/servicios"
               size="xs"
-              :variant="$route.path.startsWith('/admin/servicios') ? 'subtle' : 'ghost'"
-              :color="$route.path.startsWith('/admin/servicios') ? 'primary' : 'neutral'"
+              :variant="
+                $route.path.startsWith('/admin/servicios') ? 'subtle' : 'ghost'
+              "
+              :color="
+                $route.path.startsWith('/admin/servicios')
+                  ? 'primary'
+                  : 'neutral'
+              "
               icon="i-lucide-database"
               class="text-xs font-semibold cursor-pointer"
             >
               Servicios & Pipelines
             </UButton>
+            <UButton
+              to="/admin/usuarios"
+              size="xs"
+              :variant="isUsersPage ? 'subtle' : 'ghost'"
+              color="neutral"
+              icon="i-lucide-users"
+              :aria-current="isUsersPage ? 'page' : undefined"
+              >Usuarios</UButton
+            >
           </nav>
         </div>
 
         <!-- Navegación y Controles de Cabecera -->
         <div class="flex items-center gap-2.5 sm:gap-3">
-          <!-- Selector de Cadencia de Auto-refresco con UFieldGroup -->
-          <div
-            class="hidden sm:flex items-center gap-1.5 font-mono text-[11px]"
-          >
-            <UFieldGroup size="xs">
-              <UButton
-                size="xs"
-                :variant="refreshInterval === 5000 ? 'solid' : 'outline'"
-                :color="refreshInterval === 5000 ? 'primary' : 'neutral'"
-                class="cursor-pointer font-bold px-2.5"
-                title="Actualización continua cada 5 segundos"
-                @click="setRefreshInterval(5000)"
-              >
-                5s
-              </UButton>
-              <UButton
-                size="xs"
-                :variant="refreshInterval === 15000 ? 'solid' : 'outline'"
-                :color="refreshInterval === 15000 ? 'primary' : 'neutral'"
-                class="cursor-pointer font-bold px-2.5"
-                title="Actualización cada 15 segundos"
-                @click="setRefreshInterval(15000)"
-              >
-                15s
-              </UButton>
-              <UButton
-                size="xs"
-                :variant="refreshInterval === 0 ? 'solid' : 'outline'"
-                :color="refreshInterval === 0 ? 'warning' : 'neutral'"
-                class="cursor-pointer font-bold px-2.5"
-                title="Congelar actualización automática para auditar incidencias"
-                @click="setRefreshInterval(0)"
-              >
-                Pausar
-              </UButton>
-            </UFieldGroup>
-
-            <UTooltip text="Refrescar métricas ahora">
-              <UButton
-                size="xs"
-                variant="outline"
-                color="neutral"
-                class="cursor-pointer"
-                aria-label="Refrescar métricas ahora"
-                @click="triggerManualRefresh"
-              >
-                <UIcon
-                  name="i-lucide-refresh-cw"
-                  class="w-3.5 h-3.5"
-                  :class="{ 'animate-spin text-primary': isRefreshing }"
-                />
-              </UButton>
-            </UTooltip>
-          </div>
-
           <!-- Acceso al Explorador Público -->
           <UButton
             to="/explorar"
@@ -130,18 +110,19 @@ const {
             color="neutral"
             size="xs"
             icon="i-lucide-globe"
-            class="hidden md:inline-flex rounded-lg text-xs font-medium"
+            class="hidden lg:inline-flex rounded-lg text-xs font-medium"
           >
             Ver Mapa Global
           </UButton>
 
           <!-- Conmutador de Tema Claro/Oscuro -->
           <ThemeToggle />
+          <UButton icon="i-lucide-log-out" variant="ghost" color="neutral" size="xs" :loading="signingOut" aria-label="Cerrar sesión" @click="signOut">Salir</UButton>
 
-          <USeparator orientation="vertical" class="h-4" />
+          <USeparator v-if="!isUsersPage" orientation="vertical" class="h-4" />
 
           <!-- Identificador de Operador -->
-          <div class="flex items-center gap-2">
+          <div v-if="!isUsersPage" class="flex items-center gap-2">
             <UAvatar text="OP" size="xs" class="font-mono text-xs font-bold" />
             <span
               class="hidden lg:inline text-xs font-semibold text-text-main font-mono"
@@ -151,10 +132,28 @@ const {
           </div>
         </div>
       </div>
+      <nav
+        class="lg:hidden max-w-7xl mx-auto flex items-center gap-4 overflow-x-auto px-4 sm:px-6 lg:px-8 pb-3 text-sm"
+        aria-label="Navegación administrativa móvil"
+      >
+        <NuxtLink to="/admin" class="whitespace-nowrap">Monitoreo</NuxtLink>
+        <NuxtLink to="/admin/servicios" class="whitespace-nowrap"
+          >Servicios</NuxtLink
+        >
+        <NuxtLink
+          to="/admin/usuarios"
+          :aria-current="isUsersPage ? 'page' : undefined"
+          :class="
+            isUsersPage ? 'font-semibold text-text-main' : 'text-text-muted'
+          "
+          >Usuarios</NuxtLink
+        >
+      </nav>
     </header>
 
     <!-- Contenedor Principal -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <p v-if="logoutError" role="alert" class="mb-4 text-sm text-error">{{ logoutError }}</p>
       <slot />
     </main>
 
@@ -164,7 +163,10 @@ const {
         class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-text-muted"
       >
         <div>FlyWise - 2026</div>
-        <div class="font-mono text-[11px] text-text-dim">
+        <div
+          class="text-xs text-text-muted"
+          :class="{ 'font-mono': !isUsersPage }"
+        >
           Sistema de Información de vuelos comerciales y Exploración de Rutas
           Aéreas
         </div>

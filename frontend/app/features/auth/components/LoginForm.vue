@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAuth } from "../composables/useAuth";
 import { z } from "zod";
 import type { FormSubmitEvent, AuthFormField } from "@nuxt/ui";
 
@@ -9,6 +10,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   hasError: false,
 });
+
+const { login, isLoading, error } = useAuth();
 
 const fields: AuthFormField[] = [
   {
@@ -48,9 +51,8 @@ const schema = z.object({
 
 type Schema = z.output<typeof schema>;
 
-function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log("Submitted login credentials:", payload);
-  navigateTo("/admin");
+async function onSubmit({ data }: FormSubmitEvent<Schema>) {
+  await login({ email: data.email, password: data.password, remember: data.remember ?? false });
 }
 </script>
 
@@ -58,6 +60,7 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
   <PaperBezel class="max-w-xl" core-class="p-4 sm:p-7">
     <UAuthForm
       :schema="schema"
+      :loading="isLoading"
       :fields="fields"
       :validate-on="['blur', 'change']"
       title="Acceso Restringido"
@@ -87,11 +90,11 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 
       <template #validation>
         <UAlert
-          v-if="hasError"
+          v-if="hasError || error"
           color="error"
           icon="i-lucide-alert-triangle"
           title="Error de Autenticación"
-          description="Las credenciales ingresadas son incorrectas o no cuentan con privilegios administrativos."
+          :description="error || 'Las credenciales ingresadas son incorrectas o no cuentan con privilegios administrativos.'"
           class="mb-3"
         />
       </template>

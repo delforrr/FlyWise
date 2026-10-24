@@ -64,3 +64,7 @@ if (typeof (globalThis as any).useColorMode === 'undefined') {
 if (typeof (globalThis as any).defineShortcuts === 'undefined') {
   (globalThis as any).defineShortcuts = vi.fn();
 }
+
+let nuxtApp = {};
+beforeEach(() => { nuxtApp = {}; });
+vi.stubGlobal('useNuxtApp', () => nuxtApp);

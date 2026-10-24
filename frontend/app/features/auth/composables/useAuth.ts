@@ -1,122 +1,119 @@
-import { ref } from 'vue';
-
-export interface User {
-  id: string;
-  email: string;
-  role: 'ADMIN' | 'OPERATOR';
-}
-
-export interface AuthResponse {
-  accessToken: string;
-  user: User;
-}
+import { ref, toRef } from 'vue';
+import { authService, type AuthFetch, type LoginCredentials, type User } from '../../../services/authService';
+export type { User, AuthResponse } from '../../../services/authService';
 
 export interface UseAuthOptions {
-  mockFetch?: <T>(url: string, opts?: any) => Promise<T>;
-  mockNavigateTo?: (url: string) => Promise<any>;
+  mockFetch?: AuthFetch;
+  mockNavigateTo?: (url: string) => Promise<unknown>;
   cookieStorage?: { token: string | null };
 }
 
-/**
- * Composable de autenticación y gestión de sesión (JWT) para FlyWise.
- * Provee estado reactivo de usuario, token, login, logout y redirección protegida.
- */
+const refreshes = new WeakMap<object, Promise<boolean>>();
+
 export function useAuth(options?: UseAuthOptions) {
-  const cookieToken = options?.cookieStorage
-    ? options.cookieStorage.token
-    : typeof useCookie !== 'undefined'
-      ? useCookie<string | null>('auth_token').value
-      : null;
-
-  const user = ref<User | null>(null);
-  const token = ref<string | null>(cookieToken ?? null);
-  const isLoading = ref<boolean>(false);
+  const storage = options?.cookieStorage;
+  const token = storage
+    ? toRef(storage, 'token')
+    : useState<string | null>('auth_token', () => null);
+  const user = options ? ref<User | null>(null) : useState<User | null>('auth_user', () => null);
+  const isLoading = ref(false);
   const error = ref<string | null>(null);
+  const navigate = options?.mockNavigateTo ?? navigateTo;
+  const scope = options ?? useNuxtApp();
+  const fetcher = options?.mockFetch ?? (import.meta.server ? useRequestFetch() : $fetch);
 
-  const isAuthenticated = () => Boolean(token.value);
+  function isAuthenticated() {
+    try {
+      const payload = JSON.parse(atob(token.value!.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number };
+      return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
+    } catch { return false; }
+  }
 
-  const fetcher =
-    options?.mockFetch ??
-    (typeof $fetch !== 'undefined'
-      ? ($fetch as <T>(url: string, opts?: any) => Promise<T>)
-      : undefined);
+  function clearSession() {
+    token.value = null;
+    user.value = null;
+  }
 
-  const navigator =
-    options?.mockNavigateTo ??
-    (typeof navigateTo !== 'undefined' ? navigateTo : undefined);
-
-  async function login(credentials: { email: string; password: string }): Promise<boolean> {
+  async function login(credentials: LoginCredentials): Promise<boolean> {
+    if (isLoading.value) return false;
     isLoading.value = true;
     error.value = null;
-
     try {
-      if (!fetcher) {
-        throw new Error('Cliente HTTP no disponible');
-      }
-
-      const response = await fetcher<AuthResponse>('/api/auth/login', {
-        method: 'POST',
-        body: credentials,
-      });
-
+      const response = await authService.login(credentials, fetcher);
       token.value = response.accessToken;
       user.value = response.user;
-
-      if (options?.cookieStorage) {
-        options.cookieStorage.token = response.accessToken;
-      } else if (typeof useCookie !== 'undefined') {
-        const cookie = useCookie<string | null>('auth_token');
-        cookie.value = response.accessToken;
-      }
-
-      if (navigator) {
-        await navigator('/admin');
-      }
+      await navigate('/admin');
       return true;
-    } catch (err: any) {
-      error.value =
-        err?.data?.message ||
-        (err?.message && err.message !== 'Internal Server Error' && err.message !== 'Error'
-          ? err.message
-          : 'Error de autenticación');
-      token.value = null;
-      user.value = null;
-
-      if (options?.cookieStorage) {
-        options.cookieStorage.token = null;
-      } else if (typeof useCookie !== 'undefined') {
-        const cookie = useCookie<string | null>('auth_token');
-        cookie.value = null;
-      }
+    } catch (cause: unknown) {
+      const failure = cause as { data?: { message?: string | string[] }; message?: string };
+      const message = failure?.data?.message;
+      error.value = Array.isArray(message) ? message.join(' ') : message ||
+        (failure?.message && !['Internal Server Error', 'Error'].includes(failure.message)
+          ? failure.message : 'Error de autenticación');
+      clearSession();
       return false;
     } finally {
       isLoading.value = false;
     }
   }
 
-  async function logout(): Promise<void> {
-    token.value = null;
-    user.value = null;
-
-    if (options?.cookieStorage) {
-      options.cookieStorage.token = null;
-    } else if (typeof useCookie !== 'undefined') {
-      const cookie = useCookie<string | null>('auth_token');
-      cookie.value = null;
+  function restoreSession(): Promise<boolean> {
+    if (import.meta.server && !useCookie('refresh_token').value) {
+      clearSession();
+      return Promise.resolve(false);
     }
+    const pending = refreshes.get(scope);
+    if (pending) return pending;
+    async function restore() {
+      try {
+        if (import.meta.server) {
+          user.value = await authService.getSession(fetcher);
+        } else {
+          const response = await authService.refresh(fetcher);
+          token.value = response.accessToken;
+          user.value = response.user;
+        }
+        return true;
+      } catch (cause: unknown) {
+        if ((cause as { statusCode?: number }).statusCode !== 401) throw cause;
+        clearSession();
+        return false;
+      }
+    }
+    // Serializa la rotación entre pestañas; la cookie se actualiza antes de liberar el lock.
+    const pendingRestore = import.meta.client && globalThis.navigator?.locks
+      ? globalThis.navigator.locks.request('flywise-session', restore)
+      : restore();
+    const promise = pendingRestore.finally(() => { refreshes.delete(scope); });
+    refreshes.set(scope, promise);
+    return promise;
+  }
 
-    if (navigator) {
-      await navigator('/login');
+  async function sessionExpired(): Promise<never> {
+    clearSession();
+    await navigate('/login');
+    throw new Error('Tu sesión venció. Volvé a iniciar sesión.');
+  }
+
+  async function authenticatedRequest<T>(action: (accessToken: string | null) => Promise<T>): Promise<T> {
+    const originalToken = token.value;
+    try { return await action(originalToken); } catch (cause: unknown) {
+      if ((cause as { statusCode?: number }).statusCode !== 401) throw cause;
+    }
+    // Otra petición puede haber renovado el JWT mientras esta esperaba su respuesta.
+    if (token.value === originalToken && !(await restoreSession())) return sessionExpired();
+    try { return await action(token.value); } catch (cause: unknown) {
+      if ((cause as { statusCode?: number }).statusCode === 401) return sessionExpired();
+      throw cause;
     }
   }
 
-  return {
-    user,
-    token,
-    isLoading,
-    error,
-    isAuthenticated,
-    login,
-    logout,
-  };
+  async function logout(): Promise<void> {
+    await refreshes.get(scope);
+    await authService.logout(token.value, fetcher);
+    clearSession();
+    await navigate('/login');
+  }
+
+  return { user, token, isLoading, error, isAuthenticated, login, logout, clearSession, restoreSession, authenticatedRequest };
 }

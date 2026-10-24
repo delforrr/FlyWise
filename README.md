@@ -139,6 +139,10 @@ flowchart LR
 - **Gestión de Descarte de Registros:** Inspección de muestras de datos inconsistentes descartadas durante la ingestión y herramientas de reintento selectivo.
 - **Controles de Flujo:** Disparo manual de sincronizaciones, pausa de colas y reintento de tareas fallidas.
 
+### 4.4 Acceso administrativo y sesiones recordadas
+
+Todas las rutas `/admin/**` requieren una sesión, incluida la navegación directa y SSR. “Recordar sesión” mantiene el acceso durante un máximo de 7 días, sin marcarlo, la sesión tiene un máximo de 24 horas. El botón “Salir” revoca la sesión en el backend.
+
 ## 5. Estructura del Repositorio
 
 ```text

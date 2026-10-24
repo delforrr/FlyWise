@@ -1,5 +1,6 @@
+import { useAuth } from '~/features/auth/composables/useAuth';
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import type { ZodObject, ZodRawShape } from "zod";
 import LoginForm from "~/features/auth/components/LoginForm.vue";
 
@@ -53,9 +54,15 @@ const ULinkStub = {
 
 describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticación", () => {
   let mockNavigateTo: ReturnType<typeof vi.fn>;
+  const fetcher = vi.fn();
+  let cookie: { value: string | null };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    fetcher.mockReset();
+    cookie = { value: null };
+    vi.stubGlobal('useCookie', () => cookie);
+    vi.stubGlobal('$fetch', fetcher);
     mockNavigateTo = vi.fn();
     // Simular el helper global de navegación de Nuxt
     vi.stubGlobal("navigateTo", mockNavigateTo);
@@ -275,31 +282,29 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
   });
 
   describe("Envío del formulario (submit) y redirección", () => {
-    it('ejecuta navigateTo("/admin") cuando se dispara el evento submit de UAuthForm', async () => {
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    it('autentica en el backend antes de entrar y guarda el JWT para el CRUD', async () => {
+      fetcher.mockResolvedValueOnce({ accessToken: 'backend-jwt', user: { id: '1', email: 'admin@flywise.aero', role: 'ADMIN' } });
       const wrapper = mountLoginForm();
-      const authForm = wrapper.findComponent(UAuthFormStub);
+      wrapper.findComponent(UAuthFormStub).vm.$emit('submit', {
+        data: { email: 'admin@flywise.aero', password: 'Password123!', remember: true },
+      });
+      await flushPromises();
+      expect(fetcher).toHaveBeenCalledWith('/api/auth/login', {
+        method: 'POST', headers: { 'X-FlyWise-Session': '1' }, body: { email: 'admin@flywise.aero', password: 'Password123!', remember: true },
+      });
+      expect(useAuth().token.value).toBe('backend-jwt');
+      expect(cookie.value).toBeNull();
+      expect(mockNavigateTo).toHaveBeenCalledWith('/admin');
+    });
 
-      const submissionPayload = {
-        data: {
-          email: "admin@flywise.aero",
-          password: "SuperSecurePassword!",
-          remember: true,
-        },
-      };
-
-      // Disparar el evento de submit desde el formulario hijo
-      await authForm.vm.$emit("submit", submissionPayload);
-
-      // Aserciones:
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Submitted login credentials:",
-        submissionPayload,
-      );
-      expect(mockNavigateTo).toHaveBeenCalledTimes(1);
-      expect(mockNavigateTo).toHaveBeenCalledWith("/admin");
-
-      consoleSpy.mockRestore();
+    it('muestra el error del backend y no redirige con credenciales incorrectas', async () => {
+      fetcher.mockRejectedValueOnce({ statusCode: 401, data: { message: 'Credenciales inválidas' } });
+      const wrapper = mountLoginForm();
+      await wrapper.find('form').trigger('submit');
+      await flushPromises();
+      expect(wrapper.find('[role="alert"]').text()).toContain('Credenciales inválidas');
+      expect(mockNavigateTo).not.toHaveBeenCalled();
+      expect(cookie.value).toBeNull();
     });
   });
 });

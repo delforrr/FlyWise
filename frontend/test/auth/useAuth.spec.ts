@@ -5,6 +5,8 @@ import {
   type AuthResponse,
 } from '../../app/features/auth/composables/useAuth';
 
+const validToken = `header.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 900 }))}.signature`;
+
 describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticación', () => {
   let mockFetch: ReturnType<typeof vi.fn>;
   let mockNavigateTo: ReturnType<typeof vi.fn>;
@@ -34,7 +36,7 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
     });
 
     it('inicia como autenticado si ya existe un token almacenado en cookies', () => {
-      cookieStorage.token = 'existing-jwt-token-xyz';
+      cookieStorage.token = validToken;
       const existingAuth = useAuth({
         mockFetch,
         mockNavigateTo,
@@ -42,14 +44,14 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
       });
 
       expect(existingAuth.isAuthenticated()).toBe(true);
-      expect(existingAuth.token.value).toBe('existing-jwt-token-xyz');
+      expect(existingAuth.token.value).toBe(validToken);
     });
   });
 
   describe('Flujo de Inicio de Sesión (login)', () => {
     it('autentica exitosamente con credenciales válidas y redirige a /admin', async () => {
       const mockSuccessResponse: AuthResponse = {
-        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.sample',
+        accessToken: validToken,
         user: {
           id: 'user-001',
           email: 'admin@flywise.aero',
@@ -75,6 +77,7 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
       // Verificación de contrato con el backend
       expect(mockFetch).toHaveBeenCalledWith('/api/auth/login', {
         method: 'POST',
+        headers: { 'X-FlyWise-Session': '1' },
         body: {
           email: 'admin@flywise.aero',
           password: 'ValidPassword2026!',
@@ -231,3 +234,75 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
   });
 });
 
+
+describe('sesión recordada y renovación', () => {
+  const user = { id: '1', email: 'admin@flywise.aero', role: 'ADMIN' as const };
+
+  it('envía remember al backend y restaura una sesión sin un JWT en memoria', async () => {
+    const fetcher = vi.fn().mockResolvedValue({ accessToken: 'restored', user });
+    const auth = useAuth({ mockFetch: fetcher, mockNavigateTo: vi.fn(), cookieStorage: { token: null } });
+    expect(await auth.restoreSession()).toBe(true);
+    expect(auth.token.value).toBe('restored');
+    expect(auth.user.value).toEqual(user);
+    expect(fetcher).toHaveBeenCalledWith('/api/auth/refresh', expect.objectContaining({ method: 'POST' }));
+    await auth.login({ email: user.email, password: 'password123', remember: true });
+    expect(fetcher).toHaveBeenLastCalledWith('/api/auth/login', expect.objectContaining({ body: { email: user.email, password: 'password123', remember: true } }));
+  });
+
+  it('renueva una sola vez las solicitudes simultáneas y reintenta con el JWT nuevo', async () => {
+    let resolveRefresh!: (value: AuthResponse) => void;
+    const fetcher = vi.fn().mockReturnValue(new Promise<AuthResponse>(resolve => { resolveRefresh = resolve; }));
+    const auth = useAuth({ mockFetch: fetcher, mockNavigateTo: vi.fn(), cookieStorage: { token: 'expired' } });
+    const first = vi.fn().mockRejectedValueOnce({ statusCode: 401 }).mockResolvedValueOnce('first');
+    const second = vi.fn().mockRejectedValueOnce({ statusCode: 401 }).mockResolvedValueOnce('second');
+    const requests = [auth.authenticatedRequest(first), auth.authenticatedRequest(second)];
+    await Promise.resolve();
+    resolveRefresh({ accessToken: 'renewed', user });
+    expect(await Promise.all(requests)).toEqual(['first', 'second']);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(first).toHaveBeenLastCalledWith('renewed');
+    expect(second).toHaveBeenLastCalledWith('renewed');
+  });
+
+  it('redirige solo si refresh rechaza la sesión y conserva el estado ante fallas de red', async () => {
+    const fetcher = vi.fn().mockRejectedValueOnce({ statusCode: 503 }).mockRejectedValueOnce({ statusCode: 401 });
+    const navigate = vi.fn();
+    const auth = useAuth({ mockFetch: fetcher, mockNavigateTo: navigate, cookieStorage: { token: 'expired' } });
+    await expect(auth.restoreSession()).rejects.toEqual({ statusCode: 503 });
+    expect(auth.token.value).toBe('expired');
+    expect(await auth.restoreSession()).toBe(false);
+    expect(auth.token.value).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('no renueva indefinidamente si el reintento vuelve a fallar con 401', async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce({ accessToken: 'renewed', user });
+    const navigate = vi.fn();
+    const auth = useAuth({ mockFetch: fetcher, mockNavigateTo: navigate, cookieStorage: { token: 'expired' } });
+    const action = vi.fn().mockRejectedValue({ statusCode: 401 });
+    await expect(auth.authenticatedRequest(action)).rejects.toThrow('sesión');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(action).toHaveBeenCalledTimes(2);
+    expect(navigate).toHaveBeenCalledWith('/login');
+  });
+
+  it('revoca en el backend antes de borrar la sesión y conserva el estado si logout falla', async () => {
+    const fetcher = vi.fn().mockRejectedValueOnce({ statusCode: 503 }).mockResolvedValueOnce({});
+    const navigate = vi.fn();
+    const auth = useAuth({ mockFetch: fetcher, mockNavigateTo: navigate, cookieStorage: { token: 'active' } });
+    await expect(auth.logout()).rejects.toEqual({ statusCode: 503 });
+    expect(auth.token.value).toBe('active');
+    await auth.logout();
+    expect(auth.token.value).toBeNull();
+    expect(fetcher).toHaveBeenLastCalledWith('/api/auth/logout', expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer active' }) }));
+    expect(navigate).toHaveBeenCalledWith('/login');
+  });
+});
+
+ it('no considera autenticado un JWT vencido o malformado', () => {
+   const storage = { token: `header.${btoa(JSON.stringify({ exp: 1 }))}.signature` };
+   const auth = useAuth({ cookieStorage: storage, mockFetch: vi.fn(), mockNavigateTo: vi.fn() });
+   expect(auth.isAuthenticated()).toBe(false);
+   storage.token = 'malformed';
+   expect(auth.isAuthenticated()).toBe(false);
+ });

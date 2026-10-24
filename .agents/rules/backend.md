@@ -17,6 +17,7 @@ Estas reglas aplican a todo el código en el directorio `backend/` y son de cump
   - Todos los endpoints deben tipar sus parámetros (`@Param`), query strings (`@Query`) y cuerpo (`@Body`) mediante DTOs dedicados.
   - Decorar cada propiedad del DTO con validadores de `class-validator` y transformadores de `class-transformer`.
   - El `ValidationPipe` global en `main.ts` debe permanecer activo con:
+
     ```typescript
     app.useGlobalPipes(
       new ValidationPipe({
@@ -26,6 +27,7 @@ Estas reglas aplican a todo el código en el directorio `backend/` y son de cump
       }),
     );
     ```
+
 - **Manejo de Errores y Promesas:**
   - Lanzar excepciones HTTP nativas (`NotFoundException`, `BadRequestException`, `ConflictException`, `UnauthorizedException`).
   - Evitar promesas flotantes (floating promises); manejar siempre con `await` o `void` explícito.
@@ -69,6 +71,7 @@ Estas reglas aplican a todo el código en el directorio `backend/` y son de cump
 ## 5. Quality Gate Backend (Definición de Terminado)
 
 Antes de dar por completado cualquier cambio en el backend:
+
 1. `npm --prefix backend run build` finaliza con código de salida `0`.
 2. `npm --prefix backend run lint` con `0` errores y `0` warnings.
 3. `npm --prefix backend test` con el 100% de los tests en verde.

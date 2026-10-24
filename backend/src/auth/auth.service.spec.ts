@@ -1,3 +1,5 @@
+import { RefreshSessionsService } from './refresh-sessions.service';
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -12,6 +14,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
+  let sessions: jest.Mocked<RefreshSessionsService>;
   let redisService: jest.Mocked<RedisService>;
 
   const mockUser: User = {
@@ -39,6 +42,9 @@ describe('AuthService', () => {
     };
 
     const mockJwtService = {
+      verify: jest
+        .fn()
+        .mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 3600 }),
       sign: jest.fn().mockReturnValue('mocked.jwt.token'),
       decode: jest
         .fn()
@@ -53,6 +59,16 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        {
+          provide: RefreshSessionsService,
+          useValue: {
+            inspect: jest.fn().mockResolvedValue({ sub: mockUserDto.id }),
+            rotate: jest.fn().mockResolvedValue({ sessionId: 'session-1' }),
+            revoke: jest.fn(),
+            revokeId: jest.fn(),
+            isActive: jest.fn().mockResolvedValue(true),
+          },
+        },
         {
           provide: UsersService,
           useValue: mockUsersService,
@@ -72,6 +88,7 @@ describe('AuthService', () => {
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
     redisService = module.get(RedisService);
+    sessions = module.get(RefreshSessionsService);
   });
 
   it('should be defined', () => {
@@ -131,11 +148,18 @@ describe('AuthService', () => {
     it('should sign a JWT token with username and sub payload', () => {
       const result = service.login(mockUserDto);
 
-      expect(jwtService.sign).toHaveBeenCalledWith({
-        sub: mockUserDto.id,
-        email: mockUserDto.email,
-        role: mockUserDto.role,
-      });
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        {
+          sub: mockUserDto.id,
+          email: mockUserDto.email,
+          role: mockUserDto.role,
+        },
+        expect.objectContaining({
+          audience: 'access',
+          expiresIn: '15m',
+          jwtid: expect.any(String),
+        }),
+      );
       expect(result).toEqual({
         access_token: 'mocked.jwt.token',
         accessToken: 'mocked.jwt.token',
@@ -154,6 +178,31 @@ describe('AuthService', () => {
       const result = await service.getProfile(mockUserDto.id);
       expect(usersService.getUserById).toHaveBeenCalledWith(mockUserDto.id);
       expect(result).toEqual(mockUserDto);
+    });
+  });
+
+  describe('refresh', () => {
+    it('no consume el refresh token si falla temporalmente la base de datos', async () => {
+      usersService.getUserById.mockRejectedValueOnce(
+        new Error('DB unavailable'),
+      );
+      await expect(service.refresh('refresh-token')).rejects.toThrow(
+        'DB unavailable',
+      );
+      expect(sessions.rotate).not.toHaveBeenCalled();
+      expect(sessions.revoke).not.toHaveBeenCalled();
+    });
+    it('revoca la sesión si se eliminó la cuenta y usa los datos actuales al renovar', async () => {
+      usersService.getUserById.mockRejectedValueOnce(new NotFoundException());
+      await expect(service.refresh('refresh-token')).rejects.toThrow('cuenta');
+      expect(sessions.revoke).toHaveBeenCalledWith('refresh-token');
+      expect(sessions.rotate).not.toHaveBeenCalled();
+      const response = await service.refresh('refresh-token');
+      expect(response.response.user).toEqual(mockUserDto);
+      expect(jwtService.sign).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sid: 'session-1' }),
+        expect.any(Object),
+      );
     });
   });
 

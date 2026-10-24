@@ -1,3 +1,9 @@
+import { ConfigService } from '@nestjs/config';
+import type {
+  Request as ExpressRequest,
+  Response,
+  CookieOptions,
+} from 'express';
 import {
   Controller,
   UseGuards,
@@ -8,10 +14,14 @@ import {
   HttpStatus,
   HttpCode,
   Body,
+  Res,
+  ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { LoginRequestDto } from './dto/login-request.dto';
 import {
   ApiTags,
+  ApiHeader,
   ApiOperation,
   ApiResponse,
   ApiBody,
@@ -27,7 +37,57 @@ import { type UserDto } from '../users/dto/user.dto';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
+
+  private cookieOptions(): CookieOptions {
+    return {
+      httpOnly: true,
+      secure: this.config.get('NODE_ENV') === 'production',
+      sameSite: 'lax',
+      path: '/',
+    };
+  }
+
+  private checkOrigin(req: ExpressRequest, requireHeader = true) {
+    const origin = req.headers.origin;
+    if (
+      (requireHeader && req.headers['x-flywise-session'] !== '1') ||
+      req.headers['sec-fetch-site'] === 'cross-site' ||
+      (origin &&
+        origin !== this.config.get('CORS_ORIGIN', 'http://localhost:3000') &&
+        origin !== `${req.protocol}://${req.headers.host}`)
+    ) {
+      throw new ForbiddenException('Origen de sesión no permitido.');
+    }
+  }
+
+  private refreshCookie(req: ExpressRequest) {
+    return req.headers.cookie
+      ?.split(';')
+      .map((value) => value.trim())
+      .find((value) => value.startsWith('refresh_token='))
+      ?.slice('refresh_token='.length);
+  }
+
+  private sendSession(
+    res: Response,
+    session: Pick<
+      Awaited<ReturnType<AuthService['createSession']>>,
+      'refreshToken' | 'remember' | 'expiresAt' | 'response'
+    >,
+  ) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.cookie('refresh_token', session.refreshToken, {
+      ...this.cookieOptions(),
+      ...(session.remember
+        ? { maxAge: Math.max(0, session.expiresAt - Date.now()) }
+        : {}),
+    });
+    return session.response;
+  }
 
   @UseGuards(LocalAuthGuard)
   @Post('/login')
@@ -44,8 +104,63 @@ export class AuthController {
     description: 'Credenciales inválidas.',
   })
   @HttpCode(HttpStatus.OK)
-  loginRequest(@CurrentUser() user: UserDto) {
-    return this.authService.login(user);
+  async loginRequest(
+    @CurrentUser() user: UserDto,
+    @Body() body: LoginRequestDto,
+    @Request() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.checkOrigin(req, false);
+    const session = await this.authService.createSession(
+      user,
+      body.remember ?? false,
+      this.refreshCookie(req),
+    );
+    return this.sendSession(res, session);
+  }
+
+  @ApiHeader({
+    name: 'X-FlyWise-Session',
+    required: true,
+    schema: { default: '1' },
+  })
+  @Get('/session')
+  @ApiOperation({
+    summary: 'Valida la sesión para proteger páginas SSR sin rotar la cookie',
+  })
+  async getSession(
+    @Request() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.checkOrigin(req);
+    res.setHeader('Cache-Control', 'no-store');
+    return this.authService.getSession(this.refreshCookie(req));
+  }
+
+  @ApiHeader({
+    name: 'X-FlyWise-Session',
+    required: true,
+    schema: { default: '1' },
+  })
+  @Post('/refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Rota la sesión y emite un JWT de acceso nuevo' })
+  async refresh(
+    @Request() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.checkOrigin(req);
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      return this.sendSession(
+        res,
+        await this.authService.refresh(this.refreshCookie(req)),
+      );
+    } catch (cause: unknown) {
+      if (cause instanceof UnauthorizedException)
+        res.clearCookie('refresh_token', this.cookieOptions());
+      throw cause;
+    }
   }
 
   @Post('/register')
@@ -84,41 +199,26 @@ export class AuthController {
     return user;
   }
 
-  @ApiOAuth2([])
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @ApiHeader({
+    name: 'X-FlyWise-Session',
+    required: true,
+    schema: { default: '1' },
+  })
   @Post('/logout')
-  @ApiOperation({
-    summary: 'Cierra la sesión del usuario actual invalidando credenciales',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Sesión cerrada correctamente.',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'No autorizado - Token JWT inválido o no provisto.',
-  })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Revoca la sesión incluso si el JWT ya venció' })
   async logout(
-    @Headers('authorization') authHeader?: string,
-    @Request()
-    req?: {
-      logout?: (callback?: (err: unknown) => void) => unknown;
-    },
+    @Headers('authorization') authHeader: string | undefined,
+    @Request() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    if (typeof req?.logout === 'function') {
-      try {
-        req.logout(() => {});
-      } catch {
-        // Safe fallback if session engine is absent
-      }
-    }
-
-    const token = authHeader?.replace(/^Bearer\s+/i, '').trim();
-    if (token) {
-      await this.authService.logout(token);
-    }
-
+    this.checkOrigin(req);
+    await this.authService.logout(
+      authHeader?.replace(/^Bearer\s+/i, '').trim(),
+      this.refreshCookie(req),
+    );
+    res.setHeader('Cache-Control', 'no-store');
+    res.clearCookie('refresh_token', this.cookieOptions());
     return { message: 'Sesión cerrada exitosamente. Token invalidado.' };
   }
 }

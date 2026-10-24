@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsAlphanumeric,
+  IsBoolean,
+  IsOptional,
+  IsString,
   IsEmail,
   IsNotEmpty,
   MinLength,
@@ -15,6 +17,15 @@ export class LoginRequestDto {
   @ApiProperty()
   @MinLength(8, { message: 'La contraseña debe ser mayor a 8 caracteres' })
   @IsNotEmpty({ message: 'La contraseña no debe estar vacia' })
-  @IsAlphanumeric()
+  @IsString()
   password!: string;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  remember?: boolean;
+
+  @IsOptional()
+  @IsString()
+  username?: string;
 }

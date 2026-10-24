@@ -13,6 +13,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
+      audience: 'access',
+      algorithms: ['HS256'],
       secretOrKey: configService.get<string>('JWT_SECRET') ?? 'default_secret',
       passReqToCallback: true,
     });
@@ -22,10 +24,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     req: { headers?: { authorization?: string } },
     payload: {
       sub: string;
+      sid?: string;
       email: string;
       role?: 'ADMIN' | 'OPERATOR';
     },
   ) {
+    if (payload.sid && !(await this.authService.isSessionActive(payload.sid))) {
+      throw new UnauthorizedException('La sesión fue revocada.');
+    }
     const rawAuth = req.headers?.authorization;
     if (rawAuth) {
       const token = rawAuth.replace(/^Bearer\s+/i, '').trim();
