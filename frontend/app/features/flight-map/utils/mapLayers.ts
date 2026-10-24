@@ -1,7 +1,6 @@
 import { ArcLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { Airport } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
-import { SEED_AIRPORTS } from "~/data/seedData";
 import { getOtpColor } from "./mapUtils";
 
 export interface BuildLayersOptions {
@@ -9,6 +8,7 @@ export interface BuildLayersOptions {
   selectedOrigin?: string | null;
   selectedDestination?: string | null;
   matchingRoutes: FlightRoute[];
+  airports?: Airport[];
 }
 
 /**
@@ -19,9 +19,10 @@ export function getVisibleAirports(
   orig?: string | null,
   dest?: string | null,
   visibleRoutes: FlightRoute[] = [],
+  airports: Airport[] = [],
 ): Airport[] {
   if (!hasSelection) {
-    return SEED_AIRPORTS;
+    return airports;
   }
 
   const activeAirportIatas = new Set<string>();
@@ -29,11 +30,11 @@ export function getVisibleAirports(
   if (dest) activeAirportIatas.add(dest);
 
   for (const r of visibleRoutes) {
-    activeAirportIatas.add(r.originIata);
-    activeAirportIatas.add(r.destinationIata);
+    activeAirportIatas.add(r.originId);
+    activeAirportIatas.add(r.destinationId);
   }
 
-  return SEED_AIRPORTS.filter((a) => activeAirportIatas.has(a.iata));
+  return airports.filter((a) => activeAirportIatas.has(a.id));
 }
 
 /**
@@ -46,7 +47,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
   const hasBoth = Boolean(orig && dest);
 
   // 1. Filtrar rutas: Sin selección activa NO se renderiza ningún arco
-  const visibleRoutes = hasSelection ? matchingRoutes : [];
+  const visibleRoutes = matchingRoutes;
 
   // 2. Aeropuertos visibles (despejar pantalla si hay selección, o todos si está en vista general)
   const visibleAirports = getVisibleAirports(
@@ -54,11 +55,12 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
     orig,
     dest,
     visibleRoutes,
+    options.airports,
   );
 
   // 3. Aeropuertos activos seleccionados (origen y/o destino para halos de radar)
   const activeSelectedAirports = visibleAirports.filter(
-    (a) => a.iata === orig || a.iata === dest,
+    (a) => a.id === orig || a.id === dest,
   );
 
   return [
@@ -75,14 +77,14 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       getSourceColor: (d: FlightRoute) => {
         const isDirectActive = Boolean(
           hasBoth &&
-          ((d.originIata === orig && d.destinationIata === dest) ||
-            (d.originIata === dest && d.destinationIata === orig)),
+          ((d.originId === orig && d.destinationId === dest) ||
+            (d.originId === dest && d.destinationId === orig)),
         );
 
         if (isDirectActive) {
           // Gradiente de alto contraste para la ruta activa seleccionada:
           // El origen emite en Aero Cyan de alta saturación
-          return d.originIata === orig
+          return d.originId === orig
             ? isLight
               ? [2, 132, 199, 255]
               : [56, 189, 248, 255]
@@ -95,7 +97,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
           return [baseColor[0], baseColor[1], baseColor[2], 140];
         }
 
-        if (orig && d.originIata === orig) {
+        if (orig && d.originId === orig) {
           return isLight ? [2, 132, 199, 240] : [56, 189, 248, 240];
         }
 
@@ -105,13 +107,13 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       getTargetColor: (d: FlightRoute) => {
         const isDirectActive = Boolean(
           hasBoth &&
-          ((d.originIata === orig && d.destinationIata === dest) ||
-            (d.originIata === dest && d.destinationIata === orig)),
+          ((d.originId === orig && d.destinationId === dest) ||
+            (d.originId === dest && d.destinationId === orig)),
         );
 
         if (isDirectActive) {
           // El destino recibe en el color de performance OTP-15 (Esmeralda / Ámbar / Carmesí)
-          return d.destinationIata === dest
+          return d.destinationId === dest
             ? getOtpColor(d.averageOtp15, 255)
             : isLight
               ? [2, 132, 199, 255]
@@ -123,7 +125,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
           return [baseColor[0], baseColor[1], baseColor[2], 140];
         }
 
-        if (dest && d.destinationIata === dest) {
+        if (dest && d.destinationId === dest) {
           return isLight ? [5, 150, 105, 240] : [16, 185, 129, 240];
         }
 
@@ -134,8 +136,8 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
         if (!hasSelection) return 2.5;
         if (hasBoth) {
           if (
-            (d.originIata === orig && d.destinationIata === dest) ||
-            (d.originIata === dest && d.destinationIata === orig)
+            (d.originId === orig && d.destinationId === dest) ||
+            (d.originId === dest && d.destinationId === orig)
           ) {
             return 8.0; // Grosor elevado para destacar la ruta activa
           }
@@ -163,7 +165,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       stroked: true,
       filled: false,
       getLineColor: (d: Airport) => {
-        if (d.iata === orig) {
+        if (d.id === orig) {
           return isLight ? [2, 132, 199, 90] : [56, 189, 248, 100];
         }
         return isLight ? [5, 150, 105, 90] : [16, 185, 129, 100];
@@ -187,13 +189,13 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       stroked: true,
       filled: true,
       getFillColor: (d: Airport) => {
-        if (d.iata === orig) {
+        if (d.id === orig) {
           return isLight ? [2, 132, 199, 45] : [56, 189, 248, 45]; // Aero Cyan translúcido
         }
         return isLight ? [5, 150, 105, 45] : [16, 185, 129, 45]; // Esmeralda translúcido
       },
       getLineColor: (d: Airport) => {
-        if (d.iata === orig) {
+        if (d.id === orig) {
           return isLight ? [2, 132, 199, 200] : [56, 189, 248, 220]; // Stroke de pulso cyan
         }
         return isLight ? [5, 150, 105, 200] : [16, 185, 129, 220]; // Stroke de pulso esmeralda
@@ -215,7 +217,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       highlightColor: isLight ? [2, 132, 199, 255] : [56, 189, 248, 255],
       getPosition: (d: Airport) => d.coordinates,
       getRadius: (d: Airport) => {
-        if (d.iata === orig || d.iata === dest) {
+        if (d.id === orig || d.id === dest) {
           return 90000;
         }
         return d.type === "large_airport" ? 45000 : 25000;
@@ -223,16 +225,16 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       radiusMinPixels: 4,
       radiusMaxPixels: 16,
       getFillColor: (d: Airport) => {
-        if (d.iata === orig) {
+        if (d.id === orig) {
           return isLight ? [2, 132, 199, 255] : [56, 189, 248, 255]; // Aero Cyan (Origen)
         }
-        if (d.iata === dest) {
+        if (d.id === dest) {
           return isLight ? [5, 150, 105, 255] : [16, 185, 129, 255]; // Emerald (Destino)
         }
         return isLight ? [30, 41, 59, 230] : [222, 227, 232, 220];
       },
       getLineColor: (d: Airport) => {
-        if (d.iata === orig || d.iata === dest) {
+        if (d.id === orig || d.id === dest) {
           return [255, 255, 255, 255];
         }
         return isLight ? [255, 255, 255, 255] : [37, 43, 46, 255];
@@ -253,14 +255,14 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       pickable: true,
       getPosition: (d: Airport) => d.coordinates,
       getText: (d: Airport) => d.iata,
-      getSize: (d: Airport) => (d.iata === orig || d.iata === dest ? 13 : 11),
+      getSize: (d: Airport) => (d.id === orig || d.id === dest ? 13 : 11),
       sizeUnits: "pixels",
       sizeMinPixels: 9,
       sizeMaxPixels: 16,
       getColor: (d: Airport) => {
-        if (d.iata === orig)
+        if (d.id === orig)
           return isLight ? [2, 132, 199, 255] : [56, 189, 248, 255];
-        if (d.iata === dest)
+        if (d.id === dest)
           return isLight ? [5, 150, 105, 255] : [16, 185, 129, 255];
         return isLight ? [15, 23, 42, 230] : [222, 227, 232, 230];
       },

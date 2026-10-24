@@ -1,4 +1,4 @@
-import { HttpExceptionFilter } from './http-exception.filter';
+import { HttpExceptionFilter } from './http-exception.filter.js';
 import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 
 describe('HttpExceptionFilter', () => {

@@ -1,8 +1,8 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { RoutesService } from './routes.service';
-import { ExploreRoutesDto } from './dto/explore-routes.dto';
-import { QueryDirectRouteDto } from './dto/query-direct-route.dto';
+import { RoutesService } from './routes.service.js';
+import { ExploreRoutesDto } from './dto/explore-routes.dto.js';
+import { QueryDirectRouteDto } from './dto/query-direct-route.dto.js';
 
 @ApiTags('routes')
 @Controller('routes')
@@ -12,7 +12,7 @@ export class RoutesController {
   @Get('explore')
   @ApiOperation({
     summary:
-      'Exploración de rutas aéreas: sirve las Top 100 por defecto (anti-saturación) o conexiones bajo demanda',
+      'Exploración de rutas aéreas: sirve las Top 100 por defecto o conexiones bajo demanda',
   })
   @ApiResponse({
     status: 200,

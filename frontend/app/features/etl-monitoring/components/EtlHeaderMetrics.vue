@@ -138,7 +138,7 @@ const kpiCardUi = {
           <span
             class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
           >
-            Registros Almacenados
+            Filas procesadas (historial)
           </span>
           <UIcon name="i-lucide-database" class="w-4 h-4 text-text-muted" />
         </div>
@@ -214,7 +214,7 @@ const kpiCardUi = {
     <UModal
       v-model:open="isConfirmSyncAllOpen"
       title="Confirmar Sincronización Global de Fuentes"
-      description="Esta acción iniciará la ingesta concurrente en los 4 pipelines activos."
+      description="Se encolarán los pipelines habilitados; los catálogos de referencia se procesan antes que las rutas."
       :ui="{
         content:
           'sm:max-w-md bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
@@ -222,15 +222,8 @@ const kpiCardUi = {
     >
       <template #body>
         <div class="space-y-3 text-xs text-text-muted">
-          <p>
-            Se generarán trabajos en las colas de <strong>BullMQ</strong> para:
-          </p>
-          <ul class="list-disc list-inside space-y-1 font-mono text-text-main">
-            <li>OurAirports Open Data (Aeropuertos y pistas)</li>
-            <li>OpenFlights Global Routes (Rutas y conexiones)</li>
-            <li>BTS TranStats (Telemetría de puntualidad OTP-15)</li>
-            <li>ANAC Argentina (Vuelos comerciales de cabotaje)</li>
-          </ul>
+          <p>Se sincronizarán las fuentes habilitadas del catálogo. Las ejecuciones activas terminarán antes de procesar las siguientes.</p>
+          <p>Esta entrega importa catálogos. La puntualidad requiere integrar una fuente operativa.</p>
         </div>
       </template>
 

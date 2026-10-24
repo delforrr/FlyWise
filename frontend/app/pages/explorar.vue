@@ -4,15 +4,20 @@ import { useShortcuts } from "~/features/flight-map/composables/useShortcuts";
 useSeoMeta({
   title: "FlyWise — Explorador Global de Rutas y Puntualidad",
   description:
-    "Visualización de confiabilidad histórica y métricas de aerolíneas en tiempo real.",
+    "Exploración de rutas del catálogo histórico; la puntualidad se muestra solo cuando hay datos operativos.",
 });
 
+const { airports, routes, error, loadAirports, loadRoutes } = useCatalog();
+const { selectedOrigin, selectedDestination } = useFlightSelection();
+onMounted(async () => { await loadAirports(); await loadRoutes(selectedOrigin.value, selectedDestination.value); });
+watch([selectedOrigin, selectedDestination], ([origin, destination]) => { void loadRoutes(origin, destination); });
 // Inicializar atajos de teclado aeronáuticos del cockpit
 useShortcuts();
 </script>
 
 <template>
   <div class="relative h-screen w-screen overflow-hidden bg-background">
+    <p v-if="error" role="alert" class="absolute z-50 bottom-4 left-4 rounded bg-surface-card p-3 text-error">{{ error }}</p>
     <!-- 1. Capa Base: Canvas WebGL MapLibre GL + Deck.gl -->
     <div class="absolute inset-0 z-0">
       <ClientOnly>

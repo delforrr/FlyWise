@@ -1,7 +1,7 @@
 import { JwtService } from '@nestjs/jwt';
-import Redis from 'ioredis';
-import { RedisService } from '../redis/redis.service';
-import { RefreshSessionsService } from './refresh-sessions.service';
+import { Redis } from 'ioredis';
+import { RedisService } from '../redis/redis.service.js';
+import { RefreshSessionsService } from './refresh-sessions.service.js';
 
 describe('RefreshSessionsService (Redis)', () => {
   const client = new Redis({

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { RoutesService } from './routes.service';
-import { RoutesController } from './routes.controller';
+import { RoutesService } from './routes.service.js';
+import { RoutesController } from './routes.controller.js';
 
 @Module({
   controllers: [RoutesController],

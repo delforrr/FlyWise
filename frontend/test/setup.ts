@@ -68,3 +68,6 @@ if (typeof (globalThis as any).defineShortcuts === 'undefined') {
 let nuxtApp = {};
 beforeEach(() => { nuxtApp = {}; });
 vi.stubGlobal('useNuxtApp', () => nuxtApp);
+// HTTP boundary for composables outside Nuxt; suites can replace $fetch per scenario.
+vi.stubGlobal('useCookie', () => vue.ref<string | null>(null));
+vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([]));

@@ -1,31 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsOptional,
-  IsString,
-  IsEmail,
-  IsNotEmpty,
-  MinLength,
-} from 'class-validator';
+import { IsBoolean, IsOptional } from 'class-validator';
+import { PickType } from '@nestjs/swagger';
+import { CreateUserDto } from '../../users/dto/create-user.dto.js';
 
-export class LoginRequestDto {
-  @ApiProperty()
-  @IsEmail({}, { message: 'Debe tener formato de email' })
-  @IsNotEmpty({ message: 'El email no debe estár vacío' })
-  email!: string;
-
-  @ApiProperty()
-  @MinLength(8, { message: 'La contraseña debe ser mayor a 8 caracteres' })
-  @IsNotEmpty({ message: 'La contraseña no debe estar vacia' })
-  @IsString()
-  password!: string;
-
-  @ApiProperty({ required: false, default: false })
+export class LoginRequestDto extends PickType(CreateUserDto, [
+  'email',
+  'password',
+] as const) {
   @IsOptional()
   @IsBoolean()
   remember?: boolean;
-
-  @IsOptional()
-  @IsString()
-  username?: string;
 }

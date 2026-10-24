@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { SEED_AIRPORTS_BY_IATA } from "~/data/seedData";
+import { useCatalog } from "~/shared/composables/useCatalog";
+const { airports } = useCatalog();
 
 const {
   selectedOrigin,
@@ -10,13 +11,13 @@ const {
 
 const originAirport = computed(() => {
   if (!selectedOrigin.value) return null;
-  return SEED_AIRPORTS_BY_IATA.get(selectedOrigin.value.toUpperCase()) ?? null;
+  return airports.value.find(a => a.id === selectedOrigin.value) ?? null;
 });
 
 const destinationAirport = computed(() => {
   if (!selectedDestination.value) return null;
   return (
-    SEED_AIRPORTS_BY_IATA.get(selectedDestination.value.toUpperCase()) ?? null
+    airports.value.find(a => a.id === selectedDestination.value) ?? null
   );
 });
 

@@ -27,8 +27,8 @@ describe("OtpBadge.vue — Indicador Táctico de Puntualidad OTP-15", () => {
     });
   };
 
-  describe("Clasificación de Umbrales RNF-02 (Alta ≥ 85%, Media 60-85%, Baja < 60%)", () => {
-    it("asigna nivel 'Alta', color 'success' e icono de escudo para valores ≥ 85%", () => {
+  describe("Clasificación de Umbrales RNF-02 (Alta > 85%, Media 60-85%, Baja < 60%)", () => {
+    it("asigna nivel 'Alta', color 'success' e icono de escudo para valores > 85%", () => {
       const wrapper = mountBadge({ value: 91.4 });
 
       expect(wrapper.text()).toContain("Alta");
@@ -78,7 +78,7 @@ describe("OtpBadge.vue — Indicador Táctico de Puntualidad OTP-15", () => {
 
     it("evalúa exactamente los límites de frontera (85.0%, 84.9%, 60.0%, 59.9%)", () => {
       const at85 = mountBadge({ value: 85.0 });
-      expect(at85.findComponent(UBadgeStub).props("color")).toBe("success");
+      expect(at85.findComponent(UBadgeStub).props("color")).toBe("warning");
 
       const at849 = mountBadge({ value: 84.9 });
       expect(at849.findComponent(UBadgeStub).props("color")).toBe("warning");
@@ -92,10 +92,10 @@ describe("OtpBadge.vue — Indicador Táctico de Puntualidad OTP-15", () => {
   });
 
   describe("Fallback descriptivo cuando value es indefinido", () => {
-    it("utiliza props.message 'Alta' mostrando '≥ 85%'", () => {
+    it("utiliza props.message 'Alta' mostrando '> 85%'", () => {
       const wrapper = mountBadge({ message: "Alta" });
       expect(wrapper.text()).toContain("Alta");
-      expect(wrapper.text()).toContain("≥ 85%");
+      expect(wrapper.text()).toContain("> 85%");
       expect(wrapper.findComponent(UBadgeStub).props("color")).toBe("success");
     });
 
@@ -133,5 +133,15 @@ describe("OtpBadge.vue — Indicador Táctico de Puntualidad OTP-15", () => {
       expect(wrapper.text()).toContain("Baja");
       expect(wrapper.findComponent(UBadgeStub).props("color")).toBe("error");
     });
+  });
+});
+
+describe('Unknown punctuality', () => {
+  it('shows a neutral badge with an accessible absence label', () => {
+    const wrapper = mount(OtpBadge, { props: { value: null }, global: { stubs: { UBadge: UBadgeStub, UIcon: UIconStub } } });
+    expect(wrapper.text()).toContain('Sin datos');
+    expect(wrapper.findComponent(UBadgeStub).props('color')).toBe('neutral');
+    expect(wrapper.findComponent(UBadgeStub).props('ariaLabel')).toContain('Sin datos');
+    expect(wrapper.text()).not.toContain('0.0%');
   });
 });

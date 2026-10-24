@@ -1,17 +1,23 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { AirportsService } from './airports.service';
-import { SearchAirportsDto } from './dto/search-airports.dto';
-import { NearbyAirportsDto } from './dto/nearby-airports.dto';
+import { AirportsService } from './airports.service.js';
+import { CatalogAirportsDto } from './dto/catalog-airports.dto.js';
+import { SearchAirportsDto } from './dto/search-airports.dto.js';
+import { NearbyAirportsDto } from './dto/nearby-airports.dto.js';
 
 @ApiTags('airports')
 @Controller('airports')
 export class AirportsController {
   constructor(private readonly airportsService: AirportsService) {}
 
+  @Get('catalog')
+  catalog(@Query() dto: CatalogAirportsDto) {
+    return this.airportsService.catalog(dto);
+  }
+
   @Get('search')
   @ApiOperation({
-    summary: 'Búsqueda de aeropuertos para Command Palette y autocompletado',
+    summary: 'Búsqueda de aeropuertos',
   })
   @ApiResponse({
     status: 200,
@@ -28,8 +34,7 @@ export class AirportsController {
   })
   @ApiResponse({
     status: 200,
-    description:
-      'Aeropuertos dentro del radio especificado con distancia ortodrómica calculada',
+    description: 'Aeropuertos dentro del radio especificado',
   })
   async findNearby(@Query() nearbyDto: NearbyAirportsDto) {
     return this.airportsService.findNearby(nearbyDto);

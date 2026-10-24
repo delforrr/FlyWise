@@ -99,21 +99,21 @@ function handleOpenTrigger(pipeline: EtlPipeline) {
   isTriggerModalOpen.value = true;
 }
 
-function handleSavePipeline(data: Partial<EtlPipeline>) {
+async function handleSavePipeline(data: Partial<EtlPipeline>) {
   const validation = validatePipeline(data);
   if (!validation.isValid) {
     return;
   }
   if (pipelineToEdit.value) {
-    updatePipeline(pipelineToEdit.value.id, data);
+    await updatePipeline(pipelineToEdit.value.id, data);
   } else {
-    createPipeline(data);
+    await createPipeline(data);
   }
   isWizardModalOpen.value = false;
 }
 
-function handleConfirmDelete(id: string) {
-  deletePipeline(id);
+async function handleConfirmDelete(id: string) {
+  await deletePipeline(id);
   isDeleteModalOpen.value = false;
 }
 
@@ -149,6 +149,8 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
             <option value="all">Todas las Entidades</option>
             <option value="airports">Aeropuertos</option>
             <option value="routes">Rutas</option>
+            <option value="countries">Países</option>
+            <option value="airlines">Aerolíneas</option>
             <option value="otp_metrics">Telemetría OTP</option>
           </select>
         </div>

@@ -13,7 +13,7 @@ function getAriaLabel(route: FlightRoute): string {
   const stopoverText = route.viaStopover
     ? `escala en ${route.viaStopover}`
     : "1 escala";
-  return `Ruta con conexión ${route.originIata} hacia ${route.destinationIata}, operada por ${route.primaryAirline}, ${stopoverText}. Distancia: ${route.distanceKm.toLocaleString()} kilómetros. Puntualidad promedio: ${route.averageOtp15.toFixed(1)}% OTP-15. Presione para enfocar en mapa.`;
+  return `Ruta con conexión ${route.originIata} hacia ${route.destinationIata}, operada por ${route.primaryAirline}, ${stopoverText}. Distancia: ${route.distanceKm.toLocaleString()} kilómetros. Puntualidad promedio: ${route.averageOtp15 === null ? "sin datos" : `${route.averageOtp15.toFixed(1)}% OTP-15`}. Presione para enfocar en mapa.`;
 }
 </script>
 

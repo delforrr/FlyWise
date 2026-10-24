@@ -16,20 +16,22 @@ const sampleFlightsCount = computed(() => {
 
 // Estilo y color del indicador de confiabilidad según OTP-15
 const otpColorClass = computed(() => {
-  if (props.route.averageOtp15 >= 85) return "text-emerald-500 dark:text-emerald-400";
-  if (props.route.averageOtp15 >= 60) return "text-amber-500 dark:text-amber-400";
+  if (props.route.averageOtp15 === null) return "text-text-muted";
+  if ((props.route.averageOtp15 ?? -1) > 85) return "text-emerald-500 dark:text-emerald-400";
+  if ((props.route.averageOtp15 ?? -1) >= 60) return "text-amber-500 dark:text-amber-400";
   return "text-rose-500 dark:text-rose-400";
 });
 
 const otpColor = computed<"success" | "warning" | "error">(() => {
-  if (props.route.averageOtp15 >= 85) return "success";
-  if (props.route.averageOtp15 >= 60) return "warning";
+  if ((props.route.averageOtp15 ?? -1) > 85) return "success";
+  if ((props.route.averageOtp15 ?? -1) >= 60) return "warning";
   return "error";
 });
 
 const bannerAccentClass = computed(() => {
-  if (props.route.averageOtp15 >= 85) return "border-l-emerald-500";
-  if (props.route.averageOtp15 >= 60) return "border-l-amber-500";
+  if (props.route.averageOtp15 === null) return "border-l-neutral-400";
+  if ((props.route.averageOtp15 ?? -1) > 85) return "border-l-emerald-500";
+  if ((props.route.averageOtp15 ?? -1) >= 60) return "border-l-amber-500";
   return "border-l-rose-500";
 });
 </script>
@@ -123,13 +125,14 @@ const bannerAccentClass = computed(() => {
           <span
             :class="['font-mono tabular-nums font-bold text-xs', otpColorClass]"
           >
-            {{ route.averageOtp15.toFixed(1) }}%
+            {{ route.averageOtp15 === null ? "Sin datos" : `${route.averageOtp15.toFixed(1)}%` }}
           </span>
         </div>
       </div>
 
       <!-- Barra de confiabilidad visual con UProgress nativo -->
       <UProgress
+        v-if="route.averageOtp15 !== null"
         :model-value="route.averageOtp15"
         size="xs"
         :color="otpColor"
@@ -144,7 +147,7 @@ const bannerAccentClass = computed(() => {
           Desempeño por Aerolínea ({{ route.airlines.length }}):
         </span>
         <span class="text-[10px] font-mono text-text-dim">
-          Tendencia 6m
+          Sin historial operativo
         </span>
       </div>
 

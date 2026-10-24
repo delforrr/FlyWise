@@ -4,22 +4,21 @@ import {
   OnModuleDestroy,
   Logger,
 } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { createDatabase } from './db.js';
 
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaService implements OnModuleInit, OnModuleDestroy {
+  readonly db = createDatabase();
+  readonly models = this.db.orm.public;
   private readonly logger = new Logger(PrismaService.name);
 
   async onModuleInit() {
-    await this.$connect();
+    await this.db.connect();
     this.logger.log('Conectado a PostgreSQL (PostGIS) exitosamente.');
   }
 
   async onModuleDestroy() {
-    await this.$disconnect();
+    await this.db.close();
     this.logger.log('Desconectado de PostgreSQL.');
   }
 }

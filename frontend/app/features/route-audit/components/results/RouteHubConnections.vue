@@ -17,8 +17,9 @@ const activeFilter = ref<FilterType>("all");
 const searchQuery = ref("");
 
 function getConnectedDestination(route: FlightRoute) {
-  const isOrigin = props.selectedOrigin === route.originIata;
+  const isOrigin = props.selectedOrigin === route.originId;
   return {
+    id: isOrigin ? route.destinationId : route.originId,
     iata: isOrigin ? route.destinationIata : route.originIata,
     city: isOrigin ? route.destinationCity : route.originCity,
     name: isOrigin ? route.destinationName : route.originName,
@@ -28,21 +29,20 @@ function getConnectedDestination(route: FlightRoute) {
 
 function handleClick(route: FlightRoute) {
   const dest = getConnectedDestination(route);
-  emit("selectDestination", dest.iata);
+  emit("selectDestination", dest.id);
 }
 
 const highOtpCount = computed(() => {
-  return props.routes.filter((r) => r.averageOtp15 >= 85).length;
+  return props.routes.filter((r) => r.averageOtp15 !== null && r.averageOtp15 > 85).length;
 });
 
 const delayedOtpCount = computed(() => {
-  return props.routes.filter((r) => r.averageOtp15 < 85).length;
+  return props.routes.filter((r) => r.averageOtp15 !== null && r.averageOtp15 <= 85).length;
 });
 
 const averageHubOtp = computed(() => {
-  if (props.routes.length === 0) return 0;
-  const sum = props.routes.reduce((acc, r) => acc + r.averageOtp15, 0);
-  return Number((sum / props.routes.length).toFixed(1));
+  // OTP cannot be averaged without operation counts; v1 has no operational data.
+  return null;
 });
 
 const maxDistanceKm = computed(() => {
@@ -89,9 +89,9 @@ const filteredRoutes = computed(() => {
   let list = props.routes;
 
   if (activeFilter.value === "high") {
-    list = list.filter((r) => r.averageOtp15 >= 85);
+    list = list.filter((r) => r.averageOtp15 !== null && r.averageOtp15 > 85);
   } else if (activeFilter.value === "delayed") {
-    list = list.filter((r) => r.averageOtp15 < 85);
+    list = list.filter((r) => r.averageOtp15 !== null && r.averageOtp15 <= 85);
   }
 
   const query = searchQuery.value.trim().toLowerCase();
@@ -109,7 +109,7 @@ const filteredRoutes = computed(() => {
 
   const sorted = [...list];
   if (sortBy.value === "otp-desc") {
-    sorted.sort((a, b) => b.averageOtp15 - a.averageOtp15);
+    sorted.sort((a, b) => (b.averageOtp15 ?? -1) - (a.averageOtp15 ?? -1));
   } else if (sortBy.value === "dist-desc") {
     sorted.sort((a, b) => b.distanceKm - a.distanceKm);
   } else if (sortBy.value === "dist-asc") {
@@ -135,7 +135,7 @@ function getAriaLabel(
   route: FlightRoute,
   dest: ReturnType<typeof getConnectedDestination>,
 ): string {
-  return `Ruta hacia ${dest.city} (${dest.iata}), operada por ${route.primaryAirline}. Distancia ${route.distanceKm.toLocaleString()} kilómetros. Puntualidad ${route.averageOtp15.toFixed(1)}% OTP-15. Presione para aislar y seleccionar como destino.`;
+  return `Ruta hacia ${dest.city} (${dest.iata}), operada por ${route.primaryAirline}. Distancia ${route.distanceKm.toLocaleString()} kilómetros. Puntualidad ${route.averageOtp15 === null ? "sin datos" : `${route.averageOtp15.toFixed(1)}% OTP-15`}. Presione para aislar y seleccionar como destino.`;
 }
 </script>
 
@@ -157,15 +157,15 @@ function getAriaLabel(
           <span
             class="size-2 rounded-full shrink-0"
             :class="
-              averageHubOtp >= 85
+              averageHubOtp === null ? 'bg-neutral-400' : (averageHubOtp ?? -1) > 85
                 ? 'bg-success'
-                : averageHubOtp >= 60
+                : (averageHubOtp ?? -1) >= 60
                   ? 'bg-warning'
                   : 'bg-error'
             "
           />
           <span class="text-xs font-bold font-mono text-text-main tabular-nums">
-            {{ averageHubOtp }}%
+            {{ averageHubOtp === null ? "Sin datos" : `${averageHubOtp}%` }}
           </span>
         </div>
       </UCard>

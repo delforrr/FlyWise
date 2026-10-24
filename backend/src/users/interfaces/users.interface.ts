@@ -1,10 +1,5 @@
-export type UserRole = 'ADMIN' | 'OPERATOR';
+import type { CollectionRowOf } from '@prisma/orm-postgres/orm-client';
+import type { Database } from '../../prisma/db.js';
 
-export interface User {
-  id: string;
-  email: string;
-  passwordHash: string;
-  role: UserRole;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type User = CollectionRowOf<Database['orm']['public']['User']>;
+export type UserRole = User['role'];

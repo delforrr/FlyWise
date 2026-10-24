@@ -18,7 +18,7 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { LoginRequestDto } from './dto/login-request.dto';
+import { LoginRequestDto } from './dto/login-request.dto.js';
 import {
   ApiTags,
   ApiHeader,
@@ -26,13 +26,12 @@ import {
   ApiResponse,
   ApiBody,
   ApiBearerAuth,
-  ApiOAuth2,
 } from '@nestjs/swagger';
-import { LocalAuthGuard, JwtAuthGuard } from './auth.guard';
-import { AuthService } from './auth.service';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { CurrentUser } from '../users/decorators/current-user.decorator';
-import { type UserDto } from '../users/dto/user.dto';
+import { LocalAuthGuard, JwtAuthGuard } from './auth.guard.js';
+import { AuthService } from './auth.service.js';
+import { RegisterUserDto } from './dto/register-user.dto.js';
+import { CurrentUser } from '../users/decorators/current-user.decorator.js';
+import { type UserDto } from '../users/dto/user.dto.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -167,7 +166,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Registra un nuevo usuario en la plataforma',
   })
-  @ApiBody({ type: CreateUserDto })
+  @ApiBody({ type: RegisterUserDto })
   @ApiResponse({
     status: 201,
     description: 'Usuario registrado exitosamente.',
@@ -176,11 +175,10 @@ export class AuthController {
     status: 409,
     description: 'Conflicto: el correo ya se encuentra registrado.',
   })
-  async register(@Body() createUserDto: CreateUserDto) {
+  async register(@Body() createUserDto: RegisterUserDto) {
     return this.authService.register(createUserDto);
   }
 
-  @ApiOAuth2([])
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('/me')

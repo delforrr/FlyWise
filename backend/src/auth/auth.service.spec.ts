@@ -1,14 +1,14 @@
-import { RefreshSessionsService } from './refresh-sessions.service';
+import { RefreshSessionsService } from './refresh-sessions.service.js';
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
+import { AuthService } from './auth.service.js';
+import { UsersService } from '../users/users.service.js';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { RedisService } from '../redis/redis.service';
-import { User } from '../users/interfaces/users.interface';
-import { UserDto } from '../users/dto/user.dto';
-import { CreateUserDto } from '../users/dto/create-user.dto';
+import { RedisService } from '../redis/redis.service.js';
+import { User } from '../users/interfaces/users.interface.js';
+import { UserDto } from '../users/dto/user.dto.js';
+import { CreateUserDto } from '../users/dto/create-user.dto.js';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -22,8 +22,8 @@ describe('AuthService', () => {
     email: 'admin@flywise.com',
     passwordHash: '',
     role: 'ADMIN',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: '2026-10-24 00:00:00' as User['createdAt'],
+    updatedAt: '2026-10-24 00:00:00' as User['updatedAt'],
   };
 
   const mockUserDto: UserDto = {
@@ -107,7 +107,7 @@ describe('AuthService', () => {
         id: mockUser.id,
         email: 'admin@flywise.com',
         role: 'ADMIN',
-        createdAt: mockUser.createdAt,
+        createdAt: new Date('2026-10-24T00:00:00Z'),
       });
       expect(result).not.toHaveProperty('passwordHash');
     });
@@ -139,7 +139,10 @@ describe('AuthService', () => {
       usersService.createUser.mockResolvedValue(mockUserDto);
 
       const result = await service.register(createDto);
-      expect(usersService.createUser).toHaveBeenCalledWith(createDto);
+      expect(usersService.createUser).toHaveBeenCalledWith({
+        ...createDto,
+        role: 'OPERATOR',
+      });
       expect(result).toEqual(mockUserDto);
     });
   });
@@ -207,6 +210,15 @@ describe('AuthService', () => {
   });
 
   describe('logout & isTokenRevoked', () => {
+    it('fails closed if Redis cannot verify or revoke a token', async () => {
+      redisService.get.mockRejectedValueOnce(new Error('Redis unavailable'));
+      await expect(service.isTokenRevoked('sample.token')).rejects.toThrow(
+        'verificar',
+      );
+      redisService.set.mockRejectedValueOnce(new Error('Redis unavailable'));
+      await expect(service.logout('sample.token')).rejects.toThrow('revocar');
+    });
+
     it('should store revoked token in redis with TTL', async () => {
       await service.logout('sample.token');
       expect(redisService.set).toHaveBeenCalledWith(

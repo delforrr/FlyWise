@@ -1,27 +1,25 @@
+import {
+  mockCollection,
+  mockDatabase,
+} from '../../test/helpers/prisma-mock.js';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RoutesService } from './routes.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { RoutesService } from './routes.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { NotFoundException } from '@nestjs/common';
 
 describe('RoutesService', () => {
   let service: RoutesService;
   let prismaService: {
-    route: {
-      findMany: jest.Mock;
-    };
+    models: { Route: ReturnType<typeof mockCollection> };
+    db: ReturnType<typeof mockDatabase>;
   };
 
   const mockRoute = {
     id: 'route-uuid-1',
     airlineCode: 'AR',
-    originIata: 'EZE',
-    destinationIata: 'MIA',
     stops: 0,
-    equipment: '330',
     distanceKm: 7098.5,
-    distanceNm: 3832.9,
     popularityScore: 18.2,
-    isTop100: true,
     origin: {
       iata: 'EZE',
       name: 'Ministro Pistarini',
@@ -45,11 +43,9 @@ describe('RoutesService', () => {
   };
 
   beforeEach(async () => {
-    prismaService = {
-      route: {
-        findMany: jest.fn().mockResolvedValue([mockRoute]),
-      },
-    };
+    prismaService = { models: { Route: mockCollection() }, db: mockDatabase() };
+    prismaService.models.Route.all.mockResolvedValue([mockRoute]);
+    prismaService.db.query.mockResolvedValue([{ id: mockRoute.id, distanceKm: 7098.5 }]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -72,25 +68,33 @@ describe('RoutesService', () => {
     it('should return routes formatted as Deck.gl arcs', async () => {
       const res = await service.explore({ limit: 10 });
 
-      expect(prismaService.route.findMany).toHaveBeenCalled();
+      expect(prismaService.models.Route.all).toHaveBeenCalled();
       expect(res).toHaveLength(1);
       expect(res[0].origin.coordinates).toEqual([-58.5358, -34.8222]);
       expect(res[0].destination.coordinates).toEqual([-80.2906, 25.7959]);
       expect(res[0].distanceKm).toBe(7098.5);
-      expect(res[0].isTop100).toBe(true);
+      expect(res[0].distanceNm).toBeCloseTo(7098.5 / 1.852, 0);
     });
+  });
 
-    it('should query by origin when provided', async () => {
-      await service.explore({ origin: 'EZE' });
+  it('limits routes ordered by connectivity by default', async () => {
+    await service.explore({});
+    expect(prismaService.models.Route.limit).toHaveBeenCalledWith(100);
+  });
 
-      expect(prismaService.route.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            OR: [{ originIata: 'EZE' }, { destinationIata: 'EZE' }],
-          },
-        }),
-      );
-    });
+  it('uses one PostGIS query for distances without persisted cache and derives nautical miles', async () => {
+    prismaService.models.Route.all.mockResolvedValue([
+      { ...mockRoute, distanceKm: null },
+      { ...mockRoute, id: 'second', distanceKm: null },
+    ]);
+    prismaService.db.query.mockResolvedValue([
+      { id: mockRoute.id, distanceKm: 7098.5 },
+      { id: 'second', distanceKm: 1000 },
+    ]);
+    const routes = await service.explore({});
+    expect(prismaService.db.query).toHaveBeenCalledTimes(1);
+    expect(routes.map((route) => route.distanceKm)).toEqual([7098.5, 1000]);
+    expect(routes[1].distanceNm).toBe(540);
   });
 
   describe('findDirect', () => {
@@ -100,7 +104,7 @@ describe('RoutesService', () => {
         destination: 'MIA',
       });
 
-      expect(prismaService.route.findMany).toHaveBeenCalled();
+      expect(prismaService.models.Route.all).toHaveBeenCalled();
       expect(res.origin.iata).toBe('EZE');
       expect(res.destination.iata).toBe('MIA');
       expect(res.operatorsCount).toBe(1);
@@ -108,25 +112,11 @@ describe('RoutesService', () => {
     });
 
     it('should throw NotFoundException when no direct routes exist', async () => {
-      prismaService.route.findMany.mockResolvedValue([]);
+      prismaService.models.Route.all.mockResolvedValue([]);
 
       await expect(
         service.findDirect({ origin: 'EZE', destination: 'HND' }),
       ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('calculateDistance', () => {
-    it('should calculate great circle distance between EZE and MIA with high precision', () => {
-      const dist = service.calculateDistance(
-        -34.8222,
-        -58.5358,
-        25.7959,
-        -80.2906,
-      );
-      // Distance is ~7098 km
-      expect(dist).toBeGreaterThan(7000);
-      expect(dist).toBeLessThan(7200);
     });
   });
 });

@@ -1,42 +1,21 @@
 # Dependencias en cualquier nivel
 node_modules/
-**/node_modules/
 
 # Compilados de NestJS y Nuxt
 dist/
-**/dist/
 coverage/
-**/coverage/
 .nuxt/
-**/.nuxt/
 .output/
-**/.output/
 .nitro/
-**/.nitro/
 
 # Variables de entorno
 .env
 .env.*
-!.env.examplenode_modules
-.env
+!.env.example
 /generated/prisma
 backend/generated/
+backend/src/prisma/generated/
 **/__pycache__/
-
-# Compilados
-dist/
-**/dist/
-.nuxt/
-**/.nuxt/
-.output/
-**/.output/
-.nitro/
-**/.nitro/
-
-# Entorno y Secretos
-.env
-.env.*
-!.env.example
 
 # Logs y SO
 *.log
@@ -44,14 +23,5 @@ dist/
 Thumbs.db
 
 # Datos de Base de Datos / Docker local
-pgdata/
-redisdata/
-
-# Logs y SO
-*.log
-.DS_Store
-Thumbs.db
-
-# Volúmenes locales de Docker
 pgdata/
 redisdata/

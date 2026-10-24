@@ -11,7 +11,6 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   (e: "close"): void;
-  (e: "resolve", recordId: string): void;
   (e: "retry-all"): void;
 }>();
 
@@ -62,7 +61,6 @@ function exportDiscardedCsv() {
     "Field",
     "Reason",
     "RawSample",
-    "Resolved",
     "Timestamp",
   ];
   const rows = props.pipeline.discardedSamples.map((s) => [
@@ -70,7 +68,6 @@ function exportDiscardedCsv() {
     `"${s.field}"`,
     `"${s.reason.replaceAll('"', '""')}"`,
     `"${s.rawSample.replaceAll('"', '""')}"`,
-    s.resolved ? "true" : "false",
     `"${s.timestamp}"`,
   ]);
 
@@ -155,26 +152,7 @@ function exportDiscardedCsv() {
                 </UBadge>
               </div>
 
-              <!-- Estado de resolución -->
-              <UBadge
-                v-if="record.resolved"
-                color="success"
-                variant="subtle"
-                size="sm"
-                icon="i-lucide-check-circle"
-              >
-                Subsanado
-              </UBadge>
-              <UButton
-                v-else
-                variant="link"
-                color="primary"
-                size="xs"
-                class="font-semibold p-0 cursor-pointer font-mono text-[11px]"
-                @click="emit('resolve', record.id)"
-              >
-                Marcar como subsanado
-              </UButton>
+
             </div>
 
             <!-- Explicación amigable -->
@@ -242,7 +220,7 @@ function exportDiscardedCsv() {
             class="text-xs font-bold cursor-pointer text-white shadow-xs"
             @click="emit('retry-all')"
           >
-            Reintentar Ingesta
+            Reintentar ejecución completa
           </UButton>
         </div>
       </div>

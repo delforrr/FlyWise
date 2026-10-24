@@ -5,13 +5,12 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
-  ApiOAuth2,
 } from '@nestjs/swagger';
-import { EtlService } from './etl.service';
-import { JwtAuthGuard } from '../auth/auth.guard';
+import { EtlService } from './etl.service.js';
+import { JwtAuthGuard } from '../auth/auth.guard.js';
+import { TriggerEtlDto } from './dto/trigger-etl.dto.js';
 
 @ApiTags('etl')
-@ApiOAuth2([])
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('etl')
@@ -26,7 +25,7 @@ export class EtlController {
   @ApiParam({
     name: 'dataset',
     description:
-      'Identificador del catálogo a sincronizar: all, airports, airlines, countries',
+      'Identificador del catálogo a sincronizar: all, airports, airlines, countries, routes',
     example: 'all',
   })
   @ApiResponse({
@@ -37,8 +36,8 @@ export class EtlController {
     status: 401,
     description: 'No autorizado - Token de autenticación requerido',
   })
-  async trigger(@Param('dataset') dataset: string) {
-    return this.etlService.triggerJob(dataset);
+  async trigger(@Param() params: TriggerEtlDto) {
+    return this.etlService.triggerJob(params.dataset);
   }
 
   @Get('status')

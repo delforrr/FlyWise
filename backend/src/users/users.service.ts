@@ -1,3 +1,4 @@
+import { timestampToDate } from '../prisma/timestamp.js';
 import {
   ConflictException,
   Injectable,
@@ -5,11 +6,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../prisma/prisma.service';
-import { User } from './interfaces/users.interface';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UserDto } from './dto/user.dto';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { User } from './interfaces/users.interface.js';
+import { UpdateUserDto } from './dto/update-user.dto.js';
+import { CreateUserDto } from './dto/create-user.dto.js';
+import { UserDto } from './dto/user.dto.js';
 
 @Injectable()
 export class UsersService {
@@ -17,140 +18,99 @@ export class UsersService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  // CRUD
+  private get users() {
+    return this.prisma.models.User.select('id', 'email', 'role', 'createdAt');
+  }
+
   public async getUsers(): Promise<UserDto[]> {
-    const users = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-    this.logger.log(`Se obtuvieron ${users.length} usuarios`);
-    return users.map((usr) => this.mapToDto(usr));
+    const users = await this.users
+      .orderBy((user) => user.createdAt.desc())
+      .all();
+    return users.map((user) => this.toDto(user));
   }
 
   public async getUserById(id: string): Promise<UserDto> {
-    const foundUser = await this.prisma.user.findUnique({
-      where: { id },
-    });
-    if (!foundUser) {
-      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    try {
+      return this.toDto(await this.users.firstOrThrow({ id }));
+    } catch (error) {
+      this.rethrowPersistenceError(error);
     }
-    this.logger.log(`Se obtuvo el usuario con id ${id}`);
-    return this.mapToDto(foundUser);
   }
 
   public async getUserByEmail(email: string): Promise<UserDto> {
-    const foundUser = await this.findByEmail(email);
-    if (!foundUser) {
-      throw new NotFoundException(`El correo ${email} no existe`);
+    try {
+      return this.toDto(
+        await this.users.firstOrThrow({ email: email.trim().toLowerCase() }),
+      );
+    } catch (error) {
+      this.rethrowPersistenceError(error);
     }
-    this.logger.log(`Se obtuvo el usuario con mail ${email}`);
-    return this.mapToDto(foundUser);
   }
 
   public async createUser(userDto: CreateUserDto): Promise<UserDto> {
     const normalizedEmail = userDto.email.trim().toLowerCase();
-    const existing = await this.prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
-    if (existing) {
-      throw new ConflictException('El usuario ya existe');
-    }
-
     const passwordHash = await bcrypt.hash(userDto.password, 10);
-    const created = await this.prisma.user.create({
-      data: {
+    try {
+      const created = await this.users.create({
         email: normalizedEmail,
         passwordHash,
         role: userDto.role ?? 'OPERATOR',
-      },
-    });
-
-    this.logger.log(`Se creo el usuario con id ${created.id}`);
-    return this.mapToDto(created);
+      });
+      this.logger.log(`Se creó el usuario con id ${created.id}`);
+      return this.toDto(created);
+    } catch (error) {
+      this.rethrowPersistenceError(error);
+    }
   }
 
   public async updateUser(
     id: string,
     updateData: UpdateUserDto,
   ): Promise<UserDto> {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    const data: Partial<Pick<User, 'email' | 'passwordHash' | 'role'>> = {};
+    if (updateData.email) data.email = updateData.email.trim().toLowerCase();
+    if (updateData.password)
+      data.passwordHash = await bcrypt.hash(updateData.password, 10);
+    if (updateData.role) data.role = updateData.role;
+    try {
+      const updated = await this.users.where({ id }).update(data);
+      if (!updated) throw new NotFoundException('El usuario no existe');
+      this.logger.log(`Usuario con id ${id} actualizado`);
+      return this.toDto(updated);
+    } catch (error) {
+      this.rethrowPersistenceError(error);
     }
-
-    const dataToUpdate: {
-      email?: string;
-      passwordHash?: string;
-      role?: 'ADMIN' | 'OPERATOR';
-    } = {};
-
-    if (updateData.email) {
-      const normalizedEmail = updateData.email.trim().toLowerCase();
-      if (normalizedEmail !== user.email) {
-        const emailTaken = await this.prisma.user.findUnique({
-          where: { email: normalizedEmail },
-        });
-        if (emailTaken) {
-          throw new ConflictException(
-            'El correo ya está en uso por otra cuenta',
-          );
-        }
-        dataToUpdate.email = normalizedEmail;
-      }
-    }
-
-    if (updateData.password) {
-      dataToUpdate.passwordHash = await bcrypt.hash(updateData.password, 10);
-    }
-
-    if (updateData.role) {
-      dataToUpdate.role = updateData.role;
-    }
-
-    const updated = await this.prisma.user.update({
-      where: { id },
-      data: dataToUpdate,
-    });
-
-    this.logger.log(`Usuario con id ${id} actualizado`);
-    return this.mapToDto(updated);
   }
 
   public async deleteUser(id: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      throw new NotFoundException('El usuario que se quiere borrar no existe');
+    try {
+      const deleted = await this.prisma.models.User.where({ id }).delete();
+      if (!deleted) throw new NotFoundException('El usuario no existe');
+      this.logger.log(`Se eliminó el usuario con id ${id}`);
+    } catch (error) {
+      this.rethrowPersistenceError(error);
     }
-
-    await this.prisma.user.delete({ where: { id } });
-    this.logger.log(`Se elimino el usuario con id ${id}`);
   }
 
-  public async findByEmail(email: string): Promise<User | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
-    });
-    if (!user) return null;
-    return {
-      id: user.id,
-      email: user.email,
-      passwordHash: user.passwordHash,
-      role: user.role,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
+  public findByEmail(email: string): Promise<User | null> {
+    return this.prisma.models.User.first({ email: email.trim().toLowerCase() });
   }
 
-  private mapToDto(user: {
-    id: string;
-    email: string;
-    role: string;
-    createdAt?: Date;
-  }): UserDto {
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role as 'ADMIN' | 'OPERATOR',
-      createdAt: user.createdAt,
-    };
+  private toDto(
+    user: Pick<User, 'id' | 'email' | 'role' | 'createdAt'>,
+  ): UserDto {
+    return { ...user, createdAt: timestampToDate(user.createdAt) };
+  }
+
+  private rethrowPersistenceError(error: unknown): never {
+    if (error instanceof Error) {
+      if ('sqlState' in error && error.sqlState === '23505') {
+        throw new ConflictException('El correo ya está en uso');
+      }
+      if ('code' in error && error.code === 'RUNTIME.NO_ROWS') {
+        throw new NotFoundException('El usuario no existe');
+      }
+    }
+    throw error;
   }
 }

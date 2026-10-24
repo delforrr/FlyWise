@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { SEED_AIRPORTS } from "~/data/seedData";
+import { useCatalog } from "~/shared/composables/useCatalog";
+const { airports, loadAirports, loading, error } = useCatalog();
+onMounted(() => { void loadAirports(); });
 
 export interface AirportOption {
   id: string;
@@ -76,7 +78,7 @@ const modelValue = defineModel<string | undefined>({
 });
 
 const airportItems = computed<AirportOption[]>(() => {
-  return SEED_AIRPORTS.map((a) => {
+  return airports.value.map((a) => {
     let label = `${a.iata} — ${a.city}`;
     if (props.mode === "hero") {
       label = `${a.name} [${a.iata}]`;
@@ -92,7 +94,7 @@ const airportItems = computed<AirportOption[]>(() => {
       country: a.country,
       label,
       description: `${a.country}, ${a.city}`,
-      value: a.iata,
+      value: a.id,
     };
   });
 });
@@ -197,6 +199,7 @@ const resolvedUi = computed(() => {
 
 <template>
   <UInputMenu
+    :loading="loading"
     v-model="modelValue"
     :items="airportItems"
     value-key="value"

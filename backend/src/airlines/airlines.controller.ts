@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { AirlinesService } from './airlines.service';
-import { QueryAirlinesDto } from './dto/query-airlines.dto';
+import { AirlinesService } from './airlines.service.js';
+import { QueryAirlinesDto } from './dto/query-airlines.dto.js';
 
 @ApiTags('airlines')
 @Controller('airlines')

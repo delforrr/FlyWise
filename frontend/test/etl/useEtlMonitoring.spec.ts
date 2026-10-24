@@ -1,139 +1,47 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useEtlMonitoring } from '../../app/features/etl-monitoring/composables/useEtlMonitoring';
 
-describe('useEtlMonitoring — Composable de Telemetría y Monitoreo ETL BullMQ', () => {
-  beforeEach(() => {
-    (globalThis as any).__clearStateStore?.();
+const fetcher = vi.fn();
+const pipeline = { id: 'p1', name: 'Routes', datasetName: 'OpenFlights', description: '', targetEntity: 'routes', paused: false, scheduleConfig: { cronExpression: '', batchSize: 2000, maxRetries: 2, timeoutSeconds: 300 } };
+const job = { id: 'j1', pipelineId: 'p1', source: 'routes', status: 'completed', totalRows: 10, processedRows: 8, insertedRows: 2, discardedRows: 2, startedAt: '2026-10-24T00:00:00Z', finishedAt: '2026-10-24T00:00:02Z', durationMs: 2000, errorMessage: null };
+beforeEach(() => {
+  fetcher.mockReset();
+  fetcher.mockImplementation(async (url: string) => url === '/api/etl/pipelines' ? [pipeline] : url === '/api/etl/history' ? [job] : []);
+  vi.stubGlobal('$fetch', fetcher);
+});
+describe('Real ETL monitoring', () => {
+  it('derives metrics from persisted executions and does not generate progress', async () => {
+    const monitor = useEtlMonitoring();
+    expect(monitor.pipelines.value).toEqual([]);
+    await monitor.refresh();
+    expect(monitor.globalMetrics.value).toMatchObject({ totalAeroRecords: 8, totalDiscardedCount: 2, successRatePercent: 80, activeJobsCount: 0 });
+    expect(monitor.pipelines.value[0]).toMatchObject({ progressPercent: 100, averageSpeedRowsPerSec: 4, latestJobId: 'j1' });
   });
-
-  describe('KPIs y Métricas Globales (globalMetrics)', () => {
-    it('calcula métricas consolidadas de registros procesados, descartados y tasa de éxito', () => {
-      const etl = useEtlMonitoring();
-      const metrics = etl.globalMetrics.value;
-
-      expect(metrics.totalAeroRecords).toBeGreaterThan(0);
-      expect(metrics.totalDiscardedCount).toBeGreaterThanOrEqual(0);
-      expect(metrics.successRatePercent).toBeGreaterThanOrEqual(0);
-      expect(metrics.successRatePercent).toBeLessThanOrEqual(100);
-      expect(['optimal', 'syncing', 'attention_needed']).toContain(metrics.systemHealth);
-    });
-
-    it('transiciona el estado de salud a "syncing" cuando hay jobs activos en ejecución', () => {
-      const etl = useEtlMonitoring();
-      etl.pipelines.value.forEach((p) => (p.status = 'idle'));
-      expect(etl.globalMetrics.value.systemHealth).toBe('optimal');
-
-      // Activamos un pipeline a 'running'
-      etl.pipelines.value[0].status = 'running';
-      expect(etl.globalMetrics.value.activeJobsCount).toBe(1);
-      expect(etl.globalMetrics.value.systemHealth).toBe('syncing');
-    });
-
-    it('transiciona el estado de salud a "attention_needed" cuando algún pipeline presenta error', () => {
-      const etl = useEtlMonitoring();
-      etl.pipelines.value[0].status = 'error';
-
-      expect(etl.globalMetrics.value.systemHealth).toBe('attention_needed');
-    });
-
-    it('garantiza 100% de tasa de éxito cuando no hay registros procesados ni descartados', () => {
-      const etl = useEtlMonitoring();
-      etl.pipelines.value.forEach((p) => {
-        p.processedRows = 0;
-        p.discardedRows = 0;
-      });
-
-      expect(etl.globalMetrics.value.successRatePercent).toBe(100);
-    });
+  it('reports unknown totals while running and preserves paused scheduling', async () => {
+    fetcher.mockImplementation(async (url: string) => url === '/api/etl/pipelines' ? [{ ...pipeline, paused: true }] : url === '/api/etl/history' ? [{ ...job, status: 'running', finishedAt: null, durationMs: null }] : []);
+    const monitor = useEtlMonitoring(); await monitor.refresh();
+    expect(monitor.pipelines.value[0]).toMatchObject({ status: 'running', progressPercent: 0 });
+    expect(monitor.globalMetrics.value.systemHealth).toBe('syncing');
   });
-
-  describe('Control Operativo de Pipelines (trigger, pause, resume, retry)', () => {
-    it('triggerSync() inicia la ingesta del pipeline, resetea progreso y registra evento en log', () => {
-      const etl = useEtlMonitoring();
-      const targetPipeline = etl.pipelines.value[0];
-      const initialLogCount = etl.logs.value.length;
-
-      etl.triggerSync({
-        pipelineId: targetPipeline.id,
-        mode: 'full',
-        batchSize: 5000,
-        dryRun: false,
-      });
-
-      expect(targetPipeline.status).toBe('running');
-      expect(targetPipeline.progressPercent).toBe(0);
-      expect(targetPipeline.processedRows).toBe(0);
-      expect(targetPipeline.currentStepMessage).toContain('Iniciando ingesta');
-      expect(etl.logs.value.length).toBe(initialLogCount + 1);
-    });
-
-    it('pausePipeline() conmuta el estado a paused y advierte retención de lotes', () => {
-      const etl = useEtlMonitoring();
-      const targetPipeline = etl.pipelines.value[0];
-      targetPipeline.status = 'running';
-
-      etl.pausePipeline(targetPipeline.id);
-
-      expect(targetPipeline.status).toBe('paused');
-      expect(targetPipeline.currentStepMessage).toContain('Pausado por el operador');
-    });
-
-    it('resumePipeline() reactiva la ejecución de un pipeline pausado', () => {
-      const etl = useEtlMonitoring();
-      const targetPipeline = etl.pipelines.value[0];
-      targetPipeline.status = 'paused';
-
-      etl.resumePipeline(targetPipeline.id);
-
-      expect(targetPipeline.status).toBe('running');
-      expect(targetPipeline.currentStepMessage).toContain('Reanudando ingesta');
-    });
-
-    it('retryFailed() reinicia el procesamiento de un pipeline con fallos', () => {
-      const etl = useEtlMonitoring();
-      const targetPipeline = etl.pipelines.value[0];
-      targetPipeline.status = 'error';
-
-      etl.retryFailed(targetPipeline.id);
-
-      expect(targetPipeline.status).toBe('running');
-      expect(targetPipeline.currentStepMessage).toContain('Reintentando lotes');
-    });
-
-    it('syncAll() y pauseAll() coordinan la ejecución masiva de todos los servicios', () => {
-      const etl = useEtlMonitoring();
-
-      etl.syncAll();
-      expect(etl.pipelines.value.every((p) => p.status === 'running')).toBe(true);
-
-      etl.pauseAll();
-      expect(etl.pipelines.value.every((p) => p.status === 'paused')).toBe(true);
-    });
+  it('triggers full jobs, pauses future runs and retries a whole execution', async () => {
+    const monitor = useEtlMonitoring(); await monitor.refresh();
+    await monitor.triggerSync('p1'); await monitor.pausePipeline('p1'); await monitor.resumePipeline('p1'); await monitor.retryFailed('p1');
+    expect(fetcher).toHaveBeenCalledWith('/api/etl/pipelines/p1/run', expect.objectContaining({ method: 'POST' }));
+    expect(fetcher).toHaveBeenCalledWith('/api/etl/pipelines/p1', expect.objectContaining({ method: 'PATCH', body: { paused: true } }));
+    expect(fetcher).toHaveBeenCalledWith('/api/etl/pipelines/p1', expect.objectContaining({ method: 'PATCH', body: { paused: false } }));
+    expect(fetcher).toHaveBeenCalledWith('/api/etl/jobs/j1/retry', expect.objectContaining({ method: 'POST' }));
   });
-
-  describe('Auditoría y Gestión de Logs y Muestras Descartadas', () => {
-    it('clearLogs() vacía el feed de eventos', () => {
-      const etl = useEtlMonitoring();
-      expect(etl.logs.value.length).toBeGreaterThan(0);
-
-      etl.clearLogs();
-      expect(etl.logs.value).toHaveLength(0);
-    });
-
-    it('resolveDiscardedSample() marca muestra como resuelta y descuenta contador de descartes', () => {
-      const etl = useEtlMonitoring();
-      const pipeline = etl.pipelines.value.find((p) => p.discardedSamples && p.discardedSamples.length > 0);
-
-      expect(pipeline).toBeDefined();
-      expect(pipeline!.discardedSamples.length).toBeGreaterThan(0);
-
-      const sample = pipeline!.discardedSamples[0];
-      const initialDiscarded = pipeline!.discardedRows;
-
-      etl.resolveDiscardedSample(pipeline!.id, sample.id);
-
-      expect(sample.resolved).toBe(true);
-      expect(pipeline!.discardedRows).toBe(initialDiscarded - 1);
-    });
+  it('loads persisted samples without changing immutable discard totals', async () => {
+    const monitor = useEtlMonitoring(); await monitor.refresh();
+    fetcher.mockResolvedValueOnce([{ id: 's1', rowIndex: 2, field: null, reason: 'unresolved', rawSample: '{}', createdAt: '2026-10-24T00:00:00Z' }]);
+    await monitor.loadSamples(monitor.pipelines.value[0]!);
+    expect(monitor.pipelines.value[0]?.discardedSamples[0]?.field).toBe('registro');
+    expect(monitor.pipelines.value[0]?.discardedRows).toBe(2);
+  });
+  it('surfaces network errors and recovers without inventing successful state', async () => {
+    const monitor = useEtlMonitoring(); fetcher.mockRejectedValueOnce(new Error('offline')); await monitor.refresh();
+    expect(monitor.error.value).toBe('offline'); expect(monitor.globalMetrics.value.systemHealth).toBe('attention_needed');
+    await monitor.refresh(); expect(monitor.error.value).toBeNull();
+    monitor.setRefreshInterval(0); expect(monitor.refreshInterval.value).toBe(0);
   });
 });

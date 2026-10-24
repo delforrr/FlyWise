@@ -1,19 +1,19 @@
+import { mockDatabase } from '../../test/helpers/prisma-mock.js';
 import { Test, TestingModule } from '@nestjs/testing';
-import { HealthController } from './health.controller';
-import { PrismaService } from '../prisma/prisma.service';
-import { RedisService } from '../redis/redis.service';
+import { HealthController } from './health.controller.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { RedisService } from '../redis/redis.service.js';
 import { HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 
 describe('HealthController', () => {
   let controller: HealthController;
-  let prismaService: { $queryRaw: jest.Mock };
+  let prismaService: { db: ReturnType<typeof mockDatabase> };
   let redisService: { ping: jest.Mock };
 
   beforeEach(async () => {
-    prismaService = {
-      $queryRaw: jest.fn().mockResolvedValue([{ 1: 1 }]),
-    };
+    prismaService = { db: mockDatabase() };
+    prismaService.db.query.mockResolvedValue([{ ok: 1 }]);
     redisService = {
       ping: jest.fn().mockResolvedValue('PONG'),
     };
@@ -46,7 +46,7 @@ describe('HealthController', () => {
   });
 
   it('should return 503 SERVICE_UNAVAILABLE when DB fails', async () => {
-    prismaService.$queryRaw.mockRejectedValue(new Error('Connection lost'));
+    prismaService.db.query.mockRejectedValue(new Error('Connection lost'));
 
     const mockJson = jest.fn();
     const mockStatus = jest.fn().mockReturnValue({ json: mockJson });

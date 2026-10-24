@@ -1,37 +1,40 @@
+import {
+  mockCollection,
+  mockDatabase,
+} from '../../test/helpers/prisma-mock.js';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CountriesService } from './countries.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { CountriesService } from './countries.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { NotFoundException } from '@nestjs/common';
 
 describe('CountriesService', () => {
   let service: CountriesService;
   let prismaService: {
-    country: {
-      findMany: jest.Mock;
-      findFirst: jest.Mock;
+    models: {
+      Airline: ReturnType<typeof mockCollection>;
+      Airport: ReturnType<typeof mockCollection>;
+      Country: ReturnType<typeof mockCollection>;
     };
-    airport: {
-      findMany: jest.Mock;
-    };
+    db: ReturnType<typeof mockDatabase>;
   };
 
   const mockCountry = {
     id: 'country-uuid-1',
     name: 'Argentina',
     isoCode: 'AR',
-    dafifCode: 'AR',
   };
 
   beforeEach(async () => {
     prismaService = {
-      country: {
-        findMany: jest.fn().mockResolvedValue([mockCountry]),
-        findFirst: jest.fn(),
+      models: {
+        Airline: mockCollection(),
+        Airport: mockCollection(),
+        Country: mockCollection(),
       },
-      airport: {
-        findMany: jest.fn().mockResolvedValue([]),
-      },
+      db: mockDatabase(),
     };
+    prismaService.models.Country.all.mockResolvedValue([mockCountry]);
+    prismaService.models.Airport.all.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -53,21 +56,21 @@ describe('CountriesService', () => {
   describe('findAll', () => {
     it('should return all countries', async () => {
       const res = await service.findAll();
-      expect(prismaService.country.findMany).toHaveBeenCalled();
+      expect(prismaService.models.Country.all).toHaveBeenCalled();
       expect(res).toEqual([mockCountry]);
     });
   });
 
   describe('findByName', () => {
     it('should return country by name', async () => {
-      prismaService.country.findFirst.mockResolvedValue(mockCountry);
+      prismaService.models.Country.first.mockResolvedValue(mockCountry);
       const res = await service.findByName('Argentina');
-      expect(prismaService.country.findFirst).toHaveBeenCalled();
+      expect(prismaService.models.Country.first).toHaveBeenCalled();
       expect(res).toEqual({ ...mockCountry, airports: [] });
     });
 
     it('should throw NotFoundException if country not found', async () => {
-      prismaService.country.findFirst.mockResolvedValue(null);
+      prismaService.models.Country.first.mockResolvedValue(null);
       await expect(service.findByName('Atlantis')).rejects.toThrow(
         NotFoundException,
       );

@@ -3,7 +3,7 @@ import * as maplibregl from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import type { Airport } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
-import { SEED_AIRPORTS } from "~/data/seedData";
+import { useCatalog } from "~/shared/composables/useCatalog";
 import { MAP_STYLES } from "../utils/mapUtils";
 import { buildFlightMapLayers } from "../utils/mapLayers";
 
@@ -38,6 +38,7 @@ function getAdaptivePadding(): {
 }
 
 export const useFlightMap = () => {
+  const { airports } = useCatalog();
   const {
     setHoveredEntity,
     clearHoveredEntity,
@@ -61,6 +62,7 @@ export const useFlightMap = () => {
       selectedOrigin: selectedOrigin.value,
       selectedDestination: selectedDestination.value,
       matchingRoutes: matchingRoutes.value,
+      airports: airports.value,
     });
   }
 
@@ -80,11 +82,11 @@ export const useFlightMap = () => {
    */
   function fitHub(airportIata: string): void {
     if (!mapInstance.value) return;
-    const airport = SEED_AIRPORTS.find((a) => a.iata === airportIata);
+    const airport = airports.value.find((a) => a.id === airportIata);
     if (!airport) return;
 
     const connectedRoutes = matchingRoutes.value.filter(
-      (r) => r.originIata === airportIata || r.destinationIata === airportIata,
+      (r) => r.originId === airportIata || r.destinationId === airportIata,
     );
 
     if (connectedRoutes.length === 0) {
@@ -179,17 +181,17 @@ export const useFlightMap = () => {
           if (info?.object) {
             if ("originIata" in (info.object as object)) {
               const route = info.object as FlightRoute;
-              setRoute(route.originIata, route.destinationIata);
+              setRoute(route.originId, route.destinationId);
             } else if ("iata" in (info.object as object)) {
               const airport = info.object as Airport;
               if (!selectedOrigin.value) {
-                setOrigin(airport.iata);
-              } else if (selectedOrigin.value === airport.iata) {
+                setOrigin(airport.id);
+              } else if (selectedOrigin.value === airport.id) {
                 setOrigin();
               } else if (!selectedDestination.value) {
-                setDestination(airport.iata);
+                setDestination(airport.id);
               } else {
-                setOrigin(airport.iata);
+                setOrigin(airport.id);
               }
             }
           }

@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
-  getVisibleAirports,
+  getVisibleAirports as getVisibleFromCatalog,
   buildFlightMapLayers,
   type BuildLayersOptions,
 } from "../../app/features/flight-map/utils/mapLayers";
-import { SEED_AIRPORTS, SEED_ROUTES } from "../../app/data/seedData";
+import { SEED_AIRPORTS as AIRPORT_FIXTURES, SEED_ROUTES } from "../../app/data/seedData";
 import type { FlightRoute } from "../../app/types/route";
+
+const SEED_AIRPORTS = AIRPORT_FIXTURES.map(a => ({ ...a, id: a.iata }));
+const getVisibleAirports = (hasSelection: boolean, origin?: string | null, destination?: string | null, routes: FlightRoute[] = []) => getVisibleFromCatalog(hasSelection, origin, destination, routes, SEED_AIRPORTS);
 
 describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", () => {
   describe("getVisibleAirports() — Filtrado reactivo de nodos aeroportuarios", () => {
@@ -57,7 +60,9 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
           flightNumber: "AR1300",
           airline: "Aerolineas Argentinas",
           airlineIata: "AR",
-          originIata: "EZE",
+          originId: "EZE",
+          destinationId: "MIA",
+        originIata: "EZE",
           originCity: "Buenos Aires",
           originCoordinates: [-58.5358, -34.8222],
           destinationIata: "MIA",
@@ -73,7 +78,9 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
           flightNumber: "AA900",
           airline: "American Airlines",
           airlineIata: "AA",
-          originIata: "EZE",
+          originId: "EZE",
+          destinationId: "MIA",
+        originIata: "EZE",
           originCity: "Buenos Aires",
           originCoordinates: [-58.5358, -34.8222],
           destinationIata: "MIA",
@@ -103,11 +110,12 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
   });
 
   describe("buildFlightMapLayers() — Construcción de Capas Deck.gl WebGL", () => {
-    it("INVARIANTE RNF-02: Sin selección activa (hasSelection = false) visibleRoutes es vacío y la capa de arcos no tiene datos", () => {
+    it("INVARIANTE RNF-02: Sin selección activa muestra las rutas recibidas del backend", () => {
       const options: BuildLayersOptions = {
         isLight: false,
         selectedOrigin: null,
         selectedDestination: null,
+        airports: SEED_AIRPORTS,
         matchingRoutes: SEED_ROUTES,
       };
 
@@ -117,7 +125,7 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
       const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
       expect(arcLayer).toBeDefined();
       // Verificamos que la capa de arcos no tenga datos a renderizar
-      expect(arcLayer?.props.data).toEqual([]);
+      expect(arcLayer?.props.data).toEqual(SEED_ROUTES);
     });
 
     it("con selección activa genera datos en la capa ArcLayer con greatCircle = true", () => {
@@ -126,6 +134,7 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: null,
+        airports: SEED_AIRPORTS,
         matchingRoutes: routes,
       };
 
@@ -143,6 +152,7 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
+        airports: SEED_AIRPORTS,
         matchingRoutes: SEED_ROUTES.filter((r) => r.originIata === "EZE" && r.destinationIata === "MIA"),
       };
 
@@ -167,6 +177,7 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: true,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
+        airports: SEED_AIRPORTS,
         matchingRoutes: SEED_ROUTES.slice(0, 2),
       };
 
@@ -180,6 +191,7 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
+        airports: SEED_AIRPORTS,
         matchingRoutes: SEED_ROUTES.slice(0, 2),
       };
 
@@ -194,6 +206,8 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         flightNumber: "TEST1",
         airline: "Test Air",
         airlineIata: "TA",
+        originId: "EZE",
+        destinationId: "MIA",
         originIata: "EZE",
         originCity: "Buenos Aires",
         originCoordinates: [-58.5358, -34.8222],
@@ -210,6 +224,7 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
+        airports: SEED_AIRPORTS,
         matchingRoutes: [directRoute],
       };
 
@@ -254,6 +269,7 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "AKL",
         selectedDestination: "RAR",
+        airports: SEED_AIRPORTS,
         matchingRoutes: [antimeridianRoute],
       };
 
@@ -275,6 +291,8 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         flightNumber: "AR1300",
         airline: "Aerolineas Argentinas",
         airlineIata: "AR",
+        originId: "EZE",
+        destinationId: "MIA",
         originIata: "EZE",
         originCity: "Buenos Aires",
         originCoordinates: [-58.53, -34.82],
@@ -292,6 +310,8 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         flightNumber: "LA500",
         airline: "LATAM",
         airlineIata: "LA",
+        originId: "EZE",
+        destinationId: "SCL",
         originIata: "EZE",
         originCity: "Buenos Aires",
         originCoordinates: [-58.53, -34.82],
@@ -308,6 +328,7 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
+        airports: SEED_AIRPORTS,
         matchingRoutes: [directRoute, connectingRoute],
       };
 

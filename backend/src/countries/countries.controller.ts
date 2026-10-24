@@ -1,6 +1,6 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { CountriesService } from './countries.service';
+import { CountriesService } from './countries.service.js';
 
 @ApiTags('countries')
 @Controller('countries')
@@ -9,8 +9,7 @@ export class CountriesController {
 
   @Get()
   @ApiOperation({
-    summary:
-      'Obtiene el catálogo de países registrados en el sistema aeronáutico',
+    summary: 'Obtiene el catálogo de países registrados en el sistema',
   })
   @ApiResponse({ status: 200, description: 'Lista de países' })
   async findAll() {

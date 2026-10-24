@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
-  IsAlphanumeric,
+  IsByteLength,
+  IsString,
   IsEmail,
   IsIn,
   IsNotEmpty,
@@ -23,14 +24,12 @@ export class CreateUserDto {
 
   @ApiProperty({
     example: 'password123',
-    description: 'Contraseña (mínimo 8 caracteres alfanuméricos)',
+    description: 'Contraseña (mínimo 8 caracteres, máximo 72 bytes UTF-8)',
   })
-  @MinLength(8, { message: 'La contraseña debe ser mayor a 8 caracteres' })
+  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
   @IsNotEmpty({ message: 'La contraseña no debe estar vacia' })
-  @IsAlphanumeric()
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @IsString()
+  @IsByteLength(0, 72, { message: 'La contraseña no debe superar 72 bytes' })
   password!: string;
 
   @ApiPropertyOptional({

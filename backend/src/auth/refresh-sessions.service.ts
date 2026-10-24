@@ -1,4 +1,4 @@
-import type Redis from 'ioredis';
+import type { Redis } from 'ioredis';
 import {
   Injectable,
   UnauthorizedException,
@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomUUID } from 'node:crypto';
-import { RedisService } from '../redis/redis.service';
+import { RedisService } from '../redis/redis.service.js';
 
 interface RefreshPayload {
   sub: string;

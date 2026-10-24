@@ -1,4 +1,4 @@
-import { PerformanceInterceptor } from './performance.interceptor';
+import { PerformanceInterceptor } from './performance.interceptor.js';
 import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { of } from 'rxjs';
 
@@ -7,6 +7,27 @@ describe('PerformanceInterceptor', () => {
 
   beforeEach(() => {
     interceptor = new PerformanceInterceptor();
+  });
+
+  it('does not set headers after a controller has sent the response', (done) => {
+    const setHeader = jest.fn(() => {
+      throw new Error('Headers already sent');
+    });
+    const context = {
+      switchToHttp: () => ({
+        getResponse: () => ({ headersSent: true, setHeader }),
+        getRequest: () => ({ method: 'GET', url: '/api/health' }),
+      }),
+    } as unknown as ExecutionContext;
+    interceptor
+      .intercept(context, { handle: () => of({ status: 'ok' }) })
+      .subscribe({
+        error: done,
+        complete: () => {
+          expect(setHeader).not.toHaveBeenCalled();
+          done();
+        },
+      });
   });
 
   it('should intercept request and set X-Response-Time header', (done) => {

@@ -20,8 +20,9 @@ export const DEFAULT_MAP_CAMERA = {
  * - >= 60%: Ámbar / Amarillo (Puntualidad media)
  * - < 60%: Rojo Carmesí (Puntualidad crítica / altas demoras)
  */
-export function getOtpColor(otp15: number, alpha: number = 210): RGBAColor {
-  if (otp15 >= 85) return [16, 185, 129, alpha]; // 🟢 OTP-Good (Emerald)
+export function getOtpColor(otp15: number | null, alpha: number = 210): RGBAColor {
+  if (otp15 === null || !Number.isFinite(otp15)) return [148, 163, 184, alpha];
+  if (otp15 > 85) return [16, 185, 129, alpha]; // 🟢 OTP-Good (Emerald)
   if (otp15 >= 60) return [245, 158, 11, alpha]; // 🟡 OTP-Warning (Amber)
   return [239, 68, 68, alpha]; // 🔴 OTP-Critical (Crimson)
 }

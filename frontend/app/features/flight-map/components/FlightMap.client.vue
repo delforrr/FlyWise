@@ -23,6 +23,9 @@ const {
   mapFitTrigger,
 } = useFlightSelection();
 
+const { airports, routes } = useCatalog();
+watch([airports, routes], () => { updateLayers(); });
+
 const colorMode = useColorMode();
 
 let resizeObserver: ResizeObserver | null = null;

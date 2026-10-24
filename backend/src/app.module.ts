@@ -1,18 +1,18 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { validate } from './config/env.validation';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { PrismaModule } from './prisma/prisma.module';
-import { RedisModule } from './redis/redis.module';
-import { HealthModule } from './health/health.module';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { AirportsModule } from './airports/airports.module';
-import { CountriesModule } from './countries/countries.module';
-import { AirlinesModule } from './airlines/airlines.module';
-import { RoutesModule } from './routes/routes.module';
-import { EtlModule } from './etl/etl.module';
+import { validate } from './config/env.validation.js';
+import { AppController } from './app.controller.js';
+import { AppService } from './app.service.js';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { RedisModule } from './redis/redis.module.js';
+import { HealthModule } from './health/health.module.js';
+import { AuthModule } from './auth/auth.module.js';
+import { UsersModule } from './users/users.module.js';
+import { AirportsModule } from './airports/airports.module.js';
+import { CountriesModule } from './countries/countries.module.js';
+import { AirlinesModule } from './airlines/airlines.module.js';
+import { RoutesModule } from './routes/routes.module.js';
+import { EtlModule } from './etl/etl.module.js';
 
 @Module({
   imports: [

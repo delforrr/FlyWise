@@ -1,3 +1,4 @@
+import { SEED_AIRPORTS } from "../../app/data/seedData";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock de maplibre-gl y @deck.gl/mapbox
@@ -85,6 +86,7 @@ import { useFlightMap } from "../../app/features/flight-map/composables/useFligh
 describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáuticas", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useState("catalog_airports", () => []).value = SEED_AIRPORTS.map(a => ({ ...a, id: a.iata }));
   });
 
   describe("Operaciones de cámara sin mapa inicializado (Resiliencia SSR)", () => {
@@ -228,7 +230,7 @@ describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáutica
 
       // Hub con rutas conectadas en matchingRoutes (mock)
       mockFlightSelection.matchingRoutes.value = [
-        { originIata: "EZE", destinationIata: "MIA", originCoordinates: [-58, -34], destinationCoordinates: [-80, 25] },
+        { originId: "EZE", destinationId: "MIA", originIata: "EZE", destinationIata: "MIA", originCoordinates: [-58, -34], destinationCoordinates: [-80, 25] },
       ] as any;
       flightMap.fitHub("EZE");
       expect(mockFitBounds).toHaveBeenCalled();

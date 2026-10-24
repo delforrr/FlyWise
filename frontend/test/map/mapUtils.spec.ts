@@ -11,7 +11,7 @@ describe("mapUtils — Utilidades de Mapa y Métrica OTP-15", () => {
       // Valor en el límite superior
       expect(getOtpColor(100)).toEqual([16, 185, 129, 210]);
       // Valor en el umbral exacto
-      expect(getOtpColor(85)).toEqual([16, 185, 129, 210]);
+      expect(getOtpColor(85)).toEqual([245, 158, 11, 210]);
       // Valor típico
       expect(getOtpColor(92.4)).toEqual([16, 185, 129, 210]);
     });

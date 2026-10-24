@@ -1,7 +1,9 @@
+import { or } from '@prisma/orm-postgres/orm-client';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { SearchAirportsDto } from './dto/search-airports.dto';
-import { NearbyAirportsDto } from './dto/nearby-airports.dto';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { CatalogAirportsDto } from './dto/catalog-airports.dto.js';
+import { SearchAirportsDto } from './dto/search-airports.dto.js';
+import { NearbyAirportsDto } from './dto/nearby-airports.dto.js';
 
 export interface NearbyAirportResult {
   id: string;
@@ -12,7 +14,6 @@ export interface NearbyAirportResult {
   icao: string | null;
   latitude: number;
   longitude: number;
-  altitudeFt: number | null;
   routeCount: number;
   distanceKm: number;
 }
@@ -21,22 +22,35 @@ export interface NearbyAirportResult {
 export class AirportsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  catalog(dto: CatalogAirportsDto) {
+    return this.prisma.models.Airport.orderBy([
+      (a) => a.routeCount.desc(),
+      (a) => a.id.asc(),
+    ])
+      .offset(dto.offset)
+      .limit(dto.limit)
+      .all();
+  }
+
   async search(searchDto: SearchAirportsDto) {
     const term = searchDto.q.trim();
     const upperTerm = term.toUpperCase();
 
-    return this.prisma.airport.findMany({
-      where: {
-        OR: [
-          { iata: upperTerm },
-          { icao: upperTerm },
-          { name: { contains: term, mode: 'insensitive' } },
-          { city: { contains: term, mode: 'insensitive' } },
-        ],
-      },
-      orderBy: [{ routeCount: 'desc' }, { name: 'asc' }],
-      take: searchDto.limit ?? 20,
-    });
+    const pattern = `%${term.replace(/[\\%_]/g, '\\$&')}%`;
+    return this.prisma.models.Airport.where((airport) =>
+      or(
+        airport.iata.eq(upperTerm),
+        airport.icao.eq(upperTerm),
+        airport.name.ilike(pattern),
+        airport.city.ilike(pattern),
+      ),
+    )
+      .orderBy([
+        (airport) => airport.routeCount.desc(),
+        (airport) => airport.name.asc(),
+      ])
+      .limit(searchDto.limit ?? 20)
+      .all();
   }
 
   async findNearby(
@@ -44,7 +58,8 @@ export class AirportsService {
   ): Promise<NearbyAirportResult[]> {
     const radiusMeters = nearbyDto.radiusKm * 1000;
 
-    return this.prisma.$queryRaw<NearbyAirportResult[]>`
+    return this.prisma.db.query(
+      this.prisma.db.raw.sql`
       SELECT 
         id, 
         name, 
@@ -54,40 +69,46 @@ export class AirportsService {
         icao, 
         latitude, 
         longitude,
-        altitude_ft as "altitudeFt", 
         route_count as "routeCount",
         ROUND((ST_DistanceSphere(
-          ST_SetSRID(ST_MakePoint(longitude, latitude), 4326),
+          location::geometry,
           ST_SetSRID(ST_MakePoint(${nearbyDto.lng}, ${nearbyDto.lat}), 4326)
         ) / 1000)::numeric, 1)::float as "distanceKm"
       FROM airports
       WHERE ST_DWithin(
-        ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography,
+        location,
         ST_SetSRID(ST_MakePoint(${nearbyDto.lng}, ${nearbyDto.lat}), 4326)::geography,
         ${radiusMeters}
       )
       ORDER BY "distanceKm" ASC
       LIMIT 50;
-    `;
+    `
+        .returnsRow({
+          id: 'pg/text@1',
+          name: 'pg/text@1',
+          city: { codecId: 'pg/text@1', nullable: true },
+          countryName: 'pg/text@1',
+          iata: { codecId: 'pg/text@1', nullable: true },
+          icao: { codecId: 'pg/text@1', nullable: true },
+          latitude: 'pg/float8@1',
+          longitude: 'pg/float8@1',
+          routeCount: 'pg/int4@1',
+          distanceKm: 'pg/float8@1',
+        })
+        .build(),
+    );
   }
 
   async findByCode(code: string) {
     const upperCode = code.trim().toUpperCase();
 
-    const airport = await this.prisma.airport.findFirst({
-      where: {
-        OR: [{ iata: upperCode }, { icao: upperCode }],
-      },
-      include: {
-        originRoutes: {
-          take: 10,
-          include: {
-            destination: true,
-            airline: true,
-          },
-        },
-      },
-    });
+    const airport = await this.prisma.models.Airport.where((airport) =>
+      or(airport.iata.eq(upperCode), airport.icao.eq(upperCode)),
+    )
+      .include('originRoutes', (routes) =>
+        routes.limit(10).include('destination').include('airline'),
+      )
+      .first();
 
     if (!airport) {
       throw new NotFoundException(

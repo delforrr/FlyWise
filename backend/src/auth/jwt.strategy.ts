@@ -1,8 +1,12 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuthService } from './auth.service';
+import { AuthService } from './auth.service.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -15,7 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ignoreExpiration: false,
       audience: 'access',
       algorithms: ['HS256'],
-      secretOrKey: configService.get<string>('JWT_SECRET') ?? 'default_secret',
+      secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
       passReqToCallback: true,
     });
   }
@@ -30,7 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     },
   ) {
     if (payload.sid && !(await this.authService.isSessionActive(payload.sid))) {
-      throw new UnauthorizedException('La sesión fue revocada.');
+      throw new UnauthorizedException('Sesión revocada.');
     }
     const rawAuth = req.headers?.authorization;
     if (rawAuth) {
@@ -42,10 +46,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       }
     }
 
-    return {
-      id: payload.sub,
-      email: payload.email,
-      role: payload.role ?? 'OPERATOR',
-    };
+    if (typeof payload.sub !== 'string' || !payload.sub) {
+      throw new UnauthorizedException('Token sin usuario válido');
+    }
+    try {
+      return await this.authService.getProfile(payload.sub);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new UnauthorizedException('La cuenta ya no existe');
+      }
+      throw error;
+    }
   }
 }

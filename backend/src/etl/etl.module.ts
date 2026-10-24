@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { EtlService } from './etl.service';
-import { EtlProcessor } from './etl.processor';
-import { EtlController } from './etl.controller';
+import { EtlService } from './etl.service.js';
+import { EtlProcessor } from './etl.processor.js';
+import { PipelinesService } from './pipelines.service.js';
+import { PipelineController } from './pipeline.controller.js';
+import { EtlController } from './etl.controller.js';
 
 @Module({
   imports: [
@@ -10,8 +12,8 @@ import { EtlController } from './etl.controller';
       name: 'etl-queue',
     }),
   ],
-  controllers: [EtlController],
-  providers: [EtlService, EtlProcessor],
+  controllers: [EtlController, PipelineController],
+  providers: [EtlService, EtlProcessor, PipelinesService],
   exports: [EtlService],
 })
 export class EtlModule {}

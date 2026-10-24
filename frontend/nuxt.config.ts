@@ -5,9 +5,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   routeRules: {
-    '/api/auth/**': { proxy: `${process.env.FLYWISE_API_URL || 'http://localhost:3001'}/api/auth/**` },
-    '/api/users': { proxy: `${process.env.FLYWISE_API_URL || 'http://localhost:3001'}/api/users` },
-    '/api/users/**': { proxy: `${process.env.FLYWISE_API_URL || 'http://localhost:3001'}/api/users/**` },
+    "/api/**": { proxy: `${process.env.FLYWISE_API_URL || process.env.BACKEND_URL || "http://127.0.0.1:3001"}/api/**` },
   },
 
   experimental: {

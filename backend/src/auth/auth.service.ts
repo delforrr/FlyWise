@@ -1,17 +1,19 @@
 import { randomUUID } from 'node:crypto';
-import { RefreshSessionsService } from './refresh-sessions.service';
+import { RefreshSessionsService } from './refresh-sessions.service.js';
 import {
   Injectable,
   Logger,
   NotFoundException,
   UnauthorizedException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { UsersService } from '../users/users.service';
+import { UsersService } from '../users/users.service.js';
 import { JwtService } from '@nestjs/jwt';
-import { RedisService } from '../redis/redis.service';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { UserDto } from '../users/dto/user.dto';
+import { RedisService } from '../redis/redis.service.js';
+import { CreateUserDto } from '../users/dto/create-user.dto.js';
+import { timestampToDate } from '../prisma/timestamp.js';
+import { UserDto } from '../users/dto/user.dto.js';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +38,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
-        createdAt: user.createdAt,
+        createdAt: timestampToDate(user.createdAt),
       };
     }
 
@@ -44,7 +46,7 @@ export class AuthService {
   }
 
   async register(createUserDto: CreateUserDto): Promise<UserDto> {
-    return this.usersService.createUser(createUserDto);
+    return this.usersService.createUser({ ...createUserDto, role: 'OPERATOR' });
   }
 
   login(user: UserDto, sessionId?: string) {
@@ -130,13 +132,21 @@ export class AuthService {
       return;
     }
     const ttl = (payload.exp ?? 0) - Math.floor(Date.now() / 1000);
-    if (ttl > 0)
-      await this.redisService.set(`blacklist:${token}`, 'revoked', ttl);
+    try {
+      if (ttl > 0)
+        await this.redisService.set(`blacklist:${token}`, 'revoked', ttl);
+    } catch {
+      throw new ServiceUnavailableException('No se pudo revocar la sesión');
+    }
     this.logger.log('Sesión revocada.');
   }
 
   async isTokenRevoked(token: string): Promise<boolean> {
-    return Boolean(await this.redisService.get(`blacklist:${token}`));
+    try {
+      return Boolean(await this.redisService.get(`blacklist:${token}`));
+    } catch {
+      throw new ServiceUnavailableException('No se pudo verificar la sesión');
+    }
   }
 
   async isSessionActive(sessionId: string): Promise<boolean> {

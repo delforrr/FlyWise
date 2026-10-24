@@ -1,18 +1,20 @@
+import { PerformanceInterceptor } from '../src/common/interceptors/performance.interceptor.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import type { App } from 'supertest/types.js';
+import { AppModule } from './../src/app.module.js';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalInterceptors(new PerformanceInterceptor());
     await app.init();
   });
 
@@ -23,7 +25,19 @@ describe('AppController (e2e)', () => {
       .expect('Hello World!');
   });
 
-  afterEach(async () => {
+  it('/health (GET) sends the response without setting headers twice', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/health')
+      .expect(200);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        status: 'ok',
+        services: { database: 'up', redis: 'up' },
+      }),
+    );
+  });
+
+  afterAll(async () => {
     await app.close();
   });
 });

@@ -7,6 +7,7 @@ import { findRouteBetween, queryMatchingRoutes } from "../utils/routeGraph";
 let hoverRafId: number | null = null;
 
 export const useFlightSelection = () => {
+  const routes = useState<FlightRoute[]>("catalog_routes", () => []);
   // Estado base (usar undefined en lugar de null para compatibilidad estricta con UInputMenu de Nuxt UI)
   const selectedOrigin = useState<string | undefined>("flight_origin", () => undefined);
   const selectedDestination = useState<string | undefined>(
@@ -37,7 +38,7 @@ export const useFlightSelection = () => {
   });
 
   const selectedRouteData = computed<FlightRoute | null>(() => {
-    return findRouteBetween(selectedOrigin.value, selectedDestination.value);
+    return findRouteBetween(routes.value, selectedOrigin.value, selectedDestination.value);
   });
 
   /**
@@ -45,7 +46,7 @@ export const useFlightSelection = () => {
    * Delegado al módulo de grafo O(1) routeGraph.ts (SRP).
    */
   const matchingRoutes = computed<FlightRoute[]>(() => {
-    return queryMatchingRoutes(selectedOrigin.value, selectedDestination.value);
+    return queryMatchingRoutes(routes.value, selectedOrigin.value, selectedDestination.value);
   });
 
   // Set de IDs para resolución instantánea O(1)
@@ -71,7 +72,7 @@ export const useFlightSelection = () => {
    * @param airport Aeropuerto o código IATA
    */
   function setOrigin(airport?: Airport | string | null): void {
-    const iata = typeof airport === "string" ? airport : airport?.iata;
+    const iata = typeof airport === "string" ? airport : airport?.id;
 
     if (!iata) {
       selectedOrigin.value = undefined;
@@ -95,7 +96,7 @@ export const useFlightSelection = () => {
    * @param airport Aeropuerto o código IATA
    */
   function setDestination(airport?: Airport | string | null): void {
-    const iata = typeof airport === "string" ? airport : airport?.iata;
+    const iata = typeof airport === "string" ? airport : airport?.id;
 
     if (!iata) {
       selectedDestination.value = undefined;

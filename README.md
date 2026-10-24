@@ -34,6 +34,8 @@ La representación visual de los arcos de vuelo refleja el desempeño histórico
 
 ### Modelo Analítico y Clave de Agregación
 
+El [modelo de datos](docs/data-model.md) documenta entidades, restricciones, fórmulas y migraciones; el [diagrama ER](docs/dataModel.mermaid) muestra sus relaciones.
+
 Las consultas analíticas de rendimiento operan sobre la tupla:
 
 ```text
@@ -149,7 +151,7 @@ Todas las rutas `/admin/**` requieren una sesión, incluida la navegación direc
 .
 ├── backend/                   # API REST y servicios de dominio en NestJS
 │   ├── prisma/
-│   │   └── schema.prisma      # Esquema de base de datos relacional y PostGIS
+│   │   └── contract.prisma    # Contrato Prisma 8 de PostgreSQL y PostGIS
 │   ├── src/
 │   │   ├── airports/          # Módulo de catálogo aeroportuario y consultas espaciales
 │   │   ├── routes/            # Módulo de tramos, cálculo de arcos y OTP-15
@@ -185,7 +187,7 @@ Todas las rutas `/admin/**` requieren una sesión, incluida la navegación direc
 
 Para ejecutar el entorno local se requiere disponer de:
 
-- Node.js versión 20.x o 22.x LTS.
+- Node.js 24.11+ LTS (también compatible con 22.18+).
 - Docker y Docker Compose.
 - Gestor de paquetes npm versión 10.x o superior.
 
@@ -228,12 +230,23 @@ REDIS_PORT=6379
 JWT_SECRET=clave_secreta_jwt_de_desarrollo
 ```
 
-1. Generar el cliente de Prisma y ejecutar las migraciones:
+1. Exportar `DATABASE_URL` en la terminal (sin `?schema=public` para compatibilidad con `psql`) y crear el esquema inicial:
 
 ```bash
-npx prisma generate
-npx prisma migrate dev
+npx prisma contract emit
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/functions.sql
+npx prisma db init --db "$DATABASE_URL"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/triggers.sql
+npx prisma db verify --db "$DATABASE_URL"
 ```
+
+Aplicar además el SQL incremental de la v1 (incluidas las bases nuevas) según [instalación y evolución del modelo](docs/data-model.md#instalación-y-evolución-del-esquema).
+
+Prisma 8 está fijado a las versiones RC del lockfile. Se parte del contrato actual, sin historial de migraciones. El arranque requiere `psql`; consultar [instalación y evolución del esquema](docs/data-model.md#instalación-y-evolución-del-esquema).
+
+Consultar también el [reporte de fuentes de OTP y alternativas de catálogos](docs/data-sources.md).
+
+Los datos de catálogo provienen de los archivos `.dat` en `backend/data/`. El ETL importa países, aeropuertos, aerolíneas y rutas con streams y upsert. El constructor y el monitoreo consultan la API real; OTP permanece sin datos hasta integrar una fuente operativa. No se cargan datos de muestra ni se crea un administrador automáticamente.
 
 1. Iniciar el servidor de desarrollo:
 
@@ -264,3 +277,5 @@ npm run dev
 ```
 
 La aplicación web estará disponible en `http://localhost:3000`.
+
+Para crear el administrador inicial, define `ADMIN_EMAIL` y `ADMIN_PASSWORD` (mínimo 10 caracteres) y ejecuta `npm run build` y luego `node --env-file=.env dist/prisma/seed.js` desde `backend/`. El seed conserva las cuentas existentes; los catálogos se cargan mediante ETL.

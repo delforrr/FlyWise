@@ -141,11 +141,11 @@ const columns: TableColumn<EtlPipeline>[] = [
           <div class="flex items-center justify-between text-[11px] font-mono">
             <span class="text-text-muted">Lotes</span>
             <span class="font-bold text-text-main tabular-nums">
-              {{ row.original.progressPercent }}%
+              {{ row.original.status === 'running' ? "Total pendiente" : `${row.original.progressPercent}%` }}
             </span>
           </div>
           <UProgress
-            :model-value="row.original.progressPercent"
+            :model-value="row.original.status === 'running' ? null : row.original.progressPercent"
             size="xs"
             color="primary"
             class="h-1 rounded-full"
@@ -193,18 +193,18 @@ const columns: TableColumn<EtlPipeline>[] = [
 
           <!-- Controles de ejecución (Pausar / Reanudar / Sincronizar) -->
           <UButton
-            v-if="row.original.status === 'running'"
+            v-if="row.original.status === 'running' && !row.original.paused"
             size="xs"
             variant="outline"
             color="neutral"
             icon="i-lucide-pause"
-            title="Pausar pipeline"
-            aria-label="Pausar pipeline"
+            title="Pausar programación; las ejecuciones encoladas terminan"
+            aria-label="Pausar programación"
             class="cursor-pointer"
             @click="emit('pause', row.original.id)"
           />
           <UButton
-            v-else-if="row.original.status === 'paused'"
+            v-else-if="row.original.paused"
             size="xs"
             color="primary"
             icon="i-lucide-play"

@@ -1,42 +1,31 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UsersService } from './users.service';
+import { UsersService } from './users.service.js';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { mockCollection } from '../../test/helpers/prisma-mock.js';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let prisma: {
-    user: {
-      findMany: jest.Mock;
-      findUnique: jest.Mock;
-      create: jest.Mock;
-      update: jest.Mock;
-      delete: jest.Mock;
-    };
-  };
+  let prisma: { models: { User: ReturnType<typeof mockCollection> } };
 
   const mockUserEntity = {
     id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     email: 'admin@flywise.com',
     passwordHash: '$2b$10$mockedpasswordhash',
     role: 'ADMIN',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: '2026-09-01 00:00:00',
+    updatedAt: '2026-09-01 00:00:00',
   };
 
   beforeEach(async () => {
-    prisma = {
-      user: {
-        findMany: jest.fn().mockResolvedValue([mockUserEntity]),
-        findUnique: jest.fn(),
-        create: jest.fn().mockResolvedValue(mockUserEntity),
-        update: jest.fn().mockResolvedValue({
-          ...mockUserEntity,
-          email: 'updated@flywise.com',
-        }),
-        delete: jest.fn().mockResolvedValue(mockUserEntity),
-      },
-    };
+    prisma = { models: { User: mockCollection() } };
+    prisma.models.User.all.mockResolvedValue([mockUserEntity]);
+    prisma.models.User.create.mockResolvedValue(mockUserEntity);
+    prisma.models.User.update.mockResolvedValue({
+      ...mockUserEntity,
+      email: 'updated@flywise.com',
+    });
+    prisma.models.User.delete.mockResolvedValue(mockUserEntity);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -56,20 +45,34 @@ describe('UsersService', () => {
   });
 
   describe('createUser', () => {
+    it('returns a conflict if another request registers the same email first', async () => {
+      prisma.models.User.first.mockResolvedValue(null);
+      prisma.models.User.create.mockRejectedValueOnce(
+        Object.assign(new Error('Duplicate email'), { sqlState: '23505' }),
+      );
+      await expect(
+        service.createUser({
+          email: 'race@example.test',
+          password: 'password123',
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
     it('should create a user successfully with hashed password', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.models.User.first.mockResolvedValue(null);
       const result = await service.createUser({
         email: 'test@flywise.com',
         password: 'password123',
       });
 
-      expect(prisma.user.create).toHaveBeenCalled();
+      expect(prisma.models.User.create).toHaveBeenCalled();
       expect(result.email).toBe('admin@flywise.com');
       expect(result.id).toBe(mockUserEntity.id);
     });
 
     it('should throw ConflictException if user email already exists', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUserEntity);
+      prisma.models.User.create.mockRejectedValueOnce(
+        Object.assign(new Error('Duplicate email'), { sqlState: '23505' }),
+      );
 
       await expect(
         service.createUser({
@@ -83,7 +86,7 @@ describe('UsersService', () => {
   describe('getUsers', () => {
     it('should return all users', async () => {
       const users = await service.getUsers();
-      expect(prisma.user.findMany).toHaveBeenCalled();
+      expect(prisma.models.User.all).toHaveBeenCalled();
       expect(users).toHaveLength(1);
       expect(users[0].email).toBe('admin@flywise.com');
     });
@@ -91,7 +94,7 @@ describe('UsersService', () => {
 
   describe('getUserById', () => {
     it('should return user by id', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUserEntity);
+      prisma.models.User.firstOrThrow.mockResolvedValue(mockUserEntity);
       const found = await service.getUserById(mockUserEntity.id);
 
       expect(found.id).toBe(mockUserEntity.id);
@@ -99,7 +102,9 @@ describe('UsersService', () => {
     });
 
     it('should throw NotFoundException if user id does not exist', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.models.User.firstOrThrow.mockRejectedValueOnce(
+        Object.assign(new Error('Missing user'), { code: 'RUNTIME.NO_ROWS' }),
+      );
       await expect(service.getUserById('non-existent-uuid')).rejects.toThrow(
         NotFoundException,
       );
@@ -108,14 +113,16 @@ describe('UsersService', () => {
 
   describe('getUserByEmail', () => {
     it('should return user by email', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUserEntity);
+      prisma.models.User.firstOrThrow.mockResolvedValue(mockUserEntity);
       const found = await service.getUserByEmail('admin@flywise.com');
 
       expect(found.email).toBe('admin@flywise.com');
     });
 
     it('should throw NotFoundException if user email does not exist', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.models.User.firstOrThrow.mockRejectedValueOnce(
+        Object.assign(new Error('Missing user'), { code: 'RUNTIME.NO_ROWS' }),
+      );
       await expect(
         service.getUserByEmail('notfound@flywise.com'),
       ).rejects.toThrow(NotFoundException);
@@ -123,20 +130,31 @@ describe('UsersService', () => {
   });
 
   describe('updateUser', () => {
+    it('returns a conflict when concurrent updates claim the same email', async () => {
+      prisma.models.User.first
+        .mockResolvedValueOnce(mockUserEntity)
+        .mockResolvedValueOnce(null);
+      prisma.models.User.update.mockRejectedValueOnce(
+        Object.assign(new Error('Duplicate email'), { sqlState: '23505' }),
+      );
+      await expect(
+        service.updateUser(mockUserEntity.id, { email: 'race@example.test' }),
+      ).rejects.toThrow(ConflictException);
+    });
     it('should update user fields successfully', async () => {
-      prisma.user.findUnique
+      prisma.models.User.first
         .mockResolvedValueOnce(mockUserEntity)
         .mockResolvedValueOnce(null);
       const updated = await service.updateUser(mockUserEntity.id, {
         email: 'updated@flywise.com',
       });
 
-      expect(prisma.user.update).toHaveBeenCalled();
+      expect(prisma.models.User.update).toHaveBeenCalled();
       expect(updated.email).toBe('updated@flywise.com');
     });
 
     it('should throw NotFoundException if user to update is not found', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.models.User.update.mockResolvedValueOnce(null);
       await expect(
         service.updateUser('non-existent-uuid', { email: 'x@flywise.com' }),
       ).rejects.toThrow(NotFoundException);
@@ -145,17 +163,17 @@ describe('UsersService', () => {
 
   describe('deleteUser', () => {
     it('should delete existing user successfully', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUserEntity);
+      prisma.models.User.first.mockResolvedValue(mockUserEntity);
       await expect(
         service.deleteUser(mockUserEntity.id),
       ).resolves.not.toThrow();
-      expect(prisma.user.delete).toHaveBeenCalledWith({
-        where: { id: mockUserEntity.id },
+      expect(prisma.models.User.where).toHaveBeenCalledWith({
+        id: mockUserEntity.id,
       });
     });
 
     it('should throw NotFoundException if user to delete does not exist', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.models.User.delete.mockResolvedValueOnce(null);
       await expect(service.deleteUser('non-existent-uuid')).rejects.toThrow(
         NotFoundException,
       );

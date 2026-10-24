@@ -16,7 +16,7 @@ export const pipelineIdentitySchema = z.object({
     .min(2, 'El nombre del dataset debe contener al menos 2 caracteres.'),
   description: z.string().optional().default(''),
   icon: z.string().optional().default('i-lucide-database'),
-  targetEntity: z.enum(['airports', 'routes', 'otp_metrics'], {
+  targetEntity: z.enum(['airports', 'airlines', 'countries', 'routes', 'otp_metrics'], {
     message: 'Debe seleccionar una entidad destino.',
   }),
 });
@@ -26,9 +26,9 @@ export type PipelineIdentityForm = z.infer<typeof pipelineIdentitySchema>;
 // 2. Esquema Zod para Endpoint & Conexión (Paso 2)
 export const pipelineConnectionSchema = z
   .object({
-    sourceType: z.enum(['http_stream', 'rest_api', 's3_bucket']),
-    httpMethod: z.enum(['GET', 'POST']),
-    dataFormat: z.enum(['csv', 'json', 'jsonl']),
+    sourceType: z.literal('http_stream'),
+    httpMethod: z.literal('GET'),
+    dataFormat: z.literal('csv'),
     endpointUrl: z
       .string('La URL del endpoint es obligatoria.')
       .trim()
@@ -57,7 +57,7 @@ export const pipelineConnectionSchema = z
       .array(
         z.object({
           key: z.string(),
-          value: z.string(),
+          credentialRef: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Use el nombre de una variable del servidor.'),
         }),
       )
       .optional(),
@@ -111,9 +111,8 @@ export const pipelineScheduleConfigSchema = z
       .number()
       .min(1000, 'Mínimo 1.000 filas por lote (RNF-04).')
       .max(5000, 'Máximo 5.000 filas por lote (RNF-04).'),
-    concurrency: z.number().min(1).max(6),
-    timeoutSeconds: z.number().min(10),
-    maxRetries: z.number().min(1).max(5),
+    timeoutSeconds: z.number().int().min(1).max(3600),
+    maxRetries: z.number().int().min(0).max(10),
   })
   .refine(
     (data) => {
@@ -136,7 +135,7 @@ export type PipelineScheduleConfigForm = z.infer<
 >;
 
 // 5. Esquema Zod Completo de Pipeline
-export const pipelineSchema = z.any().superRefine((val, ctx) => {
+export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
   const data = (val && typeof val === 'object' ? val : {}) as Partial<EtlPipeline>;
 
   // 1. Nombre del servicio
@@ -223,7 +222,7 @@ export const pipelineSchema = z.any().superRefine((val, ctx) => {
   }
 
   // 5. Expresión Cron si es personalizada
-  if (data.scheduleConfig?.cronPreset === 'custom') {
+  if (data.scheduleConfig?.cronExpression) {
     const cron = data.scheduleConfig.cronExpression?.trim() || '';
     const parts = cron.split(/\s+/);
     if (parts.length !== 5) {
@@ -242,12 +241,6 @@ export type PipelineSchemaInput = Partial<EtlPipeline>;
 // 6. Esquema Zod para Disparador Manual (EtlTriggerModal)
 export const triggerSyncSchema = z.object({
   pipelineId: z.string().min(1, 'El identificador del pipeline es obligatorio.'),
-  mode: z.enum(['incremental', 'full']),
-  dryRun: z.boolean(),
-  batchSize: z
-    .number()
-    .min(1000, 'El tamaño de lote mínimo es 1.000 filas (RNF-04).')
-    .max(5000, 'El tamaño de lote máximo es 5.000 filas (RNF-04).'),
 });
 
 export type TriggerSyncForm = z.infer<typeof triggerSyncSchema>;

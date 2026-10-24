@@ -19,28 +19,9 @@ const emit = defineEmits<{
   (e: "backToHub"): void;
 }>();
 
-// Cálculo ortodrómico de distancia (km y millas náuticas nm)
-const distanceKm = computed<number | null>(() => {
-  if (
-    !props.originAirport?.coordinates ||
-    !props.destinationAirport?.coordinates
-  ) {
-    return null;
-  }
-  const [lon1, lat1] = props.originAirport.coordinates;
-  const [lon2, lat2] = props.destinationAirport.coordinates;
-  const R = 6371; // Radio terrestre medio en km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
-});
+// Distance comes from the selected route's PostGIS query.
+const { selectedRouteData } = useFlightSelection();
+const distanceKm = computed(() => selectedRouteData.value?.distanceKm ?? null);
 
 const distanceNm = computed<number | null>(() => {
   if (distanceKm.value === null) return null;
@@ -73,26 +54,22 @@ function formatCoordinates(coords?: [number, number]): string {
               class="text-xs font-bold font-mono text-text-main uppercase tracking-wider truncate flex items-center gap-1.5"
             >
               <template v-if="selectedOrigin && selectedDestination">
-                <span class="font-mono tabular-nums tracking-tight">{{
-                  selectedOrigin
-                }}</span>
+                <span class="font-mono tabular-nums tracking-tight">{{ originAirport?.iata ?? "Origen" }}</span>
                 <span class="text-primary font-bold">➔</span>
-                <span class="font-mono tabular-nums tracking-tight">{{
-                  selectedDestination
-                }}</span>
+                <span class="font-mono tabular-nums tracking-tight">{{ destinationAirport?.iata ?? "Destino" }}</span>
               </template>
               <template v-else-if="selectedOrigin">
                 <span>Hub</span>
                 <span
                   class="font-mono tabular-nums tracking-tight text-primary"
-                  >{{ selectedOrigin }}</span
+                  >{{ originAirport?.iata ?? "Origen" }}</span
                 >
               </template>
               <template v-else>
                 <span>Destino</span>
                 <span
                   class="font-mono tabular-nums tracking-tight text-primary"
-                  >{{ selectedDestination }}</span
+                  >{{ destinationAirport?.iata ?? "Destino" }}</span
                 >
               </template>
             </h3>
@@ -109,7 +86,7 @@ function formatCoordinates(coords?: [number, number]): string {
               aria-label="Volver al listado de conexiones del Hub"
               @click="emit('backToHub')"
             >
-              Ver salidas de {{ selectedOrigin }}
+              Ver salidas de {{ originAirport?.iata ?? "Origen" }}
             </UButton>
           </div>
 

@@ -44,7 +44,7 @@ defineProps<{
         <UIcon name="i-lucide-clock-3" class="w-3.5 h-3.5 text-text-dim shrink-0" />
         <span class="text-text-dim">Demora:</span>
         <span class="tabular-nums font-semibold text-text-main">
-          ~{{ airline.avgDelayMinutes }}m
+          {{ airline.avgDelayMinutes === null ? "Sin datos" : `${airline.avgDelayMinutes}m` }}
         </span>
       </div>
 
@@ -54,7 +54,7 @@ defineProps<{
       <div
         class="flex items-center gap-1 shrink-0 transition-opacity duration-150 group-hover:opacity-100 opacity-90"
       >
-        <AirlineOtpSparkline :current-otp="airline.otp15" />
+        <span>Sin historial</span>
       </div>
 
       <span class="text-border-subtle/60 shrink-0 select-none">·</span>
@@ -68,14 +68,14 @@ defineProps<{
         <span
           :class="[
             'tabular-nums font-semibold',
-            airline.cancellationRate > 5
+            (airline.cancellationRate ?? -1) > 5
               ? 'text-error'
-              : airline.cancellationRate > 2
+              : (airline.cancellationRate ?? -1) > 2
                 ? 'text-warning'
                 : 'text-text-main',
           ]"
         >
-          {{ airline.cancellationRate }}%
+          {{ airline.cancellationRate === null ? "Sin datos" : `${airline.cancellationRate}%` }}
         </span>
       </div>
     </div>

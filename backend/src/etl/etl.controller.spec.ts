@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { EtlController } from './etl.controller';
-import { EtlService } from './etl.service';
+import { EtlController } from './etl.controller.js';
+import { EtlService } from './etl.service.js';
 
 describe('EtlController', () => {
   let controller: EtlController;
@@ -37,7 +37,7 @@ describe('EtlController', () => {
   });
 
   it('should call triggerJob on service', async () => {
-    const res = await controller.trigger('all');
+    const res = await controller.trigger({ dataset: 'all' });
     expect(etlService.triggerJob).toHaveBeenCalledWith('all');
     expect(res).toEqual({ message: 'Job encolado' });
   });

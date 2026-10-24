@@ -25,7 +25,7 @@ const {
   syncAll,
   pauseAll,
   clearLogs,
-  resolveDiscardedSample,
+  loadSamples,
 } = useEtlMonitoring();
 
 // Estado de modales
@@ -48,7 +48,8 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
   isTriggerModalOpen.value = false;
 }
 
-function openDiscardedModal(pipeline: EtlPipeline) {
+async function openDiscardedModal(pipeline: EtlPipeline) {
+  await loadSamples(pipeline);
   activePipelineForDiscarded.value = pipeline;
   isDiscardedModalOpen.value = true;
 }
@@ -66,12 +67,6 @@ function handleDetailViewDiscarded(pipeline: EtlPipeline) {
 function handleDetailTriggerSync(pipeline: EtlPipeline) {
   isDetailModalOpen.value = false;
   openTriggerModal(pipeline);
-}
-
-function handleResolveDiscarded(recordId: string) {
-  if (activePipelineForDiscarded.value) {
-    resolveDiscardedSample(activePipelineForDiscarded.value.id, recordId);
-  }
 }
 
 function handleRetryDiscarded() {
@@ -161,7 +156,6 @@ function handleRetryDiscarded() {
       :is-open="isDiscardedModalOpen"
       :pipeline="activePipelineForDiscarded"
       @close="isDiscardedModalOpen = false"
-      @resolve="handleResolveDiscarded"
       @retry-all="handleRetryDiscarded"
     />
   </div>

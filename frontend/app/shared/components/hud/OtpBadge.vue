@@ -3,7 +3,7 @@ import { computed } from "vue";
 
 interface Props {
   message?: "Alta" | "Media" | "Baja";
-  value?: number;
+  value?: number | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -11,9 +11,10 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 // Nivel de confiabilidad
-const reliabilityLevel = computed<"Alta" | "Media" | "Baja">(() => {
+const reliabilityLevel = computed<"Alta" | "Media" | "Baja" | "Sin datos">(() => {
+  if (props.value === null) return "Sin datos";
   if (props.value !== undefined) {
-    if (props.value >= 85) return "Alta";
+    if (props.value > 85) return "Alta";
     if (props.value >= 60) return "Media";
     return "Baja";
   }
@@ -22,23 +23,26 @@ const reliabilityLevel = computed<"Alta" | "Media" | "Baja">(() => {
 
 // Valor numérico formateado
 const scoreText = computed<string>(() => {
+  if (props.value === null) return "Sin datos";
   if (props.value !== undefined) {
     return `${props.value.toFixed(1)}% OTP-15`;
   }
-  if (reliabilityLevel.value === "Alta") return "≥ 85%";
+  if (reliabilityLevel.value === "Alta") return "> 85%";
   if (reliabilityLevel.value === "Media") return "60% – 85%";
   return "< 60%";
 });
 
 // Icono vectorial por nivel (Dual Sensory Encoding para accesibilidad y daltonismo)
 const badgeIcon = computed<string>(() => {
+  if (props.value === null) return "i-lucide-circle-help";
   if (reliabilityLevel.value === "Alta") return "i-lucide-shield-check";
   if (reliabilityLevel.value === "Media") return "i-lucide-alert-triangle";
   return "i-lucide-clock-alert";
 });
 
 // Color del badge UBadge (Emerald / Amber / Carmine-Red)
-const badgeColor = computed<"success" | "warning" | "error">(() => {
+const badgeColor = computed<"success" | "warning" | "error" | "neutral">(() => {
+  if (props.value === null) return "neutral";
   if (reliabilityLevel.value === "Alta") return "success";
   if (reliabilityLevel.value === "Media") return "warning";
   return "error";
@@ -46,6 +50,7 @@ const badgeColor = computed<"success" | "warning" | "error">(() => {
 
 // Micro indicador luminoso (punto de pulso)
 const dotClass = computed<string>(() => {
+  if (props.value === null) return "bg-neutral-400";
   if (reliabilityLevel.value === "Alta") return "bg-success";
   if (reliabilityLevel.value === "Media") return "bg-warning";
   return "bg-error";
@@ -53,6 +58,7 @@ const dotClass = computed<string>(() => {
 
 // Etiqueta accesible dinámica para lectores de pantalla
 const ariaLabel = computed<string>(() => {
+  if (props.value === null) return "Sin datos de puntualidad OTP-15";
   const formattedScore =
     props.value !== undefined
       ? `${props.value.toFixed(1)}%`
@@ -78,6 +84,6 @@ const ariaLabel = computed<string>(() => {
       <UIcon :name="badgeIcon" class="w-3.5 h-3.5 shrink-0" />
     </span>
     <span>{{ reliabilityLevel }}</span>
-    <span class="font-mono tabular-nums">({{ scoreText }})</span>
+    <span v-if="value !== null" class="font-mono tabular-nums">({{ scoreText }})</span>
   </UBadge>
 </template>

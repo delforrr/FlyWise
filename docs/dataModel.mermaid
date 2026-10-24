@@ -1,0 +1,141 @@
+erDiagram
+    Country o|--o{ Airport : country
+    Country o|--o{ Airline : country
+    User o|--o{ EtlJob : requests
+    EtlPipeline o|--o{ EtlJob : executes
+    EtlJob ||--o{ EtlDiscardedSample : discards
+    EtlJob ||--o{ EtlJobEvent : records
+    Airport ||--o{ Route : origin
+    Airport ||--o{ Route : destination
+    Airline o|--o{ Route : operator
+    Airport ||--o{ Flight : origin
+    Airport ||--o{ Flight : destination
+    Airline ||--o{ Flight : operator
+    EtlJob o|--o{ Flight : ingestion
+    Airport ||--o{ RouteMetric : origin
+    Airport ||--o{ RouteMetric : destination
+    Airline ||--o{ RouteMetric : operator
+
+    User {
+        string id PK
+        string email UK
+        string passwordHash
+        Role role "default OPERATOR"
+        datetime createdAt
+        datetime updatedAt
+    }
+    Country {
+        string id PK
+        string name UK
+        string isoCode "optional"
+    }
+    Airport {
+        string id PK
+        int openflightsId UK "optional"
+        string name
+        string city "optional"
+        string source "optional"
+        string countryName "source label, no FK"
+        string countryId FK "optional, unambiguous match"
+        string iata "optional, indexed"
+        string icao "optional, indexed"
+        float latitude
+        float longitude
+        geography location "Point, SRID 4326, GiST"
+        int routeCount
+    }
+    Airline {
+        string id PK
+        int openflightsId UK "optional"
+        string name
+        string country "optional source label, no FK"
+        string countryId FK "optional, unambiguous match"
+        string iata "optional, indexed"
+        string icao "optional, indexed"
+        boolean active "optional, does not filter ingestion"
+    }
+    %% Offer key: originId, destinationId, airlineId, airlineCode, codeshare, stops; NULLS NOT DISTINCT.
+    %% Distances computed in PostGIS, never persisted.
+    Route {
+        string id PK
+        string originId FK
+        string destinationId FK
+        string airlineId FK "optional"
+        string airlineCode "optional"
+        boolean codeshare
+        int stops
+    }
+    %% Flight and RouteMetric retained for the next operational-data release.
+    Flight {
+        string id PK
+        string source "unique with sourceRecordId"
+        string sourceRecordId
+        date flightDate "local departure date"
+        string flightNumber
+        string originId FK
+        string destinationId FK
+        string airlineId FK
+        FlightStatus status "ARRIVED, CANCELLED, DIVERTED"
+        int arrivalDelayMinutes "signed, only ARRIVED"
+        string etlJobId FK "optional"
+    }
+    RouteMetric {
+        string originId PK, FK "unique tuple with destination, airline, period"
+        string destinationId PK, FK
+        string airlineId PK, FK
+        date period PK "first day of month"
+        int totalFlights
+        int cancelledFlights
+        int divertedFlights
+        int onTimeFlights
+        bigint totalArrivalDelayMinutes "signed sum for ARRIVED"
+        datetime updatedAt
+    }
+    EtlJob {
+        string id PK
+        string pipelineId FK "optional for legacy jobs"
+        string requestedById FK "optional"
+        string source
+        string status "pending, running, completed, failed"
+        json configurationSnapshot "optional for legacy jobs, no secrets"
+        string sourceUri "optional, credential-free input reference"
+        string sourceChecksum "optional, SHA-256"
+        int totalRows
+        int processedRows
+        int insertedRows "subset of processedRows"
+        int discardedRows
+        datetime startedAt "optional"
+        datetime finishedAt "optional"
+        string errorMessage "optional"
+    }
+    EtlPipeline {
+        string id PK
+        string name
+        string datasetName
+        string description
+        EtlTargetEntity targetEntity "countries, airports, airlines, routes, otp_metrics"
+        boolean isSystem
+        boolean paused
+        json connection "credential references only"
+        json schemaMapping
+        json scheduleConfig "cronExpression, batchSize, timeoutSeconds, maxRetries"
+        datetime archivedAt "optional, soft deletion"
+        datetime createdAt
+        datetime updatedAt
+    }
+    EtlDiscardedSample {
+        string id PK
+        string jobId FK
+        int rowIndex "one-based source row"
+        string field "optional"
+        string reason
+        string rawSample "at most 4096 characters"
+        datetime createdAt
+    }
+    EtlJobEvent {
+        string id PK
+        string jobId FK
+        EtlLogLevel level "info, success, warn, error"
+        string message
+        datetime createdAt
+    }

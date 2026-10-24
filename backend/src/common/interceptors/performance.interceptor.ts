@@ -22,7 +22,11 @@ export class PerformanceInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(() => {
         const duration = Math.round(performance.now() - start);
-        if (response && typeof response.setHeader === 'function') {
+        if (
+          response &&
+          !response.headersSent &&
+          typeof response.setHeader === 'function'
+        ) {
           response.setHeader('X-Response-Time', `${duration}ms`);
         }
 

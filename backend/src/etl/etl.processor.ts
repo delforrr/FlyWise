@@ -1,98 +1,107 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
-import { EtlService } from './etl.service';
-import { PrismaService } from '../prisma/prisma.service';
-import * as path from 'node:path';
+import { resolve } from 'node:path';
+import { EtlService } from './etl.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { PipelinesService } from './pipelines.service.js';
+import { ETL_DATASETS } from './dto/trigger-etl.dto.js';
+import type { CatalogDataset } from './catalog.js';
+import type { PipelineConfiguration } from './interfaces/pipeline-configuration.js';
 
-@Processor('etl-queue')
+@Processor('etl-queue', { concurrency: 1 })
 export class EtlProcessor extends WorkerHost {
   private readonly logger = new Logger(EtlProcessor.name);
-
   constructor(
     private readonly etlService: EtlService,
     private readonly prisma: PrismaService,
+    private readonly pipelines: PipelinesService,
   ) {
     super();
   }
 
-  async process(job: Job<{ jobId: string; dataset: string }>) {
+  async process(
+    job: Job<{ jobId: string; dataset: string; pipelineId?: string }>,
+  ) {
+    if (job.name === 'scheduled-pipeline') {
+      if (!job.data.pipelineId) throw new Error('Pipeline obligatorio');
+      return this.pipelines.run(job.data.pipelineId, undefined, true);
+    }
     const { jobId, dataset } = job.data;
-    const startTime = Date.now();
-    this.logger.log(
-      `Iniciando procesamiento de ETL job ${jobId} para dataset ${dataset}`,
-    );
-
-    await this.prisma.etlJob.update({
-      where: { id: jobId },
-      data: { status: 'running', startedAt: new Date() },
+    const now = () =>
+      new Date().toISOString().replace('T', ' ').replace('Z', '');
+    await this.prisma.models.EtlJob.where({ id: jobId }).update({
+      status: 'running',
+      startedAt: now(),
+      finishedAt: null,
+      errorMessage: null,
+      sourceChecksum: null,
+      totalRows: 0,
+      processedRows: 0,
+      insertedRows: 0,
+      discardedRows: 0,
     });
-
+    await this.prisma.models.EtlJobEvent.create({
+      jobId,
+      level: 'info',
+      message: `Inicio del intento ${job.attemptsMade + 1}`,
+    });
     try {
-      const dataDir = path.resolve(process.cwd(), 'data');
-      let totalRows = 0;
-      let processedRows = 0;
-      let discardedRows = 0;
-
-      if (dataset === 'countries' || dataset === 'all') {
-        const res = await this.etlService.processCountries(
-          path.join(dataDir, 'countries.dat'),
+      if (!ETL_DATASETS.includes(dataset))
+        throw new Error('Dataset no soportado');
+      const record = await this.prisma.models.EtlJob.where({
+        id: jobId,
+      }).firstOrThrow();
+      const config =
+        record.configurationSnapshot as PipelineConfiguration | null;
+      let processedRows = 0,
+        insertedRows = 0,
+        discardedRows = 0;
+      const datasets: CatalogDataset[] =
+        dataset === 'all'
+          ? ['countries', 'airports', 'airlines', 'routes']
+          : [dataset as CatalogDataset];
+      for (const target of datasets) {
+        const result = await this.etlService.importCatalog(
+          target,
+          config ? null : resolve(process.cwd(), 'data', `${target}.dat`),
+          jobId,
+          config ?? undefined,
         );
-        totalRows += res.total;
-        processedRows += res.inserted;
+        processedRows += result.processed;
+        insertedRows += result.inserted;
+        discardedRows += result.discarded;
+        await this.prisma.models.EtlJobEvent.create({
+          jobId,
+          level: 'info',
+          message: `${target}: ${result.processed} procesadas, ${result.inserted} nuevas, ${result.discarded} descartadas`,
+        });
       }
-
-      if (dataset === 'airports' || dataset === 'all') {
-        const res = await this.etlService.processAirports(
-          path.join(dataDir, 'airports.dat'),
-        );
-        totalRows += res.total;
-        processedRows += res.inserted;
-        discardedRows += res.discarded;
-      }
-
-      if (dataset === 'airlines' || dataset === 'all') {
-        const res = await this.etlService.processAirlines(
-          path.join(dataDir, 'airlines.dat'),
-        );
-        totalRows += res.total;
-        processedRows += res.inserted;
-        discardedRows += res.discarded;
-      }
-
-      await this.etlService.computeRoutePopularityAndTop100();
-
-      const durationMs = Date.now() - startTime;
-      await this.prisma.etlJob.update({
-        where: { id: jobId },
-        data: {
-          status: 'completed',
-          finishedAt: new Date(),
-          durationMs,
-          totalRows,
-          processedRows,
-          discardedRows,
-        },
+      await this.prisma.models.EtlJob.where({ id: jobId }).update({
+        status: 'completed',
+        finishedAt: now(),
       });
-
-      this.logger.log(
-        `ETL Job ${jobId} finalizado exitosamente en ${durationMs}ms`,
-      );
-      return { success: true, processedRows, discardedRows };
-    } catch (err: unknown) {
-      const errorMsg =
-        err instanceof Error ? err.message : 'Error desconocido durante ETL';
-      this.logger.error(`Fallo en ETL Job ${jobId}: ${errorMsg}`);
-      await this.prisma.etlJob.update({
-        where: { id: jobId },
-        data: {
-          status: 'failed',
-          finishedAt: new Date(),
-          durationMs: Date.now() - startTime,
-          errorMessage: errorMsg,
-        },
+      await this.prisma.models.EtlJobEvent.create({
+        jobId,
+        level: 'success',
+        message: 'Ingesta completada',
       });
-      throw err;
+      return { success: true, processedRows, insertedRows, discardedRows };
+    } catch {
+      const message =
+        'Falló la lectura o persistencia del catálogo; el reintento es idempotente';
+      this.logger.error(`${jobId}: ${message}`);
+      await this.prisma.models.EtlJob.where({ id: jobId }).update({
+        status: 'failed',
+        finishedAt: now(),
+        errorMessage: message,
+      });
+      await this.prisma.models.EtlJobEvent.create({
+        jobId,
+        level: 'error',
+        message,
+      });
+      throw new Error(message);
     }
   }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { SEED_AIRPORTS_BY_IATA } from "~/data/seedData";
+import { useCatalog } from "~/shared/composables/useCatalog";
+const { airports } = useCatalog();
 import { type FlightRoute } from "~/types/route";
 
 const {
@@ -27,30 +28,19 @@ watch([selectedOrigin, selectedDestination], ([newOrig, newDest]) => {
 
 const originAirport = computed(() => {
   if (!selectedOrigin.value) return null;
-  return SEED_AIRPORTS_BY_IATA.get(selectedOrigin.value) ?? null;
+  return airports.value.find(a => a.id === selectedOrigin.value) ?? null;
 });
 
 const destinationAirport = computed(() => {
   if (!selectedDestination.value) return null;
-  return SEED_AIRPORTS_BY_IATA.get(selectedDestination.value) ?? null;
+  return airports.value.find(a => a.id === selectedDestination.value) ?? null;
 });
 
 // Rutas de escala o alternativas para el par seleccionado
-const connectingRoutes = computed(() => {
-  if (!selectedOrigin.value || !selectedDestination.value) return [];
-  return matchingRoutes.value.filter(
-    (r) =>
-      !(
-        (r.originIata === selectedOrigin.value &&
-          r.destinationIata === selectedDestination.value) ||
-        (r.originIata === selectedDestination.value &&
-          r.destinationIata === selectedOrigin.value)
-      ),
-  );
-});
+const connectingRoutes = computed<FlightRoute[]>(() => []);
 
 function handleFocusRoute(route: FlightRoute) {
-  setRoute(route.originIata, route.destinationIata);
+  setRoute(route.originId, route.destinationId);
   nextTick(() => {
     triggerFit();
   });
@@ -80,10 +70,10 @@ function handleBackToHub() {
       @click="isExpanded = true"
     >
       <span v-if="selectedOrigin && selectedDestination" class="tracking-tight">
-        {{ selectedOrigin }} ➔ {{ selectedDestination }}
+        {{ originAirport?.iata ?? "Origen" }} ➔ {{ destinationAirport?.iata ?? "Destino" }}
       </span>
       <span v-else class="tracking-tight">
-        Hub {{ selectedOrigin || selectedDestination }} ({{
+        Hub {{ originAirport?.iata ?? destinationAirport?.iata }} ({{
           matchingRoutes.length
         }})
       </span>
@@ -143,15 +133,11 @@ function handleBackToHub() {
             >
               <template #description>
                 <p class="text-xs text-text-muted max-w-xs mx-auto">
-                  No se encontraron vuelos comerciales directos ni con escala
+                  No se encontró una oferta directa en el catálogo histórico
                   entre
-                  <span class="font-mono font-bold text-text-main">{{
-                    selectedOrigin
-                  }}</span>
+                  <span class="font-mono font-bold text-text-main">{{ originAirport?.iata ?? "Origen" }}</span>
                   y
-                  <span class="font-mono font-bold text-text-main">{{
-                    selectedDestination
-                  }}</span
+                  <span class="font-mono font-bold text-text-main">{{ destinationAirport?.iata ?? "Destino" }}</span
                   >.
                 </p>
               </template>

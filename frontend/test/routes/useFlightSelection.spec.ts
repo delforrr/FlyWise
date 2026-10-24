@@ -32,7 +32,7 @@ describe("useFlightSelection — Composable de Selección Reactiva de Rutas y Ae
       expect(selection.hasActiveRoute.value).toBe(false);
     });
 
-    it("acepta un objeto de tipo Airport y extrae su código IATA", () => {
+    it("acepta un objeto Airport y conserva su identidad interna", () => {
       const selection = useFlightSelection();
       const mockAirport: Airport = {
         id: "eze",
@@ -46,7 +46,7 @@ describe("useFlightSelection — Composable de Selección Reactiva de Rutas y Ae
       };
 
       selection.setOrigin(mockAirport);
-      expect(selection.selectedOrigin.value).toBe("EZE");
+      expect(selection.selectedOrigin.value).toBe("eze");
     });
 
     it("conmuta a undefined si se selecciona el mismo aeropuerto ya activo (toggle)", () => {

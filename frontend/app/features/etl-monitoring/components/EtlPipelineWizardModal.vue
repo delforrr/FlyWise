@@ -46,17 +46,16 @@ const name = ref("");
 const datasetName = ref("");
 const description = ref("");
 const icon = ref("i-lucide-database");
-const targetEntity = ref<TargetEntity>("otp_metrics");
+const targetEntity = ref<TargetEntity>("airports");
 
 // 2. Datos de Conexión & Endpoint
 const sourceType = ref<IngestionSourceType>("http_stream");
 const endpointUrl = ref("");
-const httpMethod = ref<"GET" | "POST">("GET");
+const httpMethod = ref<"GET">("GET");
 const dataFormat = ref<IngestionDataFormat>("csv");
 const csvDelimiter = ref(",");
 const csvHasHeader = ref(true);
-const rootJsonPath = ref("");
-const headersList = ref<{ key: string; value: string }[]>([]);
+const headersList = ref<{ key: string; credentialRef: string }[]>([]);
 
 // Test Endpoint Probe
 const isTesting = ref(false);
@@ -69,10 +68,9 @@ const schemaMapping = ref<FieldMappingRule[]>([]);
 // 4. Planificación y RNF-04
 const cronPreset = ref<"manual" | "hourly" | "daily" | "weekly" | "monthly" | "custom">("daily");
 const customCron = ref("0 4 * * *");
-const batchSize = ref(2500);
-const concurrency = ref(4);
+const batchSize = ref(2000);
 const timeoutSeconds = ref(300);
-const maxRetries = ref(3);
+const maxRetries = ref(2);
 
 // --- REGLAS DE VALIDACIÓN BASADAS EN ESQUEMAS ZOD ---
 // Validación Paso 1 (Identidad) mediante Zod
@@ -152,7 +150,7 @@ const step4Validation = computed(() => {
     cronExpression: customCron.value,
     scheduleDescription: "Cadencia",
     batchSize: batchSize.value,
-    concurrency: concurrency.value,
+
     timeoutSeconds: timeoutSeconds.value,
     maxRetries: maxRetries.value,
   });
@@ -182,6 +180,8 @@ const availableIcons = [
 ];
 
 const targetEntityOptions = [
+  { value: "countries", label: "Países", description: "Nombre y código ISO opcional." },
+  { value: "airlines", label: "Aerolíneas", description: "Identidad, códigos y estado del catálogo." },
   {
     value: "airports",
     label: "Catálogo de Aeropuertos y Pistas",
@@ -194,7 +194,8 @@ const targetEntityOptions = [
   },
   {
     value: "otp_metrics",
-    label: "Telemetría y Desempeño OTP-15",
+    label: "OTP-15 (próxima entrega)",
+    disabled: true,
     description: "Vuelos, demoras en minutos, cancelaciones y métricas.",
   },
 ];
@@ -215,7 +216,6 @@ const connectionConfig = computed<PipelineConnectionConfig>(() => ({
   dataFormat: dataFormat.value,
   csvDelimiter: csvDelimiter.value,
   csvHasHeader: csvHasHeader.value,
-  rootJsonPath: rootJsonPath.value,
   headers: headersList.value.filter((h) => h.key.trim() !== ""),
 }));
 
@@ -247,17 +247,16 @@ watch(
           dataFormat.value = p.connection.dataFormat;
           csvDelimiter.value = p.connection.csvDelimiter || ",";
           csvHasHeader.value = p.connection.csvHasHeader ?? true;
-          rootJsonPath.value = p.connection.rootJsonPath || "";
           headersList.value = p.connection.headers ? [...p.connection.headers] : [];
         }
 
         schemaMapping.value = p.schemaMapping ? [...p.schemaMapping] : [];
+        detectedColumns.value = schemaMapping.value.map(rule => rule.sourceColumn);
 
         if (p.scheduleConfig) {
-          cronPreset.value = p.scheduleConfig.cronPreset;
+          cronPreset.value = p.scheduleConfig.cronExpression ? "custom" : "manual";
           customCron.value = p.scheduleConfig.cronExpression;
           batchSize.value = p.scheduleConfig.batchSize;
-          concurrency.value = p.scheduleConfig.concurrency;
           timeoutSeconds.value = p.scheduleConfig.timeoutSeconds;
           maxRetries.value = p.scheduleConfig.maxRetries;
         }
@@ -267,22 +266,20 @@ watch(
         datasetName.value = "";
         description.value = "";
         icon.value = "i-lucide-database";
-        targetEntity.value = "otp_metrics";
+        targetEntity.value = "airports";
         sourceType.value = "http_stream";
         endpointUrl.value = "https://";
         httpMethod.value = "GET";
         dataFormat.value = "csv";
         csvDelimiter.value = ",";
         csvHasHeader.value = true;
-        rootJsonPath.value = "";
         headersList.value = [];
         schemaMapping.value = [];
         cronPreset.value = "daily";
         customCron.value = "0 4 * * *";
-        batchSize.value = 2500;
-        concurrency.value = 4;
+        batchSize.value = 2000;
         timeoutSeconds.value = 300;
-        maxRetries.value = 3;
+        maxRetries.value = 2;
         detectedColumns.value = [];
       }
     }
@@ -290,72 +287,22 @@ watch(
 );
 
 function addHeader() {
-  headersList.value.push({ key: "", value: "" });
+  headersList.value.push({ key: "", credentialRef: "" });
 }
 
 function removeHeader(idx: number) {
   headersList.value.splice(idx, 1);
 }
 
-// Simulación de prueba de endpoint
+const { testEndpoint } = usePipelineCrud();
 async function handleTestConnection() {
   isTesting.value = true;
-  probeResult.value = null;
-
-  const startTime = performance.now();
-  await new Promise((resolve) => setTimeout(resolve, 550));
-  const latency = Math.round(performance.now() - startTime);
-
-  if (!endpointUrl.value.startsWith("http")) {
-    probeResult.value = {
-      success: false,
-      statusCode: 400,
-      latencyMs: 8,
-      contentType: "text/plain",
-      sampleRows: [],
-      detectedColumns: [],
-      errorMessage: "La URL debe iniciar con protocolo http:// o https://",
-    };
-    isTesting.value = false;
-    return;
-  }
-
-  // Generar columnas de prueba acordes a la entidad seleccionada
-  let cols: string[] = [];
-  let samples: Record<string, any>[] = [];
-
-  if (targetEntity.value === "airports") {
-    cols = ["ident", "type", "name", "latitude_deg", "longitude_deg", "elevation_ft", "iata_code"];
-    samples = [
-      { ident: "SAEZ", type: "large_airport", name: "Ezeiza Intl", latitude_deg: -34.8222, longitude_deg: -58.5358, iata_code: "EZE" },
-      { ident: "KJFK", type: "large_airport", name: "John F Kennedy", latitude_deg: 40.6398, longitude_deg: -73.7789, iata_code: "JFK" },
-    ];
-  } else if (targetEntity.value === "routes") {
-    cols = ["route_id", "airline", "source_airport", "dest_airport", "stops", "equipment"];
-    samples = [
-      { route_id: "RT-1092", airline: "AR", source_airport: "EZE", dest_airport: "MAD", stops: 0, equipment: "A332" },
-      { route_id: "RT-8841", airline: "IB", source_airport: "MAD", dest_airport: "EZE", stops: 0, equipment: "A359" },
-    ];
-  } else {
-    cols = ["flight_num", "carrier", "origin", "dest", "dep_time", "arr_delay", "cancelled"];
-    samples = [
-      { flight_num: "AR1302", carrier: "AR", origin: "AEP", dest: "COR", dep_time: "10:15", arr_delay: 5, cancelled: 0 },
-      { flight_num: "LA450", carrier: "LA", origin: "SCL", dest: "EZE", dep_time: "14:40", arr_delay: -10, cancelled: 0 },
-    ];
-  }
-
-  detectedColumns.value = cols;
-  probeResult.value = {
-    success: true,
-    statusCode: 200,
-    latencyMs: latency || 65,
-    contentType: dataFormat.value === "csv" ? "text/csv; charset=utf-8" : "application/json",
-    detectedColumns: cols,
-    sampleRows: samples,
-    estimatedTotalSize: "~3.4 MB (~42.000 filas)",
-  };
-
-  isTesting.value = false;
+  try {
+    probeResult.value = await testEndpoint(connectionConfig.value);
+    detectedColumns.value = probeResult.value.detectedColumns;
+  } catch (error) {
+    probeResult.value = { success: false, statusCode: 0, latencyMs: 0, contentType: '', sampleRows: [], detectedColumns: [], errorMessage: error instanceof Error ? error.message : 'No se pudo comprobar el recurso' };
+  } finally { isTesting.value = false; }
 }
 
 function handleApplyDetectedColumns(columns: string[]) {
@@ -462,11 +409,8 @@ function handleSave() {
     schemaMapping: schemaMapping.value,
     scheduleDescription: scheduleDesc,
     scheduleConfig: {
-      cronPreset: cronPreset.value,
       cronExpression: cronExpr,
-      scheduleDescription: scheduleDesc,
       batchSize: batchSize.value,
-      concurrency: concurrency.value,
       timeoutSeconds: timeoutSeconds.value,
       maxRetries: maxRetries.value,
     },
@@ -478,7 +422,6 @@ function handleSave() {
   }
 
   emit("save", payload);
-  emit("close");
 }
 </script>
 
@@ -595,6 +538,7 @@ function handleSave() {
               <button
                 v-for="opt in targetEntityOptions"
                 :key="opt.value"
+                :disabled="opt.value === 'otp_metrics'"
                 type="button"
                 class="p-3 rounded-xl border text-left transition-all cursor-pointer"
                 :class="[
@@ -651,9 +595,7 @@ function handleSave() {
                 v-model="sourceType"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
-                <option value="http_stream">HTTP File Stream (CSV/ZIP)</option>
-                <option value="rest_api">REST API (JSON)</option>
-                <option value="s3_bucket">Bucket S3 / Object Storage</option>
+                <option value="http_stream">HTTP GET (CSV / .dat)</option>
               </select>
             </div>
 
@@ -666,7 +608,6 @@ function handleSave() {
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
                 <option value="GET">GET</option>
-                <option value="POST">POST</option>
               </select>
             </div>
 
@@ -679,8 +620,6 @@ function handleSave() {
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
                 <option value="csv">CSV (Texto separado por coma)</option>
-                <option value="json">JSON Array</option>
-                <option value="jsonl">JSON Lines (Streaming)</option>
               </select>
             </div>
           </div>
@@ -706,7 +645,7 @@ function handleSave() {
               {{ endpointUrlError }}
             </p>
             <span v-else class="text-[10px] text-text-dim mt-1 block">
-              Soporta interpolación dinámica de variables: {date}, {year}, {month}.
+              URL fija de un host autorizado por el administrador del servidor.
             </span>
           </div>
 
@@ -770,9 +709,9 @@ function handleSave() {
                 class="w-1/3 font-mono text-xs"
               />
               <UInput
-                v-model="hdr.value"
-                placeholder="Valor secreto..."
-                type="password"
+                v-model="hdr.credentialRef"
+                placeholder="Variable autorizada del servidor"
+                type="text"
                 size="xs"
                 class="flex-1 font-mono text-xs"
               />
@@ -846,7 +785,7 @@ function handleSave() {
                     ? 'border-primary bg-primary/10 text-primary font-bold'
                     : 'border-border-subtle bg-surface-card hover:border-border-hover text-text-main',
                 ]"
-                @click="cronPreset = preset.value as any"
+                @click="cronPreset = preset.value as typeof cronPreset"
               >
                 {{ preset.label }}
               </button>
@@ -891,7 +830,7 @@ function handleSave() {
 
             <UFieldGroup class="w-full flex">
               <UButton
-                v-for="s in [1000, 2500, 5000]"
+                v-for="s in [1000, 2000, 5000]"
                 :key="s"
                 :variant="batchSize === s ? 'solid' : 'outline'"
                 :color="batchSize === s ? 'primary' : 'neutral'"
@@ -908,20 +847,6 @@ function handleSave() {
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-[11px] font-semibold text-text-muted mb-1">
-                Concurrencia de Workers:
-              </label>
-              <select
-                v-model.number="concurrency"
-                class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
-              >
-                <option :value="1">1 worker (Secuencial)</option>
-                <option :value="2">2 workers</option>
-                <option :value="4">4 workers (Recomendado)</option>
-                <option :value="6">6 workers</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-[11px] font-semibold text-text-muted mb-1">
                 Reintentos ante Fallo:
               </label>
               <select
@@ -929,7 +854,7 @@ function handleSave() {
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
                 <option :value="1">1 reintento</option>
-                <option :value="3">3 reintentos (Backoff exp.)</option>
+                <option :value="2">2 reintentos (Backoff exponencial)</option>
                 <option :value="5">5 reintentos</option>
               </select>
             </div>

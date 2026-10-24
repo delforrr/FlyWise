@@ -19,9 +19,7 @@ const currentTargetFields = computed(() => {
   return TARGET_FIELDS_CATALOG[props.targetEntity] || [];
 });
 
-const totalRequiredCount = computed(() => {
-  return currentTargetFields.value.filter((f) => f.required).length;
-});
+const totalRequiredCount = computed(() => currentTargetFields.value.filter(f => f.required).length);
 
 const mappedRequiredCount = computed(() => {
   return currentTargetFields.value.filter((f) => {
@@ -32,7 +30,7 @@ const mappedRequiredCount = computed(() => {
 });
 
 const isMappingComplete = computed(() => {
-  return totalRequiredCount.value > 0 && mappedRequiredCount.value === totalRequiredCount.value;
+  return mappedRequiredCount.value === totalRequiredCount.value;
 });
 
 const transformOptions = [
@@ -41,7 +39,6 @@ const transformOptions = [
   { label: "Limpiar espacios (Trim)", value: "trim" },
   { label: "Convertir a Número", value: "to_number" },
   { label: "Convertir a Booleano", value: "to_boolean" },
-  { label: "Punto PostGIS (SRID 4326)", value: "srid_4326_point" },
 ];
 
 function getMappingForField(targetKey: string): FieldMappingRule {
@@ -256,7 +253,7 @@ function autoDetectMapping() {
               @change="
                 (e) =>
                   updateRule(target.key, {
-                    transform: (e.target as HTMLSelectElement).value as any,
+                    transform: (e.target as HTMLSelectElement).value as FieldMappingRule['transform'],
                   })
               "
             >

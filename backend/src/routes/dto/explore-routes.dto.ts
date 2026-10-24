@@ -1,8 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsUUID, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ExploreRoutesDto {
+  @IsOptional() @IsUUID() originId?: string;
+  @IsOptional() @IsUUID() destinationId?: string;
+
   @ApiPropertyOptional({
     description:
       'Código IATA de aeropuerto de origen para activar la exploración bajo demanda (modo Estrella)',

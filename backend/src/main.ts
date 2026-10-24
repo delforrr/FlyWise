@@ -1,12 +1,13 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
+import { AppModule } from './app.module.js';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
+import { PerformanceInterceptor } from './common/interceptors/performance.interceptor.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -29,20 +30,6 @@ async function bootstrap() {
       'FlyWise - Sistema de Inteligencia de Vuelos Comerciales y Exploración de Rutas',
     )
     .setVersion('1.0')
-    .addOAuth2(
-      {
-        type: 'oauth2',
-        description:
-          'Autenticación directa con Email y Contraseña. Ingresa tu correo en "username" y tu contraseña en "password".',
-        flows: {
-          password: {
-            tokenUrl: '/api/auth/login',
-            scopes: {},
-          },
-        },
-      },
-      'oauth2',
-    )
     .addBearerAuth(
       {
         type: 'http',
@@ -50,7 +37,7 @@ async function bootstrap() {
         bearerFormat: 'JWT',
         name: 'JWT',
         description:
-          'Alternativa: Ingresa directamente el token JWT (accessToken) obtenido en POST /api/auth/login.',
+          'Pegá únicamente el valor de accessToken obtenido en POST /api/auth/login, sin comillas ni el prefijo Bearer. Swagger agrega el prefijo automáticamente.',
       },
       'bearer',
     )

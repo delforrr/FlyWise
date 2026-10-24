@@ -5,13 +5,13 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import request from 'supertest';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { RefreshSessionsService } from './refresh-sessions.service';
-import { LocalStrategy } from './local.strategy';
-import { JwtStrategy } from './jwt.strategy';
-import { RedisService } from '../redis/redis.service';
-import { UsersService } from '../users/users.service';
+import { AuthController } from './auth.controller.js';
+import { AuthService } from './auth.service.js';
+import { RefreshSessionsService } from './refresh-sessions.service.js';
+import { LocalStrategy } from './local.strategy.js';
+import { JwtStrategy } from './jwt.strategy.js';
+import { RedisService } from '../redis/redis.service.js';
+import { UsersService } from '../users/users.service.js';
 
 const profile = {
   id: 'd3b07384-d113-4a69-8d7b-9907f7b3b9b9',
@@ -50,7 +50,13 @@ describe('sesión HTTP completa', () => {
           useValue: {
             findByEmail: (email: string) =>
               Promise.resolve(
-                email === profile.email ? { ...profile, passwordHash } : null,
+                email === profile.email
+                  ? {
+                      ...profile,
+                      passwordHash,
+                      createdAt: '2026-10-24 00:00:00',
+                    }
+                  : null,
               ),
             getUserById: () => Promise.resolve(profile),
           },

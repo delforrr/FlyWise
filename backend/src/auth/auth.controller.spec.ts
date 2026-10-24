@@ -3,9 +3,9 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { CookieOptions, Request, Response } from 'express';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { LoginRequestDto } from './dto/login-request.dto';
+import { AuthController } from './auth.controller.js';
+import { AuthService } from './auth.service.js';
+import { LoginRequestDto } from './dto/login-request.dto.js';
 
 const user = {
   id: 'user-1',

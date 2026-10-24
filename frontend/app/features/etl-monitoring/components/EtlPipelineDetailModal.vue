@@ -36,11 +36,10 @@ const executionTimeFormatted = computed<string | null>(() => {
 
 // Tasa porcentual de registros descartados
 const errorRateFormatted = computed<string>(() => {
-  if (!props.pipeline?.processedRows || props.pipeline.processedRows <= 0)
-    return "0.00%";
-  const rate =
-    (props.pipeline.discardedRows / props.pipeline.processedRows) * 100;
-  return `${rate.toFixed(2)}%`;
+  const processed = props.pipeline?.processedRows ?? 0;
+  const discarded = props.pipeline?.discardedRows ?? 0;
+  const attempted = processed + discarded;
+  return `${(attempted ? 100 * discarded / attempted : 0).toFixed(2)}%`;
 });
 </script>
 
@@ -155,11 +154,11 @@ const errorRateFormatted = computed<string>(() => {
           <div class="flex items-center justify-between text-[11px] font-mono">
             <span class="text-text-muted">Progreso de importación</span>
             <span class="font-bold text-text-main tabular-nums">
-              {{ pipeline.progressPercent }}%
+              {{ pipeline.status === 'running' ? "Total pendiente" : `${pipeline.progressPercent}%` }}
             </span>
           </div>
           <UProgress
-            :model-value="pipeline.progressPercent"
+            :model-value="pipeline.status === 'running' ? null : pipeline.progressPercent"
             size="xs"
             color="primary"
             class="h-1.5 rounded-full"
@@ -368,7 +367,7 @@ const errorRateFormatted = computed<string>(() => {
           <!-- Acciones de control operativas -->
           <template v-if="pipeline">
             <UButton
-              v-if="pipeline.status === 'running'"
+              v-if="pipeline.status === 'running' && !pipeline.paused"
               size="sm"
               variant="outline"
               color="neutral"
@@ -376,10 +375,10 @@ const errorRateFormatted = computed<string>(() => {
               class="text-xs font-semibold cursor-pointer"
               @click="emit('pause', pipeline.id)"
             >
-              Pausar
+              Pausar programación
             </UButton>
             <UButton
-              v-else-if="pipeline.status === 'paused'"
+              v-else-if="pipeline.paused"
               size="sm"
               color="primary"
               icon="i-lucide-play"

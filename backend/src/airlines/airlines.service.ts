@@ -1,70 +1,62 @@
+import { or } from '@prisma/orm-postgres/orm-client';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { QueryAirlinesDto } from './dto/query-airlines.dto';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { QueryAirlinesDto } from './dto/query-airlines.dto.js';
 
 @Injectable()
 export class AirlinesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(queryDto: QueryAirlinesDto) {
-    const { q, page = 1, limit = 20 } = queryDto;
-    const skip = (page - 1) * limit;
-
-    const where = q
-      ? {
-          OR: [
-            { iata: { equals: q.trim().toUpperCase() } },
-            { icao: { equals: q.trim().toUpperCase() } },
-            { name: { contains: q.trim(), mode: 'insensitive' as const } },
-          ],
-        }
-      : {};
-
-    const [items, total] = await Promise.all([
-      this.prisma.airline.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: [{ active: 'desc' }, { name: 'asc' }],
-      }),
-      this.prisma.airline.count({ where }),
+  async findAll({ q, page = 1, limit = 20 }: QueryAirlinesDto) {
+    const term = q?.trim();
+    const airlines = term
+      ? this.prisma.models.Airline.where((airline) =>
+          or(
+            airline.iata.eq(term.toUpperCase()),
+            airline.icao.eq(term.toUpperCase()),
+            airline.name.ilike(`%${term.replace(/[\\%_]/g, '\\$&')}%`),
+          ),
+        )
+      : this.prisma.models.Airline;
+    const [data, { totalItems }] = await Promise.all([
+      airlines
+        .orderBy([
+          (airline, { fns }) =>
+            fns.raw`COALESCE(${airline.active}::int, -1)`
+              .returns('pg/int4@1')
+              .desc(),
+          (airline) => airline.name.asc(),
+          (airline) => airline.id.asc(),
+        ])
+        .offset((page - 1) * limit)
+        .limit(limit)
+        .all(),
+      airlines.aggregate((aggregate) => ({ totalItems: aggregate.count() })),
     ]);
-
     return {
-      data: items,
+      data,
       pagination: {
         page,
         limit,
-        totalItems: total,
-        totalPages: Math.ceil(total / limit),
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit),
       },
     };
   }
 
   async findByCode(code: string) {
     const upperCode = code.trim().toUpperCase();
-
-    const airline = await this.prisma.airline.findFirst({
-      where: {
-        OR: [{ iata: upperCode }, { icao: upperCode }],
-      },
-      include: {
-        routes: {
-          take: 20,
-          include: {
-            origin: true,
-            destination: true,
-          },
-        },
-      },
-    });
-
-    if (!airline) {
+    const airline = await this.prisma.models.Airline.where((airline) =>
+      or(airline.iata.eq(upperCode), airline.icao.eq(upperCode)),
+    )
+      .include('routes', (routes) =>
+        routes.limit(20).include('origin').include('destination'),
+      )
+      .first();
+    if (!airline)
       throw new NotFoundException(
         `Aerolínea con código ${upperCode} no encontrada`,
       );
-    }
-
     return airline;
   }
 }

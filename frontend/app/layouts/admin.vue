@@ -16,9 +16,10 @@ const isUsersPage = computed(() => route.path.startsWith("/admin/usuarios"));
 
 const {
   globalMetrics,
+  error,
   refreshInterval,
   isRefreshing,
-  simulatedLatencyMs,
+  latencyMs,
   setRefreshInterval,
   triggerManualRefresh,
 } = useEtlMonitoring();
@@ -28,6 +29,7 @@ const {
   <div
     class="min-h-screen bg-background text-text-main flex flex-col font-sans"
   >
+    <p v-if="error" role="alert" class="p-3 text-error">{{ error }}</p>
     <!-- Cabecera Administrativa Minimalista (Sólida, borde nítido de 1px con sutil specular highlight) -->
     <header
       :class="
