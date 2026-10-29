@@ -64,8 +64,9 @@ export function validate(config: Record<string, unknown>) {
   });
 
   if (errors.length > 0) {
-    throw new Error(`Environment validation error: ${errors.map(error => error.property).join(', ')}`);
+    throw new Error(
+      `Environment validation error: ${errors.map((error) => error.property).join(', ')}`,
+    );
   }
   return validatedConfig;
 }
-

@@ -4,9 +4,12 @@
 
 **Blocked by:** 01.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Comportamiento aprobado implementado en todas las capas afectadas.
-- [ ] Regresión verificada en la frontera pública acordada; E2E con servicios reales cuando corresponde.
-- [ ] Build y pruebas de ambos proyectos verdes antes del commit atómico.
-- [ ] Revisión del ticket y evidencia registradas.
+- [x] Comportamiento aprobado implementado en todas las capas afectadas.
+- [x] Regresión verificada en la frontera pública acordada; E2E con servicios reales cuando corresponde.
+- [x] Build y pruebas de ambos proyectos verdes antes del commit atómico.
+- [x] Revisión del ticket y evidencia registradas.
+
+**Evidence and review:** Sin consumidores de SigninRequestDto; se eliminan DTO y decoradores redundantes. Formato requerido por lint; tipos de tests corregidos; contrato canónico firmado y db verify verde.
+

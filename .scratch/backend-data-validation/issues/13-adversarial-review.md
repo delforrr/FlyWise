@@ -10,3 +10,4 @@
 - [ ] Regresión verificada en la frontera pública acordada; E2E con servicios reales cuando corresponde.
 - [ ] Build y pruebas de ambos proyectos verdes antes del commit atómico.
 - [ ] Revisión del ticket y evidencia registradas.
+

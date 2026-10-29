@@ -35,7 +35,7 @@ model User {
   updatedAt     TimestampString(3) @onCreate(now()) @onUpdate(now()) @map("updated_at")
   requestedJobs EtlJob[]
 
-  @@check(expression: sql`(email = lower(btrim(email)) AND email ~ '[^[:space:]]')`, map: "users_email_canonical_check")
+  @@check(expression: sql`((email = lower(btrim(email))) AND (email ~ '[^[:space:]]'::text))`, map: "users_email_canonical_check")
   @@map("users")
 }
 
@@ -46,8 +46,8 @@ model Country {
   airports Airport[]
   airlines Airline[]
 
-  @@check(expression: sql`(name ~ '[^[:space:]]')`, map: "countries_name_check")
-  @@check(expression: sql`(iso_code IS NULL OR iso_code ~ '^[A-Z]{2}$')`, map: "countries_iso_check")
+  @@check(expression: sql`(name ~ '[^[:space:]]'::text)`, map: "countries_name_check")
+  @@check(expression: sql`((iso_code IS NULL) OR (iso_code ~ '^[A-Z]{2}$'::text))`, map: "countries_iso_check")
   @@map("countries")
 }
 
@@ -84,8 +84,8 @@ model Airport {
   @@check(expression: sql`(location IS NOT NULL)`, map: "airports_location_check")
   @@check(expression: sql`(route_count >= 0)`, map: "airports_route_count_check")
   @@check(expression: sql`(((latitude >= ('-90'::integer)::double precision) AND (latitude <= (90)::double precision)) AND ((longitude >= ('-180'::integer)::double precision) AND (longitude <= (180)::double precision)))`, name: "valid_airport_coordinates")
-  @@check(expression: sql`(name ~ '[^[:space:]]' AND country_name ~ '[^[:space:]]')`, map: "airports_name_check")
-  @@check(expression: sql`((iata IS NULL OR iata ~ '^[A-Z]{3}$') AND (icao IS NULL OR icao ~ '^[A-Z0-9]{4}$'))`, map: "airports_codes_check")
+  @@check(expression: sql`((name ~ '[^[:space:]]'::text) AND (country_name ~ '[^[:space:]]'::text))`, map: "airports_name_check")
+  @@check(expression: sql`(((iata IS NULL) OR (iata ~ '^[A-Z]{3}$'::text)) AND ((icao IS NULL) OR (icao ~ '^[A-Z0-9]{4}$'::text)))`, map: "airports_codes_check")
   @@map("airports")
 }
 
@@ -108,8 +108,8 @@ model Airline {
   @@index([iata], map: "airlines_iata_idx")
   @@index([icao], map: "airlines_icao_idx")
   @@index([countryId], map: "airlines_country_id_idx")
-  @@check(expression: sql`(name ~ '[^[:space:]]')`, map: "airlines_name_check")
-  @@check(expression: sql`((iata IS NULL OR iata ~ '^[A-Z0-9]{2}$') AND (icao IS NULL OR icao ~ '^[A-Z0-9]{3}$'))`, map: "airlines_codes_check")
+  @@check(expression: sql`(name ~ '[^[:space:]]'::text)`, map: "airlines_name_check")
+  @@check(expression: sql`(((iata IS NULL) OR (iata ~ '^[A-Z0-9]{2}$'::text)) AND ((icao IS NULL) OR (icao ~ '^[A-Z0-9]{3}$'::text)))`, map: "airlines_codes_check")
   @@map("airlines")
 }
 
@@ -132,7 +132,7 @@ model Route {
   @@unique([originId, destinationId, airlineId, airlineCode, codeshare, stops], map: "routes_offer_key")
   @@check(expression: sql`(stops >= 0)`, map: "routes_stops_check")
   @@check(expression: sql`(origin_id <> destination_id)`, map: "routes_endpoints_check")
-  @@check(expression: sql`(airline_code IS NULL OR airline_code ~ '^[A-Z0-9]{2,3}$')`, map: "routes_airline_code_check")
+  @@check(expression: sql`((airline_code IS NULL) OR (airline_code ~ '^[A-Z0-9]{2,3}$'::text))`, map: "routes_airline_code_check")
   @@map("routes")
 }
 
@@ -163,13 +163,14 @@ model EtlJob {
   @@index([pipelineId, startedAt], map: "etl_jobs_pipeline_id_started_at_idx")
   @@index([requestedById], map: "etl_jobs_requested_by_id_idx")
   @@check(expression: sql`((finished_at IS NULL) OR ((started_at IS NOT NULL) AND (finished_at >= started_at)))`, map: "etl_jobs_timestamps_check")
-  @@check(expression: sql`(status <> 'completed' OR (started_at IS NOT NULL AND finished_at IS NOT NULL AND total_rows::bigint = processed_rows::bigint + discarded_rows))`, map: "etl_jobs_completion_check")
+  @@check(expression: sql`((status <> 'completed'::text) OR ((started_at IS NOT NULL) AND (finished_at IS NOT NULL) AND ((total_rows)::bigint = ((processed_rows)::bigint + discarded_rows))))`, map: "etl_jobs_completion_check")
   @@check(expression: sql`((total_rows >= 0) AND (processed_rows >= 0) AND (discarded_rows >= 0) AND (inserted_rows >= 0) AND (inserted_rows <= processed_rows) AND (((processed_rows)::bigint + discarded_rows) <= total_rows))`, map: "etl_jobs_rows_check")
   @@check(expression: sql`(status = ANY (ARRAY['pending'::text, 'running'::text, 'completed'::text, 'failed'::text]))`, map: "etl_jobs_status_check")
   @@check(expression: sql`((source_uri IS NULL) OR ((length(btrim(source_uri)) > 0) AND (source_uri !~ '://[^/]*@|[?#]'::text)))`, map: "etl_jobs_source_uri_check")
   @@check(expression: sql`((source_checksum IS NULL) OR (source_checksum ~ '^[0-9a-fA-F]{64}$'::text))`, map: "etl_jobs_checksum_check")
   @@check(expression: sql`(((configuration_snapshot IS NULL) AND (pipeline_id IS NULL)) OR (((jsonb_typeof(configuration_snapshot) = 'object'::text) AND ((configuration_snapshot - ARRAY['connection'::text, 'schemaMapping'::text, 'scheduleConfig'::text]) = '{}'::jsonb) AND etl_valid_connection((configuration_snapshot -> 'connection'::text)) AND etl_valid_mapping((configuration_snapshot -> 'schemaMapping'::text)) AND etl_valid_schedule((configuration_snapshot -> 'scheduleConfig'::text))) IS TRUE))`, map: "etl_jobs_snapshot_check")
   @@map("etl_jobs")
+  @@check(expression: sql`(attempt >= 0)`, map: "etl_jobs_attempt_check")
 }
 
 model EtlPipeline {
@@ -211,6 +212,7 @@ model EtlDiscardedSample {
   @@check(expression: sql`(length(btrim(reason)) > 0)`, map: "etl_discarded_samples_reason_check")
   @@check(expression: sql`(row_index > 0)`, map: "etl_discarded_samples_row_check")
   @@map("etl_discarded_samples")
+  @@check(expression: sql`(attempt >= 0)`, map: "etl_discarded_samples_attempt_check")
 }
 
 model EtlJobEvent {
@@ -225,6 +227,7 @@ model EtlJobEvent {
   @@index([jobId, createdAt], map: "etl_job_events_job_id_created_at_idx")
   @@check(expression: sql`(length(btrim(message)) > 0)`, map: "etl_job_events_message_check")
   @@map("etl_job_events")
+  @@check(expression: sql`(attempt >= 0)`, map: "etl_job_events_attempt_check")
 }
 
 // One source record per flight operation; sourceRecordId must survive retries.

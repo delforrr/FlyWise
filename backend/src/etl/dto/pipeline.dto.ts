@@ -257,7 +257,10 @@ export class CreatePipelineDto {
 export class UpdatePipelineDto extends PartialType(CreatePipelineDto) {}
 
 export class PipelineExecutionDto extends PickType(CreatePipelineDto, [
-  'targetEntity', 'connection', 'schemaMapping', 'scheduleConfig',
+  'targetEntity',
+  'connection',
+  'schemaMapping',
+  'scheduleConfig',
 ] as const) {}
 
 export const CATALOG_FIELDS: Record<CatalogTarget, readonly string[]> = {

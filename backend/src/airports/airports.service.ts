@@ -1,5 +1,9 @@
 import { or } from '@prisma/orm-postgres/orm-client';
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CatalogAirportsDto } from './dto/catalog-airports.dto.js';
 import { SearchAirportsDto } from './dto/search-airports.dto.js';
@@ -108,8 +112,12 @@ export class AirportsService {
       .include('originRoutes', (routes) =>
         routes.limit(10).include('destination').include('airline'),
       )
-      .limit(2).all();
-    if (airports.length > 1) throw new ConflictException("Código ambiguo; seleccione la entidad por su identidad interna");
+      .limit(2)
+      .all();
+    if (airports.length > 1)
+      throw new ConflictException(
+        'Código ambiguo; seleccione la entidad por su identidad interna',
+      );
     const [airport] = airports;
 
     if (!airport) {
@@ -121,4 +129,3 @@ export class AirportsService {
     return airport;
   }
 }
-

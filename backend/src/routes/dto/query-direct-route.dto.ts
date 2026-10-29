@@ -12,7 +12,9 @@ export class QueryDirectRouteDto {
     example: 'EZE',
   })
   @IsString()
-  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
   @Matches(/^(?:[A-Z]{3}|[A-Z0-9]{4})$/)
   origin!: string;
 
@@ -21,7 +23,9 @@ export class QueryDirectRouteDto {
     example: 'MIA',
   })
   @IsString()
-  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
   @Matches(/^(?:[A-Z]{3}|[A-Z0-9]{4})$/)
   destination!: string;
 }

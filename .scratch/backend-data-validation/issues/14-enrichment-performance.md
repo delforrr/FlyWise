@@ -4,10 +4,13 @@
 
 **Blocked by:** 04.
 
-**Status:** in-progress
+**Status:** completed
 
-- [ ] Evitar repetir la comprobación de unicidad del operador para cada oferta candidata.
-- [ ] Doble importación de los .dat sin duplicados y con enriquecimiento correcto, sin aumentar el timeout de 120 segundos.
-- [ ] Build y tests verdes; commit atómico.
+- [x] Evitar repetir la comprobación de unicidad del operador para cada oferta candidata.
+- [x] Doble importación de los .dat sin duplicados y con enriquecimiento correcto, sin aumentar el timeout de 120 segundos.
+- [x] Build y tests verdes; commit atómico.
 
 **Evidence:** La regresión E2E agotó 120 segundos. pg_stat_activity mostró el UPDATE de enriquecimiento activo; sin espera de locks.
+
+**Evidence and review:** La doble importación real pasó en 27 segundos frente al timeout de 120 previo. Se conservan enriquecimiento, descartes e idempotencia.
+
