@@ -318,8 +318,10 @@ export class EtlService {
                 original &&
                 !['-', 'N/A'].includes(original.toUpperCase()) &&
                 normalized[field] === null
-              )
+              ) {
                 normalizedCodes++;
+                normalized[`${field}Invalid`] = true;
+              }
             }
             batch.push({
               row: normalized,

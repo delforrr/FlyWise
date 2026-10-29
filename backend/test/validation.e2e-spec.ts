@@ -45,6 +45,39 @@ describe('Data validation regressions (PostgreSQL)', () => {
       } finally { await app.close(); }
     });
   });
+  it('preserves stored codes on malformed updates, but clears explicitly missing codes', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'flywise-code-update-'));
+    try {
+      await isolated(async (tx) => {
+        const service = await importer(tx);
+        const file = join(directory, 'countries.dat');
+        await writeFile(file, 'Preserved fixture,AR,AR\n');
+        await service.processCountries(file);
+        await writeFile(file, 'Preserved fixture,INVALID,AR\n');
+        await service.processCountries(file);
+        expect(await tx.orm.public.Country.first({ name: 'Preserved fixture' })).toMatchObject({ isoCode: 'AR' });
+        await writeFile(file, 'Preserved fixture,\\N,AR\n');
+        await service.processCountries(file);
+        expect(await tx.orm.public.Country.first({ name: 'Preserved fixture' })).toMatchObject({ isoCode: null });
+        for (const dataset of ['airports', 'airlines'] as const) {
+          const input = (iata: string, icao: string) => dataset === 'airports'
+            ? `2147483001,Preserved airport,City,Argentina,${iata},${icao},0,0,0,0,N,UTC,airport,OpenFlights\n`
+            : `2147483001,Preserved airline,Alias,${iata},${icao},Callsign,Argentina,Y\n`;
+          const model = dataset === 'airports' ? tx.orm.public.Airport : tx.orm.public.Airline;
+          const validIata = dataset === 'airports' ? 'ZZZ' : 'ZZ';
+          const validIcao = dataset === 'airports' ? 'ZZZZ' : 'ZZZ';
+          await writeFile(file, input(validIata, validIcao));
+          await service.importCatalog(dataset, file);
+          await writeFile(file, input('INVALID', 'INVALID'));
+          await service.importCatalog(dataset, file);
+          expect(await model.first({ openflightsId: 2147483001 })).toMatchObject({ iata: validIata, icao: validIcao });
+          await writeFile(file, input('\\N', '\\N'));
+          await service.importCatalog(dataset, file);
+          expect(await model.first({ openflightsId: 2147483001 })).toMatchObject({ iata: null, icao: null });
+        }
+      });
+    } finally { await rm(directory, { recursive: true }); }
+  });
   it('rejects a required optional code after normalization and records its reason', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'flywise-required-e2e-'));
     try {

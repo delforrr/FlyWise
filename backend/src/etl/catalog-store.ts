@@ -53,7 +53,9 @@ export async function upsertCatalogBatch(
       ? await db.query(
           db.raw.sql`
     INSERT INTO countries (id,name,iso_code)
-    SELECT id,name,"isoCode" FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,name text,"isoCode" text)
+    SELECT x.id,x.name,CASE WHEN x."isoCodeInvalid" THEN previous.iso_code ELSE x."isoCode" END
+    FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,name text,"isoCode" text,"isoCodeInvalid" boolean)
+    LEFT JOIN countries previous ON previous.name=x.name
     ON CONFLICT (name) DO UPDATE SET iso_code=EXCLUDED.iso_code
     RETURNING (xmax=0) AS inserted
   `
@@ -64,8 +66,11 @@ export async function upsertCatalogBatch(
         ? await db.query(
             db.raw.sql`
     INSERT INTO airports (id,openflights_id,name,city,country_name,iata,icao,latitude,longitude,source,route_count)
-    SELECT id,"openflightsId",name,city,"countryName",iata,icao,latitude,longitude,source,0
-    FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"openflightsId" int,name text,city text,"countryName" text,iata text,icao text,latitude float8,longitude float8,source text)
+    SELECT x.id,x."openflightsId",x.name,x.city,x."countryName",
+      CASE WHEN x."iataInvalid" THEN previous.iata ELSE x.iata END,
+      CASE WHEN x."icaoInvalid" THEN previous.icao ELSE x.icao END,x.latitude,x.longitude,x.source,0
+    FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"openflightsId" int,name text,city text,"countryName" text,iata text,icao text,latitude float8,longitude float8,source text,"iataInvalid" boolean,"icaoInvalid" boolean)
+    LEFT JOIN airports previous ON previous.openflights_id=x."openflightsId"
     ON CONFLICT (openflights_id) DO UPDATE SET name=EXCLUDED.name,city=EXCLUDED.city,country_name=EXCLUDED.country_name,
       iata=EXCLUDED.iata,icao=EXCLUDED.icao,latitude=EXCLUDED.latitude,longitude=EXCLUDED.longitude,source=EXCLUDED.source
     RETURNING (xmax=0) AS inserted
@@ -77,8 +82,11 @@ export async function upsertCatalogBatch(
           ? await db.query(
               db.raw.sql`
     INSERT INTO airlines (id,openflights_id,name,iata,icao,country,active)
-    SELECT id,"openflightsId",name,iata,icao,country,active
-    FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"openflightsId" int,name text,iata text,icao text,country text,active boolean)
+    SELECT x.id,x."openflightsId",x.name,
+      CASE WHEN x."iataInvalid" THEN previous.iata ELSE x.iata END,
+      CASE WHEN x."icaoInvalid" THEN previous.icao ELSE x.icao END,x.country,x.active
+    FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"openflightsId" int,name text,iata text,icao text,country text,active boolean,"iataInvalid" boolean,"icaoInvalid" boolean)
+    LEFT JOIN airlines previous ON previous.openflights_id=x."openflightsId"
     ON CONFLICT (openflights_id) DO UPDATE SET name=EXCLUDED.name,iata=EXCLUDED.iata,icao=EXCLUDED.icao,country=EXCLUDED.country,active=EXCLUDED.active
     RETURNING (xmax=0) AS inserted
   `
