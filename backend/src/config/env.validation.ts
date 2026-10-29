@@ -1,7 +1,10 @@
 import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
-  IsNumber,
+  IsInt,
+  Min,
+  Max,
+  Matches,
   IsOptional,
   IsString,
   validateSync,
@@ -18,22 +21,29 @@ export class EnvironmentVariables {
   @IsOptional()
   NODE_ENV: Environment = Environment.Development;
 
-  @IsNumber()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
   @IsOptional()
   PORT: number = 3001;
 
   @IsString()
+  @Matches(/^postgres(?:ql)?:\/\/\S+$/)
   DATABASE_URL!: string;
 
   @IsString()
+  @Matches(/^\S+$/)
   @IsOptional()
   REDIS_HOST: string = 'localhost';
 
-  @IsNumber()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
   @IsOptional()
   REDIS_PORT: number = 6379;
 
   @IsString()
+  @Matches(/^\S{32,}$/)
   JWT_SECRET!: string;
 
   @IsString()
@@ -54,7 +64,8 @@ export function validate(config: Record<string, unknown>) {
   });
 
   if (errors.length > 0) {
-    throw new Error(`Environment validation error: ${errors.toString()}`);
+    throw new Error(`Environment validation error: ${errors.map(error => error.property).join(', ')}`);
   }
   return validatedConfig;
 }
+
