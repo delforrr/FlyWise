@@ -1,5 +1,6 @@
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsString, Matches } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 @ApiSchema({
   name: 'ConsultarEnlace',
@@ -7,20 +8,20 @@ import { IsNotEmpty, IsString, Length } from 'class-validator';
 })
 export class QueryDirectRouteDto {
   @ApiProperty({
-    description: 'Código iata del punto inicial',
+    description: 'Código IATA o ICAO del aeropuerto de origen',
     example: 'EZE',
   })
   @IsString()
-  @IsNotEmpty()
-  @Length(3, 4)
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
+  @Matches(/^(?:[A-Z]{3}|[A-Z0-9]{4})$/)
   origin!: string;
 
   @ApiProperty({
-    description: 'Código iata del punto final',
+    description: 'Código IATA o ICAO del aeropuerto de destino',
     example: 'MIA',
   })
   @IsString()
-  @IsNotEmpty()
-  @Length(3, 4)
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
+  @Matches(/^(?:[A-Z]{3}|[A-Z0-9]{4})$/)
   destination!: string;
 }

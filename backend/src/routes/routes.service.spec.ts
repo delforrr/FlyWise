@@ -10,7 +10,7 @@ import { NotFoundException } from '@nestjs/common';
 describe('RoutesService', () => {
   let service: RoutesService;
   let prismaService: {
-    models: { Route: ReturnType<typeof mockCollection> };
+    models: { Route: ReturnType<typeof mockCollection>; Airport: ReturnType<typeof mockCollection> };
     db: ReturnType<typeof mockDatabase>;
   };
 
@@ -45,7 +45,8 @@ describe('RoutesService', () => {
   };
 
   beforeEach(async () => {
-    prismaService = { models: { Route: mockCollection() }, db: mockDatabase() };
+    prismaService = { models: { Route: mockCollection(), Airport: mockCollection() }, db: mockDatabase() };
+    prismaService.models.Airport.all.mockResolvedValueOnce([{ id: 'airport-a' }]).mockResolvedValueOnce([{ id: 'airport-b' }]);
     prismaService.models.Route.all.mockResolvedValue([mockRoute]);
     prismaService.db.query.mockResolvedValue([{ id: mockRoute.id, distanceKm: 7098.5 }]);
 

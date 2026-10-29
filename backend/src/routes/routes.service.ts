@@ -1,5 +1,5 @@
 import { and, or, type Condition } from '@prisma/orm-postgres/orm-client';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { CollectionRowOf } from '@prisma/orm-postgres/orm-client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ExploreRoutesDto } from './dto/explore-routes.dto.js';
@@ -122,6 +122,8 @@ export class RoutesService {
 
   async explore(dto: ExploreRoutesDto): Promise<DeckGlArcRoute[]> {
     const { origin, airline, limit = 100 } = dto;
+    if (dto.originId && dto.destinationId && dto.originId.toLowerCase() === dto.destinationId.toLowerCase())
+      throw new BadRequestException('El origen y el destino deben ser aeropuertos distintos');
 
     if (dto.includeReturn && (!dto.originId || !dto.destinationId)) {
       throw new BadRequestException('includeReturn requiere origen y destino');
@@ -173,12 +175,24 @@ export class RoutesService {
   async findDirect(dto: QueryDirectRouteDto) {
     const originIata = dto.origin.trim().toUpperCase();
     const destinationIata = dto.destination.trim().toUpperCase();
+    if (originIata === destinationIata)
+      throw new BadRequestException('El origen y el destino deben ser aeropuertos distintos');
+    const endpoints: string[] = [];
+    for (const code of [originIata, destinationIata]) {
+      const airports = await this.prisma.models.Airport.where(a => or(a.iata.eq(code), a.icao.eq(code))).select('id').limit(2).all();
+      if (airports.length > 1) throw new ConflictException('Código de aeropuerto ambiguo');
+      if (!airports.length) throw new NotFoundException(`Aeropuerto con código ${code} no encontrado`);
+      endpoints.push(airports[0].id);
+    }
+    const [originId, destinationId] = endpoints;
+    if (originId === destinationId)
+      throw new BadRequestException('El origen y el destino deben ser aeropuertos distintos');
 
     const rows = await includeRouteDetails(this.prisma)
       .where((route) =>
         and(
-          route.origin.some({ iata: originIata }),
-          route.destination.some({ iata: destinationIata }),
+          route.originId.eq(originId),
+          route.destinationId.eq(destinationId),
           route.stops.eq(0),
         ),
       )

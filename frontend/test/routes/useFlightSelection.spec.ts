@@ -9,6 +9,13 @@ describe("useFlightSelection — Composable de Selección Reactiva de Rutas y Ae
   });
 
   describe("Estado Inicial", () => {
+    it('prevents equal endpoints assigned through input v-models', () => {
+      const selection = useFlightSelection();
+      selection.selectedOrigin.value = 'PKN';
+      selection.selectedDestination.value = 'PKN';
+      expect(selection.hasActiveRoute.value).toBe(false);
+      expect(selection.selectedDestination.value).toBeUndefined();
+    });
     it("inicializa con origen, destino indefinidos y sin entidades hovered", () => {
       const selection = useFlightSelection();
 
