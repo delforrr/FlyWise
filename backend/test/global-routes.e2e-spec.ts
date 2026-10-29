@@ -23,7 +23,7 @@ describe('Global connections (PostgreSQL)', () => {
         const internal = await airport(ar.id, 'AAB', 100);
         const unclassified = await airport(unknown.id, 'AAC', 1_000_000);
         const destinations = [];
-        for (let i = 0; i < 17; i++) destinations.push(await airport(es.id, `B${String(i).padStart(2, '0')}`, 100));
+        for (let i = 0; i < 17; i++) destinations.push(await airport(es.id, `BA${String.fromCharCode(65 + i)}`, 100));
         for (const destination of destinations.slice(0, 15)) {
           for (const airlineCode of ['T1', 'T2']) {
             await tx.orm.public.Route.create({ originId: origin.id, destinationId: destination.id, airlineCode });
