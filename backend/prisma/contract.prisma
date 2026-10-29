@@ -49,6 +49,7 @@ model Country {
 }
 
 model Airport {
+  countryLinkInferred Boolean @default(false) @map("country_link_inferred")
   id            String                                @id @onCreate(uuid())
   openflightsId Int?                                  @unique @map("openflights_id")
   name          String
@@ -84,6 +85,7 @@ model Airport {
 }
 
 model Airline {
+  countryLinkInferred Boolean @default(false) @map("country_link_inferred")
   id            String   @id @onCreate(uuid())
   openflightsId Int?     @unique @map("openflights_id")
   name          String
