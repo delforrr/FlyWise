@@ -5,6 +5,7 @@ import {
   NotFoundException,
   OnModuleInit,
   ValidationPipe,
+  Logger,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, defaultRepeatStrategy } from 'bullmq';
@@ -34,6 +35,7 @@ const now = () => new Date().toISOString().replace('T', ' ').replace('Z', '');
 
 @Injectable()
 export class PipelinesService implements OnModuleInit {
+  private readonly logger = new Logger(PipelinesService.name);
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue('etl-queue') private readonly queue: Queue,
@@ -77,8 +79,17 @@ export class PipelinesService implements OnModuleInit {
       onConflict: 'skip',
     });
     // Reconcile schedulers after a crash between the database write and Redis update.
-    for await (const row of this.prisma.models.EtlPipeline.limit(1000).all())
-      await this.schedule(row);
+    for await (const row of this.prisma.models.EtlPipeline.limit(1000).all()) {
+      try {
+        await this.schedule(row);
+      } catch (error) {
+        if (!(error instanceof BadRequestException)) throw error;
+        await this.queue.removeJobScheduler(row.id);
+        this.logger.warn(
+          `Pipeline ${row.id}: configuración inválida; programación deshabilitada`,
+        );
+      }
+    }
   }
 
   list() {
