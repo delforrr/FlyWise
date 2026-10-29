@@ -200,6 +200,23 @@ describe('EtlService', () => {
         maxRetries: 2,
       },
     };
+    it.each([
+      ['city', '   '],
+      ['iata', 'INVALID'],
+      ['countryName', ' \\N '],
+    ])('discards a required %s that normalizes to absence or a fallback', async (field, value) => {
+      const directory = await mkdtemp(join(tmpdir(), 'flywise-required-'));
+      try {
+        const file = join(directory, 'airports.csv');
+        await writeFile(file, `id;title;lat;lng;extra\n42;Airport;0;0;${value}\n`);
+        await expect(service.importCatalog('airports', file, undefined, {
+          ...configuration,
+          schemaMapping: [...configuration.schemaMapping, { sourceColumn: 'extra', targetField: field, required: true }],
+        })).resolves.toMatchObject({ total: 1, processed: 0, discarded: 1 });
+      } finally {
+        await rm(directory, { recursive: true });
+      }
+    });
     it('uses native CSV quoting, header names and transformations without inventing optional codes', async () => {
       const directory = await mkdtemp(join(tmpdir(), 'flywise-mapping-'));
       try {

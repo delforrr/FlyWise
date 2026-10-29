@@ -262,8 +262,6 @@ export class EtlService {
               for (const rule of configuration.schemaMapping) {
                 let value: string | number | boolean | null | undefined =
                   raw[rule.sourceColumn];
-                if (rule.required && (!value || value === String.raw`\N`))
-                  throw new Error(`${rule.targetField}: obligatorio`);
                 if (rule.transform === 'uppercase')
                   value = String(value ?? '').toUpperCase();
                 if (rule.transform === 'trim')
@@ -290,6 +288,8 @@ export class EtlService {
                       ? null
                       : ['Y', 'TRUE', '1'].includes(text);
                 }
+                if (rule.required && catalogValue(value) === null)
+                  throw new Error(`${rule.targetField}: obligatorio`);
                 mapped[rule.targetField] = value;
               }
             } else {
@@ -301,6 +301,10 @@ export class EtlService {
               );
             }
             const normalized = normalizeCatalogRow(dataset, mapped);
+            for (const rule of configuration?.schemaMapping ?? []) {
+              if (rule.required && normalized[rule.targetField] === null)
+                throw new Error(`${rule.targetField}: obligatorio o inválido`);
+            }
             for (const field of [
               'iata',
               'icao',
