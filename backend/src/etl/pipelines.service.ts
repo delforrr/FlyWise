@@ -16,6 +16,7 @@ import {
   CATALOG_FIELDS,
   CreatePipelineDto,
   PipelineConnectionDto,
+  PipelineExecutionDto,
   type CatalogTarget,
   type UpdatePipelineDto,
 } from './dto/pipeline.dto.js';
@@ -96,7 +97,17 @@ export class PipelinesService implements OnModuleInit {
     return row;
   }
 
-  private validate(dto: CreatePipelineDto) {
+  async validateConfiguration(source: string, configuration: unknown) {
+    if (!configuration || typeof configuration !== 'object' || Array.isArray(configuration))
+      throw new BadRequestException('Configuración de ejecución inválida');
+    const dto = await new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }).transform(
+      { ...configuration, targetEntity: source }, { type: 'body', metatype: PipelineExecutionDto },
+    ) as PipelineExecutionDto;
+    this.validate(dto);
+    return { connection: dto.connection, schemaMapping: dto.schemaMapping, scheduleConfig: dto.scheduleConfig };
+  }
+
+  private validate(dto: PipelineExecutionDto) {
     validateSourceUrl(dto.connection.endpointUrl);
     sourceHeaders(dto.connection);
     const fields = dto.schemaMapping.map((rule) => rule.targetField);
@@ -144,10 +155,18 @@ export class PipelinesService implements OnModuleInit {
     paused: boolean;
     archivedAt: string | null;
     scheduleConfig: unknown;
+    targetEntity: string;
+    connection: unknown;
+    schemaMapping: unknown;
   }) {
-    const config =
-      row.scheduleConfig as PipelineConfiguration['scheduleConfig'];
-    if (row.paused || row.archivedAt || !config.cronExpression) {
+    if (row.paused || row.archivedAt) {
+      await this.queue.removeJobScheduler(row.id);
+      return;
+    }
+    const { scheduleConfig: config } = await this.validateConfiguration(row.targetEntity, {
+      connection: row.connection, schemaMapping: row.schemaMapping, scheduleConfig: row.scheduleConfig,
+    });
+    if (!config.cronExpression) {
       await this.queue.removeJobScheduler(row.id);
     } else {
       await this.queue.upsertJobScheduler(
@@ -244,6 +263,7 @@ export class PipelinesService implements OnModuleInit {
     pipelineId?: string,
     requestedById?: string,
   ) {
+    configuration = await this.validateConfiguration(source, configuration);
     const record = await this.prisma.models.EtlJob.create({
       source,
       status: 'pending',

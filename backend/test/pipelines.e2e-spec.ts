@@ -83,6 +83,8 @@ describe('Pipeline persistence and immutable execution configuration', () => {
         }).firstOrThrow();
         expect(failed.status).toBe('failed');
         expect(failed.errorMessage).not.toContain('credentials');
+        await tx.orm.public.EtlPipeline.where({ id: another.id }).update({ schemaMapping: [null] });
+        await expect(service.run(another.id)).rejects.toThrow(/Bad Request/);
         throw rollback;
       });
       throw new Error('Expected rollback');

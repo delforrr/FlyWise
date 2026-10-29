@@ -7,7 +7,6 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { PipelinesService } from './pipelines.service.js';
 import { ETL_DATASETS } from './dto/trigger-etl.dto.js';
 import type { CatalogDataset } from './catalog.js';
-import type { PipelineConfiguration } from './interfaces/pipeline-configuration.js';
 
 @Processor('etl-queue', { concurrency: 1 })
 export class EtlProcessor extends WorkerHost {
@@ -52,8 +51,9 @@ export class EtlProcessor extends WorkerHost {
       const record = await this.prisma.models.EtlJob.where({
         id: jobId,
       }).firstOrThrow();
-      const config =
-        record.configurationSnapshot as PipelineConfiguration | null;
+      const config = record.configurationSnapshot
+        ? await this.pipelines.validateConfiguration(dataset, record.configurationSnapshot)
+        : null;
       let processedRows = 0,
         insertedRows = 0,
         discardedRows = 0;
