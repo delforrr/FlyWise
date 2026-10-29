@@ -26,9 +26,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('FlyWise API')
-    .setDescription(
-      'FlyWise - Sistema de Inteligencia de Vuelos Comerciales y Exploración de Rutas',
-    )
+    .setDescription('Referencia de consultas, usuarios y cargas de datos.')
     .setVersion('1.0')
     .addBearerAuth(
       {

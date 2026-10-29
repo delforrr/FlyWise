@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useEtlMonitoring } from "~/features/etl-monitoring/composables/useEtlMonitoring";
 
-const { logout } = useAuth();
+const { user, logout } = useAuth();
+const username = computed(() => user.value?.email.split('@')[0] ?? '');
 const signingOut = ref(false);
 const logoutError = ref('');
 async function signOut() {
@@ -123,13 +124,13 @@ const {
 
           <USeparator v-if="!isUsersPage" orientation="vertical" class="h-4" />
 
-          <!-- Identificador de Operador -->
-          <div v-if="!isUsersPage" class="flex items-center gap-2">
-            <UAvatar text="OP" size="xs" class="font-mono text-xs font-bold" />
+          <!-- Identificador del usuario de la sesión -->
+          <div v-if="!isUsersPage && user" class="flex items-center gap-2" :title="user.email">
+            <UAvatar :alt="username" size="xs" class="font-mono text-xs font-bold" />
             <span
-              class="hidden lg:inline text-xs font-semibold text-text-main font-mono"
+              class="hidden lg:inline max-w-40 truncate text-xs font-semibold text-text-main font-mono"
             >
-              Operador ETL
+              {{ username }}
             </span>
           </div>
         </div>

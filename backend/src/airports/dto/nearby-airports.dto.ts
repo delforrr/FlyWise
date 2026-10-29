@@ -1,7 +1,11 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { IsNumber, Min, Max, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
+@ApiSchema({
+  name: 'BuscarPuntosCercanos',
+  description: 'Coordenadas y radio de búsqueda.',
+})
 export class NearbyAirportsDto {
   @ApiProperty({
     description: 'Latitud geográfica WGS 84 (-90 a 90)',

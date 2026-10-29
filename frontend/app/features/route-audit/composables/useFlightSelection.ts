@@ -40,12 +40,16 @@ export const useFlightSelection = () => {
   const selectedRouteData = computed<FlightRoute | null>(() => {
     return findRouteBetween(routes.value, selectedOrigin.value, selectedDestination.value);
   });
+  const selectedReturnData = computed<FlightRoute | null>(() => {
+    return findRouteBetween(routes.value, selectedDestination.value, selectedOrigin.value);
+  });
 
   /**
    * Rutas coincidentes con el input actual:
    * Delegado al módulo de grafo O(1) routeGraph.ts (SRP).
    */
   const matchingRoutes = computed<FlightRoute[]>(() => {
+    if (selectedOrigin.value && selectedDestination.value && !selectedRouteData.value && selectedReturnData.value) return [selectedReturnData.value];
     return queryMatchingRoutes(routes.value, selectedOrigin.value, selectedDestination.value);
   });
 
@@ -199,6 +203,7 @@ export const useFlightSelection = () => {
     hasActiveRoute,
     hasAnySelection,
     selectedRouteData,
+    selectedReturnData,
     matchingRoutes,
     isRouteMatched,
     mapFitTrigger,

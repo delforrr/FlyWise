@@ -6,6 +6,7 @@ import type { FlightRoute } from "~/types/route";
 import { useCatalog } from "~/shared/composables/useCatalog";
 import { MAP_STYLES } from "../utils/mapUtils";
 import { buildFlightMapLayers } from "../utils/mapLayers";
+import { useGlobalMap } from './useGlobalMap';
 
 // Estado del mapa compartido a nivel módulo (Singleton para sincronizar componentes HUD)
 const mapInstance = shallowRef<Map | null>(null);
@@ -52,6 +53,7 @@ export const useFlightMap = () => {
   } = useFlightSelection();
 
   const colorMode = useColorMode();
+  const globalMap = useGlobalMap();
 
   /**
    * Genera las capas activas de WebGL delegando a buildFlightMapLayers (SRP)
@@ -61,7 +63,7 @@ export const useFlightMap = () => {
       isLight: colorMode.value === "light",
       selectedOrigin: selectedOrigin.value,
       selectedDestination: selectedDestination.value,
-      matchingRoutes: matchingRoutes.value,
+      matchingRoutes: selectedOrigin.value || selectedDestination.value ? matchingRoutes.value : globalMap.visibleRoutes.value,
       airports: airports.value,
     });
   }
@@ -370,6 +372,22 @@ export const useFlightMap = () => {
     });
   }
 
+  function fitGlobal(): void {
+    if (!mapInstance.value || selectedOrigin.value || selectedDestination.value) return;
+    const routes = globalMap.visibleRoutes.value;
+    if (!routes.length) return;
+    const bounds = new maplibregl.LngLatBounds();
+    for (const route of routes) {
+      bounds.extend(route.originCoordinates);
+      bounds.extend(route.destinationCoordinates);
+    }
+    const mobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    mapInstance.value.fitBounds(bounds, {
+      padding: { top: mobile ? 110 : 120, bottom: mobile ? 170 : 130, left: 48, right: 60 },
+      maxZoom: 5, pitch: 30, duration: 1200,
+    });
+  }
+
   function zoomIn(): void {
     mapInstance.value?.zoomIn({
       duration: 400,
@@ -399,6 +417,7 @@ export const useFlightMap = () => {
     flyToAirport,
     fitRoute,
     fitHub,
+    fitGlobal,
     toggle3D,
     resetNorth,
     zoomIn,

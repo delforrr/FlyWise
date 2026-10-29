@@ -57,7 +57,7 @@ describe('CountriesService', () => {
     it('should return all countries', async () => {
       const res = await service.findAll();
       expect(prismaService.models.Country.all).toHaveBeenCalled();
-      expect(res).toEqual([mockCountry]);
+      expect(res).toEqual([{ ...mockCountry, continent: 'SA' }]);
     });
   });
 

@@ -12,10 +12,19 @@ const getVisibleAirports = (hasSelection: boolean, origin?: string | null, desti
 
 describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", () => {
   describe("getVisibleAirports() — Filtrado reactivo de nodos aeroportuarios", () => {
-    it("retorna todos los SEED_AIRPORTS cuando hasSelection es false (vista general)", () => {
+    it("oculta todos los aeropuertos cuando el filtro global no tiene conexiones", () => {
       const result = getVisibleAirports(false, null, null, []);
-      expect(result).toHaveLength(SEED_AIRPORTS.length);
-      expect(result).toEqual(SEED_AIRPORTS);
+      expect(result).toEqual([]);
+    });
+
+    it('muestra solo los extremos de las conexiones globales, también en etiquetas', () => {
+      const routes = SEED_ROUTES.slice(0, 1);
+      const expected = getVisibleAirports(false, null, null, routes);
+      const ids = new Set(routes.flatMap(r => [r.originId, r.destinationId]));
+      expect(expected).toEqual(SEED_AIRPORTS.filter(a => ids.has(a.id)));
+      const layers = buildFlightMapLayers({ isLight: true, airports: SEED_AIRPORTS, matchingRoutes: routes });
+      expect(layers.find(l => l.id === 'airports-labels')?.props.data).toEqual(expected);
+      expect(layers.find(l => l.id === 'airports-nodes')?.props.data).toEqual(expected);
     });
 
     it("filtra solo los aeropuertos involucrados cuando hay un origen seleccionado", () => {

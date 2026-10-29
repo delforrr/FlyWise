@@ -1,14 +1,37 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { IsOptional, IsUUID, IsString, IsInt, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
+import { IsBoolean } from 'class-validator';
 
+@ApiSchema({
+  name: 'ListarEnlaces',
+  description: 'Filtros de extremos, entidad y cantidad de enlaces.',
+})
 export class ExploreRoutesDto {
-  @IsOptional() @IsUUID() originId?: string;
-  @IsOptional() @IsUUID() destinationId?: string;
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === 'true' ? true : value === 'false' ? false : value,
+  )
+  @IsBoolean()
+  @ApiPropertyOptional({
+    description: 'Incluye ambos sentidos, exige ambos UUID y no aplica limit',
+    type: Boolean,
+  })
+  includeReturn?: boolean;
+  @ApiPropertyOptional({
+    description: 'UUID del punto inicial',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  originId?: string;
+  @ApiPropertyOptional({ description: 'UUID del punto final', format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  destinationId?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Código IATA de aeropuerto de origen para activar la exploración bajo demanda (modo Estrella)',
+    description: 'Código iata de cualquiera de los extremos',
     example: 'EZE',
   })
   @IsOptional()
@@ -16,8 +39,7 @@ export class ExploreRoutesDto {
   origin?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Código IATA de aerolínea para filtrar únicamente su red comercial',
+    description: 'Código de la entidad asociada',
     example: 'AR',
   })
   @IsOptional()
@@ -25,7 +47,7 @@ export class ExploreRoutesDto {
   airline?: string;
 
   @ApiPropertyOptional({
-    description: 'Cantidad máxima de rutas a retornar (por defecto 100)',
+    description: 'Máximo de enlaces; de 1 a 500',
     default: 100,
   })
   @IsOptional()

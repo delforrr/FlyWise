@@ -1,5 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 
+@ApiSchema({
+  name: 'Usuario',
+  description: 'Datos públicos del usuario; no incluye contraseña.',
+})
 export class UserDto {
   @ApiProperty({
     example: 'd3b07384-d113-4a69-8d7b-9907f7b3b9b9',

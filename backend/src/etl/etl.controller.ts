@@ -10,7 +10,7 @@ import { EtlService } from './etl.service.js';
 import { JwtAuthGuard } from '../auth/auth.guard.js';
 import { TriggerEtlDto } from './dto/trigger-etl.dto.js';
 
-@ApiTags('etl')
+@ApiTags('Cargas de datos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('etl')
@@ -19,18 +19,17 @@ export class EtlController {
 
   @Post('trigger/:dataset')
   @ApiOperation({
-    summary:
-      'Dispara un proceso asíncrono de actualización y normalización de catálogo aeronáutico',
+    summary: 'Solicita una carga de datos',
   })
   @ApiParam({
     name: 'dataset',
     description:
-      'Identificador del catálogo a sincronizar: all, airports, airlines, countries, routes',
+      'Conjunto de datos: all, airports, airlines, countries o routes',
     example: 'all',
   })
   @ApiResponse({
     status: 201,
-    description: 'Proceso asíncrono encolado exitosamente',
+    description: 'Solicitud recibida con identificador de ejecución',
   })
   @ApiResponse({
     status: 401,
@@ -42,12 +41,12 @@ export class EtlController {
 
   @Get('status')
   @ApiOperation({
-    summary: 'Consulta las métricas en tiempo real de los procesos asíncronos',
+    summary: 'Consulta los contadores de ejecuciones',
   })
   @ApiResponse({
     status: 200,
     description:
-      'Métricas de procesamiento (tareas en espera, activas, completadas y fallidas)',
+      'Contadores de ejecuciones pendientes, activas, completadas y fallidas',
   })
   @ApiResponse({
     status: 401,
@@ -59,12 +58,11 @@ export class EtlController {
 
   @Get('history')
   @ApiOperation({
-    summary: 'Historial de ejecuciones y auditoría de sincronizaciones',
+    summary: 'Consulta el historial de ejecuciones',
   })
   @ApiResponse({
     status: 200,
-    description:
-      'Registro histórico de procesos con conteo de registros y tiempos de ejecución',
+    description: 'Últimas 20 ejecuciones con contadores y duración',
   })
   @ApiResponse({
     status: 401,

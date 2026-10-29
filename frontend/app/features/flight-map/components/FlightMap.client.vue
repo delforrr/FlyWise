@@ -12,6 +12,7 @@ const {
   updateLayers,
   fitRoute,
   fitHub,
+  fitGlobal,
   setBaseMapStyle,
 } = useFlightMap();
 
@@ -21,9 +22,13 @@ const {
   selectedRouteData,
   activeRouteId,
   mapFitTrigger,
+  clearHoveredEntity,
 } = useFlightSelection();
 
 const { airports, routes } = useCatalog();
+const globalMap = useGlobalMap();
+watch([globalMap.visibleRoutes, globalMap.fitTrigger], () => { clearHoveredEntity(); updateLayers(); fitGlobal(); });
+watch(isLoaded, loaded => { if (loaded) fitGlobal(); });
 watch([airports, routes], () => { updateLayers(); });
 
 const colorMode = useColorMode();
@@ -70,6 +75,7 @@ watch(mapFitTrigger, () => {
   } else if (selectedDestination.value) {
     fitHub(selectedDestination.value);
   } else if (mapInstance.value) {
+    if (globalMap.visibleRoutes.value.length) { fitGlobal(); return; }
     mapInstance.value.flyTo({
       center: [-30, 20],
       zoom: 2.5,
@@ -84,6 +90,7 @@ watch(
   () => [selectedOrigin.value, selectedDestination.value],
   ([orig, dest]) => {
     if (!orig && !dest && mapInstance.value) {
+      if (globalMap.visibleRoutes.value.length) { fitGlobal(); return; }
       mapInstance.value.flyTo({
         center: [-30, 20],
         zoom: 2.5,

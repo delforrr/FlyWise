@@ -4,7 +4,7 @@ import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
 
-@ApiTags('health')
+@ApiTags('Disponibilidad')
 @Controller('health')
 export class HealthController {
   constructor(
@@ -14,16 +14,15 @@ export class HealthController {
 
   @Get()
   @ApiOperation({
-    summary:
-      'Verifica la disponibilidad general y el estado operacional del sistema',
+    summary: 'Consulta la disponibilidad general',
   })
   @ApiResponse({
     status: 200,
-    description: 'Servicios operativos.',
+    description: 'Disponible.',
   })
   @ApiResponse({
     status: 503,
-    description: 'Uno o más servicios degradados.',
+    description: 'Disponibilidad reducida.',
   })
   async check(@Res() res: Response) {
     let dbStatus = 'down';

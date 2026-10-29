@@ -1,11 +1,15 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
+@ApiSchema({
+  name: 'ListarEntidades',
+  description: 'Búsqueda y paginación de entidades.',
+})
 export class QueryAirlinesDto {
   @ApiPropertyOptional({
-    description: 'Filtro por nombre, código IATA o ICAO de la aerolínea',
-    example: 'Aerolineas',
+    description: 'Filtro por nombre o código de la entidad',
+    example: 'Entidad',
   })
   @IsOptional()
   @IsString()

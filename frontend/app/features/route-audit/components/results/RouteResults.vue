@@ -9,6 +9,7 @@ const {
   selectedDestination,
   matchingRoutes,
   selectedRouteData,
+  selectedReturnData,
   openMobileSearch,
   setRoute,
   setDestination,
@@ -110,11 +111,17 @@ function handleBackToHub() {
         <!-- CASO A: Par Origen - Destino seleccionado -->
         <template v-if="selectedOrigin && selectedDestination">
           <!-- Subcaso A.1: Existen rutas directas o conexiones -->
-          <template v-if="selectedRouteData || connectingRoutes.length > 0">
+          <template v-if="selectedRouteData || selectedReturnData || connectingRoutes.length > 0">
+            <h2 v-if="selectedRouteData" class="text-base font-semibold text-text-main">Ida · {{ selectedRouteData.originIata }} → {{ selectedRouteData.destinationIata }}</h2>
+            <p v-else class="text-sm text-text-muted">Sin ida disponible en el catálogo.</p>
             <RouteDirectCard
               v-if="selectedRouteData"
               :route="selectedRouteData"
             />
+            <template v-if="selectedReturnData">
+              <h2 class="text-base font-semibold text-text-main">Vuelta · {{ selectedReturnData.originIata }} → {{ selectedReturnData.destinationIata }}</h2>
+              <RouteDirectCard :route="selectedReturnData" />
+            </template>
 
             <RouteConnectingList
               :routes="connectingRoutes"

@@ -25,7 +25,8 @@ import {
 } from '@nestjs/swagger';
 import { AdminGuard, JwtAuthGuard } from '../auth/auth.guard.js';
 
-@ApiTags('users')
+@ApiTags('Usuarios')
+@ApiResponse({ status: 403, description: 'Se requiere el rol ADMIN' })
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('users')

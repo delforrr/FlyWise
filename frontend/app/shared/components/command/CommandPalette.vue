@@ -93,6 +93,15 @@ async function handleOpenShortcuts() {
 
 const groups = computed<PaletteGroup[]>(() => [
   {
+    id: 'global-map', label: 'Mapa global', items: [{
+      id: 'filter-global-map', label: 'Filtrar mapa', icon: 'i-lucide-list-filter',
+      onSelect: async () => {
+        await handleNavigate('/explorar');
+        useGlobalMap().isOpen.value = true;
+      },
+    }],
+  },
+  {
     id: "airports",
     label: "Aeropuertos Populares & Hubs",
     icon: "i-lucide-plane-takeoff",

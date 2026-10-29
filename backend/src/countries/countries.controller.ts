@@ -2,31 +2,34 @@ import { Controller, Get, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { CountriesService } from './countries.service.js';
 
-@ApiTags('countries')
+@ApiTags('Agrupaciones')
 @Controller('countries')
 export class CountriesController {
   constructor(private readonly countriesService: CountriesService) {}
 
   @Get()
   @ApiOperation({
-    summary: 'Obtiene el catálogo de países registrados en el sistema',
+    summary: 'Lista agrupaciones',
   })
-  @ApiResponse({ status: 200, description: 'Lista de países' })
+  @ApiResponse({ status: 200, description: 'Agrupaciones disponibles' })
   async findAll() {
     return this.countriesService.findAll();
   }
 
   @Get(':name')
   @ApiOperation({
-    summary: 'Obtiene el detalle de un país y sus aeropuertos principales',
+    summary: 'Consulta una agrupación por nombre',
   })
   @ApiParam({
     name: 'name',
     example: 'Argentina',
-    description: 'Nombre del país',
+    description: 'Nombre de la agrupación',
   })
-  @ApiResponse({ status: 200, description: 'Detalle del país con aeropuertos' })
-  @ApiResponse({ status: 404, description: 'País no encontrado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Agrupación con hasta 50 puntos asociados',
+  })
+  @ApiResponse({ status: 404, description: 'Agrupación no encontrada' })
   async findByName(@Param('name') name: string) {
     return this.countriesService.findByName(name);
   }

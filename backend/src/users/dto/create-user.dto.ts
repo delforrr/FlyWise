@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsByteLength,
@@ -10,6 +10,10 @@ import {
   MinLength,
 } from 'class-validator';
 
+@ApiSchema({
+  name: 'CrearUsuario',
+  description: 'Datos para crear un usuario.',
+})
 export class CreateUserDto {
   @ApiProperty({
     example: 'operator@flywise.com',

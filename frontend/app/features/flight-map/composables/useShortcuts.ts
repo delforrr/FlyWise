@@ -22,6 +22,7 @@ export function useShortcuts() {
   const { triggerFit, clearSelection } = useFlightSelection();
   const shortcutsModal = useState<boolean>("cockpit_shortcuts_modal", () => false);
   const commandPalette = useState<boolean>("cockpit_command_palette_open", () => false);
+  const globalFilter = useState<boolean>('global_map_modal', () => false);
 
   function toggleCommandPalette(): void {
     commandPalette.value = !commandPalette.value;
@@ -31,7 +32,9 @@ export function useShortcuts() {
     shortcutsModal.value = !shortcutsModal.value;
   }
 
-  function handleEscape(): void {
+  function handleEscape(event?: KeyboardEvent): void {
+    // El diálogo gestiona Escape; no borrar la selección al cerrarlo o cerrar su selector.
+    if (globalFilter.value || (event?.target instanceof Element && event.target.closest('[role="dialog"]'))) return;
     if (commandPalette.value) {
       commandPalette.value = false;
       return;
@@ -43,10 +46,10 @@ export function useShortcuts() {
     clearSelection();
   }
 
-  defineShortcuts({
+  defineShortcuts(computed(() => globalFilter.value ? {} : {
     escape: {
       usingInput: true,
-      handler: () => handleEscape(),
+      handler: (event: KeyboardEvent) => handleEscape(event),
     },
     f: () => triggerFit(),
     m: () => toggle3D(),
@@ -54,7 +57,7 @@ export function useShortcuts() {
     '+': () => zoomIn(),
     '=': () => zoomIn(),
     '-': () => zoomOut(),
-  });
+  }));
 
   return {
     shortcutsModal,

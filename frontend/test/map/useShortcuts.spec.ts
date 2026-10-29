@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { unref, type MaybeRef } from 'vue';
 
 // Mock de useFlightMap y useFlightSelection
 const mockToggle3D = vi.fn();
@@ -28,14 +29,16 @@ import { useShortcuts } from "../../app/features/flight-map/composables/useShort
 
 describe("useShortcuts — Composable de Atajos de Teclado Aeronáuticos del Cockpit", () => {
   let registeredShortcuts: Record<string, any> = {};
+  let readShortcuts: () => Record<string, unknown> = () => ({});
 
   beforeEach(() => {
     vi.clearAllMocks();
     (globalThis as any).__clearStateStore?.();
     registeredShortcuts = {};
 
-    (globalThis as any).defineShortcuts = vi.fn((shortcutsObj: Record<string, any>) => {
-      registeredShortcuts = shortcutsObj;
+    (globalThis as any).defineShortcuts = vi.fn((shortcutsObj: MaybeRef<Record<string, unknown>>) => {
+      readShortcuts = () => unref(shortcutsObj);
+      registeredShortcuts = readShortcuts();
     });
   });
 
@@ -50,6 +53,21 @@ describe("useShortcuts — Composable de Atajos de Teclado Aeronáuticos del Coc
     expect(registeredShortcuts).toHaveProperty("+");
     expect(registeredShortcuts).toHaveProperty("=");
     expect(registeredShortcuts).toHaveProperty("-");
+  });
+
+  it('deja Escape y las teclas de los selectores al modal sin prevenir sus eventos', () => {
+    useShortcuts();
+    const open = useState('global_map_modal', () => false);
+    open.value = true;
+    expect(readShortcuts()).toEqual({});
+    open.value = false;
+    expect(readShortcuts()).toHaveProperty('escape');
+    const dialog = document.createElement('div'); dialog.setAttribute('role', 'dialog');
+    const button = document.createElement('button'); dialog.append(button);
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+    Object.defineProperty(event, 'target', { value: button });
+    registeredShortcuts.escape.handler(event);
+    expect(mockClearSelection).not.toHaveBeenCalled();
   });
 
   describe("Atajo 'escape' — Cierre jerárquico y deselección", () => {

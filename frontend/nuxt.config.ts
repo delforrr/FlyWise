@@ -47,6 +47,7 @@ export default defineNuxtConfig({
   },
 
   icon: {
+    localApiEndpoint: "/_icons",
     serverBundle: {
       collections: ["lucide"],
     },

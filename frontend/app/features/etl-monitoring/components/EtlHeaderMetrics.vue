@@ -199,6 +199,7 @@ const kpiCardUi = {
         <div class="mt-2.5 flex items-baseline gap-2">
           <AnimatedCounter
             :value="metrics.successRatePercent"
+            :decimals="2"
             suffix="%"
             class="text-2xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400 tracking-tight"
           />

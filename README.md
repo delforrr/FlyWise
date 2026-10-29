@@ -34,7 +34,7 @@ La representación visual de los arcos de vuelo refleja el desempeño histórico
 
 ### Modelo Analítico y Clave de Agregación
 
-El [modelo de datos](docs/data-model.md) documenta entidades, restricciones, fórmulas y migraciones; el [diagrama ER](docs/dataModel.mermaid) muestra sus relaciones.
+El [modelo de datos](docs/data-model.md) describe las entidades y restricciones en español; el [diagrama de relaciones](docs/dataModel.mermaid) muestra su estructura. La documentación interactiva de la API está disponible en `/api/docs`.
 
 Las consultas analíticas de rendimiento operan sobre la tupla:
 
@@ -240,9 +240,9 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/triggers.sql
 npx prisma db verify --db "$DATABASE_URL"
 ```
 
-Aplicar además el SQL incremental de la v1 (incluidas las bases nuevas) según [instalación y evolución del modelo](docs/data-model.md#instalación-y-evolución-del-esquema).
+Aplicar además `backend/prisma/changes/20261024_catalog_v1.sql` después de las funciones y antes de los triggers, también en bases nuevas.
 
-Prisma 8 está fijado a las versiones RC del lockfile. Se parte del contrato actual, sin historial de migraciones. El arranque requiere `psql`; consultar [instalación y evolución del esquema](docs/data-model.md#instalación-y-evolución-del-esquema).
+Prisma 8 está fijado a las versiones RC del lockfile. Se parte del contrato actual, sin historial de migraciones. El arranque requiere `psql`.
 
 Consultar también el [reporte de fuentes de OTP y alternativas de catálogos](docs/data-sources.md).
 

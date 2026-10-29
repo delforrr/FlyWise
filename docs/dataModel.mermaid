@@ -1,141 +1,110 @@
-erDiagram
-    Country o|--o{ Airport : country
-    Country o|--o{ Airline : country
-    User o|--o{ EtlJob : requests
-    EtlPipeline o|--o{ EtlJob : executes
-    EtlJob ||--o{ EtlDiscardedSample : discards
-    EtlJob ||--o{ EtlJobEvent : records
-    Airport ||--o{ Route : origin
-    Airport ||--o{ Route : destination
-    Airline o|--o{ Route : operator
-    Airport ||--o{ Flight : origin
-    Airport ||--o{ Flight : destination
-    Airline ||--o{ Flight : operator
-    EtlJob o|--o{ Flight : ingestion
-    Airport ||--o{ RouteMetric : origin
-    Airport ||--o{ RouteMetric : destination
-    Airline ||--o{ RouteMetric : operator
+classDiagram
+    %% Vista simplificada: identificadores originales y descripciones en español.
+    %% PK = clave primaria; FK = clave foránea; UK = valor único.
+    Country "0..1" -- "0..*" Airport : agrupa
+    Country "0..1" -- "0..*" Airline : agrupa
+    User "0..1" -- "0..*" EtlJob : solicita
+    EtlPipeline "0..1" -- "0..*" EtlJob : genera
+    EtlJob "1" -- "0..*" EtlDiscardedSample : contiene
+    EtlJob "1" -- "0..*" EtlJobEvent : registra
+    Airport "1" -- "0..*" Route : origen
+    Airport "1" -- "0..*" Route : destino
+    Airline "0..1" -- "0..*" Route : opera
+    Airport "1" -- "0..*" Flight : origen
+    Airport "1" -- "0..*" Flight : destino
+    Airline "1" -- "0..*" Flight : opera
+    EtlJob "0..1" -- "0..*" Flight : incorpora
+    Airport "1" -- "0..*" RouteMetric : origen
+    Airport "1" -- "0..*" RouteMetric : destino
+    Airline "1" -- "0..*" RouteMetric : opera
 
-    User {
-        string id PK
-        string email UK
-        string passwordHash
-        Role role "default OPERATOR"
-        datetime createdAt
-        datetime updatedAt
+    class User {
+        +string id
+        +string email
+        +Role role
     }
-    Country {
-        string id PK
-        string name UK
-        string isoCode "optional"
+    note for User "id: PK\nemail: UK"
+    class Country {
+        +string id
+        +string name
+        +string isoCode
     }
-    Airport {
-        string id PK
-        int openflightsId UK "optional"
-        string name
-        string city "optional"
-        string source "optional"
-        string countryName "source label, no FK"
-        string countryId FK "optional, unambiguous match"
-        string iata "optional, indexed"
-        string icao "optional, indexed"
-        float latitude
-        float longitude
-        geography location "Point, SRID 4326, GiST"
-        int routeCount
+    note for Country "id: PK\nname: UK\nisoCode: opcional"
+    class Airport {
+        +string id
+        +string name
+        +string countryId
+        +float latitude
+        +float longitude
     }
-    Airline {
-        string id PK
-        int openflightsId UK "optional"
-        string name
-        string country "optional source label, no FK"
-        string countryId FK "optional, unambiguous match"
-        string iata "optional, indexed"
-        string icao "optional, indexed"
-        boolean active "optional, does not filter ingestion"
+    note for Airport "id: PK\ncountryId: FK opcional"
+    class Airline {
+        +string id
+        +string name
+        +string countryId
     }
-    %% Offer key: originId, destinationId, airlineId, airlineCode, codeshare, stops; NULLS NOT DISTINCT.
-    %% Distances computed in PostGIS, never persisted.
-    Route {
-        string id PK
-        string originId FK
-        string destinationId FK
-        string airlineId FK "optional"
-        string airlineCode "optional"
-        boolean codeshare
-        int stops
+    note for Airline "id: PK\ncountryId: FK opcional"
+    class Route {
+        +string id
+        +string originId
+        +string destinationId
+        +string airlineId
+        +int stops
     }
-    %% Flight and RouteMetric retained for the next operational-data release.
-    Flight {
-        string id PK
-        string source "unique with sourceRecordId"
-        string sourceRecordId
-        date flightDate "local departure date"
-        string flightNumber
-        string originId FK
-        string destinationId FK
-        string airlineId FK
-        FlightStatus status "ARRIVED, CANCELLED, DIVERTED"
-        int arrivalDelayMinutes "signed, only ARRIVED"
-        string etlJobId FK "optional"
+    note for Route "id: PK\noriginId: FK\ndestinationId: FK\nairlineId: FK opcional"
+    %% Flight y RouteMetric: carga y agregación aún no activadas.
+    class Flight {
+        +string id
+        +date flightDate
+        +string originId
+        +string destinationId
+        +string airlineId
+        +string etlJobId
+        +FlightStatus status
+        +int arrivalDelayMinutes
     }
-    RouteMetric {
-        string originId PK, FK "unique tuple with destination, airline, period"
-        string destinationId PK, FK
-        string airlineId PK, FK
-        date period PK "first day of month"
-        int totalFlights
-        int cancelledFlights
-        int divertedFlights
-        int onTimeFlights
-        bigint totalArrivalDelayMinutes "signed sum for ARRIVED"
-        datetime updatedAt
+    note for Flight "id: PK\noriginId: FK\ndestinationId: FK\nairlineId: FK\netlJobId: FK opcional\nstatus: aterrizado, cancelado o desviado\narrivalDelayMinutes: solo si aterrizó"
+    class RouteMetric {
+        +string originId
+        +string destinationId
+        +string airlineId
+        +date period
+        +int totalFlights
+        +int cancelledFlights
+        +int divertedFlights
+        +int onTimeFlights
+        +bigint totalArrivalDelayMinutes
     }
-    EtlJob {
-        string id PK
-        string pipelineId FK "optional for legacy jobs"
-        string requestedById FK "optional"
-        string source
-        string status "pending, running, completed, failed"
-        json configurationSnapshot "optional for legacy jobs, no secrets"
-        string sourceUri "optional, credential-free input reference"
-        string sourceChecksum "optional, SHA-256"
-        int totalRows
-        int processedRows
-        int insertedRows "subset of processedRows"
-        int discardedRows
-        datetime startedAt "optional"
-        datetime finishedAt "optional"
-        string errorMessage "optional"
+    note for RouteMetric "originId: PK, FK\ndestinationId: PK, FK\nairlineId: PK, FK\nperiod: PK primer día del mes"
+    class EtlPipeline {
+        +string id
+        +string name
+        +EtlTargetEntity targetEntity
+        +boolean paused
     }
-    EtlPipeline {
-        string id PK
-        string name
-        string datasetName
-        string description
-        EtlTargetEntity targetEntity "countries, airports, airlines, routes, otp_metrics"
-        boolean isSystem
-        boolean paused
-        json connection "credential references only"
-        json schemaMapping
-        json scheduleConfig "cronExpression, batchSize, timeoutSeconds, maxRetries"
-        datetime archivedAt "optional, soft deletion"
-        datetime createdAt
-        datetime updatedAt
+    note for EtlPipeline "id: PK\ntargetEntity: países, aeropuertos, aerolíneas, rutas o métricas"
+    class EtlJob {
+        +string id
+        +string pipelineId
+        +string requestedById
+        +string status
+        +int totalRows
+        +int processedRows
+        +int discardedRows
     }
-    EtlDiscardedSample {
-        string id PK
-        string jobId FK
-        int rowIndex "one-based source row"
-        string field "optional"
-        string reason
-        string rawSample "at most 4096 characters"
-        datetime createdAt
+    note for EtlJob "id: PK\npipelineId: FK opcional\nrequestedById: FK opcional\nstatus: pendiente, en curso, completada o fallida"
+    class EtlDiscardedSample {
+        +string id
+        +string jobId
+        +int rowIndex
+        +string reason
+        +string rawSample
     }
-    EtlJobEvent {
-        string id PK
-        string jobId FK
-        EtlLogLevel level "info, success, warn, error"
-        string message
-        datetime createdAt
+    note for EtlDiscardedSample "id: PK\njobId: FK"
+    class EtlJobEvent {
+        +string id
+        +string jobId
+        +EtlLogLevel level
+        +string message
     }
+    note for EtlJobEvent "id: PK\njobId: FK\nlevel: información, éxito, advertencia o error"

@@ -58,22 +58,26 @@ export function useCatalog() {
     routeQuery.value = key;
     const id = ++routeRequestId.value;
     try {
-      const result = await request<ArcRoute[]>('/routes/explore', { query: { originId, destinationId, limit: 100 } });
-      if (id === routeRequestId.value) { const grouped = new Map<string, FlightRoute>();
-        for (const row of result) {
-          const key = `${row.origin.id}/${row.destination.id}/${row.stops}`;
-          const mapped = mapArcRoute(row);
-          const existing = grouped.get(key);
-          if (!existing) grouped.set(key, mapped);
-          else if (!existing.airlines.some(a => a.airlineName === mapped.airlines[0]!.airlineName && a.airlineCode === mapped.airlines[0]!.airlineCode)) {
-            existing.airlines.push(...mapped.airlines);
-            existing.primaryAirline = `${existing.airlines.length} aerolíneas`;
-          }
-        }
-        routes.value = [...grouped.values()]; error.value = null; }
+      const result = await request<ArcRoute[]>('/routes/explore', { query: { originId, destinationId, limit: 100, includeReturn: originId && destinationId ? 'true' : undefined } });
+      if (id === routeRequestId.value) { routes.value = groupArcRoutes(result); error.value = null; }
     } catch (err) {
       if (id === routeRequestId.value) { routeQuery.value = null; routes.value = []; error.value = err instanceof Error ? err.message : 'No se pudieron consultar las rutas'; }
     }
   }
   return { airports, routes, error, loading, loadAirports, loadRoutes };
+}
+
+export function groupArcRoutes(rows: ArcRoute[]): FlightRoute[] {
+  const grouped = new Map<string, FlightRoute>();
+  for (const row of rows) {
+    const key = `${row.origin.id}/${row.destination.id}/${row.stops}`;
+    const mapped = mapArcRoute(row);
+    const existing = grouped.get(key);
+    if (!existing) grouped.set(key, mapped);
+    else if (!existing.airlines.some(a => a.airlineName === mapped.airlines[0]!.airlineName && a.airlineCode === mapped.airlines[0]!.airlineCode)) {
+      existing.airlines.push(...mapped.airlines);
+      existing.primaryAirline = `${existing.airlines.length} aerolíneas`;
+    }
+  }
+  return [...grouped.values()];
 }

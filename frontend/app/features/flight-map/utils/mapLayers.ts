@@ -21,13 +21,9 @@ export function getVisibleAirports(
   visibleRoutes: FlightRoute[] = [],
   airports: Airport[] = [],
 ): Airport[] {
-  if (!hasSelection) {
-    return airports;
-  }
-
   const activeAirportIatas = new Set<string>();
-  if (orig) activeAirportIatas.add(orig);
-  if (dest) activeAirportIatas.add(dest);
+  if (hasSelection && orig) activeAirportIatas.add(orig);
+  if (hasSelection && dest) activeAirportIatas.add(dest);
 
   for (const r of visibleRoutes) {
     activeAirportIatas.add(r.originId);
@@ -39,14 +35,14 @@ export function getVisibleAirports(
 
 /**
  * Genera las capas activas de WebGL (ArcLayer, ScatterplotLayer y Halo Rings).
- * REGLA: El mapa inicia sin arcos hasta que se selecciona un aeropuerto o ruta.
+ * Las capas solo reciben los aeropuertos de las conexiones visibles o seleccionados.
  */
 export function buildFlightMapLayers(options: BuildLayersOptions) {
   const { isLight, selectedOrigin: orig, selectedDestination: dest, matchingRoutes } = options;
   const hasSelection = Boolean(orig || dest);
   const hasBoth = Boolean(orig && dest);
 
-  // 1. Filtrar rutas: Sin selección activa NO se renderiza ningún arco
+  // La consulta global ya contiene un arco por par de aeropuertos.
   const visibleRoutes = matchingRoutes;
 
   // 2. Aeropuertos visibles (despejar pantalla si hay selección, o todos si está en vista general)

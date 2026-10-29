@@ -1,14 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { countryContinent } from './continents.js';
 
 @Injectable()
 export class CountriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.models.Country.orderBy((country) =>
+  async findAll() {
+    const countries = await this.prisma.models.Country.orderBy((country) =>
       country.name.asc(),
     ).all();
+    return countries.map((country) => ({ ...country, continent: countryContinent(country.isoCode) }));
   }
 
   async findByName(name: string) {

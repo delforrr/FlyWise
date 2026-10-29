@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import {
   IsOptional,
   IsString,
@@ -9,10 +9,13 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+@ApiSchema({
+  name: 'BuscarPuntos',
+  description: 'Búsqueda por código, nombre o localidad.',
+})
 export class SearchAirportsDto {
   @ApiProperty({
-    description:
-      'Término de búsqueda (código IATA de 3 letras, ICAO de 4 letras, nombre o ciudad)',
+    description: 'Código, nombre o localidad; mínimo 2 caracteres',
     example: 'EZE',
   })
   @IsString()

@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const isPaletteOpen = useState("cockpit_command_palette_open", () => false);
+const { isOpen: isGlobalFilterOpen } = useGlobalMap();
 </script>
 
 <template>
@@ -55,6 +56,10 @@ const isPaletteOpen = useState("cockpit_command_palette_open", () => false);
 
     <!-- Botón de login y controles -->
     <template #right>
+      <UButton v-if="hasControls" icon="i-lucide-list-filter" color="neutral" variant="ghost" class="shrink-0 whitespace-nowrap"
+        aria-label="Filtrar mapa" title="Filtrar mapa" @click="isGlobalFilterOpen = true">
+        <span class="hidden lg:inline">Filtrar mapa</span>
+      </UButton>
       <UButton
         icon="i-lucide-command"
         variant="ghost"

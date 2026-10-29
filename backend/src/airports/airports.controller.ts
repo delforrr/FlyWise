@@ -5,23 +5,28 @@ import { CatalogAirportsDto } from './dto/catalog-airports.dto.js';
 import { SearchAirportsDto } from './dto/search-airports.dto.js';
 import { NearbyAirportsDto } from './dto/nearby-airports.dto.js';
 
-@ApiTags('airports')
+@ApiTags('Puntos')
 @Controller('airports')
 export class AirportsController {
   constructor(private readonly airportsService: AirportsService) {}
 
   @Get('catalog')
+  @ApiOperation({ summary: 'Lista puntos con límite y desplazamiento' })
+  @ApiResponse({
+    status: 200,
+    description: 'Puntos ordenados por cantidad de enlaces',
+  })
   catalog(@Query() dto: CatalogAirportsDto) {
     return this.airportsService.catalog(dto);
   }
 
   @Get('search')
   @ApiOperation({
-    summary: 'Búsqueda de aeropuertos',
+    summary: 'Busca puntos por código, nombre o localidad',
   })
   @ApiResponse({
     status: 200,
-    description: 'Lista de aeropuertos coincidentes ordenados por relevancia',
+    description: 'Puntos coincidentes ordenados por cantidad de enlaces',
   })
   async search(@Query() searchDto: SearchAirportsDto) {
     return this.airportsService.search(searchDto);
@@ -29,12 +34,11 @@ export class AirportsController {
 
   @Get('nearby')
   @ApiOperation({
-    summary:
-      'Búsqueda geoespacial de aeropuertos por radio de cobertura geográfica',
+    summary: 'Busca puntos dentro de un radio',
   })
   @ApiResponse({
     status: 200,
-    description: 'Aeropuertos dentro del radio especificado',
+    description: 'Hasta 50 puntos ordenados por distancia',
   })
   async findNearby(@Query() nearbyDto: NearbyAirportsDto) {
     return this.airportsService.findNearby(nearbyDto);
@@ -42,21 +46,20 @@ export class AirportsController {
 
   @Get(':code')
   @ApiOperation({
-    summary: 'Obtiene el detalle de un aeropuerto por código IATA o ICAO',
+    summary: 'Consulta un punto por código',
   })
   @ApiParam({
     name: 'code',
-    description: 'Código IATA (ej. EZE) o ICAO (ej. SAEZ)',
+    description: 'Código iata o icao del punto',
     example: 'EZE',
   })
   @ApiResponse({
     status: 200,
-    description:
-      'Detalle del aeropuerto con coordenadas WGS 84 y rutas activas',
+    description: 'Punto con coordenadas y hasta 10 enlaces asociados',
   })
   @ApiResponse({
     status: 404,
-    description: 'Aeropuerto no encontrado',
+    description: 'Punto no encontrado',
   })
   async findByCode(@Param('code') code: string) {
     return this.airportsService.findByCode(code);

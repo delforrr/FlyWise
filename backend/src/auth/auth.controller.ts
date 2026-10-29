@@ -31,9 +31,9 @@ import { LocalAuthGuard, JwtAuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 import { RegisterUserDto } from './dto/register-user.dto.js';
 import { CurrentUser } from '../users/decorators/current-user.decorator.js';
-import { type UserDto } from '../users/dto/user.dto.js';
+import { UserDto } from '../users/dto/user.dto.js';
 
-@ApiTags('auth')
+@ApiTags('Autenticación')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -124,8 +124,13 @@ export class AuthController {
     schema: { default: '1' },
   })
   @Get('/session')
+  @ApiResponse({
+    status: 200,
+    type: UserDto,
+    description: 'Usuario de la sesión',
+  })
   @ApiOperation({
-    summary: 'Valida la sesión para proteger páginas SSR sin rotar la cookie',
+    summary: 'Consulta el usuario de la sesión actual',
   })
   async getSession(
     @Request() req: ExpressRequest,
@@ -143,7 +148,7 @@ export class AuthController {
   })
   @Post('/refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Rota la sesión y emite un JWT de acceso nuevo' })
+  @ApiOperation({ summary: 'Renueva la sesión y el token de acceso' })
   async refresh(
     @Request() req: ExpressRequest,
     @Res({ passthrough: true }) res: Response,
@@ -188,6 +193,7 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'Perfil del usuario autenticado.',
+    type: UserDto,
   })
   @ApiResponse({
     status: 401,
@@ -204,7 +210,7 @@ export class AuthController {
   })
   @Post('/logout')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Revoca la sesión incluso si el JWT ya venció' })
+  @ApiOperation({ summary: 'Cierra la sesión' })
   async logout(
     @Headers('authorization') authHeader: string | undefined,
     @Request() req: ExpressRequest,
