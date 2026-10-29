@@ -155,6 +155,7 @@ model EtlJob {
   @@index([pipelineId, startedAt], map: "etl_jobs_pipeline_id_started_at_idx")
   @@index([requestedById], map: "etl_jobs_requested_by_id_idx")
   @@check(expression: sql`((finished_at IS NULL) OR ((started_at IS NOT NULL) AND (finished_at >= started_at)))`, map: "etl_jobs_timestamps_check")
+  @@check(expression: sql`(status <> 'completed' OR (started_at IS NOT NULL AND finished_at IS NOT NULL AND total_rows::bigint = processed_rows::bigint + discarded_rows))`, map: "etl_jobs_completion_check")
   @@check(expression: sql`((total_rows >= 0) AND (processed_rows >= 0) AND (discarded_rows >= 0) AND (inserted_rows >= 0) AND (inserted_rows <= processed_rows) AND (((processed_rows)::bigint + discarded_rows) <= total_rows))`, map: "etl_jobs_rows_check")
   @@check(expression: sql`(status = ANY (ARRAY['pending'::text, 'running'::text, 'completed'::text, 'failed'::text]))`, map: "etl_jobs_status_check")
   @@check(expression: sql`((source_uri IS NULL) OR ((length(btrim(source_uri)) > 0) AND (source_uri !~ '://[^/]*@|[?#]'::text)))`, map: "etl_jobs_source_uri_check")
