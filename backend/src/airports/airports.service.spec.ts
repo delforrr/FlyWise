@@ -92,15 +92,15 @@ describe('AirportsService', () => {
 
   describe('findByCode', () => {
     it('should return airport when found by IATA or ICAO', async () => {
-      prismaService.models.Airport.first.mockResolvedValue(mockAirport);
+      prismaService.models.Airport.all.mockResolvedValue([mockAirport]);
 
       const result = await service.findByCode('EZE');
-      expect(prismaService.models.Airport.first).toHaveBeenCalled();
+      expect(prismaService.models.Airport.all).toHaveBeenCalled();
       expect(result).toEqual(mockAirport);
     });
 
     it('should throw NotFoundException when airport is not found', async () => {
-      prismaService.models.Airport.first.mockResolvedValue(null);
+      prismaService.models.Airport.all.mockResolvedValue([]);
 
       await expect(service.findByCode('XYZ')).rejects.toThrow(
         NotFoundException,
@@ -108,3 +108,4 @@ describe('AirportsService', () => {
     });
   });
 });
+

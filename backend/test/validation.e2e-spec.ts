@@ -6,6 +6,11 @@ import { tmpdir } from 'node:os';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { EtlService } from '../src/etl/etl.service.js';
+import { AirlinesService } from '../src/airlines/airlines.service.js';
+import { AirlinesController } from '../src/airlines/airlines.controller.js';
+import { AirportsService } from '../src/airports/airports.service.js';
+import { AirportsController } from '../src/airports/airports.controller.js';
+import request from 'supertest';
 
 describe('Data validation regressions (PostgreSQL)', () => {
   const db = createDatabase();
@@ -27,6 +32,19 @@ describe('Data validation regressions (PostgreSQL)', () => {
     ] }).compile();
     return module.get(EtlService);
   }
+  it('returns 409 over HTTP for ambiguous airport and airline codes', async () => {
+    await isolated(async (tx) => {
+      await tx.orm.public.Airline.createAndCount([{ name: 'Historical one', iata: 'ZZ' }, { name: 'Historical two', iata: 'ZZ' }]);
+      await tx.orm.public.Airport.createAndCount([{ name: 'Historical one', iata: 'ZZZ', countryName: 'Test', latitude: 0, longitude: 0 }, { name: 'Historical two', iata: 'ZZZ', countryName: 'Test', latitude: 1, longitude: 1 }]);
+      const module = await Test.createTestingModule({ controllers: [AirlinesController, AirportsController], providers: [AirlinesService, AirportsService, { provide: PrismaService, useValue: { models: tx.orm.public, db: tx } }] }).compile();
+      const app = module.createNestApplication();
+      await app.init();
+      try {
+        await request(app.getHttpServer()).get('/airlines/ZZ').expect(409);
+        await request(app.getHttpServer()).get('/airports/ZZZ').expect(409);
+      } finally { await app.close(); }
+    });
+  });
   it('rejects a required optional code after normalization and records its reason', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'flywise-required-e2e-'));
     try {

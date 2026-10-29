@@ -67,15 +67,16 @@ describe('AirlinesService', () => {
 
   describe('findByCode', () => {
     it('should return airline by IATA code', async () => {
-      prismaService.models.Airline.first.mockResolvedValue(mockAirline);
+      prismaService.models.Airline.all.mockResolvedValue([mockAirline]);
       const res = await service.findByCode('AR');
-      expect(prismaService.models.Airline.first).toHaveBeenCalled();
+      expect(prismaService.models.Airline.all).toHaveBeenCalled();
       expect(res).toEqual(mockAirline);
     });
 
     it('should throw NotFoundException if airline is not found', async () => {
-      prismaService.models.Airline.first.mockResolvedValue(null);
+      prismaService.models.Airline.all.mockResolvedValue([]);
       await expect(service.findByCode('XX')).rejects.toThrow(NotFoundException);
     });
   });
 });
+
