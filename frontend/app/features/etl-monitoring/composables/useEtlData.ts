@@ -23,7 +23,7 @@ export function useEtlData() {
         const job = history.find(j => j.pipelineId === p.id);
         const scheduleDescription = p.scheduleConfig?.cronExpression ? `${p.scheduleConfig.cronExpression} (UTC)` : 'Manual';
         return {
-          ...p, icon: 'i-lucide-database', latestJobId: job?.id,
+          ...p, icon: 'i-lucide-database', latestJobId: job?.id, attempt: job?.attempt ?? 0,
           status: job?.status === 'running' || job?.status === 'pending' ? 'running' : p.paused ? 'paused' : job?.status === 'failed' ? 'error' : job?.status === 'completed' ? 'success' : 'idle',
           processedRows: job?.processedRows ?? 0, discardedRows: job?.discardedRows ?? 0,
           totalEstimatedRows: job?.totalRows ?? 0,
@@ -45,9 +45,9 @@ export function useEtlData() {
       error.value = err instanceof Error ? err.message : 'No se pudo consultar el ETL';
     } finally { isRefreshing.value = false; }
   }
-  async function loadSamples(pipeline: EtlPipeline) {
+  async function loadSamples(pipeline: EtlPipeline, attempt = pipeline.attempt ?? 0) {
     if (!pipeline.latestJobId) return;
-    const samples = await request<(Omit<DiscardedRowRecord, 'timestamp'> & { createdAt: string; field: string | null })[]>(`/etl/jobs/${pipeline.latestJobId}/samples`);
+    const samples = await request<(Omit<DiscardedRowRecord, 'timestamp'> & { createdAt: string; field: string | null })[]>(`/etl/jobs/${pipeline.latestJobId}/samples`, { query: { attempt } });
     pipeline.discardedSamples = samples.map(s => ({ ...s, field: s.field ?? 'registro', timestamp: s.createdAt }));
   }
   return { pipelines, jobs, logs, error, isRefreshing, latencyMs, refresh, loadSamples, request };

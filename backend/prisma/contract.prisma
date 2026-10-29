@@ -127,6 +127,7 @@ model Route {
 }
 
 model EtlJob {
+  attempt               Int                  @default(0)
   id                    String               @id @onCreate(uuid())
   source                String               @map("source")
   status                String               @map("status")
@@ -185,6 +186,7 @@ model EtlPipeline {
 }
 
 model EtlDiscardedSample {
+  attempt   Int      @default(0)
   id        String   @id @onCreate(uuid())
   jobId     String   @map("job_id")
   rowIndex  Int      @map("row_index")
@@ -201,6 +203,7 @@ model EtlDiscardedSample {
 }
 
 model EtlJobEvent {
+  attempt   Int      @default(0)
   id        String      @id @onCreate(uuid())
   jobId     String      @map("job_id")
   level     EtlLogLevel

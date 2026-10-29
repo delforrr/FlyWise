@@ -10,6 +10,16 @@ beforeEach(() => {
   vi.stubGlobal('$fetch', fetcher);
 });
 describe('Real ETL monitoring', () => {
+  it('requests samples from the current attempt or an explicitly selected previous attempt', async () => {
+    fetcher.mockImplementation(async (url: string) => url === '/api/etl/pipelines' ? [pipeline] : url === '/api/etl/history' ? [{ ...job, attempt: 2 }] : []);
+    const monitor = useEtlMonitoring();
+    await monitor.refresh();
+    const current = monitor.pipelines.value[0]!;
+    await monitor.loadSamples(current);
+    expect(fetcher).toHaveBeenLastCalledWith('/api/etl/jobs/j1/samples', expect.objectContaining({ query: { attempt: 2 } }));
+    await monitor.loadSamples(current, 1);
+    expect(fetcher).toHaveBeenLastCalledWith('/api/etl/jobs/j1/samples', expect.objectContaining({ query: { attempt: 1 } }));
+  });
   it('derives metrics from persisted executions and does not generate progress', async () => {
     const monitor = useEtlMonitoring();
     expect(monitor.pipelines.value).toEqual([]);

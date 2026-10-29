@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import type { EtlPipeline } from "../types/etl";
+import { useEtlData } from '../composables/useEtlData';
 
 interface Props {
   isOpen: boolean;
@@ -15,6 +16,19 @@ const emit = defineEmits<{
 }>();
 
 const fieldFilter = ref<string>("all");
+const selectedAttempt = ref(0);
+const { loadSamples } = useEtlData();
+const toast = useToast();
+const attemptOptions = computed(() => Array.from({ length: (props.pipeline?.attempt ?? 0) + 1 }, (_, value) => ({ value, label: value === 0 ? 'Histórico sin intento' : `Intento ${value}` })));
+watch(() => [props.pipeline?.latestJobId, props.pipeline?.attempt], () => { selectedAttempt.value = props.pipeline?.attempt ?? 0; }, { immediate: true });
+async function selectAttempt(value: number) {
+  if (!props.pipeline) return;
+  try {
+    await loadSamples(props.pipeline, value);
+    selectedAttempt.value = value;
+    fieldFilter.value = 'all';
+  } catch { toast.add({ title: 'No se pudieron cargar las muestras del intento', color: 'error' }); }
+}
 const copiedRecordId = ref<string | null>(null);
 
 const uniqueFields = computed<string[]>(() => {
@@ -57,6 +71,7 @@ function exportDiscardedCsv() {
     return;
 
   const headers = [
+    "Attempt",
     "RowIndex",
     "Field",
     "Reason",
@@ -64,6 +79,7 @@ function exportDiscardedCsv() {
     "Timestamp",
   ];
   const rows = props.pipeline.discardedSamples.map((s) => [
+    s.attempt ?? 0,
     s.rowIndex,
     `"${s.field}"`,
     `"${s.reason.replaceAll('"', '""')}"`,
@@ -106,16 +122,17 @@ function exportDiscardedCsv() {
   >
     <template #body>
       <div v-if="pipeline" class="space-y-4">
+        <USelect :model-value="selectedAttempt" :items="attemptOptions" aria-label="Intento de ejecución" @update:model-value="selectAttempt" />
         <!-- Resumen y Filtro de Campo -->
         <div
           class="p-3.5 rounded-xl bg-surface-accent border border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
         >
           <div>
-            <span class="text-text-muted">Total de registros observados:</span>
+            <span class="text-text-muted">Muestras del intento seleccionado:</span>
             <span
               class="font-bold text-text-main ml-1.5 font-mono tabular-nums"
             >
-              {{ pipeline.discardedRows }} filas
+              {{ pipeline.discardedSamples.length }} filas
             </span>
           </div>
 

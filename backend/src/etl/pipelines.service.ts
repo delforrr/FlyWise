@@ -98,13 +98,26 @@ export class PipelinesService implements OnModuleInit {
   }
 
   async validateConfiguration(source: string, configuration: unknown) {
-    if (!configuration || typeof configuration !== 'object' || Array.isArray(configuration))
+    if (
+      !configuration ||
+      typeof configuration !== 'object' ||
+      Array.isArray(configuration)
+    )
       throw new BadRequestException('Configuración de ejecución inválida');
-    const dto = await new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }).transform(
-      { ...configuration, targetEntity: source }, { type: 'body', metatype: PipelineExecutionDto },
-    ) as PipelineExecutionDto;
+    const dto = (await new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }).transform(
+      { ...configuration, targetEntity: source },
+      { type: 'body', metatype: PipelineExecutionDto },
+    )) as PipelineExecutionDto;
     this.validate(dto);
-    return { connection: dto.connection, schemaMapping: dto.schemaMapping, scheduleConfig: dto.scheduleConfig };
+    return {
+      connection: dto.connection,
+      schemaMapping: dto.schemaMapping,
+      scheduleConfig: dto.scheduleConfig,
+    };
   }
 
   private validate(dto: PipelineExecutionDto) {
@@ -163,9 +176,14 @@ export class PipelinesService implements OnModuleInit {
       await this.queue.removeJobScheduler(row.id);
       return;
     }
-    const { scheduleConfig: config } = await this.validateConfiguration(row.targetEntity, {
-      connection: row.connection, schemaMapping: row.schemaMapping, scheduleConfig: row.scheduleConfig,
-    });
+    const { scheduleConfig: config } = await this.validateConfiguration(
+      row.targetEntity,
+      {
+        connection: row.connection,
+        schemaMapping: row.schemaMapping,
+        scheduleConfig: row.scheduleConfig,
+      },
+    );
     if (!config.cronExpression) {
       await this.queue.removeJobScheduler(row.id);
     } else {
@@ -310,10 +328,11 @@ export class PipelinesService implements OnModuleInit {
       createdAt: timestampToDate(row.createdAt).toISOString(),
     }));
   }
-  async samples(id: string) {
-    await this.job(id);
+  async samples(id: string, attempt?: number) {
+    const job = await this.job(id);
     const rows = await this.prisma.models.EtlDiscardedSample.where({
       jobId: id,
+      attempt: attempt ?? job.attempt,
     })
       .orderBy((s) => s.rowIndex.asc())
       .limit(100)

@@ -142,6 +142,7 @@ export class EtlService {
       discarded = 0;
     let batch: { row: CatalogRecord; rowIndex: number; sample: string }[] = [];
     let samples: {
+      attempt: number;
       rowIndex: number;
       field: string | null;
       reason: string;
@@ -166,6 +167,7 @@ export class EtlService {
       discarded++;
       if (sampleCount < MAX_DISCARDED_SAMPLES_PER_JOB) {
         samples.push({
+          attempt: before?.attempt ?? 0,
           rowIndex: base.total + rowIndex,
           field: reason.includes(':') ? reason.split(':')[0] : null,
           reason,
@@ -177,6 +179,7 @@ export class EtlService {
     if (jobId) {
       const count = await this.prisma.models.EtlDiscardedSample.where({
         jobId,
+        attempt: before?.attempt ?? 0,
       }).aggregate((a) => ({ count: a.count() }));
       sampleCount = Number(count.count);
     }
@@ -347,6 +350,7 @@ export class EtlService {
     if (normalizedCodes && jobId)
       await this.prisma.models.EtlJobEvent.create({
         jobId,
+        attempt: before?.attempt ?? 0,
         level: 'warn',
         message: `${dataset}: ${normalizedCodes} códigos opcionales inválidos normalizados a NULL`,
       });
