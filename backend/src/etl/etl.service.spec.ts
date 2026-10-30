@@ -200,6 +200,65 @@ describe('EtlService', () => {
         maxRetries: 2,
       },
     };
+    it.each([
+      ['city', '   '],
+      ['iata', 'INVALID'],
+      ['countryName', ' \\N '],
+    ])(
+      'discards a required %s that normalizes to absence or a fallback',
+      async (field, value) => {
+        const directory = await mkdtemp(join(tmpdir(), 'flywise-required-'));
+        try {
+          const file = join(directory, 'airports.csv');
+          await writeFile(
+            file,
+            `id;title;lat;lng;extra\n42;Airport;0;0;${value}\n`,
+          );
+          await expect(
+            service.importCatalog('airports', file, undefined, {
+              ...configuration,
+              schemaMapping: [
+                ...configuration.schemaMapping,
+                { sourceColumn: 'extra', targetField: field, required: true },
+              ],
+            }),
+          ).resolves.toMatchObject({ total: 1, processed: 0, discarded: 1 });
+        } finally {
+          await rm(directory, { recursive: true });
+        }
+      },
+    );
+    it.each(['abc', 'Infinity'])(
+      'discards non-finite numeric conversions before they can become a code: %s',
+      async (value) => {
+        const directory = await mkdtemp(
+          join(tmpdir(), 'flywise-numeric-code-'),
+        );
+        try {
+          const file = join(directory, 'airports.csv');
+          await writeFile(
+            file,
+            `id;title;lat;lng;code\n42;Airport;0;0;${value}\n`,
+          );
+          await expect(
+            service.importCatalog('airports', file, undefined, {
+              ...configuration,
+              schemaMapping: [
+                ...configuration.schemaMapping,
+                {
+                  sourceColumn: 'code',
+                  targetField: 'iata',
+                  transform: 'to_number',
+                  required: true,
+                },
+              ],
+            }),
+          ).resolves.toMatchObject({ processed: 0, discarded: 1 });
+        } finally {
+          await rm(directory, { recursive: true });
+        }
+      },
+    );
     it('uses native CSV quoting, header names and transformations without inventing optional codes', async () => {
       const directory = await mkdtemp(join(tmpdir(), 'flywise-mapping-'));
       try {
@@ -226,6 +285,27 @@ describe('EtlService', () => {
             iata: null,
           },
         ]);
+      } finally {
+        await rm(directory, { recursive: true });
+      }
+    });
+    it('rejects inherited property names as missing CSV columns', async () => {
+      const directory = await mkdtemp(
+        join(tmpdir(), 'flywise-inherited-column-'),
+      );
+      try {
+        const file = join(directory, 'airports.csv');
+        await writeFile(file, 'id;title;lat;lng\n42;Airport;0;0\n');
+        await expect(
+          service.importCatalog('airports', file, undefined, {
+            ...configuration,
+            schemaMapping: configuration.schemaMapping.map((rule) =>
+              rule.targetField === 'name'
+                ? { ...rule, sourceColumn: 'toString' }
+                : rule,
+            ),
+          }),
+        ).rejects.toThrow(/columnas que no existen/);
       } finally {
         await rm(directory, { recursive: true });
       }

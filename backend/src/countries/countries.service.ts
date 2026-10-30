@@ -10,7 +10,10 @@ export class CountriesService {
     const countries = await this.prisma.models.Country.orderBy((country) =>
       country.name.asc(),
     ).all();
-    return countries.map((country) => ({ ...country, continent: countryContinent(country.isoCode) }));
+    return countries.map((country) => ({
+      ...country,
+      continent: countryContinent(country.isoCode),
+    }));
   }
 
   async findByName(name: string) {

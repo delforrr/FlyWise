@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -24,6 +25,7 @@ import {
   UpdatePipelineDto,
 } from './dto/pipeline.dto.js';
 import { PipelinesService } from './pipelines.service.js';
+import { SampleQueryDto } from './dto/sample-query.dto.js';
 
 @ApiTags('Cargas de datos')
 @ApiResponse({ status: 403, description: 'Se requiere el rol ADMIN' })
@@ -90,8 +92,11 @@ export class PipelineController {
   }
   @Get('jobs/:id/samples')
   @ApiOperation({ summary: 'Lista hasta 100 muestras rechazadas por posición' })
-  samples(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.samples(id);
+  samples(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: SampleQueryDto,
+  ) {
+    return this.service.samples(id, query.attempt);
   }
   @Post('jobs/:id/retry')
   @ApiOperation({ summary: 'Crea una ejecución nueva desde el principio' })

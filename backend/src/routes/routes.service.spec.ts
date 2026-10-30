@@ -10,7 +10,10 @@ import { NotFoundException } from '@nestjs/common';
 describe('RoutesService', () => {
   let service: RoutesService;
   let prismaService: {
-    models: { Route: ReturnType<typeof mockCollection> };
+    models: {
+      Route: ReturnType<typeof mockCollection>;
+      Airport: ReturnType<typeof mockCollection>;
+    };
     db: ReturnType<typeof mockDatabase>;
   };
 
@@ -45,9 +48,17 @@ describe('RoutesService', () => {
   };
 
   beforeEach(async () => {
-    prismaService = { models: { Route: mockCollection() }, db: mockDatabase() };
+    prismaService = {
+      models: { Route: mockCollection(), Airport: mockCollection() },
+      db: mockDatabase(),
+    };
+    prismaService.models.Airport.all
+      .mockResolvedValueOnce([{ id: 'airport-a' }])
+      .mockResolvedValueOnce([{ id: 'airport-b' }]);
     prismaService.models.Route.all.mockResolvedValue([mockRoute]);
-    prismaService.db.query.mockResolvedValue([{ id: mockRoute.id, distanceKm: 7098.5 }]);
+    prismaService.db.query.mockResolvedValue([
+      { id: mockRoute.id, distanceKm: 7098.5 },
+    ]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -85,27 +96,61 @@ describe('RoutesService', () => {
   });
 
   it('returns all operators in both directions when includeReturn is requested', async () => {
-    const back = { ...mockRoute, id: 'back', origin: mockRoute.destination, destination: mockRoute.origin };
+    const back = {
+      ...mockRoute,
+      id: 'back',
+      origin: mockRoute.destination,
+      destination: mockRoute.origin,
+    };
     prismaService.models.Route.all.mockResolvedValue([mockRoute, back]);
-    prismaService.db.query.mockResolvedValue([{ id: mockRoute.id, distanceKm: 100 }, { id: 'back', distanceKm: 100 }]);
-    const result = await service.explore({ originId: 'airport-a', destinationId: 'airport-b', includeReturn: true });
-    expect(result.map(r => r.origin.id)).toEqual(['airport-a', 'airport-b']);
+    prismaService.db.query.mockResolvedValue([
+      { id: mockRoute.id, distanceKm: 100 },
+      { id: 'back', distanceKm: 100 },
+    ]);
+    const result = await service.explore({
+      originId: 'airport-a',
+      destinationId: 'airport-b',
+      includeReturn: true,
+    });
+    expect(result.map((r) => r.origin.id)).toEqual(['airport-a', 'airport-b']);
     expect(prismaService.models.Route.limit).not.toHaveBeenCalled();
-    await expect(service.explore({ includeReturn: true })).rejects.toThrow('requiere origen y destino');
+    await expect(service.explore({ includeReturn: true })).rejects.toThrow(
+      'requiere origen y destino',
+    );
   });
 
   it('groups selected pairs in ranking order and retains each direction and operator', async () => {
-    const secondOperator = { ...mockRoute, id: 'operator2', airline: { iata: 'ZZ', name: 'Second' } };
-    const back = { ...mockRoute, id: 'back', origin: mockRoute.destination, destination: mockRoute.origin };
-    prismaService.models.Route.all.mockResolvedValue([back, mockRoute, secondOperator]);
-    prismaService.db.query.mockResolvedValueOnce([
-      { id: mockRoute.id, originId: 'airport-a', destinationId: 'airport-b' },
-      { id: 'operator2', originId: 'airport-a', destinationId: 'airport-b' },
-      { id: 'back', originId: 'airport-a', destinationId: 'airport-b' },
-    ]).mockResolvedValueOnce([mockRoute, secondOperator, back].map(r => ({ id: r.id, distanceKm: 100 })));
+    const secondOperator = {
+      ...mockRoute,
+      id: 'operator2',
+      airline: { iata: 'ZZ', name: 'Second' },
+    };
+    const back = {
+      ...mockRoute,
+      id: 'back',
+      origin: mockRoute.destination,
+      destination: mockRoute.origin,
+    };
+    prismaService.models.Route.all.mockResolvedValue([
+      back,
+      mockRoute,
+      secondOperator,
+    ]);
+    prismaService.db.query
+      .mockResolvedValueOnce([
+        { id: mockRoute.id, originId: 'airport-a', destinationId: 'airport-b' },
+        { id: 'operator2', originId: 'airport-a', destinationId: 'airport-b' },
+        { id: 'back', originId: 'airport-a', destinationId: 'airport-b' },
+      ])
+      .mockResolvedValueOnce(
+        [mockRoute, secondOperator, back].map((r) => ({
+          id: r.id,
+          distanceKm: 100,
+        })),
+      );
     const result = await service.global({ mode: 'global', limit: 10 });
     expect(result).toHaveLength(1);
-    expect(result[0].outbound.map(r => r.airline.iata)).toEqual(['AR', 'ZZ']);
+    expect(result[0].outbound.map((r) => r.airline.iata)).toEqual(['AR', 'ZZ']);
     expect(result[0].inbound[0].origin.id).toBe('airport-b');
   });
 
@@ -117,8 +162,22 @@ describe('RoutesService', () => {
   });
 
   it('rejects identical countries and continents for directional filters', async () => {
-    await expect(service.global({ mode: 'countries', limit: 10, originCountryId: 'same', destinationCountryId: 'same' })).rejects.toThrow('dos lugares diferentes');
-    await expect(service.global({ mode: 'continents', limit: 10, originContinent: 'SA', destinationContinent: 'SA' })).rejects.toThrow('dos lugares diferentes');
+    await expect(
+      service.global({
+        mode: 'countries',
+        limit: 10,
+        originCountryId: 'same',
+        destinationCountryId: 'same',
+      }),
+    ).rejects.toThrow('dos lugares diferentes');
+    await expect(
+      service.global({
+        mode: 'continents',
+        limit: 10,
+        originContinent: 'SA',
+        destinationContinent: 'SA',
+      }),
+    ).rejects.toThrow('dos lugares diferentes');
   });
 
   it('uses one PostGIS query for distances without persisted cache and derives nautical miles', async () => {

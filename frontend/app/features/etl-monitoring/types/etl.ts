@@ -95,6 +95,7 @@ export interface ProbeEndpointResult {
 }
 
 export interface DiscardedRowRecord {
+  attempt?: number;
   id: string;
   rowIndex: number;
   rawSample: string;
@@ -104,6 +105,7 @@ export interface DiscardedRowRecord {
 }
 
 export interface EtlPipeline {
+  attempt?: number;
   id: PipelineId;
   latestJobId?: string;
   paused?: boolean;
@@ -140,6 +142,7 @@ export interface EtlGlobalMetrics {
 }
 
 export interface EtlLogEntry {
+  attempt?: number;
   id: string;
   timestamp: string;
   pipelineId: PipelineId;
@@ -158,6 +161,7 @@ export type LogEntry = EtlLogEntry;
 
 
 export interface EtlJobRecord {
+  attempt?: number;
   id: string;
   pipelineId: string | null;
   source: string;

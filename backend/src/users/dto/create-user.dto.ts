@@ -5,7 +5,6 @@ import {
   IsString,
   IsEmail,
   IsIn,
-  IsNotEmpty,
   IsOptional,
   MinLength,
 } from 'class-validator';
@@ -20,7 +19,6 @@ export class CreateUserDto {
     description: 'Correo electrónico del usuario',
   })
   @IsEmail({}, { message: 'Debe tener formato de email' })
-  @IsNotEmpty({ message: 'El email no debe estár vacío' })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
@@ -31,7 +29,6 @@ export class CreateUserDto {
     description: 'Contraseña (mínimo 8 caracteres, máximo 72 bytes UTF-8)',
   })
   @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
-  @IsNotEmpty({ message: 'La contraseña no debe estar vacia' })
   @IsString()
   @IsByteLength(0, 72, { message: 'La contraseña no debe superar 72 bytes' })
   password!: string;

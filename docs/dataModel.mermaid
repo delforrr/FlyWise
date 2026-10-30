@@ -1,59 +1,54 @@
 classDiagram
     %% Vista simplificada: identificadores originales y descripciones en español.
     %% PK = clave primaria; FK = clave foránea; UK = valor único.
-    Country "0..1" -- "0..*" Airport : agrupa
-    Country "0..1" -- "0..*" Airline : agrupa
-    User "0..1" -- "0..*" EtlJob : solicita
-    EtlPipeline "0..1" -- "0..*" EtlJob : genera
-    EtlJob "1" -- "0..*" EtlDiscardedSample : contiene
-    EtlJob "1" -- "0..*" EtlJobEvent : registra
-    Airport "1" -- "0..*" Route : origen
-    Airport "1" -- "0..*" Route : destino
-    Airline "0..1" -- "0..*" Route : opera
-    Airport "1" -- "0..*" Flight : origen
-    Airport "1" -- "0..*" Flight : destino
-    Airline "1" -- "0..*" Flight : opera
-    EtlJob "0..1" -- "0..*" Flight : incorpora
-    Airport "1" -- "0..*" RouteMetric : origen
-    Airport "1" -- "0..*" RouteMetric : destino
-    Airline "1" -- "0..*" RouteMetric : opera
+    País "0..1" -- "0..*" Aeropuerto : agrupa
+    País "0..1" -- "0..*" Aerolínea : agrupa
+    Usuario "0..1" -- "0..*" EventoEtl : solicita
+    PipelineEtl "0..1" -- "0..*" EventoEtl : genera
+    EventoEtl "1" -- "0..*" FilaDescartadaEtl : contiene
+    EventoEtl "1" -- "0..*" EjecuciónEventoEtl : registra
+    Aeropuerto "1" -- "0..*" Ruta : origen
+    Aeropuerto "1" -- "0..*" Ruta : destino
+    Aerolínea "0..1" -- "0..*" Ruta : opera
+    Aeropuerto "1" -- "0..*" Vuelo : origen
+    Aeropuerto "1" -- "0..*" Vuelo : destino
+    Aerolínea "1" -- "0..*" Vuelo : opera
+    EventoEtl "0..1" -- "0..*" Vuelo : incorpora
+    Aeropuerto "1" -- "0..*" MétricasRuta : origen
+    Aeropuerto "1" -- "0..*" MétricasRuta : destino
+    Aerolínea "1" -- "0..*" MétricasRuta : opera
 
-    class User {
+    class Usuario {
         +string id
         +string email
         +Role role
     }
-    note for User "id: PK\nemail: UK"
-    class Country {
+    class País {
         +string id
         +string name
         +string isoCode
     }
-    note for Country "id: PK\nname: UK\nisoCode: opcional"
-    class Airport {
+    class Aeropuerto {
         +string id
         +string name
         +string countryId
         +float latitude
         +float longitude
     }
-    note for Airport "id: PK\ncountryId: FK opcional"
-    class Airline {
+    class Aerolínea {
         +string id
         +string name
         +string countryId
     }
-    note for Airline "id: PK\ncountryId: FK opcional"
-    class Route {
+    class Ruta {
         +string id
         +string originId
         +string destinationId
         +string airlineId
         +int stops
     }
-    note for Route "id: PK\noriginId: FK\ndestinationId: FK\nairlineId: FK opcional"
     %% Flight y RouteMetric: carga y agregación aún no activadas.
-    class Flight {
+    class Vuelo {
         +string id
         +date flightDate
         +string originId
@@ -63,8 +58,7 @@ classDiagram
         +FlightStatus status
         +int arrivalDelayMinutes
     }
-    note for Flight "id: PK\noriginId: FK\ndestinationId: FK\nairlineId: FK\netlJobId: FK opcional\nstatus: aterrizado, cancelado o desviado\narrivalDelayMinutes: solo si aterrizó"
-    class RouteMetric {
+    class MétricasRuta {
         +string originId
         +string destinationId
         +string airlineId
@@ -75,15 +69,13 @@ classDiagram
         +int onTimeFlights
         +bigint totalArrivalDelayMinutes
     }
-    note for RouteMetric "originId: PK, FK\ndestinationId: PK, FK\nairlineId: PK, FK\nperiod: PK primer día del mes"
-    class EtlPipeline {
+    class PipelineEtl {
         +string id
         +string name
         +EtlTargetEntity targetEntity
         +boolean paused
     }
-    note for EtlPipeline "id: PK\ntargetEntity: países, aeropuertos, aerolíneas, rutas o métricas"
-    class EtlJob {
+    class EventoEtl {
         +string id
         +string pipelineId
         +string requestedById
@@ -92,19 +84,17 @@ classDiagram
         +int processedRows
         +int discardedRows
     }
-    note for EtlJob "id: PK\npipelineId: FK opcional\nrequestedById: FK opcional\nstatus: pendiente, en curso, completada o fallida"
-    class EtlDiscardedSample {
+    class FilaDescartadaEtl {
         +string id
         +string jobId
         +int rowIndex
         +string reason
         +string rawSample
-    }
-    note for EtlDiscardedSample "id: PK\njobId: FK"
-    class EtlJobEvent {
+     }
+    class EjecuciónEventoEtl {
         +string id
         +string jobId
         +EtlLogLevel level
         +string message
     }
-    note for EtlJobEvent "id: PK\njobId: FK\nlevel: información, éxito, advertencia o error"
+    

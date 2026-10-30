@@ -5,6 +5,7 @@ import {
   NotFoundException,
   OnModuleInit,
   ValidationPipe,
+  Logger,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, defaultRepeatStrategy } from 'bullmq';
@@ -16,6 +17,7 @@ import {
   CATALOG_FIELDS,
   CreatePipelineDto,
   PipelineConnectionDto,
+  PipelineExecutionDto,
   type CatalogTarget,
   type UpdatePipelineDto,
 } from './dto/pipeline.dto.js';
@@ -33,6 +35,7 @@ const now = () => new Date().toISOString().replace('T', ' ').replace('Z', '');
 
 @Injectable()
 export class PipelinesService implements OnModuleInit {
+  private readonly logger = new Logger(PipelinesService.name);
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue('etl-queue') private readonly queue: Queue,
@@ -76,8 +79,17 @@ export class PipelinesService implements OnModuleInit {
       onConflict: 'skip',
     });
     // Reconcile schedulers after a crash between the database write and Redis update.
-    for await (const row of this.prisma.models.EtlPipeline.limit(1000).all())
-      await this.schedule(row);
+    for await (const row of this.prisma.models.EtlPipeline.limit(1000).all()) {
+      try {
+        await this.schedule(row);
+      } catch (error) {
+        if (!(error instanceof BadRequestException)) throw error;
+        await this.queue.removeJobScheduler(row.id);
+        this.logger.warn(
+          `Pipeline ${row.id}: configuración inválida; programación deshabilitada`,
+        );
+      }
+    }
   }
 
   list() {
@@ -96,7 +108,30 @@ export class PipelinesService implements OnModuleInit {
     return row;
   }
 
-  private validate(dto: CreatePipelineDto) {
+  async validateConfiguration(source: string, configuration: unknown) {
+    if (
+      !configuration ||
+      typeof configuration !== 'object' ||
+      Array.isArray(configuration)
+    )
+      throw new BadRequestException('Configuración de ejecución inválida');
+    const dto = (await new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }).transform(
+      { ...configuration, targetEntity: source },
+      { type: 'body', metatype: PipelineExecutionDto },
+    )) as PipelineExecutionDto;
+    this.validate(dto);
+    return {
+      connection: dto.connection,
+      schemaMapping: dto.schemaMapping,
+      scheduleConfig: dto.scheduleConfig,
+    };
+  }
+
+  private validate(dto: PipelineExecutionDto) {
     validateSourceUrl(dto.connection.endpointUrl);
     sourceHeaders(dto.connection);
     const fields = dto.schemaMapping.map((rule) => rule.targetField);
@@ -144,10 +179,23 @@ export class PipelinesService implements OnModuleInit {
     paused: boolean;
     archivedAt: string | null;
     scheduleConfig: unknown;
+    targetEntity: string;
+    connection: unknown;
+    schemaMapping: unknown;
   }) {
-    const config =
-      row.scheduleConfig as PipelineConfiguration['scheduleConfig'];
-    if (row.paused || row.archivedAt || !config.cronExpression) {
+    if (row.paused || row.archivedAt) {
+      await this.queue.removeJobScheduler(row.id);
+      return;
+    }
+    const { scheduleConfig: config } = await this.validateConfiguration(
+      row.targetEntity,
+      {
+        connection: row.connection,
+        schemaMapping: row.schemaMapping,
+        scheduleConfig: row.scheduleConfig,
+      },
+    );
+    if (!config.cronExpression) {
       await this.queue.removeJobScheduler(row.id);
     } else {
       await this.queue.upsertJobScheduler(
@@ -244,6 +292,7 @@ export class PipelinesService implements OnModuleInit {
     pipelineId?: string,
     requestedById?: string,
   ) {
+    configuration = await this.validateConfiguration(source, configuration);
     const record = await this.prisma.models.EtlJob.create({
       source,
       status: 'pending',
@@ -290,10 +339,11 @@ export class PipelinesService implements OnModuleInit {
       createdAt: timestampToDate(row.createdAt).toISOString(),
     }));
   }
-  async samples(id: string) {
-    await this.job(id);
+  async samples(id: string, attempt?: number) {
+    const job = await this.job(id);
     const rows = await this.prisma.models.EtlDiscardedSample.where({
       jobId: id,
+      attempt: attempt ?? job.attempt,
     })
       .orderBy((s) => s.rowIndex.asc())
       .limit(100)

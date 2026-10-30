@@ -13,9 +13,11 @@ const codes: Record<Continent, string> = {
 };
 
 export const COUNTRY_CONTINENTS = Object.fromEntries(
-  CONTINENTS.flatMap((continent) => codes[continent].split(' ').map((iso) => [iso, continent])),
+  CONTINENTS.flatMap((continent) =>
+    codes[continent].split(' ').map((iso) => [iso, continent]),
+  ),
 ) as Record<string, Continent>;
 
 export function countryContinent(iso: string | null): Continent | null {
-  return iso ? COUNTRY_CONTINENTS[iso.trim().toUpperCase()] ?? null : null;
+  return iso ? (COUNTRY_CONTINENTS[iso.trim().toUpperCase()] ?? null) : null;
 }

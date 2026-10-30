@@ -142,6 +142,7 @@ export class EtlService {
       discarded = 0;
     let batch: { row: CatalogRecord; rowIndex: number; sample: string }[] = [];
     let samples: {
+      attempt: number;
       rowIndex: number;
       field: string | null;
       reason: string;
@@ -166,6 +167,7 @@ export class EtlService {
       discarded++;
       if (sampleCount < MAX_DISCARDED_SAMPLES_PER_JOB) {
         samples.push({
+          attempt: before?.attempt ?? 0,
           rowIndex: base.total + rowIndex,
           field: reason.includes(':') ? reason.split(':')[0] : null,
           reason,
@@ -177,6 +179,7 @@ export class EtlService {
     if (jobId) {
       const count = await this.prisma.models.EtlDiscardedSample.where({
         jobId,
+        attempt: before?.attempt ?? 0,
       }).aggregate((a) => ({ count: a.count() }));
       sampleCount = Number(count.count);
     }
@@ -247,7 +250,7 @@ export class EtlService {
             total === 0 &&
             configuration &&
             configuration.schemaMapping.some(
-              (rule) => !(rule.sourceColumn in raw),
+              (rule) => !Object.hasOwn(raw, rule.sourceColumn),
             )
           )
             throw new Error('El mapeo referencia columnas que no existen');
@@ -262,8 +265,6 @@ export class EtlService {
               for (const rule of configuration.schemaMapping) {
                 let value: string | number | boolean | null | undefined =
                   raw[rule.sourceColumn];
-                if (rule.required && (!value || value === String.raw`\N`))
-                  throw new Error(`${rule.targetField}: obligatorio`);
                 if (rule.transform === 'uppercase')
                   value = String(value ?? '').toUpperCase();
                 if (rule.transform === 'trim')
@@ -290,6 +291,10 @@ export class EtlService {
                       ? null
                       : ['Y', 'TRUE', '1'].includes(text);
                 }
+                if (typeof value === 'number' && !Number.isFinite(value))
+                  throw new Error(`${rule.targetField}: número no finito`);
+                if (rule.required && catalogValue(value) === null)
+                  throw new Error(`${rule.targetField}: obligatorio`);
                 mapped[rule.targetField] = value;
               }
             } else {
@@ -301,6 +306,10 @@ export class EtlService {
               );
             }
             const normalized = normalizeCatalogRow(dataset, mapped);
+            for (const rule of configuration?.schemaMapping ?? []) {
+              if (rule.required && normalized[rule.targetField] === null)
+                throw new Error(`${rule.targetField}: obligatorio o inválido`);
+            }
             for (const field of [
               'iata',
               'icao',
@@ -314,8 +323,10 @@ export class EtlService {
                 original &&
                 !['-', 'N/A'].includes(original.toUpperCase()) &&
                 normalized[field] === null
-              )
+              ) {
                 normalizedCodes++;
+                normalized[`${field}Invalid`] = true;
+              }
             }
             batch.push({
               row: normalized,
@@ -341,6 +352,7 @@ export class EtlService {
     if (normalizedCodes && jobId)
       await this.prisma.models.EtlJobEvent.create({
         jobId,
+        attempt: before?.attempt ?? 0,
         level: 'warn',
         message: `${dataset}: ${normalizedCodes} códigos opcionales inválidos normalizados a NULL`,
       });
