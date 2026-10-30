@@ -2,6 +2,7 @@ import {
   ApiProperty,
   ApiPropertyOptional,
   PartialType,
+  PickType,
   ApiSchema,
 } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
@@ -254,6 +255,13 @@ export class CreatePipelineDto {
   description: 'Cambios opcionales de una configuración.',
 })
 export class UpdatePipelineDto extends PartialType(CreatePipelineDto) {}
+
+export class PipelineExecutionDto extends PickType(CreatePipelineDto, [
+  'targetEntity',
+  'connection',
+  'schemaMapping',
+  'scheduleConfig',
+] as const) {}
 
 export const CATALOG_FIELDS: Record<CatalogTarget, readonly string[]> = {
   countries: ['name', 'isoCode'],

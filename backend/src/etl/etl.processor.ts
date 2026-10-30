@@ -7,7 +7,6 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { PipelinesService } from './pipelines.service.js';
 import { ETL_DATASETS } from './dto/trigger-etl.dto.js';
 import type { CatalogDataset } from './catalog.js';
-import type { PipelineConfiguration } from './interfaces/pipeline-configuration.js';
 
 @Processor('etl-queue', { concurrency: 1 })
 export class EtlProcessor extends WorkerHost {
@@ -28,10 +27,12 @@ export class EtlProcessor extends WorkerHost {
       return this.pipelines.run(job.data.pipelineId, undefined, true);
     }
     const { jobId, dataset } = job.data;
+    const attempt = job.attemptsStarted || job.attemptsMade + 1;
     const now = () =>
       new Date().toISOString().replace('T', ' ').replace('Z', '');
     await this.prisma.models.EtlJob.where({ id: jobId }).update({
       status: 'running',
+      attempt,
       startedAt: now(),
       finishedAt: null,
       errorMessage: null,
@@ -43,8 +44,9 @@ export class EtlProcessor extends WorkerHost {
     });
     await this.prisma.models.EtlJobEvent.create({
       jobId,
+      attempt,
       level: 'info',
-      message: `Inicio del intento ${job.attemptsMade + 1}`,
+      message: `Inicio del intento ${attempt}`,
     });
     try {
       if (!ETL_DATASETS.includes(dataset))
@@ -52,8 +54,12 @@ export class EtlProcessor extends WorkerHost {
       const record = await this.prisma.models.EtlJob.where({
         id: jobId,
       }).firstOrThrow();
-      const config =
-        record.configurationSnapshot as PipelineConfiguration | null;
+      const config = record.configurationSnapshot
+        ? await this.pipelines.validateConfiguration(
+            dataset,
+            record.configurationSnapshot,
+          )
+        : null;
       let processedRows = 0,
         insertedRows = 0,
         discardedRows = 0;
@@ -73,6 +79,7 @@ export class EtlProcessor extends WorkerHost {
         discardedRows += result.discarded;
         await this.prisma.models.EtlJobEvent.create({
           jobId,
+          attempt,
           level: 'info',
           message: `${target}: ${result.processed} procesadas, ${result.inserted} nuevas, ${result.discarded} descartadas`,
         });
@@ -83,6 +90,7 @@ export class EtlProcessor extends WorkerHost {
       });
       await this.prisma.models.EtlJobEvent.create({
         jobId,
+        attempt,
         level: 'success',
         message: 'Ingesta completada',
       });
@@ -98,6 +106,7 @@ export class EtlProcessor extends WorkerHost {
       });
       await this.prisma.models.EtlJobEvent.create({
         jobId,
+        attempt,
         level: 'error',
         message,
       });

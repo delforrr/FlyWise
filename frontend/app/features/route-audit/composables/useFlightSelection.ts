@@ -1,4 +1,4 @@
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { type Airport } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { type MapPickingInfo } from "~/types/map";
@@ -14,6 +14,9 @@ export const useFlightSelection = () => {
     "flight_destination",
     () => undefined,
   );
+  watch([selectedOrigin, selectedDestination], ([origin, destination]) => {
+    if (origin && origin === destination) selectedDestination.value = undefined;
+  }, { flush: 'sync', immediate: true });
   const hoveredEntity = useState<MapPickingInfo>("flight_hovered", () => null);
   const mapFitTrigger = useState<number>("flight_map_fit_trigger", () => 0);
   const isMobileSearchOpen = useState<boolean>(

@@ -554,12 +554,12 @@ describe('Data model (PostgreSQL integration)', () => {
         id: randomUUID(),
         name: 'Audit airport',
         countryName: 'Audit',
-        iata: `QX${index}`,
+        iata: `QX${String.fromCharCode(65 + index)}`,
         latitude: index,
         longitude: index,
       }));
       await tx.orm.public.Airport.createAndCount(airports);
-      const airline = randomUUID().toUpperCase();
+      const airline = 'Z1';
       const routes = [
         {
           id: randomUUID(),
@@ -571,7 +571,7 @@ describe('Data model (PostgreSQL integration)', () => {
           id: randomUUID(),
           originId: airports[0].id,
           destinationId: airports[1].id,
-          airlineCode: randomUUID(),
+          airlineCode: 'Z2',
         },
         {
           id: randomUUID(),
@@ -585,7 +585,7 @@ describe('Data model (PostgreSQL integration)', () => {
       try {
         const found = await module
           .get(RoutesService)
-          .explore({ origin: 'qx0', airline });
+          .explore({ originId: airports[0].id, origin: 'qxa', airline });
         expect(found.map((route) => route.id)).toEqual([routes[0].id]);
       } finally {
         await module.close();

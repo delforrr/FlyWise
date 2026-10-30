@@ -1,5 +1,10 @@
 import { and, or, type Condition } from '@prisma/orm-postgres/orm-client';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { CollectionRowOf } from '@prisma/orm-postgres/orm-client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ExploreRoutesDto } from './dto/explore-routes.dto.js';
@@ -60,15 +65,34 @@ export class RoutesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async global(dto: GlobalRoutesDto): Promise<GlobalConnection[]> {
-    if ((dto.mode === 'countries' && dto.originCountryId === dto.destinationCountryId) ||
-        (dto.mode === 'continents' && dto.originContinent === dto.destinationContinent)) {
+    if (
+      (dto.mode === 'countries' &&
+        dto.originCountryId === dto.destinationCountryId) ||
+      (dto.mode === 'continents' &&
+        dto.originContinent === dto.destinationContinent)
+    ) {
       throw new BadRequestException('Selecciona dos lugares diferentes');
     }
     const entries = Object.entries(COUNTRY_CONTINENTS);
-    const originCodes = JSON.stringify(entries.filter(([, continent]) => dto.mode !== 'continents' || continent === dto.originContinent).map(([iso]) => iso));
-    const destinationCodes = JSON.stringify(entries.filter(([, continent]) => dto.mode !== 'continents' || continent === dto.destinationContinent).map(([iso]) => iso));
+    const originCodes = JSON.stringify(
+      entries
+        .filter(
+          ([, continent]) =>
+            dto.mode !== 'continents' || continent === dto.originContinent,
+        )
+        .map(([iso]) => iso),
+    );
+    const destinationCodes = JSON.stringify(
+      entries
+        .filter(
+          ([, continent]) =>
+            dto.mode !== 'continents' || continent === dto.destinationContinent,
+        )
+        .map(([iso]) => iso),
+    );
     const symmetric = dto.mode === 'global' || dto.mode === 'domestic';
-    const selected = await this.prisma.db.query(this.prisma.db.raw.sql`
+    const selected = await this.prisma.db.query(
+      this.prisma.db.raw.sql`
       WITH candidates AS (
         SELECT DISTINCT
           CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.name), o.id) > (COALESCE(d.iata, d.icao, d.name), d.id) THEN d.id ELSE o.id END AS "originId",
@@ -99,12 +123,24 @@ export class RoutesService {
         (r.destination_id = p."originId" AND r.origin_id = p."destinationId")
       )
       ORDER BY p.score DESC, p."originId", p."destinationId", r.id
-    `.returnsRow({ id: 'pg/text@1', originId: 'pg/text@1', destinationId: 'pg/text@1' }).build());
+    `
+        .returnsRow({
+          id: 'pg/text@1',
+          originId: 'pg/text@1',
+          destinationId: 'pg/text@1',
+        })
+        .build(),
+    );
     if (!selected.length) return [];
     const rows = await includeRouteDetails(this.prisma)
       .where((route) => or(...selected.map(({ id }) => route.id.eq(id))))
       .all();
-    const arcs = new Map((await this.withDistances(rows)).map((row) => [row.id, this.mapToDeckGlArc(row)]));
+    const arcs = new Map(
+      (await this.withDistances(rows)).map((row) => [
+        row.id,
+        this.mapToDeckGlArc(row),
+      ]),
+    );
     const connections = new Map<string, GlobalConnection>();
     for (const row of selected) {
       const arc = arcs.get(row.id);
@@ -112,16 +148,33 @@ export class RoutesService {
       const id = `${row.originId}/${row.destinationId}`;
       let connection = connections.get(id);
       if (!connection) {
-        connection = { id, originId: row.originId, destinationId: row.destinationId, outbound: [], inbound: [] };
+        connection = {
+          id,
+          originId: row.originId,
+          destinationId: row.destinationId,
+          outbound: [],
+          inbound: [],
+        };
         connections.set(id, connection);
       }
-      (arc.origin.id === row.originId ? connection.outbound : connection.inbound).push(arc);
+      (arc.origin.id === row.originId
+        ? connection.outbound
+        : connection.inbound
+      ).push(arc);
     }
     return [...connections.values()];
   }
 
   async explore(dto: ExploreRoutesDto): Promise<DeckGlArcRoute[]> {
     const { origin, airline, limit = 100 } = dto;
+    if (
+      dto.originId &&
+      dto.destinationId &&
+      dto.originId.toLowerCase() === dto.destinationId.toLowerCase()
+    )
+      throw new BadRequestException(
+        'El origen y el destino deben ser aeropuertos distintos',
+      );
 
     if (dto.includeReturn && (!dto.originId || !dto.destinationId)) {
       throw new BadRequestException('includeReturn requiere origen y destino');
@@ -136,10 +189,18 @@ export class RoutesService {
           );
         }
         if (dto.includeReturn && dto.originId && dto.destinationId) {
-          conditions.push(or(
-            and(route.originId.eq(dto.originId), route.destinationId.eq(dto.destinationId)),
-            and(route.originId.eq(dto.destinationId), route.destinationId.eq(dto.originId)),
-          ));
+          conditions.push(
+            or(
+              and(
+                route.originId.eq(dto.originId),
+                route.destinationId.eq(dto.destinationId),
+              ),
+              and(
+                route.originId.eq(dto.destinationId),
+                route.destinationId.eq(dto.originId),
+              ),
+            ),
+          );
         } else if (dto.originId)
           conditions.push(
             dto.destinationId
@@ -171,14 +232,39 @@ export class RoutesService {
   }
 
   async findDirect(dto: QueryDirectRouteDto) {
-    const originIata = dto.origin.trim().toUpperCase();
-    const destinationIata = dto.destination.trim().toUpperCase();
+    const originCode = dto.origin.trim().toUpperCase();
+    const destinationCode = dto.destination.trim().toUpperCase();
+    if (originCode === destinationCode)
+      throw new BadRequestException(
+        'El origen y el destino deben ser aeropuertos distintos',
+      );
+    const endpoints: string[] = [];
+    for (const code of [originCode, destinationCode]) {
+      const airports = await this.prisma.models.Airport.where((a) =>
+        or(a.iata.eq(code), a.icao.eq(code)),
+      )
+        .select('id')
+        .limit(2)
+        .all();
+      if (airports.length > 1)
+        throw new ConflictException('Código de aeropuerto ambiguo');
+      if (!airports.length)
+        throw new NotFoundException(
+          `Aeropuerto con código ${code} no encontrado`,
+        );
+      endpoints.push(airports[0].id);
+    }
+    const [originId, destinationId] = endpoints;
+    if (originId === destinationId)
+      throw new BadRequestException(
+        'El origen y el destino deben ser aeropuertos distintos',
+      );
 
     const rows = await includeRouteDetails(this.prisma)
       .where((route) =>
         and(
-          route.origin.some({ iata: originIata }),
-          route.destination.some({ iata: destinationIata }),
+          route.originId.eq(originId),
+          route.destinationId.eq(destinationId),
           route.stops.eq(0),
         ),
       )
@@ -187,7 +273,7 @@ export class RoutesService {
 
     if (!routes.length) {
       throw new NotFoundException(
-        `No se encontraron vuelos directos entre ${originIata} y ${destinationIata}`,
+        `No se encontraron vuelos directos entre ${originCode} y ${destinationCode}`,
       );
     }
 

@@ -1,5 +1,9 @@
 import { or } from '@prisma/orm-postgres/orm-client';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QueryAirlinesDto } from './dto/query-airlines.dto.js';
 
@@ -46,13 +50,19 @@ export class AirlinesService {
 
   async findByCode(code: string) {
     const upperCode = code.trim().toUpperCase();
-    const airline = await this.prisma.models.Airline.where((airline) =>
+    const airlines = await this.prisma.models.Airline.where((airline) =>
       or(airline.iata.eq(upperCode), airline.icao.eq(upperCode)),
     )
       .include('routes', (routes) =>
         routes.limit(20).include('origin').include('destination'),
       )
-      .first();
+      .limit(2)
+      .all();
+    if (airlines.length > 1)
+      throw new ConflictException(
+        'Código ambiguo; seleccione la entidad por su identidad interna',
+      );
+    const [airline] = airlines;
     if (!airline)
       throw new NotFoundException(
         `Aerolínea con código ${upperCode} no encontrada`,

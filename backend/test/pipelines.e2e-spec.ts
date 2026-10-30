@@ -18,6 +18,7 @@ describe('Pipeline persistence and immutable execution configuration', () => {
           add: jest.fn().mockResolvedValue({}),
           upsertJobScheduler: jest.fn(),
           removeJobScheduler: jest.fn(),
+          setGlobalConcurrency: jest.fn(),
         };
         const service = new PipelinesService(
           { models: tx.orm.public, db: tx } as unknown as PrismaService,
@@ -83,6 +84,12 @@ describe('Pipeline persistence and immutable execution configuration', () => {
         }).firstOrThrow();
         expect(failed.status).toBe('failed');
         expect(failed.errorMessage).not.toContain('credentials');
+        await tx.orm.public.EtlPipeline.where({ id: another.id }).update({
+          schemaMapping: [null],
+        });
+        await expect(service.run(another.id)).rejects.toThrow(/Bad Request/);
+        await expect(service.onModuleInit()).resolves.toBeUndefined();
+        expect(queue.removeJobScheduler).toHaveBeenCalledWith(another.id);
         throw rollback;
       });
       throw new Error('Expected rollback');
