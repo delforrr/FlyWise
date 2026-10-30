@@ -17,17 +17,20 @@ const emit = defineEmits<{
 
 const fieldFilter = ref<string>("all");
 const selectedAttempt = ref(0);
+const samplesLoading = ref(false);
 const { loadSamples } = useEtlData();
 const toast = useToast();
 const attemptOptions = computed(() => Array.from({ length: (props.pipeline?.attempt ?? 0) + 1 }, (_, value) => ({ value, label: value === 0 ? 'Histórico sin intento' : `Intento ${value}` })));
 watch(() => [props.pipeline?.latestJobId, props.pipeline?.attempt], () => { selectedAttempt.value = props.pipeline?.attempt ?? 0; }, { immediate: true });
 async function selectAttempt(value: number) {
-  if (!props.pipeline) return;
+  if (!props.pipeline || samplesLoading.value) return;
+  samplesLoading.value = true;
   try {
     await loadSamples(props.pipeline, value);
     selectedAttempt.value = value;
     fieldFilter.value = 'all';
   } catch { toast.add({ title: 'No se pudieron cargar las muestras del intento', color: 'error' }); }
+  finally { samplesLoading.value = false; }
 }
 const copiedRecordId = ref<string | null>(null);
 
@@ -122,7 +125,7 @@ function exportDiscardedCsv() {
   >
     <template #body>
       <div v-if="pipeline" class="space-y-4">
-        <USelect :model-value="selectedAttempt" :items="attemptOptions" aria-label="Intento de ejecución" @update:model-value="selectAttempt" />
+        <USelect :model-value="selectedAttempt" :items="attemptOptions" :disabled="samplesLoading" :loading="samplesLoading" aria-label="Intento de ejecución" @update:model-value="selectAttempt" />
         <!-- Resumen y Filtro de Campo -->
         <div
           class="p-3.5 rounded-xl bg-surface-accent border border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"

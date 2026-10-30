@@ -232,14 +232,14 @@ export class RoutesService {
   }
 
   async findDirect(dto: QueryDirectRouteDto) {
-    const originIata = dto.origin.trim().toUpperCase();
-    const destinationIata = dto.destination.trim().toUpperCase();
-    if (originIata === destinationIata)
+    const originCode = dto.origin.trim().toUpperCase();
+    const destinationCode = dto.destination.trim().toUpperCase();
+    if (originCode === destinationCode)
       throw new BadRequestException(
         'El origen y el destino deben ser aeropuertos distintos',
       );
     const endpoints: string[] = [];
-    for (const code of [originIata, destinationIata]) {
+    for (const code of [originCode, destinationCode]) {
       const airports = await this.prisma.models.Airport.where((a) =>
         or(a.iata.eq(code), a.icao.eq(code)),
       )
@@ -273,7 +273,7 @@ export class RoutesService {
 
     if (!routes.length) {
       throw new NotFoundException(
-        `No se encontraron vuelos directos entre ${originIata} y ${destinationIata}`,
+        `No se encontraron vuelos directos entre ${originCode} y ${destinationCode}`,
       );
     }
 

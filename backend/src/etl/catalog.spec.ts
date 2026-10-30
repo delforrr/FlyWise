@@ -1,6 +1,18 @@
 import { normalizeCatalogRow, catalogValue } from './catalog.js';
 
 describe('OpenFlights catalog validation', () => {
+  it('preserves the textual NAN code used by Nadi in airports.dat', () => {
+    expect(
+      normalizeCatalogRow('airports', {
+        openflightsId: '1960',
+        name: 'Nadi International Airport',
+        iata: 'NAN',
+        icao: 'NFFN',
+        latitude: '-17.755399703979492',
+        longitude: '177.4429931640625',
+      }),
+    ).toMatchObject({ iata: 'NAN', icao: 'NFFN' });
+  });
   it('preserves airports without codes and coordinates at zero', () => {
     expect(
       normalizeCatalogRow('airports', {

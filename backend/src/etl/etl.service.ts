@@ -250,7 +250,7 @@ export class EtlService {
             total === 0 &&
             configuration &&
             configuration.schemaMapping.some(
-              (rule) => !(rule.sourceColumn in raw),
+              (rule) => !Object.hasOwn(raw, rule.sourceColumn),
             )
           )
             throw new Error('El mapeo referencia columnas que no existen');
@@ -291,6 +291,8 @@ export class EtlService {
                       ? null
                       : ['Y', 'TRUE', '1'].includes(text);
                 }
+                if (typeof value === 'number' && !Number.isFinite(value))
+                  throw new Error(`${rule.targetField}: número no finito`);
                 if (rule.required && catalogValue(value) === null)
                   throw new Error(`${rule.targetField}: obligatorio`);
                 mapped[rule.targetField] = value;

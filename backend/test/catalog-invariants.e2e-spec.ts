@@ -32,6 +32,13 @@ describe('Internal catalog invariants (PostgreSQL)', () => {
               email: ' USER@example.test ',
               passwordHash: 'fixture',
             }),
+          ...['\t', '\n', '\u00a0', '\u2007', '\u202f', '\ufeff'].map(
+            (space) => () =>
+              tx.orm.public.User.create({
+                email: `${space}user@example.test${space}`,
+                passwordHash: 'fixture',
+              }),
+          ),
         ];
         for (const write of invalidWrites) {
           await tx.execute(

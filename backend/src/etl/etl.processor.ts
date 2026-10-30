@@ -27,7 +27,7 @@ export class EtlProcessor extends WorkerHost {
       return this.pipelines.run(job.data.pipelineId, undefined, true);
     }
     const { jobId, dataset } = job.data;
-    const attempt = job.attemptsMade + 1;
+    const attempt = job.attemptsStarted || job.attemptsMade + 1;
     const now = () =>
       new Date().toISOString().replace('T', ' ').replace('Z', '');
     await this.prisma.models.EtlJob.where({ id: jobId }).update({
@@ -46,7 +46,7 @@ export class EtlProcessor extends WorkerHost {
       jobId,
       attempt,
       level: 'info',
-      message: `Inicio del intento ${job.attemptsMade + 1}`,
+      message: `Inicio del intento ${attempt}`,
     });
     try {
       if (!ETL_DATASETS.includes(dataset))

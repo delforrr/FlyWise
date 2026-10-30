@@ -23,4 +23,4 @@ El usuario aprobó los tickets 01–13 y las fronteras HTTP, ETL con PostgreSQL/
 - Revisión adversarial independiente, corrección de sus hallazgos y documento final con motivos e impactos reales para usuario, operador y desarrollador.
 - Todos los cambios y el documento del agente adversarial deben quedar commiteados.
 
-No se autorizó push ni merge. No se incorporan nuevos proveedores, importadores de puntualidad ni rediseño visual.
+El usuario autorizó después publicar un PR a develop y commitear el último cambio con el informe de revisión. No se autorizó merge. No se incorporan nuevos proveedores, importadores de puntualidad ni rediseño visual.
