@@ -5,11 +5,11 @@ import {
 } from './http-source.js';
 
 describe('HTTP catalog trust boundary', () => {
-  const connection = {
-    sourceType: 'http_stream' as const,
-    httpMethod: 'GET' as const,
-    dataFormat: 'csv' as const,
-    endpointUrl:
+  const conexion = {
+    tipoFuente: 'http_stream' as const,
+    metodoHttp: 'GET' as const,
+    formatoDatos: 'csv' as const,
+    urlEndpoint:
       'https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat',
   };
   afterEach(() => {
@@ -28,15 +28,17 @@ describe('HTTP catalog trust boundary', () => {
     expect(() => validateSourceUrl(url)).toThrow();
   });
   it('accepts only exact explicitly allowed HTTPS hosts', () => {
-    expect(validateSourceUrl(connection.endpointUrl).hostname).toBe(
+    expect(validateSourceUrl(conexion.urlEndpoint).hostname).toBe(
       'raw.githubusercontent.com',
     );
   });
   it('does not resolve arbitrary server environment variables', () => {
     expect(() =>
       sourceHeaders({
-        ...connection,
-        headers: [{ key: 'Authorization', credentialRef: 'DATABASE_URL' }],
+        ...conexion,
+        headers: [
+          { key: 'Authorization', referenciaCredencial: 'DATABASE_URL' },
+        ],
       }),
     ).toThrow();
   });
@@ -44,19 +46,25 @@ describe('HTTP catalog trust boundary', () => {
     process.env.ETL_ALLOWED_CREDENTIAL_REFS = 'ETL_TEST_TOKEN';
     process.env.ETL_TEST_TOKEN = 'test-secret';
     const config = {
-      ...connection,
-      headers: [{ key: 'Authorization', credentialRef: 'ETL_TEST_TOKEN' }],
+      ...conexion,
+      headers: [
+        { key: 'Authorization', referenciaCredencial: 'ETL_TEST_TOKEN' },
+      ],
     };
     expect(sourceHeaders(config)).toEqual({ Authorization: 'test-secret' });
     expect(
       redactSourceRow(
-        { token: 'other', name: 'prefix test-secret suffix', name2: 'Airport' },
+        {
+          token: 'other',
+          nombre: 'prefix test-secret suffix',
+          name2: 'Aeropuerto',
+        },
         config,
       ),
     ).toEqual({
       token: '[REDACTED]',
-      name: 'prefix [REDACTED] suffix',
-      name2: 'Airport',
+      nombre: 'prefix [REDACTED] suffix',
+      name2: 'Aeropuerto',
     });
   });
 });

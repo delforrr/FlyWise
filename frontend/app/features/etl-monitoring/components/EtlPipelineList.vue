@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import type { EtlPipeline } from "../types/etl";
+import type { ProcesoEtl } from "../types/etl";
 import EtlPipelineCard from "./EtlPipelineCard.vue";
 import EtlPipelineTable from "./EtlPipelineTable.vue";
 import EtlPipelineNavigator from "./EtlPipelineNavigator.vue";
 
 interface Props {
-  pipelines: EtlPipeline[];
+  pipelines: ProcesoEtl[];
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: "trigger-sync", pipeline: EtlPipeline): void;
-  (e: "pause", id: EtlPipeline["id"]): void;
-  (e: "resume", id: EtlPipeline["id"]): void;
-  (e: "retry", id: EtlPipeline["id"]): void;
-  (e: "view-discarded", pipeline: EtlPipeline): void;
-  (e: "view-detail", pipeline: EtlPipeline): void;
+  (e: "trigger-sync", proceso: ProcesoEtl): void;
+  (e: "pause", id: ProcesoEtl["id"]): void;
+  (e: "resume", id: ProcesoEtl["id"]): void;
+  (e: "retry", id: ProcesoEtl["id"]): void;
+  (e: "view-discarded", proceso: ProcesoEtl): void;
+  (e: "view-detail", proceso: ProcesoEtl): void;
 }>();
 
 // Vista por defecto: "table", opcionalmente "cards"
@@ -29,22 +29,22 @@ const searchQuery = ref("");
 
 const filteredPipelines = computed(() => {
   return props.pipelines.filter((p) => {
-    if (currentFilter.value === "running" && p.status !== "running")
+    if (currentFilter.value === "running" && p.estado !== "running")
       return false;
-    if (currentFilter.value === "success" && p.status !== "success")
+    if (currentFilter.value === "success" && p.estado !== "success")
       return false;
     if (
       currentFilter.value === "has_issues" &&
-      p.discardedRows === 0 &&
-      p.status !== "error"
+      p.filasDescartadas === 0 &&
+      p.estado !== "error"
     )
       return false;
 
     if (searchQuery.value.trim() !== "") {
       const q = searchQuery.value.toLowerCase();
-      const matchName = p.name.toLowerCase().includes(q);
-      const matchDataset = p.datasetName.toLowerCase().includes(q);
-      const matchDesc = p.description.toLowerCase().includes(q);
+      const matchName = p.nombre.toLowerCase().includes(q);
+      const matchDataset = p.nombreConjunto.toLowerCase().includes(q);
+      const matchDesc = p.descripcion.toLowerCase().includes(q);
       if (!matchName && !matchDataset && !matchDesc) return false;
     }
 
@@ -54,10 +54,10 @@ const filteredPipelines = computed(() => {
 
 const counts = computed(() => ({
   all: props.pipelines.length,
-  running: props.pipelines.filter((p) => p.status === "running").length,
-  success: props.pipelines.filter((p) => p.status === "success").length,
+  running: props.pipelines.filter((p) => p.estado === "running").length,
+  success: props.pipelines.filter((p) => p.estado === "success").length,
   has_issues: props.pipelines.filter(
-    (p) => p.discardedRows > 0 || p.status === "error",
+    (p) => p.filasDescartadas > 0 || p.estado === "error",
   ).length,
 }));
 
@@ -142,7 +142,7 @@ const filterTabs = computed(() => [
         <EtlPipelineCard
           v-for="p in filteredPipelines"
           :key="p.id"
-          :pipeline="p"
+          :proceso="p"
           @trigger-sync="emit('trigger-sync', $event)"
           @pause="emit('pause', $event)"
           @resume="emit('resume', $event)"

@@ -1,5 +1,5 @@
 import { ArcLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
-import type { Airport } from "~/types/airport";
+import type { Aeropuerto } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { getOtpColor } from "./mapUtils";
 
@@ -8,7 +8,7 @@ export interface BuildLayersOptions {
   selectedOrigin?: string | null;
   selectedDestination?: string | null;
   matchingRoutes: FlightRoute[];
-  airports?: Airport[];
+  aeropuertos?: Aeropuerto[];
 }
 
 /**
@@ -19,18 +19,18 @@ export function getVisibleAirports(
   orig?: string | null,
   dest?: string | null,
   visibleRoutes: FlightRoute[] = [],
-  airports: Airport[] = [],
-): Airport[] {
+  aeropuertos: Aeropuerto[] = [],
+): Aeropuerto[] {
   const activeAirportIatas = new Set<string>();
   if (hasSelection && orig) activeAirportIatas.add(orig);
   if (hasSelection && dest) activeAirportIatas.add(dest);
 
   for (const r of visibleRoutes) {
-    activeAirportIatas.add(r.originId);
-    activeAirportIatas.add(r.destinationId);
+    activeAirportIatas.add(r.origenId);
+    activeAirportIatas.add(r.destinoId);
   }
 
-  return airports.filter((a) => activeAirportIatas.has(a.id));
+  return aeropuertos.filter((a) => activeAirportIatas.has(a.id));
 }
 
 /**
@@ -51,7 +51,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
     orig,
     dest,
     visibleRoutes,
-    options.airports,
+    options.aeropuertos,
   );
 
   // 3. Aeropuertos activos seleccionados (origen y/o destino para halos de radar)
@@ -62,7 +62,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
   return [
     // Capa de Arcos Geodésicos 3D (Rutas y puntualidad OTP-15)
     new ArcLayer<FlightRoute>({
-      id: "flight-routes-arc",
+      id: "flight-rutas-arc",
       data: visibleRoutes,
       pickable: true,
       autoHighlight: true,
@@ -73,14 +73,14 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       getSourceColor: (d: FlightRoute) => {
         const isDirectActive = Boolean(
           hasBoth &&
-          ((d.originId === orig && d.destinationId === dest) ||
-            (d.originId === dest && d.destinationId === orig)),
+          ((d.origenId === orig && d.destinoId === dest) ||
+            (d.origenId === dest && d.destinoId === orig)),
         );
 
         if (isDirectActive) {
           // Gradiente de alto contraste para la ruta activa seleccionada:
           // El origen emite en Aero Cyan de alta saturación
-          return d.originId === orig
+          return d.origenId === orig
             ? isLight
               ? [2, 132, 199, 255]
               : [56, 189, 248, 255]
@@ -93,7 +93,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
           return [baseColor[0], baseColor[1], baseColor[2], 140];
         }
 
-        if (orig && d.originId === orig) {
+        if (orig && d.origenId === orig) {
           return isLight ? [2, 132, 199, 240] : [56, 189, 248, 240];
         }
 
@@ -103,13 +103,13 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       getTargetColor: (d: FlightRoute) => {
         const isDirectActive = Boolean(
           hasBoth &&
-          ((d.originId === orig && d.destinationId === dest) ||
-            (d.originId === dest && d.destinationId === orig)),
+          ((d.origenId === orig && d.destinoId === dest) ||
+            (d.origenId === dest && d.destinoId === orig)),
         );
 
         if (isDirectActive) {
           // El destino recibe en el color de performance OTP-15 (Esmeralda / Ámbar / Carmesí)
-          return d.destinationId === dest
+          return d.destinoId === dest
             ? getOtpColor(d.averageOtp15, 255)
             : isLight
               ? [2, 132, 199, 255]
@@ -121,7 +121,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
           return [baseColor[0], baseColor[1], baseColor[2], 140];
         }
 
-        if (dest && d.destinationId === dest) {
+        if (dest && d.destinoId === dest) {
           return isLight ? [5, 150, 105, 240] : [16, 185, 129, 240];
         }
 
@@ -132,8 +132,8 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
         if (!hasSelection) return 2.5;
         if (hasBoth) {
           if (
-            (d.originId === orig && d.destinationId === dest) ||
-            (d.originId === dest && d.destinationId === orig)
+            (d.origenId === orig && d.destinoId === dest) ||
+            (d.origenId === dest && d.destinoId === orig)
           ) {
             return 8.0; // Grosor elevado para destacar la ruta activa
           }
@@ -150,17 +150,17 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
     }),
 
     // Capa de Anillo Exterior Sonar / Pulso Táctico para Hubs Activos
-    new ScatterplotLayer<Airport>({
-      id: "airports-radar-ring-outer",
+    new ScatterplotLayer<Aeropuerto>({
+      id: "aeropuertos-radar-ring-outer",
       data: activeSelectedAirports,
       pickable: false,
-      getPosition: (d: Airport) => d.coordinates,
+      getPosition: (d: Aeropuerto) => d.coordenadas,
       getRadius: 280000,
       radiusMinPixels: 28,
       radiusMaxPixels: 58,
       stroked: true,
       filled: false,
-      getLineColor: (d: Airport) => {
+      getLineColor: (d: Aeropuerto) => {
         if (d.id === orig) {
           return isLight ? [2, 132, 199, 90] : [56, 189, 248, 100];
         }
@@ -174,23 +174,23 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
     }),
 
     // Capa de Halo Radar / Glow para Hubs Activos (Origen / Destino)
-    new ScatterplotLayer<Airport>({
-      id: "airports-radar-halo",
+    new ScatterplotLayer<Aeropuerto>({
+      id: "aeropuertos-radar-halo",
       data: activeSelectedAirports,
       pickable: false,
-      getPosition: (d: Airport) => d.coordinates,
+      getPosition: (d: Aeropuerto) => d.coordenadas,
       getRadius: 160000,
       radiusMinPixels: 18,
       radiusMaxPixels: 38,
       stroked: true,
       filled: true,
-      getFillColor: (d: Airport) => {
+      getFillColor: (d: Aeropuerto) => {
         if (d.id === orig) {
           return isLight ? [2, 132, 199, 45] : [56, 189, 248, 45]; // Aero Cyan translúcido
         }
         return isLight ? [5, 150, 105, 45] : [16, 185, 129, 45]; // Esmeralda translúcido
       },
-      getLineColor: (d: Airport) => {
+      getLineColor: (d: Aeropuerto) => {
         if (d.id === orig) {
           return isLight ? [2, 132, 199, 200] : [56, 189, 248, 220]; // Stroke de pulso cyan
         }
@@ -205,14 +205,14 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
     }),
 
     // Capa de Nodos de Aeropuertos / Hubs
-    new ScatterplotLayer<Airport>({
-      id: "airports-nodes",
+    new ScatterplotLayer<Aeropuerto>({
+      id: "aeropuertos-nodes",
       data: visibleAirports,
       pickable: true,
       autoHighlight: true,
       highlightColor: isLight ? [2, 132, 199, 255] : [56, 189, 248, 255],
-      getPosition: (d: Airport) => d.coordinates,
-      getRadius: (d: Airport) => {
+      getPosition: (d: Aeropuerto) => d.coordenadas,
+      getRadius: (d: Aeropuerto) => {
         if (d.id === orig || d.id === dest) {
           return 90000;
         }
@@ -220,7 +220,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       },
       radiusMinPixels: 4,
       radiusMaxPixels: 16,
-      getFillColor: (d: Airport) => {
+      getFillColor: (d: Aeropuerto) => {
         if (d.id === orig) {
           return isLight ? [2, 132, 199, 255] : [56, 189, 248, 255]; // Aero Cyan (Origen)
         }
@@ -229,7 +229,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
         }
         return isLight ? [30, 41, 59, 230] : [222, 227, 232, 220];
       },
-      getLineColor: (d: Airport) => {
+      getLineColor: (d: Aeropuerto) => {
         if (d.id === orig || d.id === dest) {
           return [255, 255, 255, 255];
         }
@@ -245,17 +245,17 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
     }),
 
     // Capa de Etiquetas IATA de Aeropuertos en WebGL
-    new TextLayer<Airport>({
-      id: "airports-labels",
+    new TextLayer<Aeropuerto>({
+      id: "aeropuertos-labels",
       data: visibleAirports,
       pickable: true,
-      getPosition: (d: Airport) => d.coordinates,
-      getText: (d: Airport) => d.iata,
-      getSize: (d: Airport) => (d.id === orig || d.id === dest ? 13 : 11),
+      getPosition: (d: Aeropuerto) => d.coordenadas,
+      getText: (d: Aeropuerto) => d.iata,
+      getSize: (d: Aeropuerto) => (d.id === orig || d.id === dest ? 13 : 11),
       sizeUnits: "pixels",
       sizeMinPixels: 9,
       sizeMaxPixels: 16,
-      getColor: (d: Airport) => {
+      getColor: (d: Aeropuerto) => {
         if (d.id === orig)
           return isLight ? [2, 132, 199, 255] : [56, 189, 248, 255];
         if (d.id === dest)

@@ -65,13 +65,13 @@ function exportLogsAsJson() {
 const filteredLogs = computed(() => {
   return props.logs.filter((log) => {
     // 1. Filtro por nivel
-    if (levelFilter.value === "success" && log.level !== "success") {
+    if (levelFilter.value === "success" && log.nivel !== "success") {
       return false;
     }
     if (
       levelFilter.value === "warn_error" &&
-      log.level !== "warn" &&
-      log.level !== "error"
+      log.nivel !== "warn" &&
+      log.nivel !== "error"
     ) {
       return false;
     }
@@ -79,7 +79,7 @@ const filteredLogs = computed(() => {
     // 2. Filtro por fuente
     if (
       selectedSource.value !== "all" &&
-      log.pipelineId !== selectedSource.value
+      log.procesoId !== selectedSource.value
     ) {
       return false;
     }
@@ -87,7 +87,7 @@ const filteredLogs = computed(() => {
     // 3. Filtro por búsqueda de texto
     if (searchQuery.value.trim() !== "") {
       const q = searchQuery.value.toLowerCase();
-      const matchMsg = log.message.toLowerCase().includes(q);
+      const matchMsg = log.mensaje.toLowerCase().includes(q);
       const matchPipe = log.pipelineName.toLowerCase().includes(q);
       const matchDetail = log.detail
         ? log.detail.toLowerCase().includes(q)
@@ -235,21 +235,21 @@ watch(
           <!-- Icono de estado -->
           <div class="mt-0.5 shrink-0">
             <UBadge
-              v-if="log.level === 'success'"
+              v-if="log.nivel === 'success'"
               color="success"
               variant="subtle"
               size="sm"
               icon="i-lucide-check"
             />
             <UBadge
-              v-else-if="log.level === 'warn'"
+              v-else-if="log.nivel === 'warn'"
               color="warning"
               variant="subtle"
               size="sm"
               icon="i-lucide-alert-triangle"
             />
             <UBadge
-              v-else-if="log.level === 'error'"
+              v-else-if="log.nivel === 'error'"
               color="error"
               variant="subtle"
               size="sm"
@@ -277,7 +277,7 @@ watch(
               </span>
             </div>
             <p class="text-text-muted mt-0.5 leading-relaxed">
-              {{ log.message }}
+              {{ log.mensaje }}
             </p>
 
             <!-- Detalle técnico -->

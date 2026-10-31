@@ -36,6 +36,8 @@ La representación visual de los arcos de vuelo refleja el desempeño histórico
 
 El [modelo de datos](docs/data-model.md) describe las entidades y restricciones en español; el [diagrama de relaciones](docs/dataModel.mermaid) muestra su estructura. La documentación interactiva de la API está disponible en `/api/docs`.
 
+Las cuentas ADMIN pueden administrar aeropuertos, aerolíneas, rutas y sus ofertas desde `/admin/aeropuertos`, `/admin/aerolineas` y `/admin/rutas`. El archivo lógico conserva las relaciones y las ediciones manuales quedan protegidas de las importaciones. Consultar la [guía de migración](docs/migracion-modelo-espanol.md) para actualizar una base existente y las [mejoras futuras](docs/mejoras-futuras-modelo-datos.md) para nuevas integraciones.
+
 Las consultas analíticas de rendimiento operan sobre la tupla:
 
 ```text
@@ -237,10 +239,11 @@ npx prisma contract emit
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/functions.sql
 npx prisma db init --db "$DATABASE_URL"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/triggers.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/constraints.sql
 npx prisma db verify --db "$DATABASE_URL"
 ```
 
-Aplicar además `backend/prisma/changes/20261024_catalog_v1.sql` después de las funciones y antes de los triggers, también en bases nuevas.
+En bases nuevas se usa el contrato actual y `constraints.sql`. En bases existentes se aplican únicamente las migraciones pendientes, en orden; consultar [la migración al modelo en español](docs/migracion-modelo-espanol.md). No aplicar los scripts históricos en inglés sobre tablas ya renombradas.
 
 Prisma 8 está fijado a las versiones RC del lockfile. Se parte del contrato actual, sin historial de migraciones. El arranque requiere `psql`.
 
@@ -278,4 +281,4 @@ npm run dev
 
 La aplicación web estará disponible en `http://localhost:3000`.
 
-Para crear el administrador inicial, define `ADMIN_EMAIL` y `ADMIN_PASSWORD` (mínimo 10 caracteres) y ejecuta `npm run build` y luego `node --env-file=.env dist/prisma/seed.js` desde `backend/`. El seed conserva las cuentas existentes; los catálogos se cargan mediante ETL.
+Los catálogos se cargan mediante ETL desde los `.dat`; no se utiliza un seed. Las cuentas existentes se conservan. En una instalación nueva, registrá una cuenta y asignale el rol `ADMIN` mediante una operación administrativa controlada en PostgreSQL antes de acceder a la administración.

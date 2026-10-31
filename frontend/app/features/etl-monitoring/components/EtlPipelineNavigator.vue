@@ -26,8 +26,8 @@ const ui = {
   trigger: [
     "px-3 py-1.5 rounded-md cursor-pointer text-xs font-semibold transition-colors gap-1",
     "text-text-muted hover:text-text-main",
-    "data-[state=active]:text-on-primary data-[state=active]:font-bold",
-    "in-[[data-slot=list]:not(:has([data-slot=indicator]))]:data-[state=active]:before:bg-primary",
+    "data-[state=activa]:text-on-primary data-[state=activa]:font-bold",
+    "in-[[data-slot=list]:not(:has([data-slot=indicator]))]:data-[state=activa]:before:bg-primary",
   ],
 };
 </script>

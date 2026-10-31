@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useCatalog } from "~/shared/composables/useCatalog";
-const { airports } = useCatalog();
+const { aeropuertos } = useCatalog();
 
 const {
   selectedOrigin,
@@ -11,13 +11,13 @@ const {
 
 const originAirport = computed(() => {
   if (!selectedOrigin.value) return null;
-  return airports.value.find(a => a.id === selectedOrigin.value) ?? null;
+  return aeropuertos.value.find(a => a.id === selectedOrigin.value) ?? null;
 });
 
 const destinationAirport = computed(() => {
   if (!selectedDestination.value) return null;
   return (
-    airports.value.find(a => a.id === selectedDestination.value) ?? null
+    aeropuertos.value.find(a => a.id === selectedDestination.value) ?? null
   );
 });
 
@@ -80,7 +80,7 @@ function swapAirports() {
     <div class="flex flex-row items-center gap-2 sm:gap-3 my-2 sm:my-3">
       <div class="flex flex-col flex-1 gap-5 min-w-0">
         <InputCard
-          type="origin"
+          type="origen"
           :iata="selectedOrigin"
           :airport="originAirport"
         >
@@ -110,7 +110,7 @@ function swapAirports() {
         </div>
 
         <InputCard
-          type="destination"
+          type="destino"
           :iata="selectedDestination"
           :airport="destinationAirport"
         >

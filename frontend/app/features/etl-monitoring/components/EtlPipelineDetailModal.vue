@@ -1,32 +1,32 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { EtlPipeline } from "../types/etl";
+import type { ProcesoEtl } from "../types/etl";
 
 interface Props {
   isOpen: boolean;
-  pipeline: EtlPipeline | null;
+  proceso: ProcesoEtl | null;
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
   (e: "close"): void;
-  (e: "trigger-sync", pipeline: EtlPipeline): void;
-  (e: "pause", id: EtlPipeline["id"]): void;
-  (e: "resume", id: EtlPipeline["id"]): void;
-  (e: "view-discarded", pipeline: EtlPipeline): void;
+  (e: "trigger-sync", proceso: ProcesoEtl): void;
+  (e: "pause", id: ProcesoEtl["id"]): void;
+  (e: "resume", id: ProcesoEtl["id"]): void;
+  (e: "view-discarded", proceso: ProcesoEtl): void;
 }>();
 
 // Formateo del tiempo estimado de ejecución según filas y velocidad
 const executionTimeFormatted = computed<string | null>(() => {
   if (
-    !props.pipeline?.averageSpeedRowsPerSec ||
-    props.pipeline.averageSpeedRowsPerSec <= 0
+    !props.proceso?.averageSpeedRowsPerSec ||
+    props.proceso.averageSpeedRowsPerSec <= 0
   ) {
     return null;
   }
   const totalSeconds = Math.round(
-    props.pipeline.processedRows / props.pipeline.averageSpeedRowsPerSec,
+    props.proceso.filasProcesadas / props.proceso.averageSpeedRowsPerSec,
   );
   if (totalSeconds < 60) return `${totalSeconds}s`;
   const mins = Math.floor(totalSeconds / 60);
@@ -36,8 +36,8 @@ const executionTimeFormatted = computed<string | null>(() => {
 
 // Tasa porcentual de registros descartados
 const errorRateFormatted = computed<string>(() => {
-  const processed = props.pipeline?.processedRows ?? 0;
-  const discarded = props.pipeline?.discardedRows ?? 0;
+  const processed = props.proceso?.filasProcesadas ?? 0;
+  const discarded = props.proceso?.filasDescartadas ?? 0;
   const attempted = processed + discarded;
   return `${(attempted ? 100 * discarded / attempted : 0).toFixed(2)}%`;
 });
@@ -45,8 +45,8 @@ const errorRateFormatted = computed<string>(() => {
 
 <template>
   <UModal
-    :open="isOpen && !!pipeline"
-    :title="`Detalle de Fuente — ${pipeline?.name ?? ''}`"
+    :open="isOpen && !!proceso"
+    :title="`Detalle de Fuente — ${proceso?.nombre ?? ''}`"
     description="Métricas de procesamiento, registros descartados y cronograma de sincronización."
     :ui="{
       content:
@@ -59,7 +59,7 @@ const errorRateFormatted = computed<string>(() => {
     "
   >
     <template #body>
-      <div v-if="pipeline" class="space-y-4 font-feature-tech text-xs">
+      <div v-if="proceso" class="space-y-4 font-feature-tech text-xs">
         <!-- 1. Cabecera Informativa de la Fuente -->
         <div
           class="p-3.5 rounded-xl bg-surface-accent/70 border border-border-subtle flex items-start justify-between gap-3"
@@ -68,34 +68,34 @@ const errorRateFormatted = computed<string>(() => {
             <div
               class="w-10 h-10 rounded-lg bg-surface-accent border border-border-subtle flex items-center justify-center text-primary shrink-0"
             >
-              <UIcon :name="pipeline.icon" class="w-5 h-5" />
+              <UIcon :name="proceso.icon" class="w-5 h-5" />
             </div>
             <div class="min-w-0">
               <div class="flex items-center gap-2">
                 <span class="font-bold text-text-main text-sm truncate">
-                  {{ pipeline.name }}
+                  {{ proceso.nombre }}
                 </span>
                 <span class="font-mono text-[11px] text-text-muted">
-                  #{{ pipeline.id }}
+                  #{{ proceso.id }}
                 </span>
               </div>
               <span
                 class="text-[11px] font-mono text-text-muted block truncate"
               >
-                {{ pipeline.datasetName }}
+                {{ proceso.nombreConjunto }}
               </span>
               <p
                 class="text-[11px] text-text-dim mt-1 line-clamp-2 leading-relaxed"
               >
-                {{ pipeline.description }}
+                {{ proceso.descripcion }}
               </p>
             </div>
           </div>
 
-          <!-- Estado actual del pipeline -->
+          <!-- Estado actual del proceso -->
           <div class="shrink-0">
             <UBadge
-              v-if="pipeline.status === 'success'"
+              v-if="proceso.estado === 'success'"
               color="success"
               variant="subtle"
               size="sm"
@@ -105,7 +105,7 @@ const errorRateFormatted = computed<string>(() => {
               Al día
             </UBadge>
             <UBadge
-              v-else-if="pipeline.status === 'running'"
+              v-else-if="proceso.estado === 'running'"
               color="info"
               variant="subtle"
               size="sm"
@@ -115,7 +115,7 @@ const errorRateFormatted = computed<string>(() => {
               Sincronizando
             </UBadge>
             <UBadge
-              v-else-if="pipeline.status === 'paused'"
+              v-else-if="proceso.estado === 'pausado'"
               color="warning"
               variant="subtle"
               size="sm"
@@ -125,7 +125,7 @@ const errorRateFormatted = computed<string>(() => {
               Pausado
             </UBadge>
             <UBadge
-              v-else-if="pipeline.status === 'error'"
+              v-else-if="proceso.estado === 'error'"
               color="error"
               variant="subtle"
               size="sm"
@@ -148,26 +148,26 @@ const errorRateFormatted = computed<string>(() => {
 
         <!-- 2. Progreso técnico activo si está corriendo o pausado -->
         <div
-          v-if="pipeline.status === 'running' || pipeline.status === 'paused'"
+          v-if="proceso.estado === 'running' || proceso.estado === 'pausado'"
           class="p-3 rounded-xl border border-border-subtle bg-surface-card space-y-1.5"
         >
           <div class="flex items-center justify-between text-[11px] font-mono">
             <span class="text-text-muted">Progreso de importación</span>
             <span class="font-bold text-text-main tabular-nums">
-              {{ pipeline.status === 'running' ? "Total pendiente" : `${pipeline.progressPercent}%` }}
+              {{ proceso.estado === 'running' ? "Total pendiente" : `${proceso.progressPercent}%` }}
             </span>
           </div>
           <UProgress
-            :model-value="pipeline.status === 'running' ? null : pipeline.progressPercent"
+            :model-value="proceso.estado === 'running' ? null : proceso.progressPercent"
             size="xs"
             color="primary"
             class="h-1.5 rounded-full"
           />
           <p
-            v-if="pipeline.currentStepMessage"
+            v-if="proceso.currentStepMessage"
             class="text-[11px] text-text-dim font-mono truncate pt-0.5"
           >
-            {{ pipeline.currentStepMessage }}
+            {{ proceso.currentStepMessage }}
           </p>
         </div>
 
@@ -193,10 +193,10 @@ const errorRateFormatted = computed<string>(() => {
                 <span
                   class="font-mono text-lg font-bold text-text-main tabular-nums block leading-none"
                 >
-                  {{ pipeline.processedRows.toLocaleString() }}
+                  {{ proceso.filasProcesadas.toLocaleString() }}
                 </span>
                 <span class="text-[10px] text-text-dim font-mono block mt-1">
-                  de ~{{ pipeline.totalEstimatedRows.toLocaleString() }}
+                  de ~{{ proceso.totalEstimatedRows.toLocaleString() }}
                   estimadas
                 </span>
               </div>
@@ -205,7 +205,7 @@ const errorRateFormatted = computed<string>(() => {
               >
                 <span>Velocidad media:</span>
                 <span class="tabular-nums font-semibold text-text-main">
-                  ~{{ pipeline.averageSpeedRowsPerSec.toLocaleString() }} fil/s
+                  ~{{ proceso.averageSpeedRowsPerSec.toLocaleString() }} fil/s
                 </span>
               </div>
             </div>
@@ -220,13 +220,13 @@ const errorRateFormatted = computed<string>(() => {
                 >
                 <UIcon
                   :name="
-                    pipeline.discardedRows > 0
+                    proceso.filasDescartadas > 0
                       ? 'i-lucide-alert-circle'
                       : 'i-lucide-check-circle'
                   "
                   class="w-4 h-4"
                   :class="
-                    pipeline.discardedRows > 0
+                    proceso.filasDescartadas > 0
                       ? 'text-amber-500'
                       : 'text-emerald-500'
                   "
@@ -237,12 +237,12 @@ const errorRateFormatted = computed<string>(() => {
                   <span
                     class="font-mono text-lg font-bold tabular-nums leading-none"
                     :class="
-                      pipeline.discardedRows > 0
+                      proceso.filasDescartadas > 0
                         ? 'text-amber-600 dark:text-amber-400'
                         : 'text-text-main'
                     "
                   >
-                    {{ pipeline.discardedRows.toLocaleString() }}
+                    {{ proceso.filasDescartadas.toLocaleString() }}
                   </span>
                   <span class="text-[10px] font-mono text-text-dim">
                     ({{ errorRateFormatted }})
@@ -251,13 +251,13 @@ const errorRateFormatted = computed<string>(() => {
                 <span
                   class="text-[10px] font-mono block mt-1"
                   :class="
-                    pipeline.discardedRows > 0
+                    proceso.filasDescartadas > 0
                       ? 'text-amber-600/80 dark:text-amber-400/80'
                       : 'text-emerald-600 dark:text-emerald-400'
                   "
                 >
                   {{
-                    pipeline.discardedRows > 0
+                    proceso.filasDescartadas > 0
                       ? "Registros omitidos por integridad"
                       : "100% registros conformes"
                   }}
@@ -270,12 +270,12 @@ const errorRateFormatted = computed<string>(() => {
               >
                 <span class="text-text-muted">Auditoría descartes:</span>
                 <UButton
-                  v-if="pipeline.discardedRows > 0"
+                  v-if="proceso.filasDescartadas > 0"
                   variant="link"
                   color="warning"
                   size="xs"
                   class="p-0 text-[10px] font-bold cursor-pointer underline"
-                  @click="emit('view-discarded', pipeline)"
+                  @click="emit('view-discarded', proceso)"
                 >
                   Ver muestras
                 </UButton>
@@ -308,7 +308,7 @@ const errorRateFormatted = computed<string>(() => {
               <span
                 class="font-mono text-xs font-semibold text-text-main block tabular-nums"
               >
-                {{ pipeline.lastSyncAt || "Sin registros previos" }}
+                {{ proceso.lastSyncAt || "Sin registros previos" }}
               </span>
               <span class="text-[10px] font-mono text-text-dim block">
                 {{
@@ -335,13 +335,13 @@ const errorRateFormatted = computed<string>(() => {
               <span
                 class="font-mono text-xs font-semibold text-text-main block tabular-nums"
               >
-                {{ pipeline.nextScheduledSync }}
+                {{ proceso.nextScheduledSync }}
               </span>
               <span
                 class="text-[10px] font-mono text-text-dim block truncate"
-                :title="pipeline.scheduleDescription"
+                :title="proceso.scheduleDescription"
               >
-                {{ pipeline.scheduleDescription }}
+                {{ proceso.scheduleDescription }}
               </span>
             </div>
           </div>
@@ -365,25 +365,25 @@ const errorRateFormatted = computed<string>(() => {
           </UButton>
 
           <!-- Acciones de control operativas -->
-          <template v-if="pipeline">
+          <template v-if="proceso">
             <UButton
-              v-if="pipeline.status === 'running' && !pipeline.paused"
+              v-if="proceso.estado === 'running' && !proceso.pausado"
               size="sm"
               variant="outline"
               color="neutral"
               icon="i-lucide-pause"
               class="text-xs font-semibold cursor-pointer"
-              @click="emit('pause', pipeline.id)"
+              @click="emit('pause', proceso.id)"
             >
               Pausar programación
             </UButton>
             <UButton
-              v-else-if="pipeline.paused"
+              v-else-if="proceso.pausado"
               size="sm"
               color="primary"
               icon="i-lucide-play"
               class="text-xs font-semibold cursor-pointer text-white"
-              @click="emit('resume', pipeline.id)"
+              @click="emit('resume', proceso.id)"
             >
               Reanudar
             </UButton>
@@ -394,7 +394,7 @@ const errorRateFormatted = computed<string>(() => {
               color="primary"
               icon="i-lucide-refresh-cw"
               class="text-xs font-semibold cursor-pointer"
-              @click="emit('trigger-sync', pipeline)"
+              @click="emit('trigger-sync', proceso)"
             >
               Sincronizar ahora
             </UButton>

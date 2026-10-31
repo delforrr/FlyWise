@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type {
-  EtlPipeline,
+  ProcesoEtl,
   TargetEntity,
   TriggerSyncOptions,
 } from "~/features/etl-monitoring/types/etl";
@@ -45,45 +45,45 @@ const { triggerSync } = useEtlMonitoring();
 
 // Estado de modales
 const isWizardModalOpen = ref(false);
-const pipelineToEdit = ref<EtlPipeline | null>(null);
+const pipelineToEdit = ref<ProcesoEtl | null>(null);
 
 const isDeleteModalOpen = ref(false);
-const pipelineToDelete = ref<EtlPipeline | null>(null);
+const pipelineToDelete = ref<ProcesoEtl | null>(null);
 
 const isPauseModalOpen = ref(false);
-const pipelineToPause = ref<EtlPipeline | null>(null);
+const pipelineToPause = ref<ProcesoEtl | null>(null);
 
 const isTriggerModalOpen = ref(false);
-const pipelineForTrigger = ref<EtlPipeline | null>(null);
+const pipelineForTrigger = ref<ProcesoEtl | null>(null);
 
 function handleOpenCreate() {
   pipelineToEdit.value = null;
   isWizardModalOpen.value = true;
 }
 
-function handleOpenEdit(pipeline: EtlPipeline) {
-  pipelineToEdit.value = pipeline;
+function handleOpenEdit(proceso: ProcesoEtl) {
+  pipelineToEdit.value = proceso;
   isWizardModalOpen.value = true;
 }
 
-function handleOpenDelete(pipeline: EtlPipeline) {
-  pipelineToDelete.value = pipeline;
+function handleOpenDelete(proceso: ProcesoEtl) {
+  pipelineToDelete.value = proceso;
   isDeleteModalOpen.value = true;
 }
 
-function handleToggleStatus(target: EtlPipeline | string) {
-  const pipeline =
+function handleToggleStatus(target: ProcesoEtl | string) {
+  const proceso =
     typeof target === "string"
       ? filteredServices.value.find((p) => p.id === target)
       : target;
-  if (!pipeline) return;
+  if (!proceso) return;
 
-  if (pipeline.status === "paused") {
+  if (proceso.estado === "pausado") {
     // Reanudación directa sin diálogo bloqueante
-    togglePipelineStatus(pipeline.id);
+    togglePipelineStatus(proceso.id);
   } else {
     // Pausar requiere confirmación de seguridad
-    pipelineToPause.value = pipeline;
+    pipelineToPause.value = proceso;
     isPauseModalOpen.value = true;
   }
 }
@@ -94,12 +94,12 @@ function handleConfirmPause(id: string) {
   pipelineToPause.value = null;
 }
 
-function handleOpenTrigger(pipeline: EtlPipeline) {
-  pipelineForTrigger.value = pipeline;
+function handleOpenTrigger(proceso: ProcesoEtl) {
+  pipelineForTrigger.value = proceso;
   isTriggerModalOpen.value = true;
 }
 
-async function handleSavePipeline(data: Partial<EtlPipeline>) {
+async function handleSavePipeline(data: Partial<ProcesoEtl>) {
   const validation = validatePipeline(data);
   if (!validation.isValid) {
     return;
@@ -147,10 +147,10 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
             class="rounded-lg border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main font-medium focus:border-primary focus:outline-none"
           >
             <option value="all">Todas las Entidades</option>
-            <option value="airports">Aeropuertos</option>
-            <option value="routes">Rutas</option>
-            <option value="countries">Países</option>
-            <option value="airlines">Aerolíneas</option>
+            <option value="aeropuertos">Aeropuertos</option>
+            <option value="rutas">Rutas</option>
+            <option value="paises">Países</option>
+            <option value="aerolineas">Aerolíneas</option>
             <option value="otp_metrics">Telemetría OTP</option>
           </select>
         </div>
@@ -202,7 +202,7 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
       v-else
       icon="i-lucide-database-zap"
       title="No se encontraron servicios"
-      description="Ningún pipeline coincide con los filtros de búsqueda aplicados."
+      description="Ningún proceso coincide con los filtros de búsqueda aplicados."
       variant="naked"
       class="p-12 text-center rounded-2xl border border-border-subtle bg-surface-card"
     >
@@ -227,28 +227,28 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
     <!-- Modales Operativos -->
     <EtlPipelineWizardModal
       :is-open="isWizardModalOpen"
-      :pipeline-to-edit="pipelineToEdit"
+      :proceso-to-edit="pipelineToEdit"
       @close="isWizardModalOpen = false"
       @save="handleSavePipeline"
     />
 
     <EtlDeleteConfirmModal
       :is-open="isDeleteModalOpen"
-      :pipeline="pipelineToDelete"
+      :proceso="pipelineToDelete"
       @close="isDeleteModalOpen = false"
       @confirm="handleConfirmDelete"
     />
 
     <EtlPauseConfirmModal
       :is-open="isPauseModalOpen"
-      :pipeline="pipelineToPause"
+      :proceso="pipelineToPause"
       @close="isPauseModalOpen = false"
       @confirm="handleConfirmPause"
     />
 
     <EtlTriggerModal
       :is-open="isTriggerModalOpen"
-      :pipeline="pipelineForTrigger"
+      :proceso="pipelineForTrigger"
       @close="isTriggerModalOpen = false"
       @confirm="handleConfirmTrigger"
     />

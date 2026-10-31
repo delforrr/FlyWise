@@ -6,11 +6,11 @@ import { QueryDirectRouteDto } from './dto/query-direct-route.dto.js';
 import { GlobalRoutesDto } from './dto/global-routes.dto.js';
 
 @ApiTags('Enlaces')
-@Controller('routes')
+@Controller('rutas')
 export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
 
-  @Get('global')
+  @Get('globales')
   @ApiOperation({
     summary: 'Lista pares de puntos con enlaces en ambos sentidos',
   })
@@ -18,7 +18,7 @@ export class RoutesController {
     return this.routesService.global(dto);
   }
 
-  @Get('explore')
+  @Get('explorar')
   @ApiOperation({
     summary: 'Lista enlaces según los filtros indicados',
   })
@@ -30,7 +30,7 @@ export class RoutesController {
     return this.routesService.explore(exploreDto);
   }
 
-  @Get('direct')
+  @Get('directas')
   @ApiOperation({
     summary: 'Consulta enlaces sin pasos intermedios entre dos puntos',
   })

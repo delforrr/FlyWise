@@ -7,27 +7,27 @@ import { createUserSchema, updateUserSchema, userSchema, type ManagedUser, type 
 
 export function useUsers() {
   const { user: sessionUser, authenticatedRequest } = useAuth();
-  const users = ref<ManagedUser[]>([]);
+  const usuarios = ref<ManagedUser[]>([]);
   const currentUser = ref<ManagedUser | null>(null);
   const loading = ref(true);
   const saving = ref(false);
   const error = ref('');
   const search = ref('');
-  const role = ref('all');
-  const filteredUsers = computed(() => users.value.filter(user =>
-    user.email.toLowerCase().includes(search.value.trim().toLowerCase()) &&
-    (role.value === 'all' || user.role === role.value),
+  const rol = ref('all');
+  const filteredUsers = computed(() => usuarios.value.filter(user =>
+    user.correo.toLowerCase().includes(search.value.trim().toLowerCase()) &&
+    (rol.value === 'all' || user.rol === rol.value),
   ));
 
   async function request(action: (accessToken: string | null) => Promise<unknown>) {
     try {
       return await authenticatedRequest(action);
     } catch (cause: unknown) {
-      const status = (cause as { statusCode?: number }).statusCode;
-      if (status === 409) throw new Error('Ese correo ya pertenece a otra cuenta.');
-      if (status === 403) throw new Error('No tenés permiso para realizar esta acción.');
-      if (status === 404) throw new Error('La cuenta ya no existe. Actualizá el listado.');
-      if (cause instanceof Error && !status) throw cause;
+      const estado = (cause as { statusCode?: number }).statusCode;
+      if (estado === 409) throw new Error('Ese correo ya pertenece a otra cuenta.');
+      if (estado === 403) throw new Error('No tenés permiso para realizar esta acción.');
+      if (estado === 404) throw new Error('La cuenta ya no existe. Actualizá el listado.');
+      if (cause instanceof Error && !estado) throw cause;
       throw new Error('No pudimos completar la solicitud. Intentá nuevamente.');
     }
   }
@@ -39,7 +39,7 @@ export function useUsers() {
       const [profile, rows] = await Promise.all([request(token => authService.getProfile(token)), request(token => userService.list(token))]);
       currentUser.value = userSchema.parse(profile);
       sessionUser.value = currentUser.value;
-      users.value = userSchema.array().parse(rows);
+      usuarios.value = userSchema.array().parse(rows);
     } catch (cause: unknown) {
       error.value = cause instanceof ZodError ? 'La API devolvió datos de usuarios incompatibles.' : cause instanceof Error ? cause.message : 'No pudimos cargar los usuarios.';
     } finally {
@@ -53,8 +53,8 @@ export function useUsers() {
     try {
       const body = (id ? updateUserSchema : createUserSchema).parse(form);
       const user = userSchema.parse(await request(token => id ? userService.update(token, id, body) : userService.create(token, body)));
-      if (id) users.value = users.value.map(row => row.id === id ? user : row);
-      else users.value.unshift(user);
+      if (id) usuarios.value = usuarios.value.map(row => row.id === id ? user : row);
+      else usuarios.value.unshift(user);
       if (id === currentUser.value?.id) {
         currentUser.value = user;
         sessionUser.value = user;
@@ -71,12 +71,12 @@ export function useUsers() {
     saving.value = true;
     try {
       await request(token => userService.remove(token, user.id));
-      users.value = users.value.filter(row => row.id !== user.id);
+      usuarios.value = usuarios.value.filter(row => row.id !== user.id);
       return true;
     } finally {
       saving.value = false;
     }
   }
 
-  return { users, currentUser, loading, saving, error, search, role, filteredUsers, load, save, remove };
+  return { usuarios, currentUser, loading, saving, error, search, rol, filteredUsers, load, save, remove };
 }

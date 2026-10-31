@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { TableColumn } from "@nuxt/ui";
-import type { EtlPipeline } from "../types/etl";
+import type { ProcesoEtl } from "../types/etl";
 
 interface Props {
-  services: EtlPipeline[];
+  services: ProcesoEtl[];
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: "edit", service: EtlPipeline): void;
+  (e: "edit", service: ProcesoEtl): void;
   (e: "duplicate", id: string): void;
-  (e: "delete", service: EtlPipeline): void;
-  (e: "toggle-status", service: EtlPipeline): void;
-  (e: "trigger-sync", service: EtlPipeline): void;
-  (e: "test-endpoint", service: EtlPipeline): void;
+  (e: "delete", service: ProcesoEtl): void;
+  (e: "toggle-estado", service: ProcesoEtl): void;
+  (e: "trigger-sync", service: ProcesoEtl): void;
+  (e: "test-endpoint", service: ProcesoEtl): void;
 }>();
 
 const copiedEndpointId = ref<string | null>(null);
@@ -32,10 +32,10 @@ async function copyUrl(id: string, url: string) {
   }
 }
 
-const columns: TableColumn<EtlPipeline>[] = [
+const columns: TableColumn<ProcesoEtl>[] = [
   {
-    accessorKey: "name",
-    id: "name",
+    accessorKey: "nombre",
+    id: "nombre",
     header: "Servicio / Dataset",
   },
   {
@@ -51,8 +51,8 @@ const columns: TableColumn<EtlPipeline>[] = [
     header: "Frecuencia",
   },
   {
-    accessorKey: "status",
-    id: "status",
+    accessorKey: "estado",
+    id: "estado",
     header: "Estado",
   },
   {
@@ -68,7 +68,7 @@ const columns: TableColumn<EtlPipeline>[] = [
   >
     <UTable :data="services" :columns="columns" class="w-full text-xs font-sans">
       <!-- 1. Servicio / Dataset -->
-      <template #name-cell="{ row }">
+      <template #nombre-cell="{ row }">
         <div class="flex items-center gap-2 min-w-44 max-w-56 py-1">
           <div
             class="w-7 h-7 rounded-lg bg-surface-accent border border-border-subtle flex items-center justify-center text-primary shrink-0"
@@ -77,11 +77,11 @@ const columns: TableColumn<EtlPipeline>[] = [
           </div>
           <div class="min-w-0">
             <div class="flex items-center gap-1.5">
-              <span class="font-bold text-text-main block truncate text-xs" :title="row.original.name">
-                {{ row.original.name }}
+              <span class="font-bold text-text-main block truncate text-xs" :title="row.original.nombre">
+                {{ row.original.nombre }}
               </span>
               <UBadge
-                v-if="row.original.isSystem"
+                v-if="row.original.esSistema"
                 color="primary"
                 variant="subtle"
                 size="xs"
@@ -99,8 +99,8 @@ const columns: TableColumn<EtlPipeline>[] = [
                 Custom
               </UBadge>
             </div>
-            <span class="text-[11px] text-text-muted block truncate font-mono" :title="row.original.datasetName">
-              {{ row.original.datasetName }}
+            <span class="text-[11px] text-text-muted block truncate font-mono" :title="row.original.nombreConjunto">
+              {{ row.original.nombreConjunto }}
             </span>
           </div>
         </div>
@@ -110,7 +110,7 @@ const columns: TableColumn<EtlPipeline>[] = [
       <template #entity-cell="{ row }">
         <div class="min-w-28">
           <UBadge
-            v-if="row.original.targetEntity === 'airports'"
+            v-if="row.original.entidadDestino === 'aeropuertos'"
             color="primary"
             variant="subtle"
             size="xs"
@@ -120,7 +120,7 @@ const columns: TableColumn<EtlPipeline>[] = [
             Aeropuertos
           </UBadge>
           <UBadge
-            v-else-if="row.original.targetEntity === 'routes'"
+            v-else-if="row.original.entidadDestino === 'rutas'"
             color="info"
             variant="subtle"
             size="xs"
@@ -152,7 +152,7 @@ const columns: TableColumn<EtlPipeline>[] = [
               size="xs"
               class="font-mono font-bold text-[9px] px-1 py-0"
             >
-              {{ row.original.connection?.httpMethod || "GET" }}
+              {{ row.original.conexion?.metodoHttp || "GET" }}
             </UBadge>
             <UBadge
               color="neutral"
@@ -160,19 +160,19 @@ const columns: TableColumn<EtlPipeline>[] = [
               size="xs"
               class="font-mono uppercase text-[9px] px-1 py-0"
             >
-              {{ row.original.connection?.dataFormat || "CSV" }}
+              {{ row.original.conexion?.formatoDatos || "CSV" }}
             </UBadge>
           </div>
 
           <div class="flex items-center gap-1">
             <span
               class="font-mono text-[11px] text-text-dim truncate max-w-32 sm:max-w-36 block"
-              :title="row.original.connection?.endpointUrl"
+              :title="row.original.conexion?.urlEndpoint"
             >
-              {{ row.original.connection?.endpointUrl || "https://..." }}
+              {{ row.original.conexion?.urlEndpoint || "https://..." }}
             </span>
             <UButton
-              v-if="row.original.connection?.endpointUrl"
+              v-if="row.original.conexion?.urlEndpoint"
               size="xs"
               variant="ghost"
               color="neutral"
@@ -185,7 +185,7 @@ const columns: TableColumn<EtlPipeline>[] = [
               @click="
                 copyUrl(
                   row.original.id,
-                  row.original.connection?.endpointUrl || '',
+                  row.original.conexion?.urlEndpoint || '',
                 )
               "
             />
@@ -200,19 +200,19 @@ const columns: TableColumn<EtlPipeline>[] = [
             {{ row.original.scheduleDescription }}
           </span>
           <span
-            v-if="row.original.scheduleConfig?.cronExpression"
+            v-if="row.original.configuracionProgramacion?.expresionCron"
             class="font-mono text-[10px] text-text-dim block truncate"
           >
-            {{ row.original.scheduleConfig.cronExpression }}
+            {{ row.original.configuracionProgramacion.expresionCron }}
           </span>
         </div>
       </template>
 
       <!-- 5. Estado & Switch -->
-      <template #status-cell="{ row }">
+      <template #estado-cell="{ row }">
         <div class="flex items-center gap-1.5 min-w-24">
           <UBadge
-            v-if="row.original.status === 'success'"
+            v-if="row.original.estado === 'success'"
             color="success"
             variant="subtle"
             size="xs"
@@ -222,7 +222,7 @@ const columns: TableColumn<EtlPipeline>[] = [
             Al día
           </UBadge>
           <UBadge
-            v-else-if="row.original.status === 'running'"
+            v-else-if="row.original.estado === 'running'"
             color="info"
             variant="subtle"
             size="xs"
@@ -232,7 +232,7 @@ const columns: TableColumn<EtlPipeline>[] = [
             Activo
           </UBadge>
           <UBadge
-            v-else-if="row.original.status === 'paused'"
+            v-else-if="row.original.estado === 'pausado'"
             color="warning"
             variant="subtle"
             size="xs"
@@ -242,7 +242,7 @@ const columns: TableColumn<EtlPipeline>[] = [
             Pausado
           </UBadge>
           <UBadge
-            v-else-if="row.original.status === 'error'"
+            v-else-if="row.original.estado === 'error'"
             color="error"
             variant="subtle"
             size="xs"
@@ -301,7 +301,7 @@ const columns: TableColumn<EtlPipeline>[] = [
 
           <UTooltip
             :text="
-              row.original.status === 'paused'
+              row.original.estado === 'pausado'
                 ? 'Reanudar Servicio'
                 : 'Pausar Servicio'
             "
@@ -309,20 +309,20 @@ const columns: TableColumn<EtlPipeline>[] = [
             <UButton
               size="xs"
               variant="ghost"
-              :color="row.original.status === 'paused' ? 'success' : 'warning'"
+              :color="row.original.estado === 'pausado' ? 'success' : 'warning'"
               :icon="
-                row.original.status === 'paused'
+                row.original.estado === 'pausado'
                   ? 'i-lucide-check-circle'
                   : 'i-lucide-pause'
               "
               class="cursor-pointer"
-              @click="emit('toggle-status', row.original)"
+              @click="emit('toggle-estado', row.original)"
             />
           </UTooltip>
 
           <UTooltip
             :text="
-              row.original.isSystem
+              row.original.esSistema
                 ? 'Los servicios del sistema no se pueden eliminar'
                 : 'Eliminar Servicio'
             "
@@ -332,7 +332,7 @@ const columns: TableColumn<EtlPipeline>[] = [
               variant="ghost"
               color="error"
               icon="i-lucide-trash-2"
-              :disabled="row.original.isSystem"
+              :disabled="row.original.esSistema"
               class="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
               @click="emit('delete', row.original)"
             />

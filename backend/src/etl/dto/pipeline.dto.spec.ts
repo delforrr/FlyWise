@@ -8,21 +8,21 @@ describe('Pipeline input validation', () => {
     forbidNonWhitelisted: true,
   });
   const valid = {
-    name: 'Airports',
-    datasetName: 'OpenFlights',
-    targetEntity: 'airports',
-    connection: {
-      sourceType: 'http_stream',
-      endpointUrl: 'https://raw.githubusercontent.com/data',
-      httpMethod: 'GET',
-      dataFormat: 'csv',
+    nombre: 'Airports',
+    nombreConjunto: 'OpenFlights',
+    entidadDestino: 'aeropuertos',
+    conexion: {
+      tipoFuente: 'http_stream',
+      urlEndpoint: 'https://raw.githubusercontent.com/data',
+      metodoHttp: 'GET',
+      formatoDatos: 'csv',
     },
-    schemaMapping: [],
-    scheduleConfig: {
-      cronExpression: '',
-      batchSize: 2000,
-      timeoutSeconds: 300,
-      maxRetries: 2,
+    mapeoEsquema: [],
+    configuracionProgramacion: {
+      expresionCron: '',
+      tamanoLote: 2000,
+      tiempoLimiteSegundos: 300,
+      maximoReintentos: 2,
     },
   };
   it('accepts a strict CSV GET configuration', async () => {
@@ -33,15 +33,27 @@ describe('Pipeline input validation', () => {
   it.each([
     {
       ...valid,
-      connection: {
-        ...valid.connection,
+      conexion: {
+        ...valid.conexion,
         headers: [{ key: 'Authorization', value: 'literal-secret' }],
       },
     },
-    { ...valid, connection: { ...valid.connection, dataFormat: 'json' } },
-    { ...valid, scheduleConfig: { ...valid.scheduleConfig, concurrency: 4 } },
-    { ...valid, scheduleConfig: { ...valid.scheduleConfig, batchSize: 999 } },
-    { ...valid, targetEntity: 'otp_metrics' },
+    { ...valid, conexion: { ...valid.conexion, formatoDatos: 'json' } },
+    {
+      ...valid,
+      configuracionProgramacion: {
+        ...valid.configuracionProgramacion,
+        concurrency: 4,
+      },
+    },
+    {
+      ...valid,
+      configuracionProgramacion: {
+        ...valid.configuracionProgramacion,
+        tamanoLote: 999,
+      },
+    },
+    { ...valid, entidadDestino: 'otp_metrics' },
   ])('rejects unsupported or unsafe configurations', async (body) => {
     await expect(
       pipe.transform(body, { type: 'body', metatype: CreatePipelineDto }),

@@ -21,7 +21,7 @@ const UAuthFormStub = {
     return {
       submitPayload: {
         data: {
-          email: "admin@flywise.aero",
+          correo: "admin@flywise.aero",
           password: "Password123!",
           remember: true,
         },
@@ -97,7 +97,7 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
       expect(submitConfig.variant).toBe("subtle");
     });
 
-    it("declara los campos requeridos (email, password, remember) con sus configuraciones de UI", () => {
+    it("declara los campos requeridos (correo, password, remember) con sus configuraciones de UI", () => {
       const wrapper = mountLoginForm();
       const authForm = wrapper.findComponent(UAuthFormStub);
       const fields = authForm.props("fields");
@@ -105,7 +105,7 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
       expect(fields).toHaveLength(3);
 
       const emailField = fields.find(
-        (f: { name: string }) => f.name === "email",
+        (f: { name: string }) => f.name === "correo",
       );
       expect(emailField).toBeDefined();
       expect(emailField.type).toBe("email");
@@ -161,7 +161,7 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
 
     it("acepta credenciales administrativas válidas", () => {
       const validPayload = {
-        email: "ops.lead@flywise.aero",
+        correo: "ops.lead@flywise.aero",
         password: "ValidPassword2026",
         remember: true,
       };
@@ -169,14 +169,14 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
       const result = schema.safeParse(validPayload);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.email).toBe(validPayload.email);
+        expect(result.data.correo).toBe(validPayload.correo);
         expect(result.data.remember).toBe(true);
       }
     });
 
     it("rechaza correos electrónicos con formato inválido", () => {
       const invalidEmailPayload = {
-        email: "correo-invalido-sin-arroba",
+        correo: "correo-invalido-sin-arroba",
         password: "ValidPassword2026",
       };
 
@@ -184,7 +184,7 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
       expect(result.success).toBe(false);
       if (!result.success) {
         const emailIssue = result.error.issues.find((i) =>
-          i.path.includes("email"),
+          i.path.includes("correo"),
         );
         expect(emailIssue).toBeDefined();
         expect(emailIssue?.message).toBe(
@@ -195,7 +195,7 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
 
     it("rechaza contraseñas vacías con el mensaje correspondiente", () => {
       const emptyPasswordPayload = {
-        email: "admin@flywise.aero",
+        correo: "admin@flywise.aero",
         password: "",
       };
 
@@ -216,7 +216,7 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
 
     it("rechaza contraseñas con longitud menor a 8 caracteres", () => {
       const shortPasswordPayload = {
-        email: "admin@flywise.aero",
+        correo: "admin@flywise.aero",
         password: "1234567", // 7 caracteres
       };
 
@@ -234,7 +234,7 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
 
     it("permite omitir el campo remember ya que es opcional", () => {
       const payloadWithoutRemember = {
-        email: "admin@flywise.aero",
+        correo: "admin@flywise.aero",
         password: "PasswordSegura2026",
       };
 
@@ -283,14 +283,14 @@ describe("LoginForm.vue — Suite de Pruebas Unitarias del Módulo de Autenticac
 
   describe("Envío del formulario (submit) y redirección", () => {
     it('autentica en el backend antes de entrar y guarda el JWT para el CRUD', async () => {
-      fetcher.mockResolvedValueOnce({ accessToken: 'backend-jwt', user: { id: '1', email: 'admin@flywise.aero', role: 'ADMIN' } });
+      fetcher.mockResolvedValueOnce({ accessToken: 'backend-jwt', user: { id: '1', correo: 'admin@flywise.aero', rol: 'ADMIN' } });
       const wrapper = mountLoginForm();
       wrapper.findComponent(UAuthFormStub).vm.$emit('submit', {
-        data: { email: 'admin@flywise.aero', password: 'Password123!', remember: true },
+        data: { correo: 'admin@flywise.aero', password: 'Password123!', remember: true },
       });
       await flushPromises();
-      expect(fetcher).toHaveBeenCalledWith('/api/auth/login', {
-        method: 'POST', headers: { 'X-FlyWise-Session': '1' }, body: { email: 'admin@flywise.aero', password: 'Password123!', remember: true },
+      expect(fetcher).toHaveBeenCalledWith('/api/autenticacion/iniciar-sesion', {
+        method: 'POST', headers: { 'X-FlyWise-Session': '1' }, body: { correo: 'admin@flywise.aero', password: 'Password123!', remember: true },
       });
       expect(useAuth().token.value).toBe('backend-jwt');
       expect(cookie.value).toBeNull();

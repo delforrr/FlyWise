@@ -10,8 +10,8 @@ describe('AirlinesController', () => {
   };
 
   const mockAirline = {
-    id: 'airline-uuid-1',
-    name: 'Aerolineas Argentinas',
+    id: 'aerolinea-uuid-1',
+    nombre: 'Aerolineas Argentinas',
     iata: 'AR',
   };
 
@@ -50,7 +50,7 @@ describe('AirlinesController', () => {
     expect(res.data).toHaveLength(1);
   });
 
-  it('should call findByCode and return specific airline', async () => {
+  it('should call findByCode and return specific aerolinea', async () => {
     const res = await controller.findByCode('AR');
     expect(airlinesService.findByCode).toHaveBeenCalledWith('AR');
     expect(res).toEqual(mockAirline);

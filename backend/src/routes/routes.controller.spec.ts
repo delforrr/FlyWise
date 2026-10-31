@@ -11,17 +11,17 @@ describe('RoutesController', () => {
 
   const mockArc = {
     id: 'route-uuid-1',
-    origin: { iata: 'EZE', coordinates: [-58.5358, -34.8222] },
-    destination: { iata: 'MIA', coordinates: [-80.2906, 25.7959] },
-    distanceKm: 7098.5,
+    origen: { iata: 'EZE', coordenadas: [-58.5358, -34.8222] },
+    destino: { iata: 'MIA', coordenadas: [-80.2906, 25.7959] },
+    distanciaKm: 7098.5,
   };
 
   beforeEach(async () => {
     routesService = {
       explore: jest.fn().mockResolvedValue([mockArc]),
       findDirect: jest.fn().mockResolvedValue({
-        origin: { iata: 'EZE' },
-        destination: { iata: 'MIA' },
+        origen: { iata: 'EZE' },
+        destino: { iata: 'MIA' },
       }),
     };
 
@@ -42,7 +42,7 @@ describe('RoutesController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('should call explore and return Deck.gl formatted routes', async () => {
+  it('should call explore and return Deck.gl formatted rutas', async () => {
     const res = await controller.explore({ limit: 100 });
     expect(routesService.explore).toHaveBeenCalledWith({ limit: 100 });
     expect(res).toEqual([mockArc]);
@@ -50,13 +50,13 @@ describe('RoutesController', () => {
 
   it('should call findDirect and return route details', async () => {
     const res = await controller.findDirect({
-      origin: 'EZE',
-      destination: 'MIA',
+      origen: 'EZE',
+      destino: 'MIA',
     });
     expect(routesService.findDirect).toHaveBeenCalledWith({
-      origin: 'EZE',
-      destination: 'MIA',
+      origen: 'EZE',
+      destino: 'MIA',
     });
-    expect(res).toHaveProperty('origin');
+    expect(res).toHaveProperty('origen');
   });
 });

@@ -29,8 +29,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     payload: {
       sub: string;
       sid?: string;
-      email: string;
-      role?: 'ADMIN' | 'OPERATOR';
+      correo: string;
+      rol?: 'ADMIN' | 'OPERATOR';
     },
   ) {
     if (payload.sid && !(await this.authService.isSessionActive(payload.sid))) {

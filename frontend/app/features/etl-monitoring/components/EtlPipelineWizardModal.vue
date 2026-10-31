@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import type {
-  EtlPipeline,
+  ProcesoEtl,
   PipelineConnectionConfig,
   PipelineScheduleConfig,
   FieldMappingRule,
@@ -22,14 +22,14 @@ import EtlSchemaMapper from "./EtlSchemaMapper.vue";
 
 interface Props {
   isOpen: boolean;
-  pipelineToEdit: EtlPipeline | null;
+  pipelineToEdit: ProcesoEtl | null;
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
   (e: "close"): void;
-  (e: "save", data: Partial<EtlPipeline>): void;
+  (e: "save", data: Partial<ProcesoEtl>): void;
 }>();
 
 const currentStep = ref(1);
@@ -42,20 +42,20 @@ const hasAttemptedStep3 = ref(false);
 const hasAttemptedStep4 = ref(false);
 
 // 1. Datos de Identidad
-const name = ref("");
-const datasetName = ref("");
-const description = ref("");
+const nombre = ref("");
+const nombreConjunto = ref("");
+const descripcion = ref("");
 const icon = ref("i-lucide-database");
-const targetEntity = ref<TargetEntity>("airports");
+const entidadDestino = ref<TargetEntity>("aeropuertos");
 
 // 2. Datos de Conexión & Endpoint
-const sourceType = ref<IngestionSourceType>("http_stream");
-const endpointUrl = ref("");
-const httpMethod = ref<"GET">("GET");
-const dataFormat = ref<IngestionDataFormat>("csv");
-const csvDelimiter = ref(",");
-const csvHasHeader = ref(true);
-const headersList = ref<{ key: string; credentialRef: string }[]>([]);
+const tipoFuente = ref<IngestionSourceType>("http_stream");
+const urlEndpoint = ref("");
+const metodoHttp = ref<"GET">("GET");
+const formatoDatos = ref<IngestionDataFormat>("csv");
+const separadorCsv = ref(",");
+const csvConCabecera = ref(true);
+const headersList = ref<{ key: string; referenciaCredencial: string }[]>([]);
 
 // Test Endpoint Probe
 const isTesting = ref(false);
@@ -63,24 +63,24 @@ const probeResult = ref<ProbeEndpointResult | null>(null);
 const detectedColumns = ref<string[]>([]);
 
 // 3. Mapeo Semántico
-const schemaMapping = ref<FieldMappingRule[]>([]);
+const mapeoEsquema = ref<FieldMappingRule[]>([]);
 
 // 4. Planificación y RNF-04
 const cronPreset = ref<"manual" | "hourly" | "daily" | "weekly" | "monthly" | "custom">("daily");
 const customCron = ref("0 4 * * *");
-const batchSize = ref(2000);
-const timeoutSeconds = ref(300);
-const maxRetries = ref(2);
+const tamanoLote = ref(2000);
+const tiempoLimiteSegundos = ref(300);
+const maximoReintentos = ref(2);
 
 // --- REGLAS DE VALIDACIÓN BASADAS EN ESQUEMAS ZOD ---
 // Validación Paso 1 (Identidad) mediante Zod
 const step1Validation = computed(() => {
   return pipelineIdentitySchema.safeParse({
-    name: name.value,
-    datasetName: datasetName.value,
-    description: description.value,
+    nombre: nombre.value,
+    nombreConjunto: nombreConjunto.value,
+    descripcion: descripcion.value,
     icon: icon.value,
-    targetEntity: targetEntity.value,
+    entidadDestino: entidadDestino.value,
   });
 });
 
@@ -89,7 +89,7 @@ const isStep1Valid = computed(() => step1Validation.value.success);
 const nameError = computed(() => {
   if (step1Validation.value.success) return "";
   const issue = step1Validation.value.error.issues.find(
-    (i) => i.path[0] === "name",
+    (i) => i.path[0] === "nombre",
   );
   return issue ? issue.message : "";
 });
@@ -97,7 +97,7 @@ const nameError = computed(() => {
 const datasetNameError = computed(() => {
   if (step1Validation.value.success) return "";
   const issue = step1Validation.value.error.issues.find(
-    (i) => i.path[0] === "datasetName",
+    (i) => i.path[0] === "nombreConjunto",
   );
   return issue ? issue.message : "";
 });
@@ -112,7 +112,7 @@ const isStep2Valid = computed(() => step2Validation.value.success);
 const endpointUrlError = computed(() => {
   if (step2Validation.value.success) return "";
   const issue = step2Validation.value.error.issues.find(
-    (i) => i.path[0] === "endpointUrl",
+    (i) => i.path[0] === "urlEndpoint",
   );
   return issue ? issue.message : "";
 });
@@ -120,24 +120,24 @@ const endpointUrlError = computed(() => {
 const csvDelimiterError = computed(() => {
   if (step2Validation.value.success) return "";
   const issue = step2Validation.value.error.issues.find(
-    (i) => i.path[0] === "csvDelimiter",
+    (i) => i.path[0] === "separadorCsv",
   );
   return issue ? issue.message : "";
 });
 
 // Validación Paso 3 (Mapeo Semántico)
 const requiredTargetFields = computed(() => {
-  return (TARGET_FIELDS_CATALOG[targetEntity.value] || []).filter(
+  return (TARGET_FIELDS_CATALOG[entidadDestino.value] || []).filter(
     (f) => f.required,
   );
 });
 
 const unmappedRequiredFields = computed(() => {
   return requiredTargetFields.value.filter((targetDef) => {
-    const rule = schemaMapping.value.find(
-      (m) => m.targetField === targetDef.key,
+    const rule = mapeoEsquema.value.find(
+      (m) => m.campoDestino === targetDef.key,
     );
-    return !rule || !rule.sourceColumn || !rule.sourceColumn.trim();
+    return !rule || !rule.columnaOrigen || !rule.columnaOrigen.trim();
   });
 });
 
@@ -147,12 +147,12 @@ const isStep3Valid = computed(() => unmappedRequiredFields.value.length === 0);
 const step4Validation = computed(() => {
   return pipelineScheduleConfigSchema.safeParse({
     cronPreset: cronPreset.value,
-    cronExpression: customCron.value,
+    expresionCron: customCron.value,
     scheduleDescription: "Cadencia",
-    batchSize: batchSize.value,
+    tamanoLote: tamanoLote.value,
 
-    timeoutSeconds: timeoutSeconds.value,
-    maxRetries: maxRetries.value,
+    tiempoLimiteSegundos: tiempoLimiteSegundos.value,
+    maximoReintentos: maximoReintentos.value,
   });
 });
 
@@ -161,7 +161,7 @@ const isStep4Valid = computed(() => step4Validation.value.success);
 const customCronError = computed(() => {
   if (step4Validation.value.success) return "";
   const issue = step4Validation.value.error.issues.find(
-    (i) => i.path[0] === "cronExpression",
+    (i) => i.path[0] === "expresionCron",
   );
   return issue ? issue.message : "";
 });
@@ -180,23 +180,23 @@ const availableIcons = [
 ];
 
 const targetEntityOptions = [
-  { value: "countries", label: "Países", description: "Nombre y código ISO opcional." },
-  { value: "airlines", label: "Aerolíneas", description: "Identidad, códigos y estado del catálogo." },
+  { value: "paises", label: "Países", descripcion: "Nombre y código ISO opcional." },
+  { value: "aerolineas", label: "Aerolíneas", descripcion: "Identidad, códigos y estado del catálogo." },
   {
-    value: "airports",
+    value: "aeropuertos",
     label: "Catálogo de Aeropuertos y Pistas",
-    description: "Coordenadas SRID 4326, pistas y códigos ICAO/IATA.",
+    descripcion: "Coordenadas SRID 4326, pistas y códigos ICAO/IATA.",
   },
   {
-    value: "routes",
+    value: "rutas",
     label: "Red de Conexiones y Rutas",
-    description: "Pares origen-destino, operadoras y arcos geodésicos.",
+    descripcion: "Pares origen-destino, operadoras y arcos geodésicos.",
   },
   {
     value: "otp_metrics",
     label: "OTP-15 (próxima entrega)",
     disabled: true,
-    description: "Vuelos, demoras en minutos, cancelaciones y métricas.",
+    descripcion: "Vuelos, demoras en minutos, cancelaciones y métricas.",
   },
 ];
 
@@ -210,12 +210,12 @@ const cronPresetsOptions = [
 ];
 
 const connectionConfig = computed<PipelineConnectionConfig>(() => ({
-  sourceType: sourceType.value,
-  endpointUrl: endpointUrl.value,
-  httpMethod: httpMethod.value,
-  dataFormat: dataFormat.value,
-  csvDelimiter: csvDelimiter.value,
-  csvHasHeader: csvHasHeader.value,
+  tipoFuente: tipoFuente.value,
+  urlEndpoint: urlEndpoint.value,
+  metodoHttp: metodoHttp.value,
+  formatoDatos: formatoDatos.value,
+  separadorCsv: separadorCsv.value,
+  csvConCabecera: csvConCabecera.value,
   headers: headersList.value.filter((h) => h.key.trim() !== ""),
 }));
 
@@ -234,52 +234,52 @@ watch(
       if (props.pipelineToEdit) {
         // Cargar datos existentes
         const p = props.pipelineToEdit;
-        name.value = p.name;
-        datasetName.value = p.datasetName;
-        description.value = p.description;
+        nombre.value = p.nombre;
+        nombreConjunto.value = p.nombreConjunto;
+        descripcion.value = p.descripcion;
         icon.value = p.icon;
-        targetEntity.value = p.targetEntity || "otp_metrics";
+        entidadDestino.value = p.entidadDestino || "otp_metrics";
 
-        if (p.connection) {
-          sourceType.value = p.connection.sourceType;
-          endpointUrl.value = p.connection.endpointUrl;
-          httpMethod.value = p.connection.httpMethod;
-          dataFormat.value = p.connection.dataFormat;
-          csvDelimiter.value = p.connection.csvDelimiter || ",";
-          csvHasHeader.value = p.connection.csvHasHeader ?? true;
-          headersList.value = p.connection.headers ? [...p.connection.headers] : [];
+        if (p.conexion) {
+          tipoFuente.value = p.conexion.tipoFuente;
+          urlEndpoint.value = p.conexion.urlEndpoint;
+          metodoHttp.value = p.conexion.metodoHttp;
+          formatoDatos.value = p.conexion.formatoDatos;
+          separadorCsv.value = p.conexion.separadorCsv || ",";
+          csvConCabecera.value = p.conexion.csvConCabecera ?? true;
+          headersList.value = p.conexion.headers ? [...p.conexion.headers] : [];
         }
 
-        schemaMapping.value = p.schemaMapping ? [...p.schemaMapping] : [];
-        detectedColumns.value = schemaMapping.value.map(rule => rule.sourceColumn);
+        mapeoEsquema.value = p.mapeoEsquema ? [...p.mapeoEsquema] : [];
+        detectedColumns.value = mapeoEsquema.value.map(rule => rule.columnaOrigen);
 
-        if (p.scheduleConfig) {
-          cronPreset.value = p.scheduleConfig.cronExpression ? "custom" : "manual";
-          customCron.value = p.scheduleConfig.cronExpression;
-          batchSize.value = p.scheduleConfig.batchSize;
-          timeoutSeconds.value = p.scheduleConfig.timeoutSeconds;
-          maxRetries.value = p.scheduleConfig.maxRetries;
+        if (p.configuracionProgramacion) {
+          cronPreset.value = p.configuracionProgramacion.expresionCron ? "custom" : "manual";
+          customCron.value = p.configuracionProgramacion.expresionCron;
+          tamanoLote.value = p.configuracionProgramacion.tamanoLote;
+          tiempoLimiteSegundos.value = p.configuracionProgramacion.tiempoLimiteSegundos;
+          maximoReintentos.value = p.configuracionProgramacion.maximoReintentos;
         }
       } else {
         // Valores por defecto para nueva creación
-        name.value = "";
-        datasetName.value = "";
-        description.value = "";
+        nombre.value = "";
+        nombreConjunto.value = "";
+        descripcion.value = "";
         icon.value = "i-lucide-database";
-        targetEntity.value = "airports";
-        sourceType.value = "http_stream";
-        endpointUrl.value = "https://";
-        httpMethod.value = "GET";
-        dataFormat.value = "csv";
-        csvDelimiter.value = ",";
-        csvHasHeader.value = true;
+        entidadDestino.value = "aeropuertos";
+        tipoFuente.value = "http_stream";
+        urlEndpoint.value = "https://";
+        metodoHttp.value = "GET";
+        formatoDatos.value = "csv";
+        separadorCsv.value = ",";
+        csvConCabecera.value = true;
         headersList.value = [];
-        schemaMapping.value = [];
+        mapeoEsquema.value = [];
         cronPreset.value = "daily";
         customCron.value = "0 4 * * *";
-        batchSize.value = 2000;
-        timeoutSeconds.value = 300;
-        maxRetries.value = 2;
+        tamanoLote.value = 2000;
+        tiempoLimiteSegundos.value = 300;
+        maximoReintentos.value = 2;
         detectedColumns.value = [];
       }
     }
@@ -287,7 +287,7 @@ watch(
 );
 
 function addHeader() {
-  headersList.value.push({ key: "", credentialRef: "" });
+  headersList.value.push({ key: "", referenciaCredencial: "" });
 }
 
 function removeHeader(idx: number) {
@@ -301,7 +301,7 @@ async function handleTestConnection() {
     probeResult.value = await testEndpoint(connectionConfig.value);
     detectedColumns.value = probeResult.value.detectedColumns;
   } catch (error) {
-    probeResult.value = { success: false, statusCode: 0, latencyMs: 0, contentType: '', sampleRows: [], detectedColumns: [], errorMessage: error instanceof Error ? error.message : 'No se pudo comprobar el recurso' };
+    probeResult.value = { success: false, statusCode: 0, latencyMs: 0, contentType: '', sampleRows: [], detectedColumns: [], mensajeError: error instanceof Error ? error.message : 'No se pudo comprobar el recurso' };
   } finally { isTesting.value = false; }
 }
 
@@ -399,20 +399,20 @@ function handleSave() {
     scheduleDesc = `Cron (${customCron.value})`;
   }
 
-  const payload: Partial<EtlPipeline> = {
-    name: name.value.trim(),
-    datasetName: datasetName.value.trim(),
-    description: description.value.trim() || "Pipeline de ingesta de datos aeronáuticos.",
+  const payload: Partial<ProcesoEtl> = {
+    nombre: nombre.value.trim(),
+    nombreConjunto: nombreConjunto.value.trim(),
+    descripcion: descripcion.value.trim() || "Pipeline de ingesta de datos aeronáuticos.",
     icon: icon.value,
-    targetEntity: targetEntity.value,
-    connection: connectionConfig.value,
-    schemaMapping: schemaMapping.value,
+    entidadDestino: entidadDestino.value,
+    conexion: connectionConfig.value,
+    mapeoEsquema: mapeoEsquema.value,
     scheduleDescription: scheduleDesc,
-    scheduleConfig: {
-      cronExpression: cronExpr,
-      batchSize: batchSize.value,
-      timeoutSeconds: timeoutSeconds.value,
-      maxRetries: maxRetries.value,
+    configuracionProgramacion: {
+      expresionCron: cronExpr,
+      tamanoLote: tamanoLote.value,
+      tiempoLimiteSegundos: tiempoLimiteSegundos.value,
+      maximoReintentos: maximoReintentos.value,
     },
   };
 
@@ -428,7 +428,7 @@ function handleSave() {
 <template>
   <UModal
     :open="isOpen"
-    :title="pipelineToEdit ? `Editar: ${pipelineToEdit.name}` : 'Nuevo Servicio de Ingesta ETL'"
+    :title="pipelineToEdit ? `Editar: ${pipelineToEdit.nombre}` : 'Nuevo Servicio de Ingesta ETL'"
     description="Configura la conexión al endpoint, mapeo y parámetros de ejecución asíncrona."
     :ui="{
       content:
@@ -482,7 +482,7 @@ function handleSave() {
                 Nombre del Servicio *
               </label>
               <UInput
-                v-model="name"
+                v-model="nombre"
                 placeholder="Ej. OpenSky Live Vectors"
                 size="sm"
                 :color="hasAttemptedStep1 && nameError ? 'error' : undefined"
@@ -501,7 +501,7 @@ function handleSave() {
                 Nombre del Dataset *
               </label>
               <UInput
-                v-model="datasetName"
+                v-model="nombreConjunto"
                 placeholder="Ej. OpenSky Network API"
                 size="sm"
                 :color="hasAttemptedStep1 && datasetNameError ? 'error' : undefined"
@@ -522,7 +522,7 @@ function handleSave() {
               Descripción Operativa
             </label>
             <UInput
-              v-model="description"
+              v-model="descripcion"
               placeholder="Finalidad del dataset, cobertura geográfica y origen de los datos..."
               size="sm"
               class="w-full text-xs"
@@ -542,17 +542,17 @@ function handleSave() {
                 type="button"
                 class="p-3 rounded-xl border text-left transition-all cursor-pointer"
                 :class="[
-                  targetEntity === opt.value
+                  entidadDestino === opt.value
                     ? 'border-primary bg-primary/5 text-primary shadow-xs'
                     : 'border-border-subtle bg-surface-card hover:border-border-hover text-text-main',
                 ]"
-                @click="targetEntity = opt.value as TargetEntity"
+                @click="entidadDestino = opt.value as TargetEntity"
               >
                 <span class="font-bold text-xs block mb-1">
                   {{ opt.label }}
                 </span>
                 <span class="text-[11px] text-text-muted leading-tight block">
-                  {{ opt.description }}
+                  {{ opt.descripcion }}
                 </span>
               </button>
             </div>
@@ -592,7 +592,7 @@ function handleSave() {
                 Tipo de Conexión *
               </label>
               <select
-                v-model="sourceType"
+                v-model="tipoFuente"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
                 <option value="http_stream">HTTP GET (CSV / .dat)</option>
@@ -604,7 +604,7 @@ function handleSave() {
                 Método HTTP *
               </label>
               <select
-                v-model="httpMethod"
+                v-model="metodoHttp"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
                 <option value="GET">GET</option>
@@ -616,7 +616,7 @@ function handleSave() {
                 Formato de Datos *
               </label>
               <select
-                v-model="dataFormat"
+                v-model="formatoDatos"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
                 <option value="csv">CSV (Texto separado por coma)</option>
@@ -630,7 +630,7 @@ function handleSave() {
               URL del Endpoint / Recurso Remoto *
             </label>
             <UInput
-              v-model="endpointUrl"
+              v-model="urlEndpoint"
               placeholder="https://api.aviation-feed.com/v1/delays.csv"
               size="sm"
               icon="i-lucide-link"
@@ -651,7 +651,7 @@ function handleSave() {
 
           <!-- Opciones de CSV / JSON -->
           <div
-            v-if="dataFormat === 'csv'"
+            v-if="formatoDatos === 'csv'"
             class="grid grid-cols-2 gap-3 p-3 rounded-xl border border-border-subtle bg-surface-card"
           >
             <div>
@@ -659,7 +659,7 @@ function handleSave() {
                 Delimitador CSV: *
               </label>
               <UInput
-                v-model="csvDelimiter"
+                v-model="separadorCsv"
                 size="xs"
                 :color="hasAttemptedStep2 && csvDelimiterError ? 'error' : undefined"
                 class="w-24 font-mono text-center text-xs"
@@ -673,7 +673,7 @@ function handleSave() {
             </div>
             <div class="flex items-center pt-4">
               <UCheckbox
-                v-model="csvHasHeader"
+                v-model="csvConCabecera"
                 label="Primera fila contiene encabezados"
               />
             </div>
@@ -709,7 +709,7 @@ function handleSave() {
                 class="w-1/3 font-mono text-xs"
               />
               <UInput
-                v-model="hdr.credentialRef"
+                v-model="hdr.referenciaCredencial"
                 placeholder="Variable autorizada del servidor"
                 type="text"
                 size="xs"
@@ -728,10 +728,10 @@ function handleSave() {
 
           <!-- Widget de Verificación Activa (Probe & Ping) -->
           <EtlEndpointProbeCard
-            :connection="connectionConfig"
+            :conexion="connectionConfig"
             :probe-result="probeResult"
             :is-loading="isTesting"
-            @test-connection="handleTestConnection"
+            @test-conexion="handleTestConnection"
             @apply-detected-columns="handleApplyDetectedColumns"
           />
         </div>
@@ -760,8 +760,8 @@ function handleSave() {
           </div>
 
           <EtlSchemaMapper
-            v-model="schemaMapping"
-            :target-entity="targetEntity"
+            v-model="mapeoEsquema"
+            :target-entity="entidadDestino"
             :detected-columns="detectedColumns"
           />
         </div>
@@ -824,7 +824,7 @@ function handleSave() {
                 </span>
               </div>
               <UBadge color="primary" variant="subtle" size="sm" class="font-mono font-bold">
-                {{ batchSize.toLocaleString() }} filas
+                {{ tamanoLote.toLocaleString() }} filas
               </UBadge>
             </div>
 
@@ -832,11 +832,11 @@ function handleSave() {
               <UButton
                 v-for="s in [1000, 2000, 5000]"
                 :key="s"
-                :variant="batchSize === s ? 'solid' : 'outline'"
-                :color="batchSize === s ? 'primary' : 'neutral'"
+                :variant="tamanoLote === s ? 'solid' : 'outline'"
+                :color="tamanoLote === s ? 'primary' : 'neutral'"
                 size="xs"
                 class="flex-1 justify-center font-mono cursor-pointer"
-                @click="batchSize = s"
+                @click="tamanoLote = s"
               >
                 {{ s.toLocaleString() }} filas
               </UButton>
@@ -850,7 +850,7 @@ function handleSave() {
                 Reintentos ante Fallo:
               </label>
               <select
-                v-model.number="maxRetries"
+                v-model.number="maximoReintentos"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
                 <option :value="1">1 reintento</option>

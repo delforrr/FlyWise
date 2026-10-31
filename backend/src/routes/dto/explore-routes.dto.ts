@@ -17,18 +17,18 @@ export class ExploreRoutesDto {
     description: 'Incluye ambos sentidos, exige ambos UUID y no aplica limit',
     type: Boolean,
   })
-  includeReturn?: boolean;
+  incluirRegreso?: boolean;
   @ApiPropertyOptional({
     description: 'UUID del punto inicial',
     format: 'uuid',
   })
   @IsOptional()
   @IsUUID()
-  originId?: string;
+  origenId?: string;
   @ApiPropertyOptional({ description: 'UUID del punto final', format: 'uuid' })
   @IsOptional()
   @IsUUID()
-  destinationId?: string;
+  destinoId?: string;
 
   @ApiPropertyOptional({
     description: 'Código iata de cualquiera de los extremos',
@@ -36,7 +36,7 @@ export class ExploreRoutesDto {
   })
   @IsOptional()
   @IsString()
-  origin?: string;
+  origen?: string;
 
   @ApiPropertyOptional({
     description: 'Código de la entidad asociada',
@@ -44,7 +44,7 @@ export class ExploreRoutesDto {
   })
   @IsOptional()
   @IsString()
-  airline?: string;
+  aerolinea?: string;
 
   @ApiPropertyOptional({
     description: 'Máximo de enlaces; de 1 a 500',

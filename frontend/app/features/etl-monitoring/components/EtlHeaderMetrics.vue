@@ -4,7 +4,7 @@ import type { EtlGlobalMetrics } from "../types/etl";
 import AnimatedCounter from "~/shared/components/ui/AnimatedCounter.vue";
 
 interface Props {
-  metrics: EtlGlobalMetrics;
+  metricas: EtlGlobalMetrics;
 }
 
 const props = defineProps<Props>();
@@ -94,17 +94,17 @@ const kpiCardUi = {
           </span>
           <UIcon
             :name="
-              metrics.systemHealth === 'optimal'
+              metricas.systemHealth === 'optimal'
                 ? 'i-lucide-shield-check'
-                : metrics.systemHealth === 'syncing'
+                : metricas.systemHealth === 'syncing'
                   ? 'i-lucide-refresh-cw'
                   : 'i-lucide-alert-triangle'
             "
             class="w-4 h-4"
             :class="{
-              'text-emerald-500': metrics.systemHealth === 'optimal',
-              'text-sky-500 animate-spin': metrics.systemHealth === 'syncing',
-              'text-rose-500': metrics.systemHealth === 'attention_needed',
+              'text-emerald-500': metricas.systemHealth === 'optimal',
+              'text-sky-500 animate-spin': metricas.systemHealth === 'syncing',
+              'text-rose-500': metricas.systemHealth === 'attention_needed',
             }"
           />
         </div>
@@ -112,23 +112,23 @@ const kpiCardUi = {
           <span
             class="w-2.5 h-2.5 rounded-full shrink-0"
             :class="{
-              'bg-emerald-500': metrics.systemHealth === 'optimal',
-              'bg-sky-500 animate-pulse': metrics.systemHealth === 'syncing',
-              'bg-rose-500': metrics.systemHealth === 'attention_needed',
+              'bg-emerald-500': metricas.systemHealth === 'optimal',
+              'bg-sky-500 animate-pulse': metricas.systemHealth === 'syncing',
+              'bg-rose-500': metricas.systemHealth === 'attention_needed',
             }"
           />
           <span class="text-base font-bold text-text-main truncate">
             {{
-              metrics.systemHealth === "optimal"
+              metricas.systemHealth === "optimal"
                 ? "Operativo y al día"
-                : metrics.systemHealth === "syncing"
+                : metricas.systemHealth === "syncing"
                   ? "Sincronizando lotes"
                   : "Requiere atención"
             }}
           </span>
         </div>
         <p class="text-[11px] text-text-dim mt-2 font-mono tabular-nums">
-          Último chequeo: {{ metrics.lastGlobalSync }}
+          Último chequeo: {{ metricas.lastGlobalSync }}
         </p>
       </UCard>
 
@@ -144,7 +144,7 @@ const kpiCardUi = {
         </div>
         <div class="mt-2.5">
           <AnimatedCounter
-            :value="metrics.totalAeroRecords"
+            :value="metricas.totalAeroRecords"
             format-locale
             class="text-2xl font-bold font-mono tabular-nums text-text-main tracking-tight"
           />
@@ -166,7 +166,7 @@ const kpiCardUi = {
         </div>
         <div class="mt-2.5 flex items-baseline gap-2">
           <AnimatedCounter
-            :value="metrics.activeJobsCount"
+            :value="metricas.activeJobsCount"
             class="text-2xl font-bold font-mono tabular-nums text-text-main tracking-tight"
           />
           <span class="text-xs text-text-muted font-mono"
@@ -175,7 +175,7 @@ const kpiCardUi = {
         </div>
         <div class="mt-2">
           <UProgress
-            :model-value="(metrics.activeJobsCount / 4) * 100"
+            :model-value="(metricas.activeJobsCount / 4) * 100"
             size="xs"
             color="primary"
             class="h-1.5 rounded-full"
@@ -198,7 +198,7 @@ const kpiCardUi = {
         </div>
         <div class="mt-2.5 flex items-baseline gap-2">
           <AnimatedCounter
-            :value="metrics.successRatePercent"
+            :value="metricas.successRatePercent"
             :decimals="2"
             suffix="%"
             class="text-2xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400 tracking-tight"
@@ -206,7 +206,7 @@ const kpiCardUi = {
           <span class="text-xs text-text-muted font-mono">éxito global</span>
         </div>
         <p class="text-[11px] text-text-dim mt-2 font-mono tabular-nums">
-          {{ metrics.totalDiscardedCount.toLocaleString() }} filas descartadas
+          {{ metricas.totalDiscardedCount.toLocaleString() }} filas descartadas
         </p>
       </UCard>
     </div>

@@ -12,10 +12,10 @@ enum FlightStatus {
 }
 
 enum EtlTargetEntity {
-  countries = "countries"
-  airlines = "airlines"
-  airports = "airports"
-  routes = "routes"
+  paises = "paises"
+  aerolineas = "aerolineas"
+  aeropuertos = "aeropuertos"
+  rutas = "rutas"
   otp_metrics = "otp_metrics"
 }
 
@@ -26,266 +26,287 @@ enum EtlLogLevel {
   error = "error"
 }
 
-model User {
+model Usuario {
   id            String   @id @onCreate(uuid())
-  email         String   @unique
-  passwordHash  String   @map("password_hash")
-  role          Role     @default(OPERATOR)
-  createdAt     TimestampString(3) @default(now()) @map("created_at")
-  updatedAt     TimestampString(3) @onCreate(now()) @onUpdate(now()) @map("updated_at")
-  requestedJobs EtlJob[]
+  correo         String   @unique
+  hashContrasena  String   @map("hash_contrasena")
+  rol          Role     @default(OPERATOR)
+  creadoEn     TimestampString(3) @default(now()) @map("creado_en")
+  actualizadoEn     TimestampString(3) @onCreate(now()) @onUpdate(now()) @map("actualizado_en")
+  ejecucionesSolicitadas EjecucionEtl[]
 
   // PostgreSQL btrim's default is ASCII space; this set matches JavaScript String.trim.
-  @@check(expression: sql`((email = lower(btrim(email, ((((((((((((((((((((((((chr(9) || chr(10)) || chr(11)) || chr(12)) || chr(13)) || chr(32)) || chr(160)) || chr(5760)) || chr(8192)) || chr(8193)) || chr(8194)) || chr(8195)) || chr(8196)) || chr(8197)) || chr(8198)) || chr(8199)) || chr(8200)) || chr(8201)) || chr(8202)) || chr(8232)) || chr(8233)) || chr(8239)) || chr(8287)) || chr(12288)) || chr(65279))))) AND (email <> ''::text))`, map: "users_email_canonical_check")
-  @@map("users")
+  @@check(expression: sql`((correo = lower(btrim(correo, ((((((((((((((((((((((((chr(9) || chr(10)) || chr(11)) || chr(12)) || chr(13)) || chr(32)) || chr(160)) || chr(5760)) || chr(8192)) || chr(8193)) || chr(8194)) || chr(8195)) || chr(8196)) || chr(8197)) || chr(8198)) || chr(8199)) || chr(8200)) || chr(8201)) || chr(8202)) || chr(8232)) || chr(8233)) || chr(8239)) || chr(8287)) || chr(12288)) || chr(65279))))) AND (correo <> ''::text))`, map: "users_email_canonical_check")
+  @@map("usuarios")
 }
 
-model Country {
+model Pais {
   id       String    @id @onCreate(uuid())
-  name     String    @unique
-  isoCode  String?   @map("iso_code")
-  airports Airport[]
-  airlines Airline[]
+  nombre     String    @unique
+  codigoIso  String?   @map("codigo_iso")
+  aeropuertos Aeropuerto[]
+  aerolineas Aerolinea[]
 
-  @@check(expression: sql`(name ~ '[^[:space:]]'::text)`, map: "countries_name_check")
-  @@check(expression: sql`((iso_code IS NULL) OR (iso_code ~ '^[A-Z]{2}$'::text))`, map: "countries_iso_check")
-  @@map("countries")
+  @@check(expression: sql`(nombre ~ '[^[:space:]]'::text)`, map: "countries_name_check")
+  @@check(expression: sql`((codigo_iso IS NULL) OR (codigo_iso ~ '^[A-Z]{2}$'::text))`, map: "countries_iso_check")
+  @@map("paises")
 }
 
-model Airport {
-  countryLinkInferred Boolean @default(false) @map("country_link_inferred")
+model Aeropuerto {
+  archivadoEn TimestampString(3)? @map("archivado_en")
+  protegidoManualmente Boolean @default(false) @map("protegido_manualmente")
+  vinculoPaisInferido Boolean @default(false) @map("vinculo_pais_inferido")
   id            String                                @id @onCreate(uuid())
-  openflightsId Int?                                  @unique @map("openflights_id")
-  name          String
-  city          String?
-  countryName   String                                @map("country_name")
-  countryId     String?                               @map("country_id")
-  country       Country?                              @relation(fields: [countryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  idOpenflights Int?                                  @unique @map("id_openflights")
+  nombre          String
+  ciudad          String?
+  nombrePais   String                                @map("nombre_pais")
+  paisId     String?                               @map("pais_id")
+  pais       Pais?                              @relation(fields: [paisId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   iata          String?                               @map("iata")
   icao          String?                               @map("icao")
-  latitude      Float
-  longitude     Float
-  // SQL trigger maintains WGS 84 coordinates for all import paths.
-  location      Raw(sql`geography(Point,4326)`)?
-  source        String?                               @default("OurAirports/OpenFlights")
-  routeCount    Int                                   @default(0) @map("route_count")
+  latitud      Float
+  longitud     Float
+  // SQL trigger maintains WGS 84 coordenadas for all import paths.
+  ubicacion      Raw(sql`geography(Point,4326)`)?
+  fuente        String?                               @default("OurAirports/OpenFlights")
+  cantidadRutas    Int                                   @default(0) @map("cantidad_rutas")
 
-  originRoutes       Route[]       @relation("OriginAirport")
-  destinationRoutes  Route[]       @relation("DestinationAirport")
-  departingFlights   Flight[]      @relation("FlightOrigin")
-  arrivingFlights    Flight[]      @relation("FlightDestination")
-  originMetrics      RouteMetric[] @relation("MetricOrigin")
-  destinationMetrics RouteMetric[] @relation("MetricDestination")
+  rutasOrigen       Ruta[]       @relation("OriginAirport")
+  rutasDestino  Ruta[]       @relation("DestinationAirport")
+  vuelosSalida   Vuelo[]      @relation("FlightOrigin")
+  vuelosLlegada    Vuelo[]      @relation("FlightDestination")
+  metricasOrigen      MetricaRuta[] @relation("MetricOrigin")
+  metricasDestino MetricaRuta[] @relation("MetricDestination")
 
-  @@index([location], type: "gist", map: "airports_location_idx")
+  @@index([ubicacion], type: "gist", map: "airports_location_idx")
   @@index([iata], map: "airports_iata_idx")
   @@index([icao], map: "airports_icao_idx")
-  @@index([countryName], map: "airports_country_name_idx")
-  @@index([countryId], map: "airports_country_id_idx")
-  @@check(expression: sql`(location IS NOT NULL)`, map: "airports_location_check")
-  @@check(expression: sql`(route_count >= 0)`, map: "airports_route_count_check")
-  @@check(expression: sql`(((latitude >= ('-90'::integer)::double precision) AND (latitude <= (90)::double precision)) AND ((longitude >= ('-180'::integer)::double precision) AND (longitude <= (180)::double precision)))`, name: "valid_airport_coordinates")
-  @@check(expression: sql`((name ~ '[^[:space:]]'::text) AND (country_name ~ '[^[:space:]]'::text))`, map: "airports_name_check")
+  @@index([nombrePais], map: "airports_country_name_idx")
+  @@index([paisId], map: "airports_country_id_idx")
+  @@check(expression: sql`(ubicacion IS NOT NULL)`, map: "airports_location_check")
+  @@check(expression: sql`(cantidad_rutas >= 0)`, map: "airports_route_count_check")
+  @@check(expression: sql`(((latitud >= ('-90'::integer)::double precision) AND (latitud <= (90)::double precision)) AND ((longitud >= ('-180'::integer)::double precision) AND (longitud <= (180)::double precision)))`, name: "valid_airport_coordinates")
+  @@check(expression: sql`((nombre ~ '[^[:space:]]'::text) AND (nombre_pais ~ '[^[:space:]]'::text))`, map: "airports_name_check")
   @@check(expression: sql`(((iata IS NULL) OR (iata ~ '^[A-Z]{3}$'::text)) AND ((icao IS NULL) OR (icao ~ '^[A-Z0-9]{4}$'::text)))`, map: "airports_codes_check")
-  @@map("airports")
+  @@map("aeropuertos")
 }
 
-model Airline {
-  countryLinkInferred Boolean @default(false) @map("country_link_inferred")
+model Aerolinea {
+  fuente String @default("OpenFlights")
+  archivadoEn TimestampString(3)? @map("archivado_en")
+  protegidoManualmente Boolean @default(false) @map("protegido_manualmente")
+  vinculoPaisInferido Boolean @default(false) @map("vinculo_pais_inferido")
   id            String   @id @onCreate(uuid())
-  openflightsId Int?     @unique @map("openflights_id")
-  name          String
+  idOpenflights Int?     @unique @map("id_openflights")
+  nombre          String
   iata          String?  @map("iata")
   icao          String?  @map("icao")
-  country       String?
-  countryId     String?  @map("country_id")
-  countryRecord Country? @relation(fields: [countryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  active        Boolean?
+  pais       String?
+  paisId     String?  @map("pais_id")
+  registroPais Pais? @relation(fields: [paisId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  activa        Boolean?
 
-  routes  Route[]
-  flights Flight[]
-  metrics RouteMetric[]
+  ofertas  OfertaRuta[]
+  vuelos Vuelo[]
+  metricas MetricaRuta[]
 
   @@index([iata], map: "airlines_iata_idx")
   @@index([icao], map: "airlines_icao_idx")
-  @@index([countryId], map: "airlines_country_id_idx")
-  @@check(expression: sql`(name ~ '[^[:space:]]'::text)`, map: "airlines_name_check")
+  @@index([paisId], map: "airlines_country_id_idx")
+  @@check(expression: sql`(nombre ~ '[^[:space:]]'::text)`, map: "airlines_name_check")
   @@check(expression: sql`(((iata IS NULL) OR (iata ~ '^[A-Z0-9]{2}$'::text)) AND ((icao IS NULL) OR (icao ~ '^[A-Z0-9]{3}$'::text)))`, map: "airlines_codes_check")
-  @@map("airlines")
+  @@map("aerolineas")
 }
 
-model Route {
-  id              String  @id @onCreate(uuid())
-  airlineCode     String? @map("airline_code")
-  airlineId       String? @map("airline_id")
-  originId        String  @map("origin_id")
-  destinationId   String  @map("destination_id")
-  codeshare       Boolean @default(false)
-  stops           Int     @default(0)
-
-  airline     Airline? @relation(fields: [airlineId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  origin      Airport  @relation("OriginAirport", fields: [originId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "routes_origin_id_destination_id_idx")
-  destination Airport  @relation("DestinationAirport", fields: [destinationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([originId, destinationId], map: "routes_origin_id_destination_id_idx")
-  @@index([destinationId], map: "routes_destination_id_idx")
-  @@index([airlineId], map: "routes_airline_id_idx")
-  @@unique([originId, destinationId, airlineId, airlineCode, codeshare, stops], map: "routes_offer_key")
-  @@check(expression: sql`(stops >= 0)`, map: "routes_stops_check")
-  @@check(expression: sql`(origin_id <> destination_id)`, map: "routes_endpoints_check")
-  @@check(expression: sql`((airline_code IS NULL) OR (airline_code ~ '^[A-Z0-9]{2,3}$'::text))`, map: "routes_airline_code_check")
-  @@map("routes")
+model Ruta {
+  id String @id @onCreate(uuid())
+  origenId String @map("origen_id")
+  destinoId String @map("destino_id")
+  archivadoEn TimestampString(3)? @map("archivado_en")
+  protegidoManualmente Boolean @default(false) @map("protegido_manualmente")
+  origen Aeropuerto @relation("OriginAirport", fields: [origenId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "rutas_extremos_key")
+  destino Aeropuerto @relation("DestinationAirport", fields: [destinoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ofertas OfertaRuta[]
+  @@unique([origenId, destinoId], map: "rutas_extremos_key")
+  @@index([destinoId], map: "rutas_destino_idx")
+  @@check(expression: sql`(origen_id <> destino_id)`, map: "rutas_extremos_check")
+  @@map("rutas")
 }
 
-model EtlJob {
-  attempt               Int                  @default(0)
+model OfertaRuta {
+  id String @id @onCreate(uuid())
+  rutaId String @map("ruta_id")
+  aerolineaId String? @map("aerolinea_id")
+  codigoAerolinea String? @map("codigo_aerolinea")
+  codigoCompartido Boolean @default(false) @map("codigo_compartido")
+  escalas Int @default(0)
+  fuente String @default("OpenFlights")
+  claveImportacion String? @unique @map("clave_importacion")
+  archivadoEn TimestampString(3)? @map("archivado_en")
+  protegidoManualmente Boolean @default(false) @map("protegido_manualmente")
+  ruta Ruta @relation(fields: [rutaId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "ofertas_ruta_identidad_key")
+  aerolinea Aerolinea? @relation(fields: [aerolineaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([rutaId, aerolineaId, codigoAerolinea, codigoCompartido, escalas], map: "ofertas_ruta_identidad_key")
+  @@index([aerolineaId], map: "routes_airline_id_idx")
+  @@check(expression: sql`(escalas >= 0)`, map: "routes_stops_check")
+  @@check(expression: sql`((codigo_aerolinea IS NULL) OR (codigo_aerolinea ~ '^[A-Z0-9]{2,3}$'::text))`, map: "routes_airline_code_check")
+  @@map("ofertas_ruta")
+}
+
+model EjecucionEtl {
+  intento               Int                  @default(0)
   id                    String               @id @onCreate(uuid())
-  source                String               @map("source")
-  status                String               @map("status")
-  totalRows             Int                  @default(0) @map("total_rows")
-  processedRows         Int                  @default(0) @map("processed_rows")
-  insertedRows          Int                  @default(0) @map("inserted_rows")
-  discardedRows         Int                  @default(0) @map("discarded_rows")
-  startedAt             TimestampString(3)?            @map("started_at")
-  finishedAt            TimestampString(3)?            @map("finished_at")
-  errorMessage          String?              @map("error_message")
-  flights               Flight[]
-  pipelineId            String?              @map("pipeline_id")
-  requestedById         String?              @map("requested_by_id")
-  configurationSnapshot Jsonb?                @map("configuration_snapshot")
-  sourceUri             String?              @map("source_uri")
-  sourceChecksum        String?              @map("source_checksum")
-  pipeline              EtlPipeline?         @relation(fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "etl_jobs_pipeline_id_started_at_idx")
-  requestedBy           User?                @relation(fields: [requestedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  discardedSamples      EtlDiscardedSample[]
-  events                EtlJobEvent[]
+  fuente                String               @map("fuente")
+  estado                String               @map("estado")
+  filasTotales             Int                  @default(0) @map("filas_totales")
+  filasProcesadas         Int                  @default(0) @map("filas_procesadas")
+  filasInsertadas          Int                  @default(0) @map("filas_insertadas")
+  filasDescartadas         Int                  @default(0) @map("filas_descartadas")
+  iniciadoEn             TimestampString(3)?            @map("iniciado_en")
+  finalizadoEn            TimestampString(3)?            @map("finalizado_en")
+  mensajeError          String?              @map("mensaje_error")
+  vuelos               Vuelo[]
+  metricas             MetricaRuta[]
+  procesoId            String?              @map("proceso_id")
+  solicitanteId         String?              @map("solicitante_id")
+  instantaneaConfiguracion Jsonb?                @map("instantanea_configuracion")
+  uriFuente             String?              @map("uri_fuente")
+  checksumFuente        String?              @map("checksum_fuente")
+  proceso              ProcesoEtl?         @relation(fields: [procesoId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "etl_jobs_pipeline_id_started_at_idx")
+  solicitante           Usuario?                @relation(fields: [solicitanteId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  muestrasDescartadas      MuestraDescartadaEtl[]
+  eventos                EventoEjecucionEtl[]
 
-  @@index([source, status], map: "etl_jobs_source_status_idx")
-  @@index([pipelineId, startedAt], map: "etl_jobs_pipeline_id_started_at_idx")
-  @@index([requestedById], map: "etl_jobs_requested_by_id_idx")
-  @@check(expression: sql`((finished_at IS NULL) OR ((started_at IS NOT NULL) AND (finished_at >= started_at)))`, map: "etl_jobs_timestamps_check")
-  @@check(expression: sql`((status <> 'completed'::text) OR ((started_at IS NOT NULL) AND (finished_at IS NOT NULL) AND ((total_rows)::bigint = ((processed_rows)::bigint + discarded_rows))))`, map: "etl_jobs_completion_check")
-  @@check(expression: sql`((total_rows >= 0) AND (processed_rows >= 0) AND (discarded_rows >= 0) AND (inserted_rows >= 0) AND (inserted_rows <= processed_rows) AND (((processed_rows)::bigint + discarded_rows) <= total_rows))`, map: "etl_jobs_rows_check")
-  @@check(expression: sql`(status = ANY (ARRAY['pending'::text, 'running'::text, 'completed'::text, 'failed'::text]))`, map: "etl_jobs_status_check")
-  @@check(expression: sql`((source_uri IS NULL) OR ((length(btrim(source_uri)) > 0) AND (source_uri !~ '://[^/]*@|[?#]'::text)))`, map: "etl_jobs_source_uri_check")
-  @@check(expression: sql`((source_checksum IS NULL) OR (source_checksum ~ '^[0-9a-fA-F]{64}$'::text))`, map: "etl_jobs_checksum_check")
-  @@check(expression: sql`(((configuration_snapshot IS NULL) AND (pipeline_id IS NULL)) OR (((jsonb_typeof(configuration_snapshot) = 'object'::text) AND ((configuration_snapshot - ARRAY['connection'::text, 'schemaMapping'::text, 'scheduleConfig'::text]) = '{}'::jsonb) AND etl_valid_connection((configuration_snapshot -> 'connection'::text)) AND etl_valid_mapping((configuration_snapshot -> 'schemaMapping'::text)) AND etl_valid_schedule((configuration_snapshot -> 'scheduleConfig'::text))) IS TRUE))`, map: "etl_jobs_snapshot_check")
-  @@map("etl_jobs")
-  @@check(expression: sql`(attempt >= 0)`, map: "etl_jobs_attempt_check")
+  @@index([fuente, estado], map: "etl_jobs_source_status_idx")
+  @@index([procesoId, iniciadoEn], map: "etl_jobs_pipeline_id_started_at_idx")
+  @@index([solicitanteId], map: "etl_jobs_requested_by_id_idx")
+  @@check(expression: sql`((finalizado_en IS NULL) OR ((iniciado_en IS NOT NULL) AND (finalizado_en >= iniciado_en)))`, map: "etl_jobs_timestamps_check")
+  @@check(expression: sql`((estado <> 'completed'::text) OR ((iniciado_en IS NOT NULL) AND (finalizado_en IS NOT NULL) AND ((filas_totales)::bigint = ((filas_procesadas)::bigint + filas_descartadas))))`, map: "etl_jobs_completion_check")
+  @@check(expression: sql`((filas_totales >= 0) AND (filas_procesadas >= 0) AND (filas_descartadas >= 0) AND (filas_insertadas >= 0) AND (filas_insertadas <= filas_procesadas) AND (((filas_procesadas)::bigint + filas_descartadas) <= filas_totales))`, map: "etl_jobs_rows_check")
+  @@check(expression: sql`(estado = ANY (ARRAY['pending'::text, 'running'::text, 'completed'::text, 'failed'::text]))`, map: "etl_jobs_status_check")
+  @@check(expression: sql`((uri_fuente IS NULL) OR ((length(btrim(uri_fuente)) > 0) AND (uri_fuente !~ '://[^/]*@|[?#]'::text)))`, map: "etl_jobs_source_uri_check")
+  @@check(expression: sql`((checksum_fuente IS NULL) OR (checksum_fuente ~ '^[0-9a-fA-F]{64}$'::text))`, map: "etl_jobs_checksum_check")
+  @@check(expression: sql`(((instantanea_configuracion IS NULL) AND (proceso_id IS NULL)) OR (((jsonb_typeof(instantanea_configuracion) = 'object'::text) AND ((instantanea_configuracion - ARRAY['conexion'::text, 'mapeoEsquema'::text, 'configuracionProgramacion'::text]) = '{}'::jsonb) AND etl_valid_connection((instantanea_configuracion -> 'conexion'::text)) AND etl_valid_mapping((instantanea_configuracion -> 'mapeoEsquema'::text)) AND etl_valid_schedule((instantanea_configuracion -> 'configuracionProgramacion'::text))) IS TRUE))`, map: "etl_jobs_snapshot_check")
+  @@map("ejecuciones_etl")
+  @@check(expression: sql`(intento >= 0)`, map: "etl_jobs_attempt_check")
 }
 
-model EtlPipeline {
+model ProcesoEtl {
   id             String          @id @onCreate(uuid())
-  name           String
-  datasetName    String          @map("dataset_name")
-  description    String          @default("")
-  targetEntity   EtlTargetEntity @map("target_entity")
-  isSystem       Boolean         @default(false) @map("is_system")
-  paused         Boolean         @default(false)
-  connection     Jsonb
-  schemaMapping  Jsonb            @map("schema_mapping")
-  scheduleConfig Jsonb            @map("schedule_config")
-  archivedAt     TimestampString(3)?       @map("archived_at")
-  createdAt      TimestampString(3)        @default(now()) @map("created_at")
-  updatedAt      TimestampString(3)        @onCreate(now()) @onUpdate(now()) @map("updated_at")
-  jobs           EtlJob[]
+  nombre           String
+  nombreConjunto    String          @map("nombre_conjunto")
+  descripcion    String          @default("")
+  entidadDestino   EtlTargetEntity @map("entidad_destino")
+  esSistema       Boolean         @default(false) @map("es_sistema")
+  pausado         Boolean         @default(false)
+  conexion     Jsonb
+  mapeoEsquema  Jsonb            @map("mapeo_esquema")
+  configuracionProgramacion Jsonb            @map("configuracion_programacion")
+  archivadoEn     TimestampString(3)?       @map("archivado_en")
+  creadoEn      TimestampString(3)        @default(now()) @map("creado_en")
+  actualizadoEn      TimestampString(3)        @onCreate(now()) @onUpdate(now()) @map("actualizado_en")
+  ejecuciones           EjecucionEtl[]
 
-  @@index([archivedAt, paused], map: "etl_pipelines_archived_at_paused_idx")
-  @@check(expression: sql`(etl_valid_mapping(schema_mapping) IS TRUE)`, map: "etl_pipelines_mapping_check")
-  @@check(expression: sql`(etl_valid_schedule(schedule_config) IS TRUE)`, map: "etl_pipelines_schedule_check")
-  @@check(expression: sql`(etl_valid_connection(connection) IS TRUE)`, map: "etl_pipelines_connection_check")
-  @@check(expression: sql`((length(btrim(name)) > 0) AND (length(btrim(dataset_name)) > 0))`, map: "etl_pipelines_identity_check")
-  @@map("etl_pipelines")
+  @@index([archivadoEn, pausado], map: "etl_pipelines_archived_at_paused_idx")
+  @@check(expression: sql`(etl_valid_mapping(mapeo_esquema) IS TRUE)`, map: "etl_pipelines_mapping_check")
+  @@check(expression: sql`(etl_valid_schedule(configuracion_programacion) IS TRUE)`, map: "etl_pipelines_schedule_check")
+  @@check(expression: sql`(etl_valid_connection(conexion) IS TRUE)`, map: "etl_pipelines_connection_check")
+  @@check(expression: sql`((length(btrim(nombre)) > 0) AND (length(btrim(nombre_conjunto)) > 0))`, map: "etl_pipelines_identity_check")
+  @@map("procesos_etl")
 }
 
-model EtlDiscardedSample {
-  attempt   Int      @default(0)
+model MuestraDescartadaEtl {
+  intento   Int      @default(0)
   id        String   @id @onCreate(uuid())
-  jobId     String   @map("job_id")
-  rowIndex  Int      @map("row_index")
-  field     String?
-  reason    String
-  rawSample VarChar(4096)   @map("raw_sample")
-  createdAt TimestampString(3) @default(now()) @map("created_at")
-  job       EtlJob   @relation(fields: [jobId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "etl_discarded_samples_job_id_row_index_idx")
+  ejecucionId     String   @map("ejecucion_id")
+  numeroFila  Int      @map("numero_fila")
+  campo     String?
+  motivo    String
+  muestraOriginal VarChar(4096)   @map("muestra_original")
+  creadoEn TimestampString(3) @default(now()) @map("creado_en")
+  job       EjecucionEtl   @relation(fields: [ejecucionId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "etl_discarded_samples_job_id_row_index_idx")
 
-  @@index([jobId, rowIndex], map: "etl_discarded_samples_job_id_row_index_idx")
-  @@check(expression: sql`(length(btrim(reason)) > 0)`, map: "etl_discarded_samples_reason_check")
-  @@check(expression: sql`(row_index > 0)`, map: "etl_discarded_samples_row_check")
-  @@map("etl_discarded_samples")
-  @@check(expression: sql`(attempt >= 0)`, map: "etl_discarded_samples_attempt_check")
+  @@index([ejecucionId, numeroFila], map: "etl_discarded_samples_job_id_row_index_idx")
+  @@check(expression: sql`(length(btrim(motivo)) > 0)`, map: "etl_discarded_samples_reason_check")
+  @@check(expression: sql`(numero_fila > 0)`, map: "etl_discarded_samples_row_check")
+  @@map("muestras_descartadas_etl")
+  @@check(expression: sql`(intento >= 0)`, map: "etl_discarded_samples_attempt_check")
 }
 
-model EtlJobEvent {
-  attempt   Int      @default(0)
+model EventoEjecucionEtl {
+  intento   Int      @default(0)
   id        String      @id @onCreate(uuid())
-  jobId     String      @map("job_id")
-  level     EtlLogLevel
-  message   String
-  createdAt TimestampString(3)    @default(now()) @map("created_at")
-  job       EtlJob      @relation(fields: [jobId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "etl_job_events_job_id_created_at_idx")
+  ejecucionId     String      @map("ejecucion_id")
+  nivel     EtlLogLevel
+  mensaje   String
+  creadoEn TimestampString(3)    @default(now()) @map("creado_en")
+  job       EjecucionEtl      @relation(fields: [ejecucionId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "etl_job_events_job_id_created_at_idx")
 
-  @@index([jobId, createdAt], map: "etl_job_events_job_id_created_at_idx")
-  @@check(expression: sql`(length(btrim(message)) > 0)`, map: "etl_job_events_message_check")
-  @@map("etl_job_events")
-  @@check(expression: sql`(attempt >= 0)`, map: "etl_job_events_attempt_check")
+  @@index([ejecucionId, creadoEn], map: "etl_job_events_job_id_created_at_idx")
+  @@check(expression: sql`(length(btrim(mensaje)) > 0)`, map: "etl_job_events_message_check")
+  @@map("eventos_ejecucion_etl")
+  @@check(expression: sql`(intento >= 0)`, map: "etl_job_events_attempt_check")
 }
 
-// One source record per flight operation; sourceRecordId must survive retries.
-model Flight {
+// One fuente record per flight operation; idRegistroFuente must survive retries.
+model Vuelo {
   id                  String       @id @onCreate(uuid())
-  source              String
-  sourceRecordId      String       @map("source_record_id")
-  flightDate          DateString     @map("flight_date")
-  flightNumber        String       @map("flight_number")
-  originId            String       @map("origin_id")
-  destinationId       String       @map("destination_id")
-  airlineId           String       @map("airline_id")
-  status              FlightStatus
-  arrivalDelayMinutes Int?         @map("arrival_delay_minutes")
-  etlJobId            String?      @map("etl_job_id")
+  fuente              String
+  idRegistroFuente      String       @map("id_registro_fuente")
+  fechaVuelo          DateString     @map("fecha_vuelo")
+  numeroVuelo        String       @map("numero_vuelo")
+  origenId            String       @map("origen_id")
+  destinoId       String       @map("destino_id")
+  aerolineaId           String       @map("aerolinea_id")
+  estado              FlightStatus
+  demoraLlegadaMinutos Int?         @map("demora_llegada_minutos")
+  ejecucionEtlId            String      @map("ejecucion_etl_id")
 
-  origin      Airport @relation("FlightOrigin", fields: [originId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "flights_origin_id_destination_id_airline_id_flight_date_idx")
-  destination Airport @relation("FlightDestination", fields: [destinationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  airline     Airline @relation(fields: [airlineId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  etlJob      EtlJob? @relation(fields: [etlJobId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  origen      Aeropuerto @relation("FlightOrigin", fields: [origenId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "flights_origin_id_destination_id_airline_id_flight_date_idx")
+  destino Aeropuerto @relation("FlightDestination", fields: [destinoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  aerolinea     Aerolinea @relation(fields: [aerolineaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ejecucionEtl      EjecucionEtl @relation(fields: [ejecucionEtlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
-  @@unique([source, sourceRecordId])
-  @@index([originId, destinationId, airlineId, flightDate], map: "flights_origin_id_destination_id_airline_id_flight_date_idx")
-  @@index([flightDate], map: "flights_flight_date_idx")
-  @@index([destinationId], map: "flights_destination_id_idx")
-  @@index([airlineId], map: "flights_airline_id_idx")
-  @@index([etlJobId], map: "flights_etl_job_id_idx")
-  @@check(expression: sql`(((status = 'ARRIVED'::text) AND (arrival_delay_minutes IS NOT NULL)) OR ((status <> 'ARRIVED'::text) AND (arrival_delay_minutes IS NULL)))`, map: "flights_arrival_delay_check")
-  @@check(expression: sql`(origin_id <> destination_id)`, map: "flights_endpoints_check")
-  @@check(expression: sql`((length(TRIM(BOTH FROM source)) > 0) AND (length(TRIM(BOTH FROM source_record_id)) > 0) AND (length(TRIM(BOTH FROM flight_number)) > 0))`, map: "flights_source_check")
-  @@map("flights")
+  @@unique([fuente, idRegistroFuente])
+  @@index([origenId, destinoId, aerolineaId, fechaVuelo], map: "flights_origin_id_destination_id_airline_id_flight_date_idx")
+  @@index([fechaVuelo], map: "flights_flight_date_idx")
+  @@index([destinoId], map: "flights_destination_id_idx")
+  @@index([aerolineaId], map: "flights_airline_id_idx")
+  @@index([ejecucionEtlId], map: "flights_etl_job_id_idx")
+  @@check(expression: sql`(((estado = 'ARRIVED'::text) AND (demora_llegada_minutos IS NOT NULL)) OR ((estado <> 'ARRIVED'::text) AND (demora_llegada_minutos IS NULL)))`, map: "flights_arrival_delay_check")
+  @@check(expression: sql`(origen_id <> destino_id)`, map: "flights_endpoints_check")
+  @@check(expression: sql`((length(TRIM(BOTH FROM fuente)) > 0) AND (length(TRIM(BOTH FROM id_registro_fuente)) > 0) AND (length(TRIM(BOTH FROM numero_vuelo)) > 0))`, map: "flights_source_check")
+  @@map("vuelos")
 }
 
 // Monthly counters: percentages are derived, never averaged across months.
-model RouteMetric {
-  originId                 String   @map("origin_id")
-  destinationId            String   @map("destination_id")
-  airlineId                String   @map("airline_id")
-  period                   DateString
-  totalFlights             Int      @map("total_flights")
-  cancelledFlights         Int      @default(0) @map("cancelled_flights")
-  divertedFlights          Int      @default(0) @map("diverted_flights")
-  onTimeFlights            Int      @default(0) @map("on_time_flights")
-  totalArrivalDelayMinutes BigInt   @default(0) @map("total_arrival_delay_minutes")
-  updatedAt                TimestampString(3) @onCreate(now()) @onUpdate(now()) @map("updated_at")
+model MetricaRuta {
+  ejecucionEtlId String @map("ejecucion_etl_id")
+  ejecucionEtl EjecucionEtl @relation(fields: [ejecucionEtlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  @@index([ejecucionEtlId], map: "metricas_ruta_ejecucion_etl_idx")
+  origenId                 String   @map("origen_id")
+  destinoId            String   @map("destino_id")
+  aerolineaId                String   @map("aerolinea_id")
+  periodo                   DateString
+  vuelosTotales             Int      @map("vuelos_totales")
+  vuelosCancelados         Int      @default(0) @map("vuelos_cancelados")
+  vuelosDesviados          Int      @default(0) @map("vuelos_desviados")
+  vuelosPuntuales            Int      @default(0) @map("vuelos_puntuales")
+  demoraLlegadaTotalMinutos BigInt   @default(0) @map("demora_llegada_total_minutos")
+  actualizadoEn                TimestampString(3) @onCreate(now()) @onUpdate(now()) @map("actualizado_en")
 
-  origin      Airport @relation("MetricOrigin", fields: [originId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: false)
-  destination Airport @relation("MetricDestination", fields: [destinationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  airline     Airline @relation(fields: [airlineId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  origen      Aeropuerto @relation("MetricOrigin", fields: [origenId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: false)
+  destino Aeropuerto @relation("MetricDestination", fields: [destinoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  aerolinea     Aerolinea @relation(fields: [aerolineaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
-  @@id([originId, destinationId, airlineId, period])
-  @@index([period], map: "route_metrics_period_idx")
-  @@index([destinationId], map: "route_metrics_destination_id_idx")
-  @@index([airlineId], map: "route_metrics_airline_id_idx")
-  @@check(expression: sql`((total_flights > ((cancelled_flights)::bigint + diverted_flights)) OR (total_arrival_delay_minutes = 0))`, map: "route_metrics_delay_check")
-  @@check(expression: sql`((total_flights >= 0) AND (cancelled_flights >= 0) AND (diverted_flights >= 0) AND (on_time_flights >= 0) AND ((((cancelled_flights)::bigint + diverted_flights) + on_time_flights) <= total_flights))`, map: "route_metrics_counts_check")
-  @@check(expression: sql`(EXTRACT(day FROM period) = (1)::numeric)`, map: "route_metrics_period_check")
-  @@check(expression: sql`(origin_id <> destination_id)`, map: "route_metrics_endpoints_check")
-  @@map("route_metrics")
+  @@id([origenId, destinoId, aerolineaId, periodo])
+  @@index([periodo], map: "route_metrics_period_idx")
+  @@index([destinoId], map: "route_metrics_destination_id_idx")
+  @@index([aerolineaId], map: "route_metrics_airline_id_idx")
+  @@check(expression: sql`((vuelos_totales > ((vuelos_cancelados)::bigint + vuelos_desviados)) OR (demora_llegada_total_minutos = 0))`, map: "route_metrics_delay_check")
+  @@check(expression: sql`((vuelos_totales >= 0) AND (vuelos_cancelados >= 0) AND (vuelos_desviados >= 0) AND (vuelos_puntuales >= 0) AND ((((vuelos_cancelados)::bigint + vuelos_desviados) + vuelos_puntuales) <= vuelos_totales))`, map: "route_metrics_counts_check")
+  @@check(expression: sql`(EXTRACT(day FROM periodo) = (1)::numeric)`, map: "route_metrics_period_check")
+  @@check(expression: sql`(origen_id <> destino_id)`, map: "route_metrics_endpoints_check")
+  @@map("metricas_ruta")
 }

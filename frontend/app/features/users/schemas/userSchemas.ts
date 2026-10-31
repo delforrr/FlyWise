@@ -1,26 +1,26 @@
 import { z } from 'zod';
 
 export const userRoleSchema = z.enum(['ADMIN', 'OPERATOR']);
-const email = z.string().trim().toLowerCase().email('Ingresá un correo válido.');
+const correo = z.string().trim().toLowerCase().email('Ingresá un correo válido.');
 const password = z.string().trim().min(8, 'Usá al menos 8 caracteres.');
 
 export const createUserSchema = z.object({
-  email,
+  correo,
   password: password.regex(/^[a-zA-Z0-9]+$/, 'Usá solo letras y números.'),
-  role: userRoleSchema,
+  rol: userRoleSchema,
 });
 
 export const updateUserSchema = z.object({
-  email,
+  correo,
   password: z.union([z.literal(''), password]).transform(value => value || undefined),
-  role: userRoleSchema,
+  rol: userRoleSchema,
 });
 
 export const userSchema = z.object({
   id: z.string().uuid(),
-  email: z.string().email(),
-  role: userRoleSchema,
-  createdAt: z.string().datetime().optional(),
+  correo: z.string().email(),
+  rol: userRoleSchema,
+  creadoEn: z.string().datetime().optional(),
 });
 
 export type ManagedUser = z.infer<typeof userSchema>;

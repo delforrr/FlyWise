@@ -1,100 +1,120 @@
 classDiagram
-    %% Vista simplificada: identificadores originales y descripciones en español.
-    %% PK = clave primaria; FK = clave foránea; UK = valor único.
-    País "0..1" -- "0..*" Aeropuerto : agrupa
-    País "0..1" -- "0..*" Aerolínea : agrupa
-    Usuario "0..1" -- "0..*" EventoEtl : solicita
-    PipelineEtl "0..1" -- "0..*" EventoEtl : genera
-    EventoEtl "1" -- "0..*" FilaDescartadaEtl : contiene
-    EventoEtl "1" -- "0..*" EjecuciónEventoEtl : registra
+    %% Vista del modelo implementado. PK y restricciones completas en contract.prisma.
+    Pais "0..1" -- "0..*" Aeropuerto : agrupa
+    Pais "0..1" -- "0..*" Aerolinea : agrupa
+    Usuario "0..1" -- "0..*" EjecucionEtl : solicita
+    ProcesoEtl "0..1" -- "0..*" EjecucionEtl : genera
+    EjecucionEtl "1" -- "0..*" MuestraDescartadaEtl : contiene
+    EjecucionEtl "1" -- "0..*" EventoEjecucionEtl : registra
     Aeropuerto "1" -- "0..*" Ruta : origen
     Aeropuerto "1" -- "0..*" Ruta : destino
-    Aerolínea "0..1" -- "0..*" Ruta : opera
+    Ruta "1" -- "0..*" OfertaRuta : ofrece
+    Aerolinea "0..1" -- "0..*" OfertaRuta : opera
     Aeropuerto "1" -- "0..*" Vuelo : origen
     Aeropuerto "1" -- "0..*" Vuelo : destino
-    Aerolínea "1" -- "0..*" Vuelo : opera
-    EventoEtl "0..1" -- "0..*" Vuelo : incorpora
-    Aeropuerto "1" -- "0..*" MétricasRuta : origen
-    Aeropuerto "1" -- "0..*" MétricasRuta : destino
-    Aerolínea "1" -- "0..*" MétricasRuta : opera
+    Aerolinea "1" -- "0..*" Vuelo : opera
+    EjecucionEtl "1" -- "0..*" Vuelo : incorpora
+    Aeropuerto "1" -- "0..*" MetricaRuta : origen
+    Aeropuerto "1" -- "0..*" MetricaRuta : destino
+    Aerolinea "1" -- "0..*" MetricaRuta : opera
+    EjecucionEtl "1" -- "0..*" MetricaRuta : calcula
 
     class Usuario {
         +string id
-        +string email
-        +Role role
+        +string correo
+        +Role rol
     }
-    class País {
+    class Pais {
         +string id
-        +string name
-        +string isoCode
+        +string nombre
+        +string codigoIso
     }
     class Aeropuerto {
         +string id
-        +string name
-        +string countryId
-        +float latitude
-        +float longitude
+        +int idOpenflights
+        +string nombre
+        +string paisId
+        +float latitud
+        +float longitud
+        +timestamp archivadoEn
+        +boolean protegidoManualmente
     }
-    class Aerolínea {
+    class Aerolinea {
         +string id
-        +string name
-        +string countryId
+        +int idOpenflights
+        +string nombre
+        +string paisId
+        +timestamp archivadoEn
+        +boolean protegidoManualmente
     }
     class Ruta {
         +string id
-        +string originId
-        +string destinationId
-        +string airlineId
-        +int stops
+        +string origenId
+        +string destinoId
+        +timestamp archivadoEn
     }
-    %% Flight y RouteMetric: carga y agregación aún no activadas.
+    class OfertaRuta {
+        +string id
+        +string rutaId
+        +string aerolineaId
+        +string codigoAerolinea
+        +boolean codigoCompartido
+        +int escalas
+        +string fuente
+        +string claveImportacion
+        +timestamp archivadoEn
+        +boolean protegidoManualmente
+    }
+    %% Vuelo y MetricaRuta: importación operacional y agregación aún no activadas.
     class Vuelo {
         +string id
-        +date flightDate
-        +string originId
-        +string destinationId
-        +string airlineId
-        +string etlJobId
-        +FlightStatus status
-        +int arrivalDelayMinutes
+        +string fuente
+        +string idRegistroFuente
+        +date fechaVuelo
+        +string origenId
+        +string destinoId
+        +string aerolineaId
+        +string ejecucionEtlId
+        +FlightStatus estado
+        +int demoraLlegadaMinutos
     }
-    class MétricasRuta {
-        +string originId
-        +string destinationId
-        +string airlineId
-        +date period
-        +int totalFlights
-        +int cancelledFlights
-        +int divertedFlights
-        +int onTimeFlights
-        +bigint totalArrivalDelayMinutes
+    class MetricaRuta {
+        +string origenId
+        +string destinoId
+        +string aerolineaId
+        +date periodo
+        +string ejecucionEtlId
+        +int vuelosTotales
+        +int vuelosCancelados
+        +int vuelosDesviados
+        +int vuelosPuntuales
+        +bigint demoraLlegadaTotalMinutos
     }
-    class PipelineEtl {
+    class ProcesoEtl {
         +string id
-        +string name
-        +EtlTargetEntity targetEntity
-        +boolean paused
+        +string nombre
+        +EtlTargetEntity entidadDestino
+        +boolean pausado
     }
-    class EventoEtl {
+    class EjecucionEtl {
         +string id
-        +string pipelineId
-        +string requestedById
-        +string status
-        +int totalRows
-        +int processedRows
-        +int discardedRows
+        +string procesoId
+        +string solicitanteId
+        +string estado
+        +int filasTotales
+        +int filasProcesadas
+        +int filasDescartadas
     }
-    class FilaDescartadaEtl {
+    class MuestraDescartadaEtl {
         +string id
-        +string jobId
-        +int rowIndex
-        +string reason
-        +string rawSample
-     }
-    class EjecuciónEventoEtl {
-        +string id
-        +string jobId
-        +EtlLogLevel level
-        +string message
+        +string ejecucionId
+        +int numeroFila
+        +string motivo
+        +string muestraOriginal
     }
-    
+    class EventoEjecucionEtl {
+        +string id
+        +string ejecucionId
+        +EtlLogLevel nivel
+        +string mensaje
+    }

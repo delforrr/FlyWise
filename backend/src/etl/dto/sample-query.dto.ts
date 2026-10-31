@@ -6,5 +6,5 @@ export class SampleQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  attempt?: number;
+  intento?: number;
 }

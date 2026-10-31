@@ -18,7 +18,7 @@ export class LocalAuthGuard extends AuthGuard('local') {
     }>();
     if (req.body && 'username' in req.body) {
       const { username, ...body } = req.body;
-      req.body = { ...body, email: body.email ?? username };
+      req.body = { ...body, correo: body.correo ?? username };
     }
     // Passport runs before controller pipes, so validate credentials here.
     const credentials: unknown = await new ValidationPipe({
@@ -39,7 +39,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {}
 export class AdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const { user } = context.switchToHttp().getRequest<{ user?: UserDto }>();
-    if (user?.role !== 'ADMIN') {
+    if (user?.rol !== 'ADMIN') {
       throw new ForbiddenException('Se requiere el rol ADMIN');
     }
     return true;

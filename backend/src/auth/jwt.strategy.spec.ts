@@ -18,8 +18,8 @@ describe('JwtStrategy', () => {
       isSessionActive: jest.fn().mockResolvedValue(true),
       getProfile: jest.fn().mockResolvedValue({
         id: 'user-uuid',
-        email: 'admin@flywise.com',
-        role: 'ADMIN',
+        correo: 'admin@flywise.com',
+        rol: 'ADMIN',
       }),
     };
 
@@ -52,7 +52,7 @@ describe('JwtStrategy', () => {
         { headers: {} },
         {
           sub: 'user-uuid',
-          email: 'admin@flywise.com',
+          correo: 'admin@flywise.com',
           sid: 'revoked-session',
         },
       ),
@@ -60,17 +60,17 @@ describe('JwtStrategy', () => {
     expect(authService.getProfile).not.toHaveBeenCalled();
   });
 
-  it('uses the current role instead of the role saved in an old token', async () => {
+  it('uses the current rol instead of the rol saved in an old token', async () => {
     authService.getProfile.mockResolvedValueOnce({
       id: 'user-uuid',
-      email: 'admin@flywise.com',
-      role: 'OPERATOR',
+      correo: 'admin@flywise.com',
+      rol: 'OPERATOR',
     });
     const user = await strategy.validate(
       { headers: { authorization: 'Bearer old.token' } },
-      { sub: 'user-uuid', email: 'admin@flywise.com', role: 'ADMIN' },
+      { sub: 'user-uuid', correo: 'admin@flywise.com', rol: 'ADMIN' },
     );
-    expect(user.role).toBe('OPERATOR');
+    expect(user.rol).toBe('OPERATOR');
   });
 
   it('rejects tokens belonging to deleted accounts', async () => {
@@ -78,28 +78,28 @@ describe('JwtStrategy', () => {
     await expect(
       strategy.validate(
         { headers: { authorization: 'Bearer old.token' } },
-        { sub: 'user-uuid', email: 'admin@flywise.com' },
+        { sub: 'user-uuid', correo: 'admin@flywise.com' },
       ),
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  it('should validate and return user payload when token is active', async () => {
+  it('should validate and return user payload when token is activa', async () => {
     const mockReq = {
       headers: {
-        authorization: 'Bearer active.valid.token',
+        authorization: 'Bearer activa.valid.token',
       },
     };
     const payload = {
       sub: 'user-uuid',
-      email: 'admin@flywise.com',
-      role: 'ADMIN' as const,
+      correo: 'admin@flywise.com',
+      rol: 'ADMIN' as const,
     };
 
     const result = await strategy.validate(mockReq, payload);
     expect(result).toEqual({
       id: 'user-uuid',
-      email: 'admin@flywise.com',
-      role: 'ADMIN',
+      correo: 'admin@flywise.com',
+      rol: 'ADMIN',
     });
   });
 
@@ -112,8 +112,8 @@ describe('JwtStrategy', () => {
     };
     const payload = {
       sub: 'user-uuid',
-      email: 'admin@flywise.com',
-      role: 'ADMIN' as const,
+      correo: 'admin@flywise.com',
+      rol: 'ADMIN' as const,
     };
 
     await expect(strategy.validate(mockReq, payload)).rejects.toThrow(

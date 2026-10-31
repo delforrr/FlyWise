@@ -1,7 +1,7 @@
 import type { ManagedUser } from '../features/users/schemas/userSchemas';
 
 function request(token: string | null, path = '', method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET', body?: object) {
-  return $fetch<unknown>(`/api/users${path}`, {
+  return $fetch<unknown>(`/api/usuarios${path}`, {
     method, body, headers: { Authorization: `Bearer ${token}` },
   });
 }

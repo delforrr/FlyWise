@@ -12,7 +12,7 @@ describe('AirportsController', () => {
 
   const mockAirport = {
     id: 'airport-uuid-1',
-    name: 'Ministro Pistarini',
+    nombre: 'Ministro Pistarini',
     iata: 'EZE',
   };
 
@@ -21,7 +21,7 @@ describe('AirportsController', () => {
       search: jest.fn().mockResolvedValue([mockAirport]),
       findNearby: jest
         .fn()
-        .mockResolvedValue([{ ...mockAirport, distanceKm: 12 }]),
+        .mockResolvedValue([{ ...mockAirport, distanciaKm: 12 }]),
       findByCode: jest.fn().mockResolvedValue(mockAirport),
     };
 

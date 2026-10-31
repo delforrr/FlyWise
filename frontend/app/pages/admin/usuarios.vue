@@ -12,13 +12,13 @@ definePageMeta({
 useSeoMeta({ title: "Usuarios · FlyWise" });
 
 const {
-  users,
+  usuarios,
   currentUser,
   loading,
   saving,
   error,
   search,
-  role,
+  rol,
   filteredUsers,
   load,
   save,
@@ -37,7 +37,7 @@ const pageCount = computed(() =>
 const rows = computed(() =>
   filteredUsers.value.slice((page.value - 1) * pageSize, page.value * pageSize),
 );
-watch([search, role], () => {
+watch([search, rol], () => {
   page.value = 1;
 });
 watch(pageCount, (count) => {
@@ -96,7 +96,7 @@ function formatDate(date?: string) {
 </script>
 
 <template>
-  <div class="users-screen space-y-6">
+  <div class="usuarios-screen space-y-6">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 class="text-2xl font-semibold tracking-tight">Usuarios</h1>
@@ -129,7 +129,7 @@ function formatDate(date?: string) {
             <span
               v-if="!loading && !error"
               class="ml-2 text-sm font-normal text-text-muted tabular-nums"
-              >{{ users.length }} cuentas</span
+              >{{ usuarios.length }} cuentas</span
             >
           </h2>
           <UButton
@@ -152,7 +152,7 @@ function formatDate(date?: string) {
             :disabled="loading"
           />
           <USelect
-            v-model="role"
+            v-model="rol"
             aria-label="Filtrar por rol"
             :items="[
               { label: 'Todos los roles', value: 'all' },
@@ -182,22 +182,22 @@ function formatDate(date?: string) {
         </div>
         <div v-else-if="!rows.length" class="space-y-3 px-5 py-12 text-center">
           <h3 class="text-base font-medium">
-            {{ users.length ? "Sin coincidencias" : "Todavía no hay usuarios" }}
+            {{ usuarios.length ? "Sin coincidencias" : "Todavía no hay usuarios" }}
           </h3>
           <p class="text-sm text-text-muted">
             {{
-              users.length
+              usuarios.length
                 ? "Probá con otro correo o cambiá el rol."
                 : "Creá una cuenta para sumar a tu equipo de operaciones."
             }}
           </p>
           <UButton
-            v-if="users.length"
+            v-if="usuarios.length"
             color="neutral"
             variant="outline"
             @click="
               search = '';
-              role = 'all';
+              rol = 'all';
             "
             >Limpiar filtros</UButton
           >
@@ -238,14 +238,14 @@ function formatDate(date?: string) {
                     <span
                       class="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-accent text-xs font-medium sm:flex"
                       aria-hidden="true"
-                      >{{ user.email.slice(0, 2).toUpperCase() }}</span
+                      >{{ user.correo.slice(0, 2).toUpperCase() }}</span
                     >
                     <div class="min-w-0">
                       <p
                         class="break-all font-medium md:truncate"
-                        :title="user.email"
+                        :title="user.correo"
                       >
-                        {{ user.email }}
+                        {{ user.correo }}
                       </p>
                       <span
                         v-if="user.id === currentUser?.id"
@@ -254,7 +254,7 @@ function formatDate(date?: string) {
                       >
                       <p class="mt-1 text-xs text-text-muted md:hidden">
                         {{
-                          user.role === "ADMIN" ? "Administrador" : "Operador"
+                          user.rol === "ADMIN" ? "Administrador" : "Operador"
                         }}
                       </p>
                     </div>
@@ -263,12 +263,12 @@ function formatDate(date?: string) {
                 <td
                   class="hidden whitespace-nowrap px-3 py-4 text-text-muted md:table-cell"
                 >
-                  {{ user.role === "ADMIN" ? "Administrador" : "Operador" }}
+                  {{ user.rol === "ADMIN" ? "Administrador" : "Operador" }}
                 </td>
                 <td
                   class="hidden whitespace-nowrap px-3 py-4 text-right text-text-muted tabular-nums lg:table-cell"
                 >
-                  {{ formatDate(user.createdAt) }}
+                  {{ formatDate(user.creadoEn) }}
                 </td>
                 <td class="w-24 whitespace-nowrap px-3 py-4">
                   <div class="flex items-center justify-end gap-1">
@@ -276,7 +276,7 @@ function formatDate(date?: string) {
                       color="neutral"
                       variant="ghost"
                       icon="i-lucide-pencil"
-                      :aria-label="`Editar ${user.email}`"
+                      :aria-label="`Editar ${user.correo}`"
                       :disabled="saving"
                       @click="openForm(user)"
                     />
@@ -284,7 +284,7 @@ function formatDate(date?: string) {
                       color="neutral"
                       variant="ghost"
                       icon="i-lucide-trash-2"
-                      :aria-label="`Eliminar ${user.email}`"
+                      :aria-label="`Eliminar ${user.correo}`"
                       :title="
                         user.id === currentUser?.id
                           ? 'No podés eliminar tu propia cuenta'
@@ -381,7 +381,7 @@ function formatDate(date?: string) {
     >
       <template #body>
         <p class="text-sm wrap-break-word">
-          Vas a eliminar la cuenta <strong>{{ deleting?.email }}</strong
+          Vas a eliminar la cuenta <strong>{{ deleting?.correo }}</strong
           >. Para volver a usarla, será necesario crearla otra vez.
         </p>
         <UAlert

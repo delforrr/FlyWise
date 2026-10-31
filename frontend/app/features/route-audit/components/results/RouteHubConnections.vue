@@ -4,7 +4,7 @@ import type { FlightRoute } from "~/types/route";
 
 const props = defineProps<{
   selectedOrigin?: string | null;
-  routes: FlightRoute[];
+  rutas: FlightRoute[];
 }>();
 
 const emit = defineEmits<{
@@ -17,12 +17,12 @@ const activeFilter = ref<FilterType>("all");
 const searchQuery = ref("");
 
 function getConnectedDestination(route: FlightRoute) {
-  const isOrigin = props.selectedOrigin === route.originId;
+  const isOrigin = props.selectedOrigin === route.origenId;
   return {
-    id: isOrigin ? route.destinationId : route.originId,
+    id: isOrigin ? route.destinoId : route.origenId,
     iata: isOrigin ? route.destinationIata : route.originIata,
-    city: isOrigin ? route.destinationCity : route.originCity,
-    name: isOrigin ? route.destinationName : route.originName,
+    ciudad: isOrigin ? route.destinationCity : route.originCity,
+    nombre: isOrigin ? route.destinationName : route.originName,
     hubIata: isOrigin ? route.originIata : route.destinationIata,
   };
 }
@@ -33,11 +33,11 @@ function handleClick(route: FlightRoute) {
 }
 
 const highOtpCount = computed(() => {
-  return props.routes.filter((r) => r.averageOtp15 !== null && r.averageOtp15 > 85).length;
+  return props.rutas.filter((r) => r.averageOtp15 !== null && r.averageOtp15 > 85).length;
 });
 
 const delayedOtpCount = computed(() => {
-  return props.routes.filter((r) => r.averageOtp15 !== null && r.averageOtp15 <= 85).length;
+  return props.rutas.filter((r) => r.averageOtp15 !== null && r.averageOtp15 <= 85).length;
 });
 
 const averageHubOtp = computed(() => {
@@ -46,18 +46,18 @@ const averageHubOtp = computed(() => {
 });
 
 const maxDistanceKm = computed(() => {
-  if (props.routes.length === 0) return 0;
-  return Math.max(...props.routes.map((r) => r.distanceKm));
+  if (props.rutas.length === 0) return 0;
+  return Math.max(...props.rutas.map((r) => r.distanciaKm));
 });
 
-type SortOption = "otp-desc" | "dist-desc" | "dist-asc" | "city-asc";
+type SortOption = "otp-desc" | "dist-desc" | "dist-asc" | "ciudad-asc";
 const sortBy = ref<SortOption>("otp-desc");
 
 const sortOptions = [
   { label: "Mayor Puntualidad", value: "otp-desc" },
   { label: "Mayor Distancia", value: "dist-desc" },
   { label: "Menor Distancia", value: "dist-asc" },
-  { label: "Destino A-Z", value: "city-asc" },
+  { label: "Destino A-Z", value: "ciudad-asc" },
 ];
 
 const filterTabs = computed(() => {
@@ -65,7 +65,7 @@ const filterTabs = computed(() => {
     {
       value: "all",
       label: "Todas",
-      badge: props.routes.length,
+      badge: props.rutas.length,
     },
     {
       value: "high",
@@ -86,7 +86,7 @@ const filterTabs = computed(() => {
 });
 
 const filteredRoutes = computed(() => {
-  let list = props.routes;
+  let list = props.rutas;
 
   if (activeFilter.value === "high") {
     list = list.filter((r) => r.averageOtp15 !== null && r.averageOtp15 > 85);
@@ -100,8 +100,8 @@ const filteredRoutes = computed(() => {
       const dest = getConnectedDestination(r);
       return (
         dest.iata.toLowerCase().includes(query) ||
-        dest.city.toLowerCase().includes(query) ||
-        dest.name.toLowerCase().includes(query) ||
+        dest.ciudad.toLowerCase().includes(query) ||
+        dest.nombre.toLowerCase().includes(query) ||
         r.primaryAirline.toLowerCase().includes(query)
       );
     });
@@ -111,14 +111,14 @@ const filteredRoutes = computed(() => {
   if (sortBy.value === "otp-desc") {
     sorted.sort((a, b) => (b.averageOtp15 ?? -1) - (a.averageOtp15 ?? -1));
   } else if (sortBy.value === "dist-desc") {
-    sorted.sort((a, b) => b.distanceKm - a.distanceKm);
+    sorted.sort((a, b) => b.distanciaKm - a.distanciaKm);
   } else if (sortBy.value === "dist-asc") {
-    sorted.sort((a, b) => a.distanceKm - b.distanceKm);
-  } else if (sortBy.value === "city-asc") {
+    sorted.sort((a, b) => a.distanciaKm - b.distanciaKm);
+  } else if (sortBy.value === "ciudad-asc") {
     sorted.sort((a, b) => {
       const da = getConnectedDestination(a);
       const db = getConnectedDestination(b);
-      return da.city.localeCompare(db.city);
+      return da.ciudad.localeCompare(db.ciudad);
     });
   }
 
@@ -135,7 +135,7 @@ function getAriaLabel(
   route: FlightRoute,
   dest: ReturnType<typeof getConnectedDestination>,
 ): string {
-  return `Ruta hacia ${dest.city} (${dest.iata}), operada por ${route.primaryAirline}. Distancia ${route.distanceKm.toLocaleString()} kilómetros. Puntualidad ${route.averageOtp15 === null ? "sin datos" : `${route.averageOtp15.toFixed(1)}% OTP-15`}. Presione para aislar y seleccionar como destino.`;
+  return `Ruta hacia ${dest.ciudad} (${dest.iata}), operada por ${route.primaryAirline}. Distancia ${route.distanciaKm.toLocaleString()} kilómetros. Puntualidad ${route.averageOtp15 === null ? "sin datos" : `${route.averageOtp15.toFixed(1)}% OTP-15`}. Presione para aislar y seleccionar como destino.`;
 }
 </script>
 
@@ -183,7 +183,7 @@ function getAriaLabel(
         <span
           class="text-xs font-bold font-mono text-primary tabular-nums mt-0.5"
         >
-          {{ routes.length }} rutas
+          {{ rutas.length }} rutas
         </span>
       </UCard>
 
@@ -222,7 +222,7 @@ function getAriaLabel(
             size="xs"
             class="font-mono tabular-nums"
           >
-            {{ filteredRoutes.length }} / {{ routes.length }}
+            {{ filteredRoutes.length }} / {{ rutas.length }}
           </UBadge>
         </div>
 
@@ -300,7 +300,7 @@ function getAriaLabel(
             <span
               class="font-bold text-sm text-text-main group-hover:text-primary transition-colors leading-tight"
             >
-              {{ getConnectedDestination(route).city }}
+              {{ getConnectedDestination(route).ciudad }}
             </span>
           </div>
 
@@ -316,7 +316,7 @@ function getAriaLabel(
 
         <!-- Fila 2: Nombre Completo del Aeropuerto de Destino (sin truncar) -->
         <div
-          v-if="getConnectedDestination(route).name"
+          v-if="getConnectedDestination(route).nombre"
           class="flex items-center gap-1.5 text-xs text-text-dim leading-snug"
         >
           <UIcon
@@ -324,7 +324,7 @@ function getAriaLabel(
             class="w-3.5 h-3.5 text-text-dim shrink-0"
           />
           <span class="font-normal text-text-muted wrap-break-word">
-            {{ getConnectedDestination(route).name }}
+            {{ getConnectedDestination(route).nombre }}
           </span>
         </div>
 
@@ -341,12 +341,12 @@ function getAriaLabel(
             <span class="font-semibold text-text-main">
               {{ route.primaryAirline }}
             </span>
-            <template v-if="route.airlines?.length > 1">
+            <template v-if="route.aerolineas?.length > 1">
               <span
                 class="text-[9px] px-1.5 py-0.5 rounded bg-surface-accent text-text-dim border border-border-subtle/50 font-sans"
               >
-                +{{ route.airlines.length - 1 }} aerolínea{{
-                  route.airlines.length > 2 ? "s" : ""
+                +{{ route.aerolineas.length - 1 }} aerolínea{{
+                  route.aerolineas.length > 2 ? "s" : ""
                 }}
               </span>
             </template>
@@ -360,7 +360,7 @@ function getAriaLabel(
               name="i-lucide-milestone"
               class="w-3.5 h-3.5 text-text-dim shrink-0"
             />
-            <span>{{ route.distanceKm.toLocaleString() }} km</span>
+            <span>{{ route.distanciaKm.toLocaleString() }} km</span>
           </div>
         </div>
       </button>

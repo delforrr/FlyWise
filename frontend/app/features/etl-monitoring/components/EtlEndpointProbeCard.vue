@@ -6,7 +6,7 @@ import type {
 } from "../types/etl";
 
 interface Props {
-  connection: PipelineConnectionConfig;
+  conexion: PipelineConnectionConfig;
   probeResult: ProbeEndpointResult | null;
   isLoading: boolean;
 }
@@ -14,7 +14,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: "test-connection"): void;
+  (e: "test-conexion"): void;
   (e: "apply-detected-columns", columns: string[]): void;
 }>();
 
@@ -22,7 +22,7 @@ const isCopied = ref(false);
 
 async function copyEndpointUrl() {
   if (typeof navigator !== "undefined" && navigator.clipboard) {
-    await navigator.clipboard.writeText(props.connection.endpointUrl);
+    await navigator.clipboard.writeText(props.conexion.urlEndpoint);
     isCopied.value = true;
     setTimeout(() => {
       isCopied.value = false;
@@ -62,7 +62,7 @@ async function copyEndpointUrl() {
         :loading="isLoading"
         icon="i-lucide-zap"
         class="cursor-pointer font-bold text-xs text-white shrink-0"
-        @click="emit('test-connection')"
+        @click="emit('test-conexion')"
       >
         {{ isLoading ? "Verificando..." : "Probar Conexión" }}
       </UButton>
@@ -74,18 +74,18 @@ async function copyEndpointUrl() {
     >
       <div class="flex items-center gap-2 min-w-0">
         <UBadge color="neutral" variant="outline" size="xs" class="font-bold">
-          {{ connection.httpMethod }}
+          {{ conexion.metodoHttp }}
         </UBadge>
         <span
           class="text-text-main truncate"
-          :title="connection.endpointUrl || 'Sin endpoint configurado'"
+          :title="conexion.urlEndpoint || 'Sin endpoint configurado'"
         >
-          {{ connection.endpointUrl || "https://..." }}
+          {{ conexion.urlEndpoint || "https://..." }}
         </span>
       </div>
 
       <UButton
-        v-if="connection.endpointUrl"
+        v-if="conexion.urlEndpoint"
         size="xs"
         variant="ghost"
         color="neutral"
@@ -189,7 +189,7 @@ async function copyEndpointUrl() {
           </span>
         </div>
         <p class="text-xs text-text-muted pl-6">
-          {{ probeResult.errorMessage || "No se pudo establecer comunicación con el endpoint." }}
+          {{ probeResult.mensajeError || "No se pudo establecer comunicación con el endpoint." }}
         </p>
       </div>
 

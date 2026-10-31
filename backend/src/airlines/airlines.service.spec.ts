@@ -11,32 +11,34 @@ describe('AirlinesService', () => {
   let service: AirlinesService;
   let prismaService: {
     models: {
-      Airline: ReturnType<typeof mockCollection>;
-      Airport: ReturnType<typeof mockCollection>;
-      Country: ReturnType<typeof mockCollection>;
+      Aerolinea: ReturnType<typeof mockCollection>;
+      Aeropuerto: ReturnType<typeof mockCollection>;
+      Pais: ReturnType<typeof mockCollection>;
     };
     db: ReturnType<typeof mockDatabase>;
   };
 
   const mockAirline = {
-    id: 'airline-uuid-1',
-    name: 'Aerolineas Argentinas',
+    id: 'aerolinea-uuid-1',
+    nombre: 'Aerolineas Argentinas',
     iata: 'AR',
     icao: 'ARG',
-    active: true,
+    activa: true,
   };
 
   beforeEach(async () => {
     prismaService = {
       models: {
-        Airline: mockCollection(),
-        Airport: mockCollection(),
-        Country: mockCollection(),
+        Aerolinea: mockCollection(),
+        Aeropuerto: mockCollection(),
+        Pais: mockCollection(),
       },
       db: mockDatabase(),
     };
-    prismaService.models.Airline.all.mockResolvedValue([mockAirline]);
-    prismaService.models.Airline.aggregate.mockResolvedValue({ totalItems: 1 });
+    prismaService.models.Aerolinea.all.mockResolvedValue([mockAirline]);
+    prismaService.models.Aerolinea.aggregate.mockResolvedValue({
+      totalItems: 1,
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -56,25 +58,25 @@ describe('AirlinesService', () => {
   });
 
   describe('findAll', () => {
-    it('should return paginated airlines', async () => {
+    it('should return paginated aerolineas', async () => {
       const res = await service.findAll({ page: 1, limit: 10 });
-      expect(prismaService.models.Airline.all).toHaveBeenCalled();
-      expect(prismaService.models.Airline.aggregate).toHaveBeenCalled();
+      expect(prismaService.models.Aerolinea.all).toHaveBeenCalled();
+      expect(prismaService.models.Aerolinea.aggregate).toHaveBeenCalled();
       expect(res.data).toEqual([mockAirline]);
       expect(res.pagination.totalItems).toBe(1);
     });
   });
 
   describe('findByCode', () => {
-    it('should return airline by IATA code', async () => {
-      prismaService.models.Airline.all.mockResolvedValue([mockAirline]);
+    it('should return aerolinea by IATA code', async () => {
+      prismaService.models.Aerolinea.all.mockResolvedValue([mockAirline]);
       const res = await service.findByCode('AR');
-      expect(prismaService.models.Airline.all).toHaveBeenCalled();
+      expect(prismaService.models.Aerolinea.all).toHaveBeenCalled();
       expect(res).toEqual(mockAirline);
     });
 
-    it('should throw NotFoundException if airline is not found', async () => {
-      prismaService.models.Airline.all.mockResolvedValue([]);
+    it('should throw NotFoundException if aerolinea is not found', async () => {
+      prismaService.models.Aerolinea.all.mockResolvedValue([]);
       await expect(service.findByCode('XX')).rejects.toThrow(NotFoundException);
     });
   });

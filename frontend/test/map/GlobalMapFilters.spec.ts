@@ -7,10 +7,10 @@ import { useGlobalMap } from '../../app/features/flight-map/composables/useGloba
 const modal = defineComponent({ props: ['open'], template: '<div v-if="open"><slot name="body"/><slot name="footer"/></div>' });
 const button = defineComponent({ props: ['label', 'disabled'], template: '<button :disabled="disabled">{{ label }}</button>' });
 const menu = defineComponent({ name: 'CountryPicker', props: ['modelValue', 'items'], emits: ['update:modelValue'], template: '<div />' });
-const field = defineComponent({ template: '<div><slot /></div>' });
+const campo = defineComponent({ template: '<div><slot /></div>' });
 function render() {
   vi.stubGlobal('useGlobalMap', useGlobalMap);
-  return mount(GlobalMapFilters, { global: { stubs: { UModal: modal, UFormField: field, USelectMenu: menu, UButton: button, UIcon: true } } });
+  return mount(GlobalMapFilters, { global: { stubs: { UModal: modal, UFormField: campo, USelectMenu: menu, UButton: button, UIcon: true } } });
 }
 
 describe('Global map filter draft', () => {
@@ -24,10 +24,10 @@ describe('Global map filter draft', () => {
     expect((wrapper.get('input[name="map-limit"][value="50"]').element as HTMLInputElement).checked).toBe(true);
     wrapper.unmount();
   });
-  it('requires different countries and emits only the active mode fields', async () => {
+  it('requires different paises and emits only the activa mode fields', async () => {
     const state = useGlobalMap(); state.isOpen.value = true;
     const wrapper = render();
-    await wrapper.get('input[name="map-zone"][value="countries"]').setValue();
+    await wrapper.get('input[name="map-zone"][value="paises"]').setValue();
     const apply = () => wrapper.findAll('button').find(b => b.text() === 'Aplicar filtros')!;
     expect(apply().attributes('disabled')).toBeDefined();
     wrapper.findAllComponents(menu)[0]!.vm.$emit('update:modelValue', 'ar');
@@ -35,7 +35,7 @@ describe('Global map filter draft', () => {
     expect(apply().attributes('disabled')).toBeDefined();
     wrapper.findAllComponents(menu)[1]!.vm.$emit('update:modelValue', 'es'); await nextTick();
     await apply().trigger('click');
-    expect(wrapper.emitted('apply')?.[0]).toEqual([{ mode: 'countries', limit: 50, originCountryId: 'ar', destinationCountryId: 'es' }]);
+    expect(wrapper.emitted('apply')?.[0]).toEqual([{ mode: 'paises', limit: 50, paisOrigenId: 'ar', paisDestinoId: 'es' }]);
     await wrapper.get('input[name="map-zone"][value="global"]').setValue(); await apply().trigger('click');
     expect(wrapper.emitted('apply')?.[1]).toEqual([{ mode: 'global', limit: 50 }]);
     wrapper.unmount();
@@ -51,7 +51,7 @@ describe('Global map filter draft', () => {
     await wrapper.get('input[name="map-limit"][value="20"]').setValue();
     expect(wrapper.get('#map-limit-help').text()).toContain('Hasta 20 conexiones');
     await apply.trigger('click');
-    expect(wrapper.emitted('apply')?.[0]).toEqual([{ mode: 'domestic', limit: 20, originCountryId: 'ar' }]);
+    expect(wrapper.emitted('apply')?.[0]).toEqual([{ mode: 'domestic', limit: 20, paisOrigenId: 'ar' }]);
     wrapper.unmount();
   });
   it('requires distinct continents before applying', async () => {
@@ -65,7 +65,7 @@ describe('Global map filter draft', () => {
     expect(apply.attributes('disabled')).toBeDefined();
     pickers[1]!.vm.$emit('update:modelValue', 'EU'); await nextTick();
     await apply.trigger('click');
-    expect(wrapper.emitted('apply')?.[0]).toEqual([{ mode: 'continents', limit: 50, originContinent: 'SA', destinationContinent: 'EU' }]);
+    expect(wrapper.emitted('apply')?.[0]).toEqual([{ mode: 'continents', limit: 50, continenteOrigen: 'SA', continenteDestino: 'EU' }]);
     wrapper.unmount();
   });
 });

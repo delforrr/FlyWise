@@ -230,7 +230,7 @@ describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáutica
 
       // Hub con rutas conectadas en matchingRoutes (mock)
       mockFlightSelection.matchingRoutes.value = [
-        { originId: "EZE", destinationId: "MIA", originIata: "EZE", destinationIata: "MIA", originCoordinates: [-58, -34], destinationCoordinates: [-80, 25] },
+        { origenId: "EZE", destinoId: "MIA", originIata: "EZE", destinationIata: "MIA", originCoordinates: [-58, -34], destinationCoordinates: [-80, 25] },
       ] as any;
       flightMap.fitHub("EZE");
       expect(mockFitBounds).toHaveBeenCalled();

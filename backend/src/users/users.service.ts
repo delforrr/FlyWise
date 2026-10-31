@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { User } from './interfaces/users.interface.js';
+import { Usuario } from './interfaces/users.interface.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UserDto } from './dto/user.dto.js';
@@ -18,29 +18,31 @@ export class UsersService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private get users() {
-    return this.prisma.models.User.select('id', 'email', 'role', 'createdAt');
+  private get usuarios() {
+    return this.prisma.models.Usuario.select('id', 'correo', 'rol', 'creadoEn');
   }
 
   public async getUsers(): Promise<UserDto[]> {
-    const users = await this.users
-      .orderBy((user) => user.createdAt.desc())
+    const usuarios = await this.usuarios
+      .orderBy((user) => user.creadoEn.desc())
       .all();
-    return users.map((user) => this.toDto(user));
+    return usuarios.map((user) => this.toDto(user));
   }
 
   public async getUserById(id: string): Promise<UserDto> {
     try {
-      return this.toDto(await this.users.firstOrThrow({ id }));
+      return this.toDto(await this.usuarios.firstOrThrow({ id }));
     } catch (error) {
       this.rethrowPersistenceError(error);
     }
   }
 
-  public async getUserByEmail(email: string): Promise<UserDto> {
+  public async getUserByEmail(correo: string): Promise<UserDto> {
     try {
       return this.toDto(
-        await this.users.firstOrThrow({ email: email.trim().toLowerCase() }),
+        await this.usuarios.firstOrThrow({
+          correo: correo.trim().toLowerCase(),
+        }),
       );
     } catch (error) {
       this.rethrowPersistenceError(error);
@@ -48,13 +50,13 @@ export class UsersService {
   }
 
   public async createUser(userDto: CreateUserDto): Promise<UserDto> {
-    const normalizedEmail = userDto.email.trim().toLowerCase();
-    const passwordHash = await bcrypt.hash(userDto.password, 10);
+    const normalizedEmail = userDto.correo.trim().toLowerCase();
+    const hashContrasena = await bcrypt.hash(userDto.password, 10);
     try {
-      const created = await this.users.create({
-        email: normalizedEmail,
-        passwordHash,
-        role: userDto.role ?? 'OPERATOR',
+      const created = await this.usuarios.create({
+        correo: normalizedEmail,
+        hashContrasena,
+        rol: userDto.rol ?? 'OPERATOR',
       });
       this.logger.log(`Se creó el usuario con id ${created.id}`);
       return this.toDto(created);
@@ -67,13 +69,14 @@ export class UsersService {
     id: string,
     updateData: UpdateUserDto,
   ): Promise<UserDto> {
-    const data: Partial<Pick<User, 'email' | 'passwordHash' | 'role'>> = {};
-    if (updateData.email) data.email = updateData.email.trim().toLowerCase();
+    const data: Partial<Pick<Usuario, 'correo' | 'hashContrasena' | 'rol'>> =
+      {};
+    if (updateData.correo) data.correo = updateData.correo.trim().toLowerCase();
     if (updateData.password)
-      data.passwordHash = await bcrypt.hash(updateData.password, 10);
-    if (updateData.role) data.role = updateData.role;
+      data.hashContrasena = await bcrypt.hash(updateData.password, 10);
+    if (updateData.rol) data.rol = updateData.rol;
     try {
-      const updated = await this.users.where({ id }).update(data);
+      const updated = await this.usuarios.where({ id }).update(data);
       if (!updated) throw new NotFoundException('El usuario no existe');
       this.logger.log(`Usuario con id ${id} actualizado`);
       return this.toDto(updated);
@@ -84,7 +87,7 @@ export class UsersService {
 
   public async deleteUser(id: string): Promise<void> {
     try {
-      const deleted = await this.prisma.models.User.where({ id }).delete();
+      const deleted = await this.prisma.models.Usuario.where({ id }).delete();
       if (!deleted) throw new NotFoundException('El usuario no existe');
       this.logger.log(`Se eliminó el usuario con id ${id}`);
     } catch (error) {
@@ -92,14 +95,16 @@ export class UsersService {
     }
   }
 
-  public findByEmail(email: string): Promise<User | null> {
-    return this.prisma.models.User.first({ email: email.trim().toLowerCase() });
+  public findByEmail(correo: string): Promise<Usuario | null> {
+    return this.prisma.models.Usuario.first({
+      correo: correo.trim().toLowerCase(),
+    });
   }
 
   private toDto(
-    user: Pick<User, 'id' | 'email' | 'role' | 'createdAt'>,
+    user: Pick<Usuario, 'id' | 'correo' | 'rol' | 'creadoEn'>,
   ): UserDto {
-    return { ...user, createdAt: timestampToDate(user.createdAt) };
+    return { ...user, creadoEn: timestampToDate(user.creadoEn) };
   }
 
   private rethrowPersistenceError(error: unknown): never {

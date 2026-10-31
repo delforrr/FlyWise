@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import AirportTooltipContent from "../../app/features/flight-map/components/tooltips/AirportTooltipContent.vue";
 import RouteTooltipContent from "../../app/features/flight-map/components/tooltips/RouteTooltipContent.vue";
 import ControlButton from "../../app/features/flight-map/components/controls/ControlButton.vue";
-import type { Airport } from "../../app/types/airport";
+import type { Aeropuerto } from "../../app/types/airport";
 import type { FlightRoute } from "../../app/types/route";
 
 const UBadgeStub = {
@@ -15,7 +15,7 @@ const UBadgeStub = {
 const UIconStub = {
   name: "UIcon",
   props: ["name"],
-  template: '<i class="u-icon-stub" :data-icon="name" />',
+  template: '<i class="u-icon-stub" :data-icon="nombre" />',
 };
 
 const OtpBadgeStub = {
@@ -45,17 +45,17 @@ if (typeof (globalThis as any).useFlightMap === "undefined") {
 
 describe("Map Tooltips — Componentes Visuales del Mapa Aeronáutico", () => {
   describe("AirportTooltipContent.vue — Ficha Táctica de Aeropuerto", () => {
-    const mockLargeAirport: Airport = {
+    const mockLargeAirport: Aeropuerto = {
       id: "eze-01",
       iata: "EZE",
       icao: "SAEZ",
-      name: "Ministro Pistarini International Airport",
-      city: "Buenos Aires",
-      country: "Argentina",
-      coordinates: [-58.5358, -34.8222],
+      nombre: "Ministro Pistarini International Aeropuerto",
+      ciudad: "Buenos Aires",
+      pais: "Argentina",
+      coordenadas: [-58.5358, -34.8222],
       type: "large_airport",
       elevation: 67,
-      connectionsCount: 42,
+      cantidadConexiones: 42,
     };
 
     it("renderiza IATA, OACI y categoriza como 'HUB INTERNACIONAL' para large_airport", () => {
@@ -67,12 +67,12 @@ describe("Map Tooltips — Componentes Visuales del Mapa Aeronáutico", () => {
       expect(wrapper.text()).toContain("EZE");
       expect(wrapper.text()).toContain("(SAEZ)");
       expect(wrapper.text()).toContain("HUB INTERNACIONAL");
-      expect(wrapper.text()).toContain("Ministro Pistarini International Airport");
+      expect(wrapper.text()).toContain("Ministro Pistarini International Aeropuerto");
       expect(wrapper.text()).toContain("Buenos Aires, Argentina");
     });
 
     it("clasifica como 'REGIONAL' para medium_airport y 'AEROPUERTO' para otros tipos", () => {
-      const mediumAirport: Airport = {
+      const mediumAirport: Aeropuerto = {
         ...mockLargeAirport,
         type: "medium_airport",
       };
@@ -82,7 +82,7 @@ describe("Map Tooltips — Componentes Visuales del Mapa Aeronáutico", () => {
       });
       expect(wrapperMedium.text()).toContain("REGIONAL");
 
-      const smallAirport: Airport = {
+      const smallAirport: Aeropuerto = {
         ...mockLargeAirport,
         type: "small_airport",
       };
@@ -118,21 +118,21 @@ describe("Map Tooltips — Componentes Visuales del Mapa Aeronáutico", () => {
     const mockRoute: FlightRoute = {
       id: "R-EZE-MIA",
       originIata: "EZE",
-      originName: "Ministro Pistarini Int. Airport",
+      originName: "Ministro Pistarini Int. Aeropuerto",
       originCity: "Buenos Aires",
       originCoordinates: [-58.5358, -34.8222],
       destinationIata: "MIA",
-      destinationName: "Miami International Airport",
+      destinationName: "Miami International Aeropuerto",
       destinationCity: "Miami",
       destinationCoordinates: [-80.2906, 25.7959],
-      distanceKm: 7100,
+      distanciaKm: 7100,
       averageOtp15: 88.5,
       primaryAirline: "Aerolíneas Argentinas",
       flightType: "direct",
-      airlines: [
+      aerolineas: [
         {
-          airlineCode: "AR",
-          airlineName: "Aerolíneas Argentinas",
+          codigoAerolinea: "AR",
+          nombreAerolinea: "Aerolíneas Argentinas",
           otp15: 88.5,
           avgDelayMinutes: 11,
           cancellationRate: 0.8,

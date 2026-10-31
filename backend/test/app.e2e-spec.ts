@@ -27,11 +27,11 @@ describe('AppController (e2e)', () => {
 
   it('/health (GET) sends the response without setting headers twice', async () => {
     const response = await request(app.getHttpServer())
-      .get('/health')
+      .get('/salud')
       .expect(200);
     expect(response.body).toEqual(
       expect.objectContaining({
-        status: 'ok',
+        estado: 'ok',
         services: { database: 'up', redis: 'up' },
       }),
     );

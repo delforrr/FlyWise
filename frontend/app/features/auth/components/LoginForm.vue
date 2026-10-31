@@ -15,7 +15,7 @@ const { login, isLoading, error } = useAuth();
 
 const fields: AuthFormField[] = [
   {
-    name: "email",
+    name: "correo",
     type: "email",
     label: "Correo Electrónico",
     placeholder: "admin@flywise.aero",
@@ -41,7 +41,7 @@ const fields: AuthFormField[] = [
 ];
 
 const schema = z.object({
-  email: z.email("Formato de correo electrónico inválido"),
+  correo: z.email("Formato de correo electrónico inválido"),
   password: z
     .string()
     .min(1, "La contraseña es requerida")
@@ -52,7 +52,7 @@ const schema = z.object({
 type Schema = z.output<typeof schema>;
 
 async function onSubmit({ data }: FormSubmitEvent<Schema>) {
-  await login({ email: data.email, password: data.password, remember: data.remember ?? false });
+  await login({ correo: data.correo, password: data.password, remember: data.remember ?? false });
 }
 </script>
 

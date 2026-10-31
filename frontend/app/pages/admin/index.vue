@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {
-  EtlPipeline,
+  ProcesoEtl,
   TriggerSyncOptions,
 } from "~/features/etl-monitoring/types/etl";
 
@@ -30,16 +30,16 @@ const {
 
 // Estado de modales
 const isTriggerModalOpen = ref(false);
-const activePipelineForTrigger = ref<EtlPipeline | null>(null);
+const activePipelineForTrigger = ref<ProcesoEtl | null>(null);
 
 const isDiscardedModalOpen = ref(false);
-const activePipelineForDiscarded = ref<EtlPipeline | null>(null);
+const activePipelineForDiscarded = ref<ProcesoEtl | null>(null);
 
 const isDetailModalOpen = ref(false);
-const activePipelineForDetail = ref<EtlPipeline | null>(null);
+const activePipelineForDetail = ref<ProcesoEtl | null>(null);
 
-function openTriggerModal(pipeline: EtlPipeline) {
-  activePipelineForTrigger.value = pipeline;
+function openTriggerModal(proceso: ProcesoEtl) {
+  activePipelineForTrigger.value = proceso;
   isTriggerModalOpen.value = true;
 }
 
@@ -48,25 +48,25 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
   isTriggerModalOpen.value = false;
 }
 
-async function openDiscardedModal(pipeline: EtlPipeline) {
-  await loadSamples(pipeline);
-  activePipelineForDiscarded.value = pipeline;
+async function openDiscardedModal(proceso: ProcesoEtl) {
+  await loadSamples(proceso);
+  activePipelineForDiscarded.value = proceso;
   isDiscardedModalOpen.value = true;
 }
 
-function openDetailModal(pipeline: EtlPipeline) {
-  activePipelineForDetail.value = pipeline;
+function openDetailModal(proceso: ProcesoEtl) {
+  activePipelineForDetail.value = proceso;
   isDetailModalOpen.value = true;
 }
 
-function handleDetailViewDiscarded(pipeline: EtlPipeline) {
+function handleDetailViewDiscarded(proceso: ProcesoEtl) {
   isDetailModalOpen.value = false;
-  openDiscardedModal(pipeline);
+  openDiscardedModal(proceso);
 }
 
-function handleDetailTriggerSync(pipeline: EtlPipeline) {
+function handleDetailTriggerSync(proceso: ProcesoEtl) {
   isDetailModalOpen.value = false;
-  openTriggerModal(pipeline);
+  openTriggerModal(proceso);
 }
 
 function handleRetryDiscarded() {
@@ -81,7 +81,7 @@ function handleRetryDiscarded() {
   <div class="space-y-8">
     <!-- 1. KPIs Globales de Salud y Controles Maestros -->
     <EtlHeaderMetrics
-      :metrics="globalMetrics"
+      :metricas="globalMetrics"
       @sync-all="syncAll"
       @pause-all="pauseAll"
     />
@@ -137,7 +137,7 @@ function handleRetryDiscarded() {
     <!-- Modales Operativos -->
     <EtlPipelineDetailModal
       :is-open="isDetailModalOpen"
-      :pipeline="activePipelineForDetail"
+      :proceso="activePipelineForDetail"
       @close="isDetailModalOpen = false"
       @trigger-sync="handleDetailTriggerSync"
       @pause="pausePipeline"
@@ -147,14 +147,14 @@ function handleRetryDiscarded() {
 
     <EtlTriggerModal
       :is-open="isTriggerModalOpen"
-      :pipeline="activePipelineForTrigger"
+      :proceso="activePipelineForTrigger"
       @close="isTriggerModalOpen = false"
       @confirm="handleConfirmTrigger"
     />
 
     <EtlDiscardedModal
       :is-open="isDiscardedModalOpen"
-      :pipeline="activePipelineForDiscarded"
+      :proceso="activePipelineForDiscarded"
       @close="isDiscardedModalOpen = false"
       @retry-all="handleRetryDiscarded"
     />

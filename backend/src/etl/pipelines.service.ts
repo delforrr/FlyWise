@@ -10,7 +10,7 @@ import {
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, defaultRepeatStrategy } from 'bullmq';
 import { Transform } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
+import { pipeline as proceso } from 'node:stream/promises';
 import csv from 'csv-parser';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -28,7 +28,7 @@ import {
   validateSourceUrl,
 } from './http-source.js';
 import { timestampToDate } from '../prisma/timestamp.js';
-import { OPENFLIGHTS_COLUMNS } from './catalog.js';
+import { OPENFLIGHTS_COLUMNS, OPENFLIGHTS_FILES } from './catalog.js';
 import type { PipelineConfiguration } from './interfaces/pipeline-configuration.js';
 
 const now = () => new Date().toISOString().replace('T', ' ').replace('Z', '');
@@ -44,42 +44,42 @@ export class PipelinesService implements OnModuleInit {
   async onModuleInit() {
     await this.queue.setGlobalConcurrency(1);
     const defaults = (
-      ['countries', 'airports', 'airlines', 'routes'] as const
+      ['paises', 'aeropuertos', 'aerolineas', 'rutas'] as const
     ).map((dataset, index) => ({
       id: `00000000-0000-4000-8000-00000000000${index + 1}`,
-      name: `OpenFlights: ${dataset}`,
-      datasetName: dataset,
-      description:
+      nombre: `OpenFlights: ${dataset}`,
+      nombreConjunto: dataset,
+      descripcion:
         'Catálogo OpenFlights; rutas históricas, sin información OTP.',
-      targetEntity: dataset,
-      isSystem: true,
-      paused: false,
-      connection: {
-        sourceType: 'http_stream',
-        endpointUrl: `https://raw.githubusercontent.com/jpatokal/openflights/master/data/${dataset}.dat`,
-        httpMethod: 'GET',
-        dataFormat: 'csv',
-        csvHasHeader: false,
-        csvDelimiter: ',',
+      entidadDestino: dataset,
+      esSistema: true,
+      pausado: false,
+      conexion: {
+        tipoFuente: 'http_stream',
+        urlEndpoint: `https://raw.githubusercontent.com/jpatokal/openflights/master/data/${OPENFLIGHTS_FILES[dataset]}`,
+        metodoHttp: 'GET',
+        formatoDatos: 'csv',
+        csvConCabecera: false,
+        separadorCsv: ',',
       },
-      schemaMapping: OPENFLIGHTS_COLUMNS[dataset].flatMap(
-        (targetField, position) =>
-          targetField.startsWith('_')
+      mapeoEsquema: OPENFLIGHTS_COLUMNS[dataset].flatMap(
+        (campoDestino, position) =>
+          campoDestino.startsWith('_')
             ? []
-            : [{ sourceColumn: String(position), targetField }],
+            : [{ columnaOrigen: String(position), campoDestino }],
       ),
-      scheduleConfig: {
-        cronExpression: '',
-        batchSize: 2000,
-        timeoutSeconds: 300,
-        maxRetries: 2,
+      configuracionProgramacion: {
+        expresionCron: '',
+        tamanoLote: 2000,
+        tiempoLimiteSegundos: 300,
+        maximoReintentos: 2,
       },
     }));
-    await this.prisma.models.EtlPipeline.createAndCount(defaults, {
+    await this.prisma.models.ProcesoEtl.createAndCount(defaults, {
       onConflict: 'skip',
     });
     // Reconcile schedulers after a crash between the database write and Redis update.
-    for await (const row of this.prisma.models.EtlPipeline.limit(1000).all()) {
+    for await (const row of this.prisma.models.ProcesoEtl.limit(1000).all()) {
       try {
         await this.schedule(row);
       } catch (error) {
@@ -93,22 +93,22 @@ export class PipelinesService implements OnModuleInit {
   }
 
   list() {
-    return this.prisma.models.EtlPipeline.where({ archivedAt: null })
-      .orderBy((p) => p.createdAt.desc())
+    return this.prisma.models.ProcesoEtl.where({ archivadoEn: null })
+      .orderBy((p) => p.creadoEn.desc())
       .limit(1000)
       .all();
   }
 
   private async find(id: string) {
-    const row = await this.prisma.models.EtlPipeline.where({
+    const row = await this.prisma.models.ProcesoEtl.where({
       id,
-      archivedAt: null,
+      archivadoEn: null,
     }).first();
     if (!row) throw new NotFoundException('Pipeline no encontrado');
     return row;
   }
 
-  async validateConfiguration(source: string, configuration: unknown) {
+  async validateConfiguration(fuente: string, configuration: unknown) {
     if (
       !configuration ||
       typeof configuration !== 'object' ||
@@ -120,52 +120,56 @@ export class PipelinesService implements OnModuleInit {
       whitelist: true,
       forbidNonWhitelisted: true,
     }).transform(
-      { ...configuration, targetEntity: source },
+      { ...configuration, entidadDestino: fuente },
       { type: 'body', metatype: PipelineExecutionDto },
     )) as PipelineExecutionDto;
     this.validate(dto);
     return {
-      connection: dto.connection,
-      schemaMapping: dto.schemaMapping,
-      scheduleConfig: dto.scheduleConfig,
+      conexion: dto.conexion,
+      mapeoEsquema: dto.mapeoEsquema,
+      configuracionProgramacion: dto.configuracionProgramacion,
     };
   }
 
   private validate(dto: PipelineExecutionDto) {
-    validateSourceUrl(dto.connection.endpointUrl);
-    sourceHeaders(dto.connection);
-    const fields = dto.schemaMapping.map((rule) => rule.targetField);
+    validateSourceUrl(dto.conexion.urlEndpoint);
+    sourceHeaders(dto.conexion);
+    const fields = dto.mapeoEsquema.map((rule) => rule.campoDestino);
     if (
       new Set(fields).size !== fields.length ||
-      fields.some((field) => !CATALOG_FIELDS[dto.targetEntity].includes(field))
+      fields.some(
+        (campo) => !CATALOG_FIELDS[dto.entidadDestino].includes(campo),
+      )
     )
       throw new BadRequestException(
         'Mapeo duplicado o campo de destino desconocido',
       );
     const required: Record<CatalogTarget, string[]> = {
-      countries: ['name'],
-      airports: ['openflightsId', 'name', 'latitude', 'longitude'],
-      airlines: ['openflightsId', 'name'],
-      routes: ['stops'],
+      paises: ['nombre'],
+      aeropuertos: ['idOpenflights', 'nombre', 'latitud', 'longitud'],
+      aerolineas: ['idOpenflights', 'nombre'],
+      rutas: ['escalas'],
     };
-    if (required[dto.targetEntity].some((field) => !fields.includes(field)))
+    if (required[dto.entidadDestino].some((campo) => !fields.includes(campo)))
       throw new BadRequestException(
         'El mapeo no cubre los campos obligatorios del destino',
       );
     if (
-      dto.targetEntity === 'routes' &&
-      (!fields.some((f) => ['originCode', 'originOpenflightsId'].includes(f)) ||
+      dto.entidadDestino === 'rutas' &&
+      (!fields.some((f) =>
+        ['codigoOrigen', 'idOpenflightsOrigen'].includes(f),
+      ) ||
         !fields.some((f) =>
-          ['destinationCode', 'destinationOpenflightsId'].includes(f),
+          ['codigoDestino', 'idOpenflightsDestino'].includes(f),
         ))
     )
       throw new BadRequestException(
         'El mapeo debe identificar origen y destino',
       );
-    if (dto.scheduleConfig.cronExpression) {
+    if (dto.configuracionProgramacion.expresionCron) {
       try {
         defaultRepeatStrategy(Date.now(), {
-          pattern: dto.scheduleConfig.cronExpression,
+          pattern: dto.configuracionProgramacion.expresionCron,
           tz: 'UTC',
         });
       } catch {
@@ -176,31 +180,29 @@ export class PipelinesService implements OnModuleInit {
 
   private async schedule(row: {
     id: string;
-    paused: boolean;
-    archivedAt: string | null;
-    scheduleConfig: unknown;
-    targetEntity: string;
-    connection: unknown;
-    schemaMapping: unknown;
+    pausado: boolean;
+    archivadoEn: string | null;
+    configuracionProgramacion: unknown;
+    entidadDestino: string;
+    conexion: unknown;
+    mapeoEsquema: unknown;
   }) {
-    if (row.paused || row.archivedAt) {
+    if (row.pausado || row.archivadoEn) {
       await this.queue.removeJobScheduler(row.id);
       return;
     }
-    const { scheduleConfig: config } = await this.validateConfiguration(
-      row.targetEntity,
-      {
-        connection: row.connection,
-        schemaMapping: row.schemaMapping,
-        scheduleConfig: row.scheduleConfig,
-      },
-    );
-    if (!config.cronExpression) {
+    const { configuracionProgramacion: config } =
+      await this.validateConfiguration(row.entidadDestino, {
+        conexion: row.conexion,
+        mapeoEsquema: row.mapeoEsquema,
+        configuracionProgramacion: row.configuracionProgramacion,
+      });
+    if (!config.expresionCron) {
       await this.queue.removeJobScheduler(row.id);
     } else {
       await this.queue.upsertJobScheduler(
         row.id,
-        { pattern: config.cronExpression, tz: 'UTC' },
+        { pattern: config.expresionCron, tz: 'UTC' },
         { name: 'scheduled-pipeline', data: { pipelineId: row.id } },
       );
     }
@@ -208,15 +210,15 @@ export class PipelinesService implements OnModuleInit {
 
   async create(dto: CreatePipelineDto) {
     this.validate(dto);
-    const row = await this.prisma.models.EtlPipeline.create({
+    const row = await this.prisma.models.ProcesoEtl.create({
       ...dto,
-      description: dto.description ?? '',
-      connection: {
-        ...dto.connection,
-        headers: dto.connection.headers?.map((h) => ({ ...h })) ?? [],
+      descripcion: dto.descripcion ?? '',
+      conexion: {
+        ...dto.conexion,
+        headers: dto.conexion.headers?.map((h) => ({ ...h })) ?? [],
       },
-      schemaMapping: dto.schemaMapping.map((r) => ({ ...r })),
-      scheduleConfig: { ...dto.scheduleConfig },
+      mapeoEsquema: dto.mapeoEsquema.map((r) => ({ ...r })),
+      configuracionProgramacion: { ...dto.configuracionProgramacion },
     });
     await this.schedule(row);
     return row;
@@ -230,27 +232,27 @@ export class PipelinesService implements OnModuleInit {
       forbidNonWhitelisted: true,
     }).transform(
       {
-        name: row.name,
-        datasetName: row.datasetName,
-        description: row.description,
-        targetEntity: row.targetEntity,
-        paused: row.paused,
-        connection: row.connection,
-        schemaMapping: row.schemaMapping,
-        scheduleConfig: row.scheduleConfig,
+        nombre: row.nombre,
+        nombreConjunto: row.nombreConjunto,
+        descripcion: row.descripcion,
+        entidadDestino: row.entidadDestino,
+        pausado: row.pausado,
+        conexion: row.conexion,
+        mapeoEsquema: row.mapeoEsquema,
+        configuracionProgramacion: row.configuracionProgramacion,
         ...patch,
       },
       { type: 'body', metatype: CreatePipelineDto },
     )) as CreatePipelineDto;
     this.validate(dto);
-    const saved = await this.prisma.models.EtlPipeline.where({ id }).update({
+    const saved = await this.prisma.models.ProcesoEtl.where({ id }).update({
       ...dto,
-      connection: {
-        ...dto.connection,
-        headers: dto.connection.headers?.map((h) => ({ ...h })) ?? [],
+      conexion: {
+        ...dto.conexion,
+        headers: dto.conexion.headers?.map((h) => ({ ...h })) ?? [],
       },
-      schemaMapping: dto.schemaMapping.map((r) => ({ ...r })),
-      scheduleConfig: { ...dto.scheduleConfig },
+      mapeoEsquema: dto.mapeoEsquema.map((r) => ({ ...r })),
+      configuracionProgramacion: { ...dto.configuracionProgramacion },
     });
     if (!saved) throw new NotFoundException('Pipeline no encontrado');
     await this.schedule(saved);
@@ -259,114 +261,122 @@ export class PipelinesService implements OnModuleInit {
 
   async archive(id: string) {
     const row = await this.find(id);
-    if (row.isSystem)
+    if (row.esSistema)
       throw new BadRequestException(
         'Los pipelines de sistema no pueden archivarse',
       );
-    const saved = await this.prisma.models.EtlPipeline.where({ id }).update({
-      archivedAt: now(),
-      paused: true,
+    const saved = await this.prisma.models.ProcesoEtl.where({ id }).update({
+      archivadoEn: now(),
+      pausado: true,
     });
     if (!saved) throw new NotFoundException('Pipeline no encontrado');
     await this.schedule(saved);
     return saved;
   }
 
-  async run(id: string, requestedById?: string, scheduled = false) {
+  async run(id: string, solicitanteId?: string, scheduled = false) {
     const row = await this.find(id);
-    if (row.paused) {
+    if (row.pausado) {
       if (scheduled) return null;
       throw new ConflictException('Pipeline pausado');
     }
     const configuration = {
-      connection: row.connection,
-      schemaMapping: row.schemaMapping,
-      scheduleConfig: row.scheduleConfig,
+      conexion: row.conexion,
+      mapeoEsquema: row.mapeoEsquema,
+      configuracionProgramacion: row.configuracionProgramacion,
     } as PipelineConfiguration;
-    return this.enqueue(row.targetEntity, configuration, row.id, requestedById);
+    return this.enqueue(
+      row.entidadDestino,
+      configuration,
+      row.id,
+      solicitanteId,
+    );
   }
 
   private async enqueue(
-    source: string,
+    fuente: string,
     configuration: PipelineConfiguration,
-    pipelineId?: string,
-    requestedById?: string,
+    procesoId?: string,
+    solicitanteId?: string,
   ) {
-    configuration = await this.validateConfiguration(source, configuration);
-    const record = await this.prisma.models.EtlJob.create({
-      source,
-      status: 'pending',
-      pipelineId: pipelineId ?? null,
-      requestedById: requestedById ?? null,
-      configurationSnapshot: configuration,
-      sourceUri: configuration.connection.endpointUrl,
+    configuration = await this.validateConfiguration(fuente, configuration);
+    const record = await this.prisma.models.EjecucionEtl.create({
+      fuente,
+      estado: 'pending',
+      procesoId: procesoId ?? null,
+      solicitanteId: solicitanteId ?? null,
+      instantaneaConfiguracion: configuration,
+      uriFuente: configuration.conexion.urlEndpoint,
     });
     try {
       await this.queue.add(
         'process-dataset',
-        { jobId: record.id, dataset: source },
+        { jobId: record.id, dataset: fuente },
         {
           jobId: record.id,
-          attempts: configuration.scheduleConfig.maxRetries + 1,
+          attempts:
+            configuration.configuracionProgramacion.maximoReintentos + 1,
           backoff: { type: 'exponential', delay: 2000 },
           removeOnComplete: { count: 100 },
           removeOnFail: { count: 100 },
         },
       );
     } catch {
-      await this.prisma.models.EtlJob.where({ id: record.id }).update({
-        status: 'failed',
-        errorMessage: 'No fue posible encolar la ejecución',
+      await this.prisma.models.EjecucionEtl.where({ id: record.id }).update({
+        estado: 'failed',
+        mensajeError: 'No fue posible encolar la ejecución',
       });
       throw new BadRequestException('No fue posible encolar la ejecución');
     }
-    return { jobId: record.id };
+    return { ejecucionId: record.id };
   }
 
   async job(id: string) {
-    const row = await this.prisma.models.EtlJob.where({ id }).first();
+    const row = await this.prisma.models.EjecucionEtl.where({ id }).first();
     if (!row) throw new NotFoundException('Ejecución no encontrada');
     return row;
   }
-  async events(id: string) {
+  async eventos(id: string) {
     await this.job(id);
-    const rows = await this.prisma.models.EtlJobEvent.where({ jobId: id })
-      .orderBy((e) => e.createdAt.desc())
-      .limit(100)
-      .all();
-    return rows.map((row) => ({
-      ...row,
-      createdAt: timestampToDate(row.createdAt).toISOString(),
-    }));
-  }
-  async samples(id: string, attempt?: number) {
-    const job = await this.job(id);
-    const rows = await this.prisma.models.EtlDiscardedSample.where({
-      jobId: id,
-      attempt: attempt ?? job.attempt,
+    const rows = await this.prisma.models.EventoEjecucionEtl.where({
+      ejecucionId: id,
     })
-      .orderBy((s) => s.rowIndex.asc())
+      .orderBy((e) => e.creadoEn.desc())
       .limit(100)
       .all();
     return rows.map((row) => ({
       ...row,
-      createdAt: timestampToDate(row.createdAt).toISOString(),
+      creadoEn: timestampToDate(row.creadoEn).toISOString(),
     }));
   }
-  async retry(id: string, requestedById: string) {
+  async samples(id: string, intento?: number) {
     const job = await this.job(id);
-    if (job.status !== 'failed' && job.status !== 'completed')
+    const rows = await this.prisma.models.MuestraDescartadaEtl.where({
+      ejecucionId: id,
+      intento: intento ?? job.intento,
+    })
+      .orderBy((s) => s.numeroFila.asc())
+      .limit(100)
+      .all();
+    return rows.map((row) => ({
+      ...row,
+      creadoEn: timestampToDate(row.creadoEn).toISOString(),
+    }));
+  }
+  async retry(id: string, solicitanteId: string) {
+    const job = await this.job(id);
+    if (job.estado !== 'failed' && job.estado !== 'completed')
       throw new ConflictException('La ejecución todavía está activa');
-    if (!job.configurationSnapshot) {
-      const record = await this.prisma.models.EtlJob.create({
-        source: job.source,
-        status: 'pending',
-        requestedById,
+    if (!job.instantaneaConfiguracion) {
+      const record = await this.prisma.models.EjecucionEtl.create({
+        fuente: job.fuente,
+        estado: 'pending',
+        solicitanteId,
       });
       try {
         await this.queue.add(
           'process-dataset',
-          { jobId: record.id, dataset: job.source },
+          { jobId: record.id, dataset: job.fuente },
           {
             jobId: record.id,
             attempts: 3,
@@ -374,30 +384,30 @@ export class PipelinesService implements OnModuleInit {
           },
         );
       } catch {
-        await this.prisma.models.EtlJob.where({ id: record.id }).update({
-          status: 'failed',
-          errorMessage: 'No fue posible encolar la ejecución',
+        await this.prisma.models.EjecucionEtl.where({ id: record.id }).update({
+          estado: 'failed',
+          mensajeError: 'No fue posible encolar la ejecución',
         });
         throw new BadRequestException('No fue posible encolar la ejecución');
       }
-      return { jobId: record.id };
+      return { ejecucionId: record.id };
     }
     return this.enqueue(
-      job.source,
-      job.configurationSnapshot as PipelineConfiguration,
-      job.pipelineId ?? undefined,
-      requestedById,
+      job.fuente,
+      job.instantaneaConfiguracion as PipelineConfiguration,
+      job.procesoId ?? undefined,
+      solicitanteId,
     );
   }
 
-  async probe(connection: PipelineConnectionDto) {
+  async probe(conexion: PipelineConnectionDto) {
     const start = performance.now();
     let statusCode = 0,
       contentType = '';
     try {
-      const source = await openCsvSource(connection, 30);
-      statusCode = source.statusCode ?? 0;
-      contentType = String(source.headers['content-type'] ?? '');
+      const fuente = await openCsvSource(conexion, 30);
+      statusCode = fuente.statusCode ?? 0;
+      contentType = String(fuente.headers['content-type'] ?? '');
       let bytes = 0;
       const sampleRows: Record<string, string>[] = [];
       const limit = new Transform({
@@ -410,17 +420,17 @@ export class PipelinesService implements OnModuleInit {
         },
       });
       try {
-        await pipeline(
-          source,
+        await proceso(
+          fuente,
           limit,
           csv({
-            headers: connection.csvHasHeader ? undefined : false,
-            separator: connection.csvDelimiter ?? ',',
+            headers: conexion.csvConCabecera ? undefined : false,
+            separator: conexion.separadorCsv ?? ',',
             maxRowBytes: 1024 * 1024,
           }),
           async (rows: AsyncIterable<Record<string, string>>) => {
             for await (const row of rows) {
-              sampleRows.push(redactSourceRow(row, connection));
+              sampleRows.push(redactSourceRow(row, conexion));
               if (sampleRows.length === 5) break;
             }
           },
@@ -444,7 +454,7 @@ export class PipelinesService implements OnModuleInit {
         contentType,
         sampleRows: [],
         detectedColumns: [],
-        errorMessage:
+        mensajeError:
           error instanceof BadRequestException
             ? error.message
             : 'No fue posible leer una muestra CSV válida de la fuente autorizada',

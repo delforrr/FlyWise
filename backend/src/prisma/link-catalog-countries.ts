@@ -5,13 +5,13 @@ export async function linkCatalogCountries(db: Database | Transaction) {
   await db.execute(
     db.raw.sql`
     WITH matches AS (
-      SELECT lower(btrim(name)) AS name, min(id) AS id
-      FROM countries GROUP BY lower(btrim(name)) HAVING count(*) = 1
+      SELECT lower(btrim(nombre)) AS nombre, min(id) AS id
+      FROM paises GROUP BY lower(btrim(nombre)) HAVING count(*) = 1
     )
-    UPDATE airports a SET country_id = resolved.country_id, country_link_inferred = (resolved.country_id IS NOT NULL)
-    FROM (SELECT a2.id, m.id AS country_id FROM airports a2 LEFT JOIN matches m ON lower(btrim(a2.country_name)) = m.name) resolved
-    WHERE a.id = resolved.id AND (a.country_id IS NULL OR a.country_link_inferred)
-      AND (a.country_id IS DISTINCT FROM resolved.country_id OR a.country_link_inferred IS DISTINCT FROM (resolved.country_id IS NOT NULL))
+    UPDATE aeropuertos a SET pais_id = resolved.pais_id, vinculo_pais_inferido = (resolved.pais_id IS NOT NULL)
+    FROM (SELECT a2.id, m.id AS pais_id FROM aeropuertos a2 LEFT JOIN matches m ON lower(btrim(a2.nombre_pais)) = m.nombre) resolved
+    WHERE a.id = resolved.id AND NOT a.protegido_manualmente AND a.archivado_en IS NULL AND (a.pais_id IS NULL OR a.vinculo_pais_inferido)
+      AND (a.pais_id IS DISTINCT FROM resolved.pais_id OR a.vinculo_pais_inferido IS DISTINCT FROM (resolved.pais_id IS NOT NULL))
   `
       .affectedCount()
       .build(),
@@ -19,13 +19,13 @@ export async function linkCatalogCountries(db: Database | Transaction) {
   await db.execute(
     db.raw.sql`
     WITH matches AS (
-      SELECT lower(btrim(name)) AS name, min(id) AS id
-      FROM countries GROUP BY lower(btrim(name)) HAVING count(*) = 1
+      SELECT lower(btrim(nombre)) AS nombre, min(id) AS id
+      FROM paises GROUP BY lower(btrim(nombre)) HAVING count(*) = 1
     )
-    UPDATE airlines a SET country_id = resolved.country_id, country_link_inferred = (resolved.country_id IS NOT NULL)
-    FROM (SELECT a2.id, m.id AS country_id FROM airlines a2 LEFT JOIN matches m ON lower(btrim(a2.country)) = m.name) resolved
-    WHERE a.id = resolved.id AND (a.country_id IS NULL OR a.country_link_inferred)
-      AND (a.country_id IS DISTINCT FROM resolved.country_id OR a.country_link_inferred IS DISTINCT FROM (resolved.country_id IS NOT NULL))
+    UPDATE aerolineas a SET pais_id = resolved.pais_id, vinculo_pais_inferido = (resolved.pais_id IS NOT NULL)
+    FROM (SELECT a2.id, m.id AS pais_id FROM aerolineas a2 LEFT JOIN matches m ON lower(btrim(a2.pais)) = m.nombre) resolved
+    WHERE a.id = resolved.id AND NOT a.protegido_manualmente AND a.archivado_en IS NULL AND (a.pais_id IS NULL OR a.vinculo_pais_inferido)
+      AND (a.pais_id IS DISTINCT FROM resolved.pais_id OR a.vinculo_pais_inferido IS DISTINCT FROM (resolved.pais_id IS NOT NULL))
   `
       .affectedCount()
       .build(),

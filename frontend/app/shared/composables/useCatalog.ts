@@ -1,38 +1,38 @@
 import { useBackendRequest } from './useBackendRequest';
-import type { Airport } from '~/types/airport';
+import type { Aeropuerto } from '~/types/airport';
 import type { FlightRoute } from '~/types/route';
 
 export interface CatalogAirport {
-  id: string; name: string; city: string | null; countryName: string;
-  iata: string | null; icao: string | null; latitude: number; longitude: number; routeCount: number;
+  id: string; nombre: string; ciudad: string | null; nombrePais: string;
+  iata: string | null; icao: string | null; latitud: number; longitud: number; cantidadRutas: number;
 }
 export interface ArcRoute {
   id: string;
-  origin: { id: string; iata: string | null; icao: string | null; name: string; city: string | null; country: string; coordinates: [number, number] };
-  destination: ArcRoute['origin'];
-  airline: { iata: string | null; name: string };
-  distanceKm: number; stops: number; otp15: number | null;
+  origen: { id: string; iata: string | null; icao: string | null; nombre: string; ciudad: string | null; pais: string; coordenadas: [number, number] };
+  destino: ArcRoute['origen'];
+  aerolinea: { iata: string | null; nombre: string };
+  distanciaKm: number; escalas: number; otp15: number | null;
 }
-export function mapCatalogAirport(a: CatalogAirport): Airport {
-  return { id: a.id, iata: a.iata ?? a.icao ?? a.name, icao: a.icao ?? undefined,
-    name: a.name, city: a.city ?? a.name, country: a.countryName,
-    coordinates: [a.longitude, a.latitude], connectionsCount: a.routeCount };
+export function mapCatalogAirport(a: CatalogAirport): Aeropuerto {
+  return { id: a.id, iata: a.iata ?? a.icao ?? a.nombre, icao: a.icao ?? undefined,
+    nombre: a.nombre, ciudad: a.ciudad ?? a.nombre, pais: a.nombrePais,
+    coordenadas: [a.longitud, a.latitud], cantidadConexiones: a.cantidadRutas };
 }
 export function mapArcRoute(r: ArcRoute): FlightRoute {
-  return { id: r.id, originId: r.origin.id, destinationId: r.destination.id,
-    originIata: r.origin.iata ?? r.origin.icao ?? r.origin.name,
-    originName: r.origin.name, originCity: r.origin.city ?? r.origin.name, originCoordinates: r.origin.coordinates,
-    destinationIata: r.destination.iata ?? r.destination.icao ?? r.destination.name,
-    destinationName: r.destination.name, destinationCity: r.destination.city ?? r.destination.name, destinationCoordinates: r.destination.coordinates,
-    distanceKm: r.distanceKm, averageOtp15: r.otp15, primaryAirline: r.airline.name,
-    flightType: r.stops === 0 ? 'direct' : 'connecting',
-    airlines: [{ airlineCode: r.airline.iata ?? '—', airlineName: r.airline.name,
+  return { id: r.id, origenId: r.origen.id, destinoId: r.destino.id,
+    originIata: r.origen.iata ?? r.origen.icao ?? r.origen.nombre,
+    originName: r.origen.nombre, originCity: r.origen.ciudad ?? r.origen.nombre, originCoordinates: r.origen.coordenadas,
+    destinationIata: r.destino.iata ?? r.destino.icao ?? r.destino.nombre,
+    destinationName: r.destino.nombre, destinationCity: r.destino.ciudad ?? r.destino.nombre, destinationCoordinates: r.destino.coordenadas,
+    distanciaKm: r.distanciaKm, averageOtp15: r.otp15, primaryAirline: r.aerolinea.nombre,
+    flightType: r.escalas === 0 ? 'direct' : 'connecting',
+    aerolineas: [{ codigoAerolinea: r.aerolinea.iata ?? '—', nombreAerolinea: r.aerolinea.nombre,
       otp15: null, avgDelayMinutes: null, cancellationRate: null, sampleFlightsCount: 0 }] };
 }
 export function useCatalog() {
   const request = useBackendRequest();
-  const airports = useState<Airport[]>('catalog_airports', () => []);
-  const routes = useState<FlightRoute[]>('catalog_routes', () => []);
+  const aeropuertos = useState<Aeropuerto[]>('catalog_airports', () => []);
+  const rutas = useState<FlightRoute[]>('catalog_routes', () => []);
   const error = useState<string | null>('catalog_error', () => null);
   const loading = useState('catalog_loading', () => false);
   const loaded = useState('catalog_loaded', () => false);
@@ -42,41 +42,41 @@ export function useCatalog() {
     if (loading.value || loaded.value) return;
     loading.value = true;
     try {
-      const result: Airport[] = [];
+      const result: Aeropuerto[] = [];
       for (let offset = 0; ; offset += 1000) {
-        const page = await request<CatalogAirport[]>('/airports/catalog', { query: { limit: 1000, offset } });
+        const page = await request<CatalogAirport[]>('/aeropuertos/catalogo', { query: { limit: 1000, offset } });
         result.push(...page.map(mapCatalogAirport));
         if (page.length < 1000) break;
       }
-      airports.value = result; loaded.value = true; error.value = null;
+      aeropuertos.value = result; loaded.value = true; error.value = null;
     } catch (err) { error.value = err instanceof Error ? err.message : 'No se pudo cargar el catálogo'; }
     finally { loading.value = false; }
   }
-  async function loadRoutes(originId?: string, destinationId?: string) {
-    const key = `${originId ?? ''}/${destinationId ?? ''}`;
+  async function loadRoutes(origenId?: string, destinoId?: string) {
+    const key = `${origenId ?? ''}/${destinoId ?? ''}`;
     if (routeQuery.value === key) return;
     routeQuery.value = key;
     const id = ++routeRequestId.value;
     try {
-      const result = await request<ArcRoute[]>('/routes/explore', { query: { originId, destinationId, limit: 100, includeReturn: originId && destinationId ? 'true' : undefined } });
-      if (id === routeRequestId.value) { routes.value = groupArcRoutes(result); error.value = null; }
+      const result = await request<ArcRoute[]>('/rutas/explorar', { query: { origenId, destinoId, limit: 100, incluirRegreso: origenId && destinoId ? 'true' : undefined } });
+      if (id === routeRequestId.value) { rutas.value = groupArcRoutes(result); error.value = null; }
     } catch (err) {
-      if (id === routeRequestId.value) { routeQuery.value = null; routes.value = []; error.value = err instanceof Error ? err.message : 'No se pudieron consultar las rutas'; }
+      if (id === routeRequestId.value) { routeQuery.value = null; rutas.value = []; error.value = err instanceof Error ? err.message : 'No se pudieron consultar las rutas'; }
     }
   }
-  return { airports, routes, error, loading, loadAirports, loadRoutes };
+  return { aeropuertos, rutas, error, loading, loadAirports, loadRoutes };
 }
 
 export function groupArcRoutes(rows: ArcRoute[]): FlightRoute[] {
   const grouped = new Map<string, FlightRoute>();
   for (const row of rows) {
-    const key = `${row.origin.id}/${row.destination.id}/${row.stops}`;
+    const key = `${row.origen.id}/${row.destino.id}/${row.escalas}`;
     const mapped = mapArcRoute(row);
     const existing = grouped.get(key);
     if (!existing) grouped.set(key, mapped);
-    else if (!existing.airlines.some(a => a.airlineName === mapped.airlines[0]!.airlineName && a.airlineCode === mapped.airlines[0]!.airlineCode)) {
-      existing.airlines.push(...mapped.airlines);
-      existing.primaryAirline = `${existing.airlines.length} aerolíneas`;
+    else if (!existing.aerolineas.some(a => a.nombreAerolinea === mapped.aerolineas[0]!.nombreAerolinea && a.codigoAerolinea === mapped.aerolineas[0]!.codigoAerolinea)) {
+      existing.aerolineas.push(...mapped.aerolineas);
+      existing.primaryAirline = `${existing.aerolineas.length} aerolíneas`;
     }
   }
   return [...grouped.values()];

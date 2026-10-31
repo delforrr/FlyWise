@@ -1,6 +1,6 @@
 import { ref, toRef } from 'vue';
-import { authService, type AuthFetch, type LoginCredentials, type User } from '../../../services/authService';
-export type { User, AuthResponse } from '../../../services/authService';
+import { authService, type AuthFetch, type LoginCredentials, type Usuario } from '../../../services/authService';
+export type { Usuario, AuthResponse } from '../../../services/authService';
 
 export interface UseAuthOptions {
   mockFetch?: AuthFetch;
@@ -15,7 +15,7 @@ export function useAuth(options?: UseAuthOptions) {
   const token = storage
     ? toRef(storage, 'token')
     : useState<string | null>('auth_token', () => null);
-  const user = options ? ref<User | null>(null) : useState<User | null>('auth_user', () => null);
+  const user = options ? ref<Usuario | null>(null) : useState<Usuario | null>('auth_user', () => null);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const navigate = options?.mockNavigateTo ?? navigateTo;

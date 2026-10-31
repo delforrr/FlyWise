@@ -2,7 +2,7 @@
 import type { RouteAirlinePerformance } from "~/types/route";
 
 defineProps<{
-  airline: RouteAirlinePerformance;
+  aerolinea: RouteAirlinePerformance;
 }>();
 </script>
 
@@ -16,20 +16,20 @@ defineProps<{
         <!-- Código de vuelo / aerolínea IATA con ancho fijo y números tabulares -->
         <span
           class="inline-flex items-center justify-center w-8 h-6 rounded text-[10px] font-mono font-bold tabular-nums tracking-wider bg-surface-accent border border-border-subtle/70 text-primary shrink-0 shadow-xs"
-          :title="`Código IATA: ${airline.airlineCode}`"
+          :title="`Código IATA: ${aerolinea.codigoAerolinea}`"
         >
-          {{ airline.airlineCode }}
+          {{ aerolinea.codigoAerolinea }}
         </span>
 
         <!-- Nombre comercial -->
         <span class="font-semibold text-text-main text-xs leading-tight wrap-break-word">
-          {{ airline.airlineName }}
+          {{ aerolinea.nombreAerolinea }}
         </span>
       </div>
 
       <!-- Badge OTP-15 en esquina superior derecha con espacio holgado -->
       <div class="shrink-0 flex items-center justify-end">
-        <OtpBadge :value="airline.otp15" class="font-mono tabular-nums" />
+        <OtpBadge :value="aerolinea.otp15" class="font-mono tabular-nums" />
       </div>
     </div>
 
@@ -39,12 +39,12 @@ defineProps<{
     >
       <div
         class="flex items-center gap-1.5 shrink-0"
-        :title="`Demora promedio estimada: ~${airline.avgDelayMinutes} minutos`"
+        :title="`Demora promedio estimada: ~${aerolinea.avgDelayMinutes} minutos`"
       >
         <UIcon name="i-lucide-clock-3" class="w-3.5 h-3.5 text-text-dim shrink-0" />
         <span class="text-text-dim">Demora:</span>
         <span class="tabular-nums font-semibold text-text-main">
-          {{ airline.avgDelayMinutes === null ? "Sin datos" : `${airline.avgDelayMinutes}m` }}
+          {{ aerolinea.avgDelayMinutes === null ? "Sin datos" : `${aerolinea.avgDelayMinutes}m` }}
         </span>
       </div>
 
@@ -61,21 +61,21 @@ defineProps<{
 
       <div
         class="flex items-center gap-1.5 shrink-0"
-        :title="`Tasa de cancelación histórica: ${airline.cancellationRate}%`"
+        :title="`Tasa de cancelación histórica: ${aerolinea.cancellationRate}%`"
       >
         <UIcon name="i-lucide-circle-slash" class="w-3.5 h-3.5 text-text-dim shrink-0" />
         <span class="text-text-dim">Cancel:</span>
         <span
           :class="[
             'tabular-nums font-semibold',
-            (airline.cancellationRate ?? -1) > 5
+            (aerolinea.cancellationRate ?? -1) > 5
               ? 'text-error'
-              : (airline.cancellationRate ?? -1) > 2
+              : (aerolinea.cancellationRate ?? -1) > 2
                 ? 'text-warning'
                 : 'text-text-main',
           ]"
         >
-          {{ airline.cancellationRate === null ? "Sin datos" : `${airline.cancellationRate}%` }}
+          {{ aerolinea.cancellationRate === null ? "Sin datos" : `${aerolinea.cancellationRate}%` }}
         </span>
       </div>
     </div>

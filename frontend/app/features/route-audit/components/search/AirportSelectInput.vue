@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useCatalog } from "~/shared/composables/useCatalog";
-const { airports, loadAirports, loading, error } = useCatalog();
+const { aeropuertos, loadAirports, loading, error } = useCatalog();
 onMounted(() => { void loadAirports(); });
 
 export interface AirportOption {
   id: string;
   iata: string;
-  name: string;
-  city: string;
-  country: string;
+  nombre: string;
+  ciudad: string;
+  pais: string;
   label: string;
-  description: string;
+  descripcion: string;
   value: string;
 }
 
@@ -78,22 +78,22 @@ const modelValue = defineModel<string | undefined>({
 });
 
 const airportItems = computed<AirportOption[]>(() => {
-  return airports.value.map((a) => {
-    let label = `${a.iata} — ${a.city}`;
+  return aeropuertos.value.map((a) => {
+    let label = `${a.iata} — ${a.ciudad}`;
     if (props.mode === "hero") {
-      label = `${a.name} [${a.iata}]`;
+      label = `${a.nombre} [${a.iata}]`;
     } else if (props.mode === "drawer") {
-      label = `${a.iata} — ${a.city}`;
+      label = `${a.iata} — ${a.ciudad}`;
     }
 
     return {
       id: a.id,
       iata: a.iata,
-      name: a.name,
-      city: a.city,
-      country: a.country,
+      nombre: a.nombre,
+      ciudad: a.ciudad,
+      pais: a.pais,
       label,
-      description: `${a.country}, ${a.city}`,
+      descripcion: `${a.pais}, ${a.ciudad}`,
       value: a.id,
     };
   });
@@ -204,7 +204,7 @@ const resolvedUi = computed(() => {
     :items="airportItems"
     value-key="value"
     label-key="label"
-    :filter-fields="['iata', 'name', 'city', 'country']"
+    :filter-fields="['iata', 'nombre', 'ciudad', 'pais']"
     :placeholder="resolvedPlaceholder"
     :icon="icon"
     :size="resolvedSize"
@@ -219,7 +219,7 @@ const resolvedUi = computed(() => {
     <template #item-label="{ item }">
       <div class="flex items-center justify-between gap-3 w-full min-w-0">
         <span class="truncate text-xs sm:text-sm font-medium text-text-main">
-          {{ item.name }}
+          {{ item.nombre }}
         </span>
         <span
           class="font-mono font-bold text-primary shrink-0 text-[11px] sm:text-xs bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20 tracking-wider"
@@ -233,7 +233,7 @@ const resolvedUi = computed(() => {
         class="flex items-center gap-1.5 text-[11px] sm:text-xs text-text-muted truncate"
       >
         <UIcon name="i-lucide-map-pin" class="size-3 text-text-dim shrink-0" />
-        <span class="truncate">{{ item.country }}, {{ item.city }}</span>
+        <span class="truncate">{{ item.pais }}, {{ item.ciudad }}</span>
       </div>
     </template>
   </UInputMenu>

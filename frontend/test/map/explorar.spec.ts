@@ -6,8 +6,8 @@ import type { GlobalMapFilter } from '../../app/features/flight-map/composables/
 
 vi.mock('~/features/flight-map/composables/useShortcuts', () => ({ useShortcuts: vi.fn() }));
 
-function setup(origin?: string) {
-  const selectedOrigin = ref(origin);
+function setup(origen?: string) {
+  const selectedOrigin = ref(origen);
   const selectedDestination = ref<string>();
   const globalMap = {
     isOpen: ref(false), filter: ref<GlobalMapFilter>({ mode: 'global', limit: 50 }),
@@ -16,7 +16,7 @@ function setup(origin?: string) {
   const clearSelection = () => { selectedOrigin.value = undefined; selectedDestination.value = undefined; };
   const loadRoutes = vi.fn();
   vi.stubGlobal('useSeoMeta', vi.fn());
-  vi.stubGlobal('useCatalog', () => ({ airports: ref([]), routes: ref([]), error: ref(null), loadAirports: vi.fn(), loadRoutes }));
+  vi.stubGlobal('useCatalog', () => ({ aeropuertos: ref([]), rutas: ref([]), error: ref(null), loadAirports: vi.fn(), loadRoutes }));
   vi.stubGlobal('useFlightSelection', () => ({ selectedOrigin, selectedDestination, clearSelection }));
   vi.stubGlobal('useGlobalMap', () => globalMap);
   const wrapper = shallowMount(Explorar, { global: { stubs: {

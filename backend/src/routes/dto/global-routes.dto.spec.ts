@@ -7,7 +7,7 @@ import {
 } from '../../countries/continents.js';
 import { ExploreRoutesDto } from './explore-routes.dto.js';
 
-describe('Global routes validation', () => {
+describe('Global rutas validation', () => {
   it('defaults to global top 50 and accepts each supported limit', async () => {
     expect(plainToInstance(GlobalRoutesDto, {})).toMatchObject({
       mode: 'global',
@@ -26,27 +26,27 @@ describe('Global routes validation', () => {
     { limit: 0 },
     { limit: 'bad' },
     { mode: 'domestic' },
-    { mode: 'countries', originCountryId: 'invalid' },
-    { mode: 'continents', originContinent: 'SA' },
-    { mode: 'continents', originContinent: 'xx', destinationContinent: 'EU' },
+    { mode: 'paises', paisOrigenId: 'invalid' },
+    { mode: 'continents', continenteOrigen: 'SA' },
+    { mode: 'continents', continenteOrigen: 'xx', continenteDestino: 'EU' },
   ])('rejects invalid or incomplete filters %j', async (query) => {
     expect(
       (await validate(plainToInstance(GlobalRoutesDto, query))).length,
     ).toBeGreaterThan(0);
   });
-  it('parses includeReturn explicitly rather than coercing false strings to true', async () => {
+  it('parses incluirRegreso explicitly rather than coercing false strings to true', async () => {
     expect(
-      plainToInstance(ExploreRoutesDto, { includeReturn: 'false' })
-        .includeReturn,
+      plainToInstance(ExploreRoutesDto, { incluirRegreso: 'false' })
+        .incluirRegreso,
     ).toBe(false);
     expect(
-      plainToInstance(ExploreRoutesDto, { includeReturn: 'true' })
-        .includeReturn,
+      plainToInstance(ExploreRoutesDto, { incluirRegreso: 'true' })
+        .incluirRegreso,
     ).toBe(true);
     expect(
       (
         await validate(
-          plainToInstance(ExploreRoutesDto, { includeReturn: 'yes' }),
+          plainToInstance(ExploreRoutesDto, { incluirRegreso: 'yes' }),
         )
       ).length,
     ).toBeGreaterThan(0);

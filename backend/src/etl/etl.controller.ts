@@ -17,14 +17,14 @@ import { TriggerEtlDto } from './dto/trigger-etl.dto.js';
 export class EtlController {
   constructor(private readonly etlService: EtlService) {}
 
-  @Post('trigger/:dataset')
+  @Post('iniciar/:dataset')
   @ApiOperation({
     summary: 'Solicita una carga de datos',
   })
   @ApiParam({
     name: 'dataset',
     description:
-      'Conjunto de datos: all, airports, airlines, countries o routes',
+      'Conjunto de datos: all, aeropuertos, aerolineas, paises o rutas',
     example: 'all',
   })
   @ApiResponse({
@@ -39,7 +39,7 @@ export class EtlController {
     return this.etlService.triggerJob(params.dataset);
   }
 
-  @Get('status')
+  @Get('estado')
   @ApiOperation({
     summary: 'Consulta los contadores de ejecuciones',
   })
@@ -56,7 +56,7 @@ export class EtlController {
     return this.etlService.getStatus();
   }
 
-  @Get('history')
+  @Get('historial')
   @ApiOperation({
     summary: 'Consulta el historial de ejecuciones',
   })

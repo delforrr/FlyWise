@@ -6,14 +6,14 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { Job } from 'bullmq';
 
 describe('EtlProcessor', () => {
-  const jobs = mockCollection();
-  const events = mockCollection();
+  const ejecuciones = mockCollection();
+  const eventos = mockCollection();
   const importCatalog = jest.fn();
   const run = jest.fn();
   const processor = new EtlProcessor(
     { importCatalog } as unknown as EtlService,
     {
-      models: { EtlJob: jobs, EtlJobEvent: events },
+      models: { EjecucionEtl: ejecuciones, EventoEjecucionEtl: eventos },
     } as unknown as PrismaService,
     { run } as unknown as PipelinesService,
   );
@@ -24,7 +24,9 @@ describe('EtlProcessor', () => {
   } as Job<{ jobId: string; dataset: string }>;
   beforeEach(() => {
     jest.clearAllMocks();
-    jobs.firstOrThrow.mockResolvedValue({ configurationSnapshot: null });
+    ejecuciones.firstOrThrow.mockResolvedValue({
+      instantaneaConfiguracion: null,
+    });
     importCatalog.mockResolvedValue({
       total: 3,
       processed: 2,
@@ -32,34 +34,47 @@ describe('EtlProcessor', () => {
       discarded: 1,
     });
   });
-  it('clears attempt counters and imports references before routes', async () => {
+  it('clears intento counters and imports references before rutas', async () => {
     await expect(processor.process(job)).resolves.toEqual({
       success: true,
-      processedRows: 8,
-      insertedRows: 4,
-      discardedRows: 4,
+      filasProcesadas: 8,
+      filasInsertadas: 4,
+      filasDescartadas: 4,
     });
     expect(importCatalog.mock.calls.map((call: unknown[]) => call[0])).toEqual([
-      'countries',
-      'airports',
-      'airlines',
-      'routes',
+      'paises',
+      'aeropuertos',
+      'aerolineas',
+      'rutas',
     ]);
-    expect(jobs.update).toHaveBeenNthCalledWith(
+    expect(ejecuciones.update).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        totalRows: 0,
-        processedRows: 0,
-        insertedRows: 0,
-        discardedRows: 0,
-        finishedAt: null,
-        sourceChecksum: null,
+        filasTotales: 0,
+        filasProcesadas: 0,
+        filasInsertadas: 0,
+        filasDescartadas: 0,
+        finalizadoEn: null,
+        checksumFuente: null,
       }),
     );
-    expect(jobs.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({ status: 'completed' }),
+    expect(ejecuciones.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ estado: 'completed' }),
     );
   });
+  it('acepta un trabajo persistido con el nombre anterior del conjunto', async () => {
+    await processor.process({
+      ...job,
+      data: { jobId: 'job-1', dataset: 'airports' },
+    });
+    expect(importCatalog).toHaveBeenCalledWith(
+      'aeropuertos',
+      expect.stringContaining('airports.dat'),
+      'job-1',
+      undefined,
+    );
+  });
+
   it('does not silently complete unsupported datasets', async () => {
     await expect(
       processor.process({
@@ -68,26 +83,26 @@ describe('EtlProcessor', () => {
       } as typeof job),
     ).rejects.toThrow();
     expect(importCatalog).not.toHaveBeenCalled();
-    expect(jobs.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({ status: 'failed' }),
+    expect(ejecuciones.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ estado: 'failed' }),
     );
   });
   it('keeps internal failure details out of job responses and retries through BullMQ', async () => {
     importCatalog.mockRejectedValueOnce(new Error('password=secret'));
     await expect(processor.process(job)).rejects.toThrow(/Falló/);
-    expect(jobs.update).toHaveBeenLastCalledWith(
+    expect(ejecuciones.update).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        status: 'failed',
-        errorMessage: expect.not.stringContaining('secret'),
+        estado: 'failed',
+        mensajeError: expect.not.stringContaining('secret'),
       }),
     );
   });
-  it('scheduled invocations capture a new execution through the pipeline service', async () => {
+  it('scheduled invocations capture a new execution through the proceso service', async () => {
     await processor.process({
       ...job,
       name: 'scheduled-pipeline',
-      data: { pipelineId: 'pipeline-1' },
+      data: { pipelineId: 'proceso-1' },
     } as unknown as typeof job);
-    expect(run).toHaveBeenCalledWith('pipeline-1', undefined, true);
+    expect(run).toHaveBeenCalledWith('proceso-1', undefined, true);
   });
 });

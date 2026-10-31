@@ -1,11 +1,28 @@
-import { and, or, type Condition } from '@prisma/orm-postgres/orm-client';
+import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
+import {
+  bloquearCatalogo,
+  recalcularCantidadRutas,
+} from '../prisma/catalog-state.js';
+import { errorCatalogo } from '../prisma/catalog-error.js';
+import type { Transaction } from '../prisma/db.js';
+import {
+  CrearRutaDto,
+  EditarRutaDto,
+  CrearOfertaRutaDto,
+  EditarOfertaRutaDto,
+} from './dto/administrar-ruta.dto.js';
+import {
+  and,
+  or,
+  type Condition,
+  type CollectionRowOf,
+} from '@prisma/orm-postgres/orm-client';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { CollectionRowOf } from '@prisma/orm-postgres/orm-client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ExploreRoutesDto } from './dto/explore-routes.dto.js';
 import { QueryDirectRouteDto } from './dto/query-direct-route.dto.js';
@@ -14,46 +31,59 @@ import { COUNTRY_CONTINENTS } from '../countries/continents.js';
 
 export interface GlobalConnection {
   id: string;
-  originId: string;
-  destinationId: string;
-  outbound: DeckGlArcRoute[];
-  inbound: DeckGlArcRoute[];
+  origenId: string;
+  destinoId: string;
+  ida: DeckGlArcRoute[];
+  vuelta: DeckGlArcRoute[];
 }
 
 export interface DeckGlArcRoute {
   id: string;
-  origin: {
+  rutaId: string;
+  origen: {
     id: string;
     icao: string | null;
     iata: string | null;
-    name: string;
-    city: string | null;
-    country: string;
-    coordinates: [number, number]; // [longitud, latitud] estándar Deck.gl
+    nombre: string;
+    ciudad: string | null;
+    pais: string;
+    coordenadas: [number, number]; // [longitud, latitud] estándar Deck.gl
   };
-  destination: {
+  destino: {
     id: string;
     icao: string | null;
     iata: string | null;
-    name: string;
-    city: string | null;
-    country: string;
-    coordinates: [number, number]; // [longitud, latitud] estándar Deck.gl
+    nombre: string;
+    ciudad: string | null;
+    pais: string;
+    coordenadas: [number, number]; // [longitud, latitud] estándar Deck.gl
   };
-  airline: {
+  aerolinea: {
     iata: string | null;
-    name: string;
+    nombre: string;
   };
-  distanceKm: number | null;
-  distanceNm: number | null;
+  distanciaKm: number | null;
+  distanciaNm: number | null;
   otp15: null;
-  stops: number;
+  escalas: number;
 }
 
 function includeRouteDetails(prisma: PrismaService) {
-  return prisma.models.Route.include('origin')
-    .include('destination')
-    .include('airline');
+  return prisma.models.OfertaRuta.where((r) =>
+    and(
+      r.archivadoEn.isNull(),
+      r.ruta.some((conexion) =>
+        and(
+          conexion.archivadoEn.isNull(),
+          conexion.origen.some({ archivadoEn: null }),
+          conexion.destino.some({ archivadoEn: null }),
+        ),
+      ),
+      or(r.aerolineaId.isNull(), r.aerolinea.some({ archivadoEn: null })),
+    ),
+  )
+    .include('ruta', (ruta) => ruta.include('origen').include('destino'))
+    .include('aerolinea');
 }
 
 type RouteWithRelations = CollectionRowOf<
@@ -66,10 +96,9 @@ export class RoutesService {
 
   async global(dto: GlobalRoutesDto): Promise<GlobalConnection[]> {
     if (
-      (dto.mode === 'countries' &&
-        dto.originCountryId === dto.destinationCountryId) ||
+      (dto.mode === 'paises' && dto.paisOrigenId === dto.paisDestinoId) ||
       (dto.mode === 'continents' &&
-        dto.originContinent === dto.destinationContinent)
+        dto.continenteOrigen === dto.continenteDestino)
     ) {
       throw new BadRequestException('Selecciona dos lugares diferentes');
     }
@@ -78,7 +107,7 @@ export class RoutesService {
       entries
         .filter(
           ([, continent]) =>
-            dto.mode !== 'continents' || continent === dto.originContinent,
+            dto.mode !== 'continents' || continent === dto.continenteOrigen,
         )
         .map(([iso]) => iso),
     );
@@ -86,7 +115,7 @@ export class RoutesService {
       entries
         .filter(
           ([, continent]) =>
-            dto.mode !== 'continents' || continent === dto.destinationContinent,
+            dto.mode !== 'continents' || continent === dto.continenteDestino,
         )
         .map(([iso]) => iso),
     );
@@ -95,39 +124,39 @@ export class RoutesService {
       this.prisma.db.raw.sql`
       WITH candidates AS (
         SELECT DISTINCT
-          CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.name), o.id) > (COALESCE(d.iata, d.icao, d.name), d.id) THEN d.id ELSE o.id END AS "originId",
-          CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.name), o.id) > (COALESCE(d.iata, d.icao, d.name), d.id) THEN o.id ELSE d.id END AS "destinationId",
-          o.route_count + d.route_count AS score
-        FROM routes r
-        JOIN airports o ON o.id = r.origin_id
-        JOIN airports d ON d.id = r.destination_id
-        LEFT JOIN countries oc ON oc.id = o.country_id
-        LEFT JOIN countries dc ON dc.id = d.country_id
-        WHERE r.stops = 0 AND (
+          CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN d.id ELSE o.id END AS "origenId",
+          CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN o.id ELSE d.id END AS "destinoId",
+          o.cantidad_rutas + d.cantidad_rutas AS score
+        FROM ofertas_ruta r JOIN rutas conexion ON conexion.id=r.ruta_id
+        JOIN aeropuertos o ON o.id = conexion.origen_id
+        JOIN aeropuertos d ON d.id = conexion.destino_id
+        LEFT JOIN paises oc ON oc.id = o.pais_id
+        LEFT JOIN paises dc ON dc.id = d.pais_id
+        WHERE r.archivado_en IS NULL AND conexion.archivado_en IS NULL AND o.archivado_en IS NULL AND d.archivado_en IS NULL AND (r.aerolinea_id IS NULL OR EXISTS (SELECT 1 FROM aerolineas a WHERE a.id=r.aerolinea_id AND a.archivado_en IS NULL)) AND r.escalas = 0 AND (
           ${dto.mode === 'global'} OR (
-            UPPER(TRIM(oc.iso_code)) IN (SELECT jsonb_array_elements_text(${originCodes}::jsonb))
-            AND UPPER(TRIM(dc.iso_code)) IN (SELECT jsonb_array_elements_text(${destinationCodes}::jsonb))
+            UPPER(TRIM(oc.codigo_iso)) IN (SELECT jsonb_array_elements_text(${originCodes}::jsonb))
+            AND UPPER(TRIM(dc.codigo_iso)) IN (SELECT jsonb_array_elements_text(${destinationCodes}::jsonb))
             AND (
-              (${dto.mode === 'domestic'} AND oc.id = ${dto.originCountryId ?? ''}::text AND dc.id = oc.id)
-              OR (${dto.mode === 'countries'} AND oc.id = ${dto.originCountryId ?? ''}::text AND dc.id = ${dto.destinationCountryId ?? ''}::text)
+              (${dto.mode === 'domestic'} AND oc.id = ${dto.paisOrigenId ?? ''}::text AND dc.id = oc.id)
+              OR (${dto.mode === 'paises'} AND oc.id = ${dto.paisOrigenId ?? ''}::text AND dc.id = ${dto.paisDestinoId ?? ''}::text)
               OR ${dto.mode === 'continents'}
             )
           )
         )
       ), pairs AS (
-        SELECT * FROM candidates ORDER BY score DESC, "originId", "destinationId" LIMIT ${dto.limit ?? 50}
+        SELECT * FROM candidates ORDER BY score DESC, "origenId", "destinoId" LIMIT ${dto.limit ?? 50}
       )
-      SELECT r.id, p."originId", p."destinationId"
-      FROM pairs p JOIN routes r ON r.stops = 0 AND (
-        (r.origin_id = p."originId" AND r.destination_id = p."destinationId") OR
-        (r.destination_id = p."originId" AND r.origin_id = p."destinationId")
+      SELECT r.id, p."origenId", p."destinoId"
+      FROM pairs p JOIN ofertas_ruta r ON r.escalas = 0 JOIN rutas conexion ON conexion.id=r.ruta_id AND (
+        (conexion.origen_id = p."origenId" AND conexion.destino_id = p."destinoId") OR
+        (conexion.destino_id = p."origenId" AND conexion.origen_id = p."destinoId")
       )
-      ORDER BY p.score DESC, p."originId", p."destinationId", r.id
+      ORDER BY p.score DESC, p."origenId", p."destinoId", r.id
     `
         .returnsRow({
           id: 'pg/text@1',
-          originId: 'pg/text@1',
-          destinationId: 'pg/text@1',
+          origenId: 'pg/text@1',
+          destinoId: 'pg/text@1',
         })
         .build(),
     );
@@ -145,117 +174,119 @@ export class RoutesService {
     for (const row of selected) {
       const arc = arcs.get(row.id);
       if (!arc) continue;
-      const id = `${row.originId}/${row.destinationId}`;
-      let connection = connections.get(id);
-      if (!connection) {
-        connection = {
+      const id = `${row.origenId}/${row.destinoId}`;
+      let conexion = connections.get(id);
+      if (!conexion) {
+        conexion = {
           id,
-          originId: row.originId,
-          destinationId: row.destinationId,
-          outbound: [],
-          inbound: [],
+          origenId: row.origenId,
+          destinoId: row.destinoId,
+          ida: [],
+          vuelta: [],
         };
-        connections.set(id, connection);
+        connections.set(id, conexion);
       }
-      (arc.origin.id === row.originId
-        ? connection.outbound
-        : connection.inbound
-      ).push(arc);
+      (arc.origen.id === row.origenId ? conexion.ida : conexion.vuelta).push(
+        arc,
+      );
     }
     return [...connections.values()];
   }
 
   async explore(dto: ExploreRoutesDto): Promise<DeckGlArcRoute[]> {
-    const { origin, airline, limit = 100 } = dto;
+    const { origen, aerolinea, limit = 100 } = dto;
     if (
-      dto.originId &&
-      dto.destinationId &&
-      dto.originId.toLowerCase() === dto.destinationId.toLowerCase()
+      dto.origenId &&
+      dto.origenId.toLowerCase() === dto.destinoId?.toLowerCase()
     )
       throw new BadRequestException(
         'El origen y el destino deben ser aeropuertos distintos',
       );
 
-    if (dto.includeReturn && (!dto.originId || !dto.destinationId)) {
-      throw new BadRequestException('includeReturn requiere origen y destino');
+    if (dto.incluirRegreso && (!dto.origenId || !dto.destinoId)) {
+      throw new BadRequestException('incluirRegreso requiere origen y destino');
     }
     const query = includeRouteDetails(this.prisma)
       .where((route) => {
         const conditions: Condition[] = [];
-        if (origin) {
-          const iata = origin.trim().toUpperCase();
+        if (origen) {
+          const iata = origen.trim().toUpperCase();
           conditions.push(
-            or(route.origin.some({ iata }), route.destination.some({ iata })),
+            route.ruta.some((r) =>
+              or(r.origen.some({ iata }), r.destino.some({ iata })),
+            ),
           );
         }
-        if (dto.includeReturn && dto.originId && dto.destinationId) {
+        if (dto.incluirRegreso && dto.origenId && dto.destinoId) {
           conditions.push(
             or(
               and(
-                route.originId.eq(dto.originId),
-                route.destinationId.eq(dto.destinationId),
+                route.ruta.some({ origenId: dto.origenId }),
+                route.ruta.some({ destinoId: dto.destinoId }),
               ),
               and(
-                route.originId.eq(dto.destinationId),
-                route.destinationId.eq(dto.originId),
+                route.ruta.some({ origenId: dto.destinoId }),
+                route.ruta.some({ destinoId: dto.origenId }),
               ),
             ),
           );
-        } else if (dto.originId)
+        } else if (dto.origenId)
           conditions.push(
-            dto.destinationId
-              ? route.originId.eq(dto.originId)
+            dto.destinoId
+              ? route.ruta.some({ origenId: dto.origenId })
               : or(
-                  route.originId.eq(dto.originId),
-                  route.destinationId.eq(dto.originId),
+                  route.ruta.some({ origenId: dto.origenId }),
+                  route.ruta.some({ destinoId: dto.origenId }),
                 ),
           );
-        if (dto.destinationId && !dto.includeReturn)
-          conditions.push(route.destinationId.eq(dto.destinationId));
-        if (dto.originId && dto.destinationId)
-          conditions.push(route.stops.eq(0));
-        if (airline)
-          conditions.push(route.airlineCode.eq(airline.trim().toUpperCase()));
+        if (dto.destinoId && !dto.incluirRegreso)
+          conditions.push(route.ruta.some({ destinoId: dto.destinoId }));
+        if (dto.origenId && dto.destinoId) conditions.push(route.escalas.eq(0));
+        if (aerolinea)
+          conditions.push(
+            route.codigoAerolinea.eq(aerolinea.trim().toUpperCase()),
+          );
         return and(...conditions);
       })
       .orderBy([
         (route, { fns }) =>
-          fns.raw`(SELECT route_count FROM airports WHERE id = ${route.originId})`
+          fns.raw`(SELECT cantidad_rutas FROM aeropuertos WHERE id = (SELECT origen_id FROM rutas WHERE id = ${route.rutaId}))`
             .returns('pg/int4@1')
             .desc(),
         (route) => route.id.asc(),
       ]);
-    const rows = await (dto.includeReturn ? query : query.limit(limit)).all();
-    const routes = await this.withDistances(rows);
+    const rows = await (dto.incluirRegreso ? query : query.limit(limit)).all();
+    const rutas = await this.withDistances(rows);
 
-    return routes.map((r) => this.mapToDeckGlArc(r));
+    return rutas.map((r) => this.mapToDeckGlArc(r));
   }
 
   async findDirect(dto: QueryDirectRouteDto) {
-    const originCode = dto.origin.trim().toUpperCase();
-    const destinationCode = dto.destination.trim().toUpperCase();
-    if (originCode === destinationCode)
+    const codigoOrigen = dto.origen.trim().toUpperCase();
+    const codigoDestino = dto.destino.trim().toUpperCase();
+    if (codigoOrigen === codigoDestino)
       throw new BadRequestException(
         'El origen y el destino deben ser aeropuertos distintos',
       );
     const endpoints: string[] = [];
-    for (const code of [originCode, destinationCode]) {
-      const airports = await this.prisma.models.Airport.where((a) =>
+    for (const code of [codigoOrigen, codigoDestino]) {
+      const aeropuertos = await this.prisma.models.Aeropuerto.where((a) =>
         or(a.iata.eq(code), a.icao.eq(code)),
       )
+        .where({ archivadoEn: null })
         .select('id')
         .limit(2)
         .all();
-      if (airports.length > 1)
+      if (aeropuertos.length > 1)
         throw new ConflictException('Código de aeropuerto ambiguo');
-      if (!airports.length)
+      if (!aeropuertos.length)
         throw new NotFoundException(
           `Aeropuerto con código ${code} no encontrado`,
         );
-      endpoints.push(airports[0].id);
+      endpoints.push(aeropuertos[0].id);
     }
-    const [originId, destinationId] = endpoints;
-    if (originId === destinationId)
+    const [origenId, destinoId] = endpoints;
+    if (origenId === destinoId)
       throw new BadRequestException(
         'El origen y el destino deben ser aeropuertos distintos',
       );
@@ -263,108 +294,360 @@ export class RoutesService {
     const rows = await includeRouteDetails(this.prisma)
       .where((route) =>
         and(
-          route.originId.eq(originId),
-          route.destinationId.eq(destinationId),
-          route.stops.eq(0),
+          route.ruta.some({ origenId }),
+          route.ruta.some({ destinoId }),
+          route.escalas.eq(0),
         ),
       )
       .all();
-    const routes = await this.withDistances(rows);
+    const rutas = await this.withDistances(rows);
 
-    if (!routes.length) {
+    if (!rutas.length) {
       throw new NotFoundException(
-        `No se encontraron vuelos directos entre ${originCode} y ${destinationCode}`,
+        `No se encontraron vuelos directos entre ${codigoOrigen} y ${codigoDestino}`,
       );
     }
 
-    const first = routes[0];
-    const distanceKm = first.distanceKm;
+    const first = rutas[0];
+    const distanciaKm = first.distanciaKm;
 
     return {
-      origin: {
-        iata: first.origin.iata,
-        name: first.origin.name,
-        city: first.origin.city,
-        country: first.origin.countryName,
-        coordinates: [first.origin.longitude, first.origin.latitude],
+      origen: {
+        iata: first.origen.iata,
+        nombre: first.origen.nombre,
+        ciudad: first.origen.ciudad,
+        pais: first.origen.nombrePais,
+        coordenadas: [first.origen.longitud, first.origen.latitud],
       },
-      destination: {
-        iata: first.destination.iata,
-        name: first.destination.name,
-        city: first.destination.city,
-        country: first.destination.countryName,
-        coordinates: [first.destination.longitude, first.destination.latitude],
+      destino: {
+        iata: first.destino.iata,
+        nombre: first.destino.nombre,
+        ciudad: first.destino.ciudad,
+        pais: first.destino.nombrePais,
+        coordenadas: [first.destino.longitud, first.destino.latitud],
       },
-      distanceKm: Math.round(distanceKm * 10) / 10,
-      distanceNm: Math.round((distanceKm / 1.852) * 10) / 10,
-      operatorsCount: routes.length,
-      operators: routes.map((r) => ({
-        airlineName: r.airline?.name ?? r.airlineCode ?? 'Desconocida',
-        airlineIata: r.airline?.iata ?? r.airlineCode,
-        stops: r.stops,
+      distanciaKm: Math.round(distanciaKm * 10) / 10,
+      distanciaNm: Math.round((distanciaKm / 1.852) * 10) / 10,
+      cantidadOperadores: rutas.length,
+      operadores: rutas.map((r) => ({
+        nombreAerolinea:
+          r.aerolinea?.nombre ?? r.codigoAerolinea ?? 'Desconocida',
+        iataAerolinea: r.aerolinea?.iata ?? r.codigoAerolinea,
+        escalas: r.escalas,
       })),
     };
   }
 
-  private async withDistances(rows: RouteWithRelations[]) {
+  private async withDistances(ofertas: RouteWithRelations[]) {
+    const rows = ofertas.map((oferta) => {
+      if (!oferta.ruta)
+        throw new NotFoundException('La ruta ya no está disponible');
+      return {
+        ...oferta,
+        origenId: oferta.ruta.origenId,
+        destinoId: oferta.ruta.destinoId,
+        origen: oferta.ruta.origen,
+        destino: oferta.ruta.destino,
+      };
+    });
     const missing = rows;
     const distances = missing.length
       ? await this.prisma.db.query(
           this.prisma.db.raw.sql`
-          SELECT r.id, ST_DistanceSphere(o.location::geometry, d.location::geometry) / 1000 AS "distanceKm"
-          FROM routes r
-          JOIN airports o ON o.id = r.origin_id
-          JOIN airports d ON d.id = r.destination_id
+          SELECT r.id, ST_DistanceSphere(o.ubicacion::geometry, d.ubicacion::geometry) / 1000 AS "distanciaKm"
+          FROM ofertas_ruta r JOIN rutas conexion ON conexion.id=r.ruta_id
+          JOIN aeropuertos o ON o.id = conexion.origen_id
+          JOIN aeropuertos d ON d.id = conexion.destino_id
           WHERE r.id IN (SELECT jsonb_array_elements_text(${JSON.stringify(missing.map((route) => route.id))}::jsonb))
         `
-            .returnsRow({ id: 'pg/text@1', distanceKm: 'pg/float8@1' })
+            .returnsRow({ id: 'pg/text@1', distanciaKm: 'pg/float8@1' })
             .build(),
         )
       : [];
     const byId = new Map(
-      distances.map((route) => [route.id, route.distanceKm]),
+      distances.map((route) => [route.id, route.distanciaKm]),
     );
     return rows.map((route) => {
-      const distanceKm = byId.get(route.id);
-      if (distanceKm === undefined)
+      const distanciaKm = byId.get(route.id);
+      if (distanciaKm === undefined)
         throw new NotFoundException('La ruta ya no está disponible');
-      return { ...route, distanceKm };
+      return { ...route, distanciaKm };
     });
   }
 
   private mapToDeckGlArc(
-    route: RouteWithRelations & { distanceKm: number },
+    route: Awaited<ReturnType<RoutesService['withDistances']>>[number],
   ): DeckGlArcRoute {
-    const distanceKm = route.distanceKm;
+    const distanciaKm = route.distanciaKm;
 
     return {
       id: route.id,
-      origin: {
-        id: route.origin.id,
-        icao: route.origin.icao,
-        iata: route.origin.iata,
-        name: route.origin.name,
-        city: route.origin.city,
-        country: route.origin.countryName,
-        coordinates: [route.origin.longitude, route.origin.latitude],
+      rutaId: route.rutaId,
+      origen: {
+        id: route.origen.id,
+        icao: route.origen.icao,
+        iata: route.origen.iata,
+        nombre: route.origen.nombre,
+        ciudad: route.origen.ciudad,
+        pais: route.origen.nombrePais,
+        coordenadas: [route.origen.longitud, route.origen.latitud],
       },
-      destination: {
-        id: route.destination.id,
-        icao: route.destination.icao,
-        iata: route.destination.iata,
-        name: route.destination.name,
-        city: route.destination.city,
-        country: route.destination.countryName,
-        coordinates: [route.destination.longitude, route.destination.latitude],
+      destino: {
+        id: route.destino.id,
+        icao: route.destino.icao,
+        iata: route.destino.iata,
+        nombre: route.destino.nombre,
+        ciudad: route.destino.ciudad,
+        pais: route.destino.nombrePais,
+        coordenadas: [route.destino.longitud, route.destino.latitud],
       },
-      airline: {
-        iata: route.airline?.iata ?? route.airlineCode,
-        name: route.airline?.name ?? route.airlineCode ?? 'Desconocida',
+      aerolinea: {
+        iata: route.aerolinea?.iata ?? route.codigoAerolinea,
+        nombre:
+          route.aerolinea?.nombre ?? route.codigoAerolinea ?? 'Desconocida',
       },
-      distanceKm: Math.round(distanceKm * 10) / 10,
-      distanceNm: Math.round((distanceKm / 1.852) * 10) / 10,
+      distanciaKm: Math.round(distanciaKm * 10) / 10,
+      distanciaNm: Math.round((distanciaKm / 1.852) * 10) / 10,
       otp15: null,
-      stops: route.stops,
+      escalas: route.escalas,
     };
+  }
+
+  async listarAdmin(consulta: ConsultaCatalogoDto) {
+    let query = this.prisma.models.Ruta.include('origen')
+      .include('destino')
+      .include('ofertas', (ofertas) => ofertas.include('aerolinea'));
+    if (consulta.estado === 'vigentes')
+      query = query.where({ archivadoEn: null });
+    if (consulta.estado === 'archivados')
+      query = query.where((r) => r.archivadoEn.isNotNull());
+    if (consulta.busqueda) {
+      const patron = `%${consulta.busqueda.replace(/[\\%_]/g, '\\$&')}%`;
+      query = query.where((r) =>
+        or(
+          r.id.ilike(patron),
+          r.origen.some((a) =>
+            or(a.nombre.ilike(patron), a.iata.ilike(patron)),
+          ),
+          r.destino.some((a) =>
+            or(a.nombre.ilike(patron), a.iata.ilike(patron)),
+          ),
+        ),
+      );
+    }
+    const [datos, resumen] = await Promise.all([
+      query
+        .orderBy((r) => r.id.asc())
+        .offset((consulta.pagina - 1) * consulta.limite)
+        .limit(consulta.limite)
+        .all(),
+      query.aggregate((r) => ({ total: r.count() })),
+    ]);
+    return {
+      datos,
+      total: Number(resumen.total),
+      pagina: consulta.pagina,
+      limite: consulta.limite,
+    };
+  }
+
+  async detalleAdmin(id: string) {
+    const registro = await this.prisma.models.Ruta.include('origen')
+      .include('destino')
+      .include('ofertas', (ofertas) => ofertas.include('aerolinea'))
+      .first({ id });
+    if (!registro) throw new NotFoundException('La ruta no existe');
+    return registro;
+  }
+
+  private async validarReferencias(
+    tx: Transaction,
+    origenId: string,
+    destinoId: string,
+    aerolineaId?: string | null,
+  ) {
+    if (origenId === destinoId)
+      throw new BadRequestException(
+        'El origen y el destino deben ser distintos',
+      );
+    const aeropuertos = await tx.orm.public.Aeropuerto.where((a) =>
+      or(a.id.eq(origenId), a.id.eq(destinoId)),
+    )
+      .where({ archivadoEn: null })
+      .all();
+    if (aeropuertos.length !== 2)
+      throw new NotFoundException(
+        'Los aeropuertos deben existir y estar sin archivar',
+      );
+    if (
+      aerolineaId &&
+      !(await tx.orm.public.Aerolinea.first({
+        id: aerolineaId,
+        archivadoEn: null,
+      }))
+    )
+      throw new NotFoundException(
+        'La aerolínea debe existir y estar sin archivar',
+      );
+  }
+
+  crearAdmin(datos: CrearRutaDto) {
+    return this.prisma.db
+      .transaction(async (tx) => {
+        await bloquearCatalogo(tx);
+        await this.validarReferencias(tx, datos.origenId, datos.destinoId);
+        const registro = await tx.orm.public.Ruta.create({
+          ...datos,
+          protegidoManualmente: true,
+        });
+        await recalcularCantidadRutas(tx);
+        return registro;
+      })
+      .catch(errorCatalogo);
+  }
+
+  editarAdmin(id: string, datos: EditarRutaDto) {
+    return this.prisma.db
+      .transaction(async (tx) => {
+        await bloquearCatalogo(tx);
+        const actual = await tx.orm.public.Ruta.first({ id });
+        if (!actual) throw new NotFoundException('La ruta no existe');
+        if (actual.archivadoEn)
+          throw new ConflictException('La ruta está archivada');
+        const cambiaExtremos =
+          (datos.origenId !== undefined &&
+            datos.origenId !== actual.origenId) ||
+          (datos.destinoId !== undefined &&
+            datos.destinoId !== actual.destinoId);
+        if (
+          cambiaExtremos &&
+          (await tx.orm.public.OfertaRuta.first({ rutaId: id }))
+        ) {
+          throw new ConflictException(
+            'Los aeropuertos de una ruta con ofertas no pueden modificarse',
+          );
+        }
+        const { protegidoManualmente, ...cambios } = datos;
+        const referencia = { ...actual, ...cambios };
+        if (Object.keys(cambios).length)
+          await this.validarReferencias(
+            tx,
+            referencia.origenId,
+            referencia.destinoId,
+          );
+        const registro = await tx.orm.public.Ruta.where({ id }).update({
+          ...cambios,
+          protegidoManualmente: Object.keys(cambios).length
+            ? true
+            : (protegidoManualmente ?? actual.protegidoManualmente),
+        });
+        await recalcularCantidadRutas(tx);
+        return registro;
+      })
+      .catch(errorCatalogo);
+  }
+
+  async archivarAdmin(id: string) {
+    await this.prisma.db.transaction(async (tx) => {
+      await bloquearCatalogo(tx);
+      const actual = await tx.orm.public.Ruta.first({ id });
+      if (!actual) throw new NotFoundException('La ruta no existe');
+      if (actual.archivadoEn) return;
+      await tx.orm.public.Ruta.where({ id }).update({
+        archivadoEn: new Date()
+          .toISOString()
+          .replace('T', ' ')
+          .replace('Z', ''),
+      });
+      await recalcularCantidadRutas(tx);
+    });
+  }
+
+  private async rutaVigente(tx: Transaction, rutaId: string) {
+    const ruta = await tx.orm.public.Ruta.first({ id: rutaId });
+    if (!ruta) throw new NotFoundException('La ruta no existe');
+    if (ruta.archivadoEn) throw new ConflictException('La ruta está archivada');
+    await this.validarReferencias(tx, ruta.origenId, ruta.destinoId);
+    return ruta;
+  }
+
+  crearOferta(rutaId: string, datos: CrearOfertaRutaDto) {
+    return this.prisma.db
+      .transaction(async (tx) => {
+        await bloquearCatalogo(tx);
+        await this.rutaVigente(tx, rutaId);
+        if (
+          datos.aerolineaId &&
+          !(await tx.orm.public.Aerolinea.first({
+            id: datos.aerolineaId,
+            archivadoEn: null,
+          }))
+        )
+          throw new NotFoundException(
+            'La aerolínea debe existir y estar sin archivar',
+          );
+        const oferta = await tx.orm.public.OfertaRuta.create({
+          ...datos,
+          rutaId,
+          fuente: 'Administrativa',
+          protegidoManualmente: true,
+        });
+        await recalcularCantidadRutas(tx);
+        return oferta;
+      })
+      .catch(errorCatalogo);
+  }
+
+  editarOferta(rutaId: string, id: string, datos: EditarOfertaRutaDto) {
+    return this.prisma.db
+      .transaction(async (tx) => {
+        await bloquearCatalogo(tx);
+        await this.rutaVigente(tx, rutaId);
+        const actual = await tx.orm.public.OfertaRuta.first({ id, rutaId });
+        if (!actual)
+          throw new NotFoundException('La oferta no existe en esta ruta');
+        if (actual.archivadoEn)
+          throw new ConflictException('La oferta está archivada');
+        if (
+          datos.aerolineaId &&
+          !(await tx.orm.public.Aerolinea.first({
+            id: datos.aerolineaId,
+            archivadoEn: null,
+          }))
+        )
+          throw new NotFoundException(
+            'La aerolínea debe existir y estar sin archivar',
+          );
+        const { protegidoManualmente, ...cambios } = datos;
+        const oferta = await tx.orm.public.OfertaRuta.where({
+          id,
+          rutaId,
+        }).update({
+          ...cambios,
+          protegidoManualmente: Object.keys(cambios).length
+            ? true
+            : (protegidoManualmente ?? actual.protegidoManualmente),
+        });
+        await recalcularCantidadRutas(tx);
+        return oferta;
+      })
+      .catch(errorCatalogo);
+  }
+
+  async archivarOferta(rutaId: string, id: string) {
+    await this.prisma.db.transaction(async (tx) => {
+      await bloquearCatalogo(tx);
+      const actual = await tx.orm.public.OfertaRuta.first({ id, rutaId });
+      if (!actual)
+        throw new NotFoundException('La oferta no existe en esta ruta');
+      if (!actual.archivadoEn)
+        await tx.orm.public.OfertaRuta.where({ id, rutaId }).update({
+          archivadoEn: new Date()
+            .toISOString()
+            .replace('T', ' ')
+            .replace('Z', ''),
+        });
+      await recalcularCantidadRutas(tx);
+    });
   }
 }

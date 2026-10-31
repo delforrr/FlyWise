@@ -34,17 +34,17 @@ import { SampleQueryDto } from './dto/sample-query.dto.js';
 @Controller('etl')
 export class PipelineController {
   constructor(private readonly service: PipelinesService) {}
-  @Get('pipelines')
+  @Get('procesos')
   @ApiOperation({ summary: 'Lista configuraciones sin archivar' })
   list() {
     return this.service.list();
   }
-  @Post('pipelines')
+  @Post('procesos')
   @ApiOperation({ summary: 'Crea una configuración de carga' })
   create(@Body() dto: CreatePipelineDto) {
     return this.service.create(dto);
   }
-  @Post('pipelines/probe')
+  @Post('procesos/probar')
   @ApiOperation({
     summary: 'Comprueba una conexión con hasta cinco filas',
     description:
@@ -53,7 +53,7 @@ export class PipelineController {
   probe(@Body() dto: PipelineConnectionDto) {
     return this.service.probe(dto);
   }
-  @Patch('pipelines/:id')
+  @Patch('procesos/:id')
   @ApiOperation({ summary: 'Actualiza una configuración de carga' })
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -61,14 +61,14 @@ export class PipelineController {
   ) {
     return this.service.update(id, dto);
   }
-  @Delete('pipelines/:id')
+  @Delete('procesos/:id')
   @ApiOperation({
     summary: 'Archiva una configuración y conserva su historial',
   })
   archive(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.archive(id);
   }
-  @Post('pipelines/:id/run')
+  @Post('procesos/:id/ejecutar')
   @ApiOperation({
     summary: 'Solicita una ejecución y devuelve su identificador',
   })
@@ -78,27 +78,27 @@ export class PipelineController {
   ) {
     return this.service.run(id, user.id);
   }
-  @Get('jobs/:id')
+  @Get('ejecuciones/:id')
   @ApiOperation({ summary: 'Consulta una ejecución' })
   job(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.job(id);
   }
-  @Get('jobs/:id/events')
+  @Get('ejecuciones/:id/eventos')
   @ApiOperation({
     summary: 'Lista hasta 100 eventos, del más reciente al más antiguo',
   })
-  events(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.events(id);
+  eventos(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.service.eventos(id);
   }
-  @Get('jobs/:id/samples')
+  @Get('ejecuciones/:id/muestras')
   @ApiOperation({ summary: 'Lista hasta 100 muestras rechazadas por posición' })
   samples(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Query() query: SampleQueryDto,
   ) {
-    return this.service.samples(id, query.attempt);
+    return this.service.samples(id, query.intento);
   }
-  @Post('jobs/:id/retry')
+  @Post('ejecuciones/:id/reintentar')
   @ApiOperation({ summary: 'Crea una ejecución nueva desde el principio' })
   retry(
     @Param('id', new ParseUUIDPipe()) id: string,

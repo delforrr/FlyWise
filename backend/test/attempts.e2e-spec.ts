@@ -12,15 +12,15 @@ describe('Attempt audit (real BullMQ and PostgreSQL)', () => {
   const db = createDatabase();
   afterAll(() => db.close());
   it.each(['failed', 'stalled'] as const)(
-    'keeps separate audit after a %s attempt is recovered',
+    'keeps separate audit after a %s intento is recovered',
     async (recovery) => {
-      const name = `flywise-validation-${randomUUID()}`;
-      const connection = {
+      const nombre = `flywise-validation-${randomUUID()}`;
+      const conexion = {
         host: process.env.REDIS_HOST ?? 'localhost',
         port: Number(process.env.REDIS_PORT ?? 6379),
       };
-      const queue = new Queue(name, { connection });
-      const events = new QueueEvents(name, { connection });
+      const queue = new Queue(nombre, { connection: conexion });
+      const eventos = new QueueEvents(nombre, { connection: conexion });
       let worker: Worker<{ jobId: string; dataset: string }> | undefined;
       let recoveredWorker:
         Worker<{ jobId: string; dataset: string }> | undefined;
@@ -28,9 +28,9 @@ describe('Attempt audit (real BullMQ and PostgreSQL)', () => {
       const firstPersistence = new Promise<void>((resolve) => {
         firstPersisted = resolve;
       });
-      const rollback = new Error('rollback attempt fixtures');
+      const rollback = new Error('rollback intento fixtures');
       try {
-        await events.waitUntilReady();
+        await eventos.waitUntilReady();
         await db.transaction(async (tx) => {
           const module = await Test.createTestingModule({
             providers: [
@@ -56,7 +56,7 @@ describe('Attempt audit (real BullMQ and PostgreSQL)', () => {
           }).compile();
           const processor = module.get(EtlProcessor);
           worker = new Worker<{ jobId: string; dataset: string }>(
-            name,
+            nombre,
             async (job) => {
               const result = await processor.process(job);
               if (recovery === 'stalled') {
@@ -67,47 +67,47 @@ describe('Attempt audit (real BullMQ and PostgreSQL)', () => {
                 throw new Error('simulated delivery failure after persistence');
               return result;
             },
-            { connection, lockDuration: 1000, stalledInterval: 500 },
+            { connection: conexion, lockDuration: 1000, stalledInterval: 500 },
           );
-          const record = await tx.orm.public.EtlJob.create({
-            source: 'airlines',
-            status: 'pending',
+          const record = await tx.orm.public.EjecucionEtl.create({
+            fuente: 'aerolineas',
+            estado: 'pending',
           });
           const job = await queue.add(
             'process-dataset',
-            { jobId: record.id, dataset: 'airlines' },
+            { jobId: record.id, dataset: 'aerolineas' },
             { attempts: 2 },
           );
           if (recovery === 'stalled') {
             await firstPersistence;
             await worker.close(true);
             recoveredWorker = new Worker<{ jobId: string; dataset: string }>(
-              name,
+              nombre,
               async (job) => processor.process(job),
-              { connection, stalledInterval: 500 },
+              { connection: conexion, stalledInterval: 500 },
             );
           }
-          await job.waitUntilFinished(events, 60000);
+          await job.waitUntilFinished(eventos, 60000);
           const service = module.get(PipelinesService);
           expect(await service.job(record.id)).toMatchObject({
-            attempt: 2,
-            totalRows: 6162,
-            discardedRows: 1,
+            intento: 2,
+            filasTotales: 6162,
+            filasDescartadas: 1,
           });
           expect(await service.samples(record.id)).toEqual([
-            expect.objectContaining({ attempt: 2 }),
+            expect.objectContaining({ intento: 2 }),
           ]);
           expect(await service.samples(record.id, 1)).toEqual([
-            expect.objectContaining({ attempt: 1 }),
+            expect.objectContaining({ intento: 1 }),
           ]);
           expect(
-            (await service.events(record.id)).map((e) => e.attempt),
+            (await service.eventos(record.id)).map((e) => e.intento),
           ).toEqual(expect.arrayContaining([1, 2]));
-          expect(await service.events(record.id)).toEqual(
+          expect(await service.eventos(record.id)).toEqual(
             expect.arrayContaining([
               expect.objectContaining({
-                attempt: 2,
-                message: 'Inicio del intento 2',
+                intento: 2,
+                mensaje: 'Inicio del intento 2',
               }),
             ]),
           );
@@ -120,7 +120,7 @@ describe('Attempt audit (real BullMQ and PostgreSQL)', () => {
       } finally {
         await worker?.close();
         await recoveredWorker?.close(true);
-        await events.close();
+        await eventos.close();
         await queue.obliterate();
         await queue.close();
       }

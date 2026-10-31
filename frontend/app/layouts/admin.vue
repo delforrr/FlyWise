@@ -2,16 +2,26 @@
 import { useEtlMonitoring } from "~/features/etl-monitoring/composables/useEtlMonitoring";
 
 const { user, logout } = useAuth();
-const username = computed(() => user.value?.email.split('@')[0] ?? '');
+const username = computed(() => user.value?.correo.split("@")[0] ?? "");
 const signingOut = ref(false);
-const logoutError = ref('');
+const logoutError = ref("");
 async function signOut() {
   signingOut.value = true;
-  logoutError.value = '';
-  try { await logout(); } catch { logoutError.value = 'No pudimos cerrar la sesión. Intentá nuevamente.'; }
-  finally { signingOut.value = false; }
+  logoutError.value = "";
+  try {
+    await logout();
+  } catch {
+    logoutError.value = "No pudimos cerrar la sesión. Intentá nuevamente.";
+  } finally {
+    signingOut.value = false;
+  }
 }
 
+const catalogos = [
+  { recurso: "aeropuertos", nombre: "Aeropuertos" },
+  { recurso: "aerolineas", nombre: "Aerolíneas" },
+  { recurso: "rutas", nombre: "Rutas" },
+];
 const route = useRoute();
 const isUsersPage = computed(() => route.path.startsWith("/admin/usuarios"));
 
@@ -101,6 +111,18 @@ const {
               :aria-current="isUsersPage ? 'page' : undefined"
               >Usuarios</UButton
             >
+            <UButton
+              v-for="item in catalogos"
+              v-show="user?.rol === 'ADMIN'"
+              :key="item.recurso"
+              :to="`/admin/${item.recurso}`"
+              size="xs"
+              :variant="
+                $route.path === `/admin/${item.recurso}` ? 'subtle' : 'ghost'
+              "
+              color="neutral"
+              >{{ item.nombre }}</UButton
+            >
           </nav>
         </div>
 
@@ -120,13 +142,30 @@ const {
 
           <!-- Conmutador de Tema Claro/Oscuro -->
           <ThemeToggle />
-          <UButton icon="i-lucide-log-out" variant="ghost" color="neutral" size="xs" :loading="signingOut" aria-label="Cerrar sesión" @click="signOut">Salir</UButton>
+          <UButton
+            icon="i-lucide-log-out"
+            variant="ghost"
+            color="neutral"
+            size="xs"
+            :loading="signingOut"
+            aria-label="Cerrar sesión"
+            @click="signOut"
+            >Salir</UButton
+          >
 
           <USeparator v-if="!isUsersPage" orientation="vertical" class="h-4" />
 
           <!-- Identificador del usuario de la sesión -->
-          <div v-if="!isUsersPage && user" class="flex items-center gap-2" :title="user.email">
-            <UAvatar :alt="username" size="xs" class="font-mono text-xs font-bold" />
+          <div
+            v-if="!isUsersPage && user"
+            class="flex items-center gap-2"
+            :title="user.correo"
+          >
+            <UAvatar
+              :alt="username"
+              size="xs"
+              class="font-mono text-xs font-bold"
+            />
             <span
               class="hidden lg:inline max-w-40 truncate text-xs font-semibold text-text-main font-mono"
             >
@@ -151,12 +190,22 @@ const {
           "
           >Usuarios</NuxtLink
         >
+        <NuxtLink
+          v-for="item in catalogos"
+          v-show="user?.rol === 'ADMIN'"
+          :key="item.recurso"
+          :to="`/admin/${item.recurso}`"
+          class="whitespace-nowrap"
+          >{{ item.nombre }}</NuxtLink
+        >
       </nav>
     </header>
 
     <!-- Contenedor Principal -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <p v-if="logoutError" role="alert" class="mb-4 text-sm text-error">{{ logoutError }}</p>
+      <p v-if="logoutError" role="alert" class="mb-4 text-sm text-error">
+        {{ logoutError }}
+      </p>
       <slot />
     </main>
 

@@ -8,35 +8,35 @@ describe('Internal catalog invariants (PostgreSQL)', () => {
     try {
       await db.transaction(async (tx) => {
         const invalidWrites = [
-          () => tx.orm.public.Country.create({ name: '   ' }),
+          () => tx.orm.public.Pais.create({ nombre: '   ' }),
           () =>
-            tx.orm.public.Country.create({
-              name: 'Invalid ISO fixture',
-              isoCode: 'invalid',
+            tx.orm.public.Pais.create({
+              nombre: 'Invalid ISO fixture',
+              codigoIso: 'invalid',
             }),
           () =>
-            tx.orm.public.Airline.create({
-              name: 'Invalid IATA fixture',
+            tx.orm.public.Aerolinea.create({
+              nombre: 'Invalid IATA fixture',
               iata: 'TOOLONG',
             }),
           () =>
-            tx.orm.public.Airport.create({
-              name: 'Invalid ICAO fixture',
-              countryName: 'Test',
-              latitude: 0,
-              longitude: 0,
+            tx.orm.public.Aeropuerto.create({
+              nombre: 'Invalid ICAO fixture',
+              nombrePais: 'Test',
+              latitud: 0,
+              longitud: 0,
               icao: 'bad',
             }),
           () =>
-            tx.orm.public.User.create({
-              email: ' USER@example.test ',
-              passwordHash: 'fixture',
+            tx.orm.public.Usuario.create({
+              correo: ' USER@example.test ',
+              hashContrasena: 'fixture',
             }),
           ...['\t', '\n', '\u00a0', '\u2007', '\u202f', '\ufeff'].map(
             (space) => () =>
-              tx.orm.public.User.create({
-                email: `${space}user@example.test${space}`,
-                passwordHash: 'fixture',
+              tx.orm.public.Usuario.create({
+                correo: `${space}user@example.test${space}`,
+                hashContrasena: 'fixture',
               }),
           ),
         ];

@@ -15,18 +15,18 @@ export class UserDto {
     example: 'admin@flywise.com',
     description: 'Correo electrónico del usuario',
   })
-  email!: string;
+  correo!: string;
 
   @ApiProperty({
     enum: ['ADMIN', 'OPERATOR'],
     example: 'ADMIN',
     description: 'Rol del usuario en la plataforma',
   })
-  role?: 'ADMIN' | 'OPERATOR';
+  rol?: 'ADMIN' | 'OPERATOR';
 
   @ApiProperty({
     example: '2026-10-16T20:00:00.000Z',
     description: 'Fecha de creación de la cuenta',
   })
-  createdAt?: Date;
+  creadoEn?: Date;
 }

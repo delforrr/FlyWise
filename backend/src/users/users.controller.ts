@@ -29,7 +29,7 @@ import { AdminGuard, JwtAuthGuard } from '../auth/auth.guard.js';
 @ApiResponse({ status: 403, description: 'Se requiere el rol ADMIN' })
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
-@Controller('users')
+@Controller('usuarios')
 export class UsersController {
   constructor(private readonly userService: UsersService) {}
 

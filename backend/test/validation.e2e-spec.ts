@@ -51,26 +51,26 @@ describe('Data validation regressions (PostgreSQL)', () => {
     }).compile();
     return module.get(EtlService);
   }
-  it('returns 409 over HTTP for ambiguous airport and airline codes', async () => {
+  it('returns 409 over HTTP for ambiguous airport and aerolinea codes', async () => {
     await isolated(async (tx) => {
-      await tx.orm.public.Airline.createAndCount([
-        { name: 'Historical one', iata: 'ZZ' },
-        { name: 'Historical two', iata: 'ZZ' },
+      await tx.orm.public.Aerolinea.createAndCount([
+        { nombre: 'Historical one', iata: 'ZZ' },
+        { nombre: 'Historical two', iata: 'ZZ' },
       ]);
-      await tx.orm.public.Airport.createAndCount([
+      await tx.orm.public.Aeropuerto.createAndCount([
         {
-          name: 'Historical one',
+          nombre: 'Historical one',
           iata: 'ZZZ',
-          countryName: 'Test',
-          latitude: 0,
-          longitude: 0,
+          nombrePais: 'Test',
+          latitud: 0,
+          longitud: 0,
         },
         {
-          name: 'Historical two',
+          nombre: 'Historical two',
           iata: 'ZZZ',
-          countryName: 'Test',
-          latitude: 1,
-          longitude: 1,
+          nombrePais: 'Test',
+          latitud: 1,
+          longitud: 1,
         },
       ]);
       const module = await Test.createTestingModule({
@@ -87,8 +87,12 @@ describe('Data validation regressions (PostgreSQL)', () => {
       const app = module.createNestApplication<INestApplication<Server>>();
       await app.init();
       try {
-        await request(app.getHttpServer()).get('/airlines/ZZ').expect(409);
-        await request(app.getHttpServer()).get('/airports/ZZZ').expect(409);
+        await request(app.getHttpServer())
+          .get('/aerolineas/por-codigo/ZZ')
+          .expect(409);
+        await request(app.getHttpServer())
+          .get('/aeropuertos/por-codigo/ZZZ')
+          .expect(409);
       } finally {
         await app.close();
       }
@@ -105,24 +109,24 @@ describe('Data validation regressions (PostgreSQL)', () => {
         await writeFile(file, 'Preserved fixture,INVALID,AR\n');
         await service.processCountries(file);
         expect(
-          await tx.orm.public.Country.first({ name: 'Preserved fixture' }),
-        ).toMatchObject({ isoCode: 'AR' });
+          await tx.orm.public.Pais.first({ nombre: 'Preserved fixture' }),
+        ).toMatchObject({ codigoIso: 'AR' });
         await writeFile(file, 'Preserved fixture,\\N,AR\n');
         await service.processCountries(file);
         expect(
-          await tx.orm.public.Country.first({ name: 'Preserved fixture' }),
-        ).toMatchObject({ isoCode: null });
-        for (const dataset of ['airports', 'airlines'] as const) {
+          await tx.orm.public.Pais.first({ nombre: 'Preserved fixture' }),
+        ).toMatchObject({ codigoIso: null });
+        for (const dataset of ['aeropuertos', 'aerolineas'] as const) {
           const input = (iata: string, icao: string) =>
-            dataset === 'airports'
+            dataset === 'aeropuertos'
               ? `2147483001,Preserved airport,City,Argentina,${iata},${icao},0,0,0,0,N,UTC,airport,OpenFlights\n`
-              : `2147483001,Preserved airline,Alias,${iata},${icao},Callsign,Argentina,Y\n`;
+              : `2147483001,Preserved aerolinea,Alias,${iata},${icao},Callsign,Argentina,Y\n`;
           const stored = () =>
-            dataset === 'airports'
-              ? tx.orm.public.Airport.first({ openflightsId: 2147483001 })
-              : tx.orm.public.Airline.first({ openflightsId: 2147483001 });
-          const validIata = dataset === 'airports' ? 'ZZZ' : 'ZZ';
-          const validIcao = dataset === 'airports' ? 'ZZZZ' : 'ZZZ';
+            dataset === 'aeropuertos'
+              ? tx.orm.public.Aeropuerto.first({ idOpenflights: 2147483001 })
+              : tx.orm.public.Aerolinea.first({ idOpenflights: 2147483001 });
+          const validIata = dataset === 'aeropuertos' ? 'ZZZ' : 'ZZ';
+          const validIcao = dataset === 'aeropuertos' ? 'ZZZZ' : 'ZZZ';
           await writeFile(file, input(validIata, validIcao));
           await service.importCatalog(dataset, file);
           await writeFile(file, input('INVALID', 'INVALID'));
@@ -140,47 +144,47 @@ describe('Data validation regressions (PostgreSQL)', () => {
       await rm(directory, { recursive: true });
     }
   });
-  it('rejects a required optional code after normalization and records its reason', async () => {
+  it('rejects a required optional code after normalization and records its motivo', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'flywise-required-e2e-'));
     try {
-      const file = join(directory, 'countries.csv');
-      await writeFile(file, 'name,iso\nRequired fixture,INVALID\n');
+      const file = join(directory, 'paises.csv');
+      await writeFile(file, 'nombre,iso\nRequired fixture,INVALID\n');
       await isolated(async (tx) => {
         const service = await importer(tx);
-        const job = await tx.orm.public.EtlJob.create({
-          source: 'countries',
-          status: 'running',
+        const job = await tx.orm.public.EjecucionEtl.create({
+          fuente: 'paises',
+          estado: 'running',
         });
-        const result = await service.importCatalog('countries', file, job.id, {
-          connection: {
-            sourceType: 'http_stream',
-            httpMethod: 'GET',
-            dataFormat: 'csv',
-            csvHasHeader: true,
-            endpointUrl: 'https://raw.githubusercontent.com/fixture',
+        const result = await service.importCatalog('paises', file, job.id, {
+          conexion: {
+            tipoFuente: 'http_stream',
+            metodoHttp: 'GET',
+            formatoDatos: 'csv',
+            csvConCabecera: true,
+            urlEndpoint: 'https://raw.githubusercontent.com/fixture',
           },
-          schemaMapping: [
-            { sourceColumn: 'name', targetField: 'name' },
-            { sourceColumn: 'iso', targetField: 'isoCode', required: true },
+          mapeoEsquema: [
+            { columnaOrigen: 'nombre', campoDestino: 'nombre' },
+            { columnaOrigen: 'iso', campoDestino: 'codigoIso', required: true },
           ],
-          scheduleConfig: {
-            cronExpression: '',
-            batchSize: 1000,
-            timeoutSeconds: 30,
-            maxRetries: 0,
+          configuracionProgramacion: {
+            expresionCron: '',
+            tamanoLote: 1000,
+            tiempoLimiteSegundos: 30,
+            maximoReintentos: 0,
           },
         });
         expect(result).toMatchObject({ processed: 0, discarded: 1 });
         expect(
-          await tx.orm.public.Country.first({ name: 'Required fixture' }),
+          await tx.orm.public.Pais.first({ nombre: 'Required fixture' }),
         ).toBeNull();
         expect(
-          await tx.orm.public.EtlDiscardedSample.where({
-            jobId: job.id,
+          await tx.orm.public.MuestraDescartadaEtl.where({
+            ejecucionId: job.id,
           }).first(),
         ).toMatchObject({
-          field: 'isoCode',
-          reason: 'isoCode: obligatorio o inválido',
+          campo: 'codigoIso',
+          motivo: 'codigoIso: obligatorio o inválido',
         });
       });
     } finally {

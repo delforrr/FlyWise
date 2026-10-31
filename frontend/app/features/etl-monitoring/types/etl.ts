@@ -1,15 +1,15 @@
-export type PipelineStatus = 'idle' | 'running' | 'paused' | 'error' | 'success';
+export type PipelineStatus = 'idle' | 'running' | 'pausado' | 'error' | 'success';
 
 export type StandardPipelineId = 'ourairports' | 'openflights' | 'bts-transtats' | 'anac';
 export type PipelineId = StandardPipelineId | (string & {});
 
 export type IngestionSourceType = 'http_stream';
 export type IngestionDataFormat = 'csv';
-export type TargetEntity = 'countries' | 'airports' | 'airlines' | 'routes' | 'otp_metrics';
+export type TargetEntity = 'paises' | 'aeropuertos' | 'aerolineas' | 'rutas' | 'otp_metrics';
 
 export interface FieldMappingRule {
-  sourceColumn: string;
-  targetField: string;
+  columnaOrigen: string;
+  campoDestino: string;
   transform?: 'none' | 'uppercase' | 'trim' | 'to_number' | 'to_boolean';
   required?: boolean;
 }
@@ -17,44 +17,44 @@ export interface FieldMappingRule {
 export interface TargetFieldDef {
   key: string;
   label: string;
-  description: string;
+  descripcion: string;
   required: boolean;
   type: string;
 }
 
 export const TARGET_FIELDS_CATALOG: Record<TargetEntity, TargetFieldDef[]> = {
-countries: [
-{ key: "name", label: "Nombre", description: "Nombre del país.", required: true, type: "string" },
-{ key: "isoCode", label: "ISO", description: "Código ISO opcional.", required: false, type: "string" }
+paises: [
+{ key: "nombre", label: "Nombre", descripcion: "Nombre del país.", required: true, type: "string" },
+{ key: "codigoIso", label: "ISO", descripcion: "Código ISO opcional.", required: false, type: "string" }
 ],
-airports: [
-{ key: "openflightsId", label: "ID OpenFlights", description: "Identificador externo, no UUID interno.", required: true, type: "number" },
-{ key: "name", label: "Nombre", description: "Nombre original del catálogo.", required: true, type: "string" },
-{ key: "city", label: "city", description: "Opcional salvo coordenadas.", required: false, type: "string" },
-{ key: "countryName", label: "countryName", description: "Opcional salvo coordenadas.", required: false, type: "string" },
-{ key: "iata", label: "iata", description: "Opcional salvo coordenadas.", required: false, type: "string" },
-{ key: "icao", label: "icao", description: "Opcional salvo coordenadas.", required: false, type: "string" },
-{ key: "latitude", label: "latitude", description: "Opcional salvo coordenadas.", required: true, type: "number" },
-{ key: "longitude", label: "longitude", description: "Opcional salvo coordenadas.", required: true, type: "number" },
-{ key: "source", label: "source", description: "Opcional salvo coordenadas.", required: false, type: "string" }
+aeropuertos: [
+{ key: "idOpenflights", label: "ID OpenFlights", descripcion: "Identificador externo, no UUID interno.", required: true, type: "number" },
+{ key: "nombre", label: "Nombre", descripcion: "Nombre original del catálogo.", required: true, type: "string" },
+{ key: "ciudad", label: "ciudad", descripcion: "Opcional salvo coordenadas.", required: false, type: "string" },
+{ key: "nombrePais", label: "nombrePais", descripcion: "Opcional salvo coordenadas.", required: false, type: "string" },
+{ key: "iata", label: "iata", descripcion: "Opcional salvo coordenadas.", required: false, type: "string" },
+{ key: "icao", label: "icao", descripcion: "Opcional salvo coordenadas.", required: false, type: "string" },
+{ key: "latitud", label: "latitud", descripcion: "Opcional salvo coordenadas.", required: true, type: "number" },
+{ key: "longitud", label: "longitud", descripcion: "Opcional salvo coordenadas.", required: true, type: "number" },
+{ key: "fuente", label: "fuente", descripcion: "Opcional salvo coordenadas.", required: false, type: "string" }
 ],
-airlines: [
-{ key: "openflightsId", label: "ID OpenFlights", description: "Identificador externo, no UUID interno.", required: true, type: "number" },
-{ key: "name", label: "Nombre", description: "Nombre original del catálogo.", required: true, type: "string" },
-{ key: "iata", label: "iata", description: "Dato opcional del catálogo.", required: false, type: "string" },
-{ key: "icao", label: "icao", description: "Dato opcional del catálogo.", required: false, type: "string" },
-{ key: "country", label: "country", description: "Dato opcional del catálogo.", required: false, type: "string" },
-{ key: "active", label: "active", description: "Dato opcional del catálogo.", required: false, type: "boolean" }
+aerolineas: [
+{ key: "idOpenflights", label: "ID OpenFlights", descripcion: "Identificador externo, no UUID interno.", required: true, type: "number" },
+{ key: "nombre", label: "Nombre", descripcion: "Nombre original del catálogo.", required: true, type: "string" },
+{ key: "iata", label: "iata", descripcion: "Dato opcional del catálogo.", required: false, type: "string" },
+{ key: "icao", label: "icao", descripcion: "Dato opcional del catálogo.", required: false, type: "string" },
+{ key: "pais", label: "pais", descripcion: "Dato opcional del catálogo.", required: false, type: "string" },
+{ key: "activa", label: "activa", descripcion: "Dato opcional del catálogo.", required: false, type: "boolean" }
 ],
-routes: [
-{ key: "originOpenflightsId", label: "originOpenflightsId", description: "ID OpenFlights o código externo; no UUID.", required: false, type: "number" },
-{ key: "originCode", label: "originCode", description: "ID OpenFlights o código externo; no UUID.", required: false, type: "string" },
-{ key: "destinationOpenflightsId", label: "destinationOpenflightsId", description: "ID OpenFlights o código externo; no UUID.", required: false, type: "number" },
-{ key: "destinationCode", label: "destinationCode", description: "ID OpenFlights o código externo; no UUID.", required: false, type: "string" },
-{ key: "airlineOpenflightsId", label: "airlineOpenflightsId", description: "ID OpenFlights o código externo; no UUID.", required: false, type: "number" },
-{ key: "airlineCode", label: "airlineCode", description: "ID OpenFlights o código externo; no UUID.", required: false, type: "string" },
-{ key: "codeshare", label: "codeshare", description: "ID OpenFlights o código externo; no UUID.", required: false, type: "boolean" },
-{ key: "stops", label: "stops", description: "ID OpenFlights o código externo; no UUID.", required: false, type: "number" }
+rutas: [
+{ key: "idOpenflightsOrigen", label: "idOpenflightsOrigen", descripcion: "ID OpenFlights o código externo; no UUID.", required: false, type: "number" },
+{ key: "codigoOrigen", label: "codigoOrigen", descripcion: "ID OpenFlights o código externo; no UUID.", required: false, type: "string" },
+{ key: "idOpenflightsDestino", label: "idOpenflightsDestino", descripcion: "ID OpenFlights o código externo; no UUID.", required: false, type: "number" },
+{ key: "codigoDestino", label: "codigoDestino", descripcion: "ID OpenFlights o código externo; no UUID.", required: false, type: "string" },
+{ key: "idOpenflightsAerolinea", label: "idOpenflightsAerolinea", descripcion: "ID OpenFlights o código externo; no UUID.", required: false, type: "number" },
+{ key: "codigoAerolinea", label: "codigoAerolinea", descripcion: "ID OpenFlights o código externo; no UUID.", required: false, type: "string" },
+{ key: "codigoCompartido", label: "codigoCompartido", descripcion: "ID OpenFlights o código externo; no UUID.", required: false, type: "boolean" },
+{ key: "escalas", label: "escalas", descripcion: "ID OpenFlights o código externo; no UUID.", required: false, type: "number" }
 ],
 otp_metrics: [
 
@@ -63,24 +63,24 @@ otp_metrics: [
 
 export interface PipelineHeader {
   key: string;
-  credentialRef: string;
+  referenciaCredencial: string;
 }
 
 export interface PipelineConnectionConfig {
-  sourceType: IngestionSourceType;
-  endpointUrl: string;
-  httpMethod: 'GET';
+  tipoFuente: IngestionSourceType;
+  urlEndpoint: string;
+  metodoHttp: 'GET';
   headers?: PipelineHeader[];
-  dataFormat: IngestionDataFormat;
-  csvDelimiter?: string;
-  csvHasHeader?: boolean;
+  formatoDatos: IngestionDataFormat;
+  separadorCsv?: string;
+  csvConCabecera?: boolean;
 }
 
 export interface PipelineScheduleConfig {
-  cronExpression: string;
-  batchSize: number; // Forzado a 1.000 - 5.000 filas por RNF-04
-  timeoutSeconds: number;
-  maxRetries: number;
+  expresionCron: string;
+  tamanoLote: number; // Forzado a 1.000 - 5.000 filas por RNF-04
+  tiempoLimiteSegundos: number;
+  maximoReintentos: number;
 }
 
 export interface ProbeEndpointResult {
@@ -90,46 +90,46 @@ export interface ProbeEndpointResult {
   contentType: string;
   sampleRows: Record<string, unknown>[];
   detectedColumns: string[];
-  errorMessage?: string;
+  mensajeError?: string;
   estimatedTotalSize?: string;
 }
 
 export interface DiscardedRowRecord {
-  attempt?: number;
+  intento?: number;
   id: string;
-  rowIndex: number;
-  rawSample: string;
-  reason: string;
-  field: string;
+  numeroFila: number;
+  muestraOriginal: string;
+  motivo: string;
+  campo: string;
   timestamp: string;
 }
 
-export interface EtlPipeline {
-  attempt?: number;
+export interface ProcesoEtl {
+  intento?: number;
   id: PipelineId;
   latestJobId?: string;
-  paused?: boolean;
-  name: string;
-  datasetName: string;
-  description: string;
+  pausado?: boolean;
+  nombre: string;
+  nombreConjunto: string;
+  descripcion: string;
   icon: string;
-  status: PipelineStatus;
+  estado: PipelineStatus;
   progressPercent: number;
-  processedRows: number;
+  filasProcesadas: number;
   totalEstimatedRows: number;
-  discardedRows: number;
+  filasDescartadas: number;
   lastSyncAt: string | null;
   nextScheduledSync: string;
   scheduleDescription: string;
   averageSpeedRowsPerSec: number;
   currentStepMessage?: string;
-  discardedSamples: DiscardedRowRecord[];
+  muestrasDescartadas: DiscardedRowRecord[];
   // Propiedades añadidas para configuración extensible y personalizada
-  isSystem?: boolean;
-  targetEntity?: TargetEntity;
-  connection?: PipelineConnectionConfig;
-  schemaMapping?: FieldMappingRule[];
-  scheduleConfig?: PipelineScheduleConfig;
+  esSistema?: boolean;
+  entidadDestino?: TargetEntity;
+  conexion?: PipelineConnectionConfig;
+  mapeoEsquema?: FieldMappingRule[];
+  configuracionProgramacion?: PipelineScheduleConfig;
 }
 
 export interface EtlGlobalMetrics {
@@ -142,37 +142,37 @@ export interface EtlGlobalMetrics {
 }
 
 export interface EtlLogEntry {
-  attempt?: number;
+  intento?: number;
   id: string;
   timestamp: string;
-  pipelineId: PipelineId;
+  procesoId: PipelineId;
   pipelineName: string;
-  level: 'info' | 'success' | 'warn' | 'error';
-  message: string;
+  nivel: 'info' | 'success' | 'warn' | 'error';
+  mensaje: string;
   detail?: string;
 }
 
 export interface TriggerSyncOptions {
-  pipelineId: PipelineId;
+  procesoId: PipelineId;
 }
 
-export type Pipeline = EtlPipeline;
+export type Pipeline = ProcesoEtl;
 export type LogEntry = EtlLogEntry;
 
 
 export interface EtlJobRecord {
-  attempt?: number;
+  intento?: number;
   id: string;
-  pipelineId: string | null;
-  source: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  totalRows: number;
-  processedRows: number;
-  insertedRows: number;
-  discardedRows: number;
-  startedAt: string | null;
-  finishedAt: string | null;
-  errorMessage: string | null;
+  procesoId: string | null;
+  fuente: string;
+  estado: 'pending' | 'running' | 'completed' | 'failed';
+  filasTotales: number;
+  filasProcesadas: number;
+  filasInsertadas: number;
+  filasDescartadas: number;
+  iniciadoEn: string | null;
+  finalizadoEn: string | null;
+  mensajeError: string | null;
   durationMs: number | null;
 }
-export type StoredPipeline = Pick<EtlPipeline, 'id' | 'name' | 'datasetName' | 'description' | 'targetEntity' | 'isSystem' | 'connection' | 'schemaMapping' | 'scheduleConfig'> & { paused: boolean };
+export type StoredPipeline = Pick<ProcesoEtl, 'id' | 'nombre' | 'nombreConjunto' | 'descripcion' | 'entidadDestino' | 'esSistema' | 'conexion' | 'mapeoEsquema' | 'configuracionProgramacion'> & { pausado: boolean };

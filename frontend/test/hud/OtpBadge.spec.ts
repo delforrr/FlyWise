@@ -4,14 +4,14 @@ import OtpBadge from "../../app/shared/components/hud/OtpBadge.vue";
 
 const UBadgeStub = {
   name: "UBadge",
-  props: ["color", "variant", "size", "role", "ariaLabel"],
-  template: '<span class="u-badge-stub" :data-color="color" :role="role" :aria-label="ariaLabel"><slot /></span>',
+  props: ["color", "variant", "size", "rol", "ariaLabel"],
+  template: '<span class="u-badge-stub" :data-color="color" :role="rol" :aria-label="ariaLabel"><slot /></span>',
 };
 
 const UIconStub = {
   name: "UIcon",
   props: ["name"],
-  template: '<i class="u-icon-stub" :data-icon="name" />',
+  template: '<i class="u-icon-stub" :data-icon="nombre" />',
 };
 
 describe("OtpBadge.vue — Indicador Táctico de Puntualidad OTP-15", () => {

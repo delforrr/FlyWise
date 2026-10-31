@@ -15,7 +15,7 @@ describe('EtlController', () => {
       triggerJob: jest.fn().mockResolvedValue({ message: 'Job encolado' }),
       getStatus: jest
         .fn()
-        .mockResolvedValue({ queue: 'etl-queue', counts: { active: 0 } }),
+        .mockResolvedValue({ queue: 'etl-queue', counts: { activa: 0 } }),
       getHistory: jest.fn().mockResolvedValue([]),
     };
 

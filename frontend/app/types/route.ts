@@ -1,6 +1,6 @@
 export interface RouteAirlinePerformance {
-  airlineCode: string
-  airlineName: string
+  codigoAerolinea: string
+  nombreAerolinea: string
   otp15: number | null // Porcentaje (0 - 100)
   avgDelayMinutes: number | null
   cancellationRate: number | null
@@ -9,21 +9,21 @@ export interface RouteAirlinePerformance {
 
 export interface FlightRoute {
   id: string // "EZE-MAD"
-  originId: string
+  origenId: string
   originIata: string
   originName: string
   originCity: string
   originCoordinates: [number, number]
   
-  destinationId: string
+  destinoId: string
   destinationIata: string
   destinationName: string
   destinationCity: string
   destinationCoordinates: [number, number]
   
-  distanceKm: number
+  distanciaKm: number
   averageOtp15: number | null
-  airlines: RouteAirlinePerformance[]
+  aerolineas: RouteAirlinePerformance[]
   primaryAirline: string
   flightType?: "direct" | "connecting"
   viaStopover?: string

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { useCatalog } from "~/shared/composables/useCatalog";
-const { airports } = useCatalog();
+const { aeropuertos } = useCatalog();
 import { type FlightRoute } from "~/types/route";
 
 const {
@@ -29,19 +29,19 @@ watch([selectedOrigin, selectedDestination], ([newOrig, newDest]) => {
 
 const originAirport = computed(() => {
   if (!selectedOrigin.value) return null;
-  return airports.value.find(a => a.id === selectedOrigin.value) ?? null;
+  return aeropuertos.value.find(a => a.id === selectedOrigin.value) ?? null;
 });
 
 const destinationAirport = computed(() => {
   if (!selectedDestination.value) return null;
-  return airports.value.find(a => a.id === selectedDestination.value) ?? null;
+  return aeropuertos.value.find(a => a.id === selectedDestination.value) ?? null;
 });
 
 // Rutas de escala o alternativas para el par seleccionado
 const connectingRoutes = computed<FlightRoute[]>(() => []);
 
 function handleFocusRoute(route: FlightRoute) {
-  setRoute(route.originId, route.destinationId);
+  setRoute(route.origenId, route.destinoId);
   nextTick(() => {
     triggerFit();
   });
@@ -96,9 +96,9 @@ function handleBackToHub() {
         <template #header>
           <RouteHeader
             :selected-origin="selectedOrigin"
-            :selected-destination="selectedDestination"
-            :origin-airport="originAirport"
-            :destination-airport="destinationAirport"
+            :selected-destino="selectedDestination"
+            :origen-airport="originAirport"
+            :destino-airport="destinationAirport"
             :matching-count="matchingRoutes.length"
             :is-collapsed="!isExpanded"
             @toggle-collapse="isExpanded = false"
@@ -124,7 +124,7 @@ function handleBackToHub() {
             </template>
 
             <RouteConnectingList
-              :routes="connectingRoutes"
+              :rutas="connectingRoutes"
               @focus-route="handleFocusRoute"
             />
           </template>
@@ -178,8 +178,8 @@ function handleBackToHub() {
           <RouteHubConnections
             v-if="matchingRoutes.length > 0"
             :selected-origin="selectedOrigin"
-            :routes="matchingRoutes"
-            @select-destination="setDestination"
+            :rutas="matchingRoutes"
+            @select-destino="setDestination"
           />
           <template v-else>
             <UEmpty

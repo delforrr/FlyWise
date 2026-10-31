@@ -7,8 +7,8 @@ const props = defineProps<{
 }>();
 
 // Distancia en millas náuticas (1 nm = 1.852 km)
-const distanceNm = computed<number>(() => {
-  return Math.round(props.route.distanceKm / 1.852);
+const distanciaNm = computed<number>(() => {
+  return Math.round(props.route.distanciaKm / 1.852);
 });
 </script>
 
@@ -22,9 +22,9 @@ const distanceNm = computed<number>(() => {
         <span class="text-primary">{{ route.destinationIata }}</span>
       </div>
       <div class="flex items-center gap-1 font-mono tabular-nums text-[11px] text-text-muted font-medium shrink-0">
-        <span>{{ route.distanceKm.toLocaleString() }} km</span>
+        <span>{{ route.distanciaKm.toLocaleString() }} km</span>
         <span class="text-text-dim/60">/</span>
-        <span>{{ distanceNm.toLocaleString() }} nm</span>
+        <span>{{ distanciaNm.toLocaleString() }} nm</span>
       </div>
     </div>
 

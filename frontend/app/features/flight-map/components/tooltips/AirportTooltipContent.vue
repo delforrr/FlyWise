@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { Airport } from "~/types/airport";
+import type { Aeropuerto } from "~/types/airport";
 
 const props = defineProps<{
-  airport: Airport;
+  airport: Aeropuerto;
 }>();
 
 // Distinción de categoría aeronáutica
@@ -30,8 +30,8 @@ const categoryBadge = computed(() => {
 
 // Coordenadas geográficas estándar SRID 4326 (WGS 84): [lon, lat]
 const formattedCoordinates = computed<string>(() => {
-  if (!props.airport.coordinates || props.airport.coordinates.length < 2) return "--";
-  const [lon, lat] = props.airport.coordinates;
+  if (!props.airport.coordenadas || props.airport.coordenadas.length < 2) return "--";
+  const [lon, lat] = props.airport.coordenadas;
   const latStr = `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? "N" : "S"}`;
   const lonStr = `${Math.abs(lon).toFixed(4)}°${lon >= 0 ? "E" : "W"}`;
   return `${latStr}, ${lonStr}`;
@@ -60,12 +60,12 @@ const formattedCoordinates = computed<string>(() => {
 
     <!-- Nombre y Ubicación -->
     <div class="flex flex-col gap-0.5">
-      <p class="text-xs font-semibold text-text-main leading-snug line-clamp-2" :title="airport.name">
-        {{ airport.name }}
+      <p class="text-xs font-semibold text-text-main leading-snug line-clamp-2" :title="airport.nombre">
+        {{ airport.nombre }}
       </p>
       <p class="text-[11px] text-text-muted flex items-center gap-1">
         <UIcon name="i-lucide-map-pin" class="w-3 h-3 text-text-dim shrink-0" />
-        <span class="truncate">{{ airport.city }}, {{ airport.country }}</span>
+        <span class="truncate">{{ airport.ciudad }}, {{ airport.pais }}</span>
       </p>
     </div>
 
@@ -77,7 +77,7 @@ const formattedCoordinates = computed<string>(() => {
 
     <!-- Contador de Conexiones Directas -->
     <div
-      v-if="airport.connectionsCount !== undefined && airport.connectionsCount !== null"
+      v-if="airport.cantidadConexiones !== undefined && airport.cantidadConexiones !== null"
       class="pt-1.5 border-t border-border-subtle/40 flex items-center justify-between text-[11px] font-mono text-text-dim"
     >
       <span class="flex items-center gap-1 text-text-muted">
@@ -85,7 +85,7 @@ const formattedCoordinates = computed<string>(() => {
         <span>Conexiones directas:</span>
       </span>
       <span class="font-mono tabular-nums font-bold text-primary text-xs">
-        {{ airport.connectionsCount }}
+        {{ airport.cantidadConexiones }}
       </span>
     </div>
   </div>
