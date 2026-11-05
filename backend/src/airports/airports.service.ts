@@ -1,3 +1,4 @@
+import { escaparLike } from '../prisma/escape-like.js';
 import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
   bloquearCatalogo,
@@ -48,7 +49,7 @@ export class AirportsService {
     const term = searchDto.q.trim();
     const upperTerm = term.toUpperCase();
 
-    const pattern = `%${term.replace(/[\\%_]/g, '\\$&')}%`;
+    const pattern = `%${escaparLike(term)}%`;
     return this.prisma.models.Aeropuerto.where((airport) =>
       or(
         airport.iata.eq(upperTerm),
@@ -176,7 +177,7 @@ export class AirportsService {
     if (consulta.estado === 'archivados')
       query = query.where((a) => a.archivadoEn.isNotNull());
     if (consulta.busqueda) {
-      const patron = `%${consulta.busqueda.replace(/[\\%_]/g, '\\$&')}%`;
+      const patron = `%${escaparLike(consulta.busqueda)}%`;
       query = query.where((a) =>
         or(
           a.nombre.ilike(patron),

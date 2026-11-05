@@ -87,7 +87,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         OPENFLIGHTS_COLUMNS.rutas.map((columna, i) => [columna, celdas[i]]),
       ),
     );
-    return { ...row, claveImportacion: claveRutaFuente(row) };
+    return Object.assign(row, { claveImportacion: claveRutaFuente(row) });
   }
 
   it('reconoce la clave exacta y conserva una oferta archivada', async () => {

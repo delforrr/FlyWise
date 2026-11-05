@@ -44,7 +44,7 @@ useShortcuts();
   <div class="relative h-screen w-screen overflow-hidden bg-background">
     <GlobalMapFilters @apply="applyGlobalFilters" />
     <div v-if="!hasSelection" class="hud-panel absolute z-20 hidden md:block bottom-5 left-6 w-80 p-4 text-sm text-text-main">
-      <div role="status" aria-live="polite" :aria-busy="globalMap.loading.value">
+      <div aria-live="polite" aria-atomic="true" :aria-busy="globalMap.loading.value">
         <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">En el mapa</p>
         <p v-if="globalMap.loading.value" class="flex items-center gap-2 py-2">
           <UIcon name="i-lucide-loader-circle" class="size-4 motion-safe:animate-spin text-primary" aria-hidden="true" />

@@ -3,7 +3,6 @@ import { EtlProcessor } from './etl.processor.js';
 import { EtlService } from './etl.service.js';
 import { PipelinesService } from './pipelines.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { Job } from 'bullmq';
 
 describe('EtlProcessor', () => {
   const ejecuciones = mockCollection();
@@ -17,11 +16,13 @@ describe('EtlProcessor', () => {
     } as unknown as PrismaService,
     { run } as unknown as PipelinesService,
   );
-  const job = {
-    name: 'process-dataset',
-    attemptsMade: 0,
-    data: { jobId: 'job-1', dataset: 'all' },
-  } as Job<{ jobId: string; dataset: string }>;
+  const crearJob = (dataset = 'all') =>
+    ({
+      name: 'process-dataset',
+      attemptsMade: 0,
+      data: { jobId: 'job-1', dataset },
+    }) as Parameters<EtlProcessor['process']>[0];
+  const job = crearJob();
   beforeEach(() => {
     jest.clearAllMocks();
     ejecuciones.firstOrThrow.mockResolvedValue({
@@ -63,10 +64,7 @@ describe('EtlProcessor', () => {
     );
   });
   it('acepta un trabajo persistido con el nombre anterior del conjunto', async () => {
-    await processor.process({
-      ...job,
-      data: { jobId: 'job-1', dataset: 'airports' },
-    });
+    await processor.process(crearJob('airports'));
     expect(importCatalog).toHaveBeenCalledWith(
       'aeropuertos',
       expect.stringContaining('airports.dat'),
@@ -76,12 +74,7 @@ describe('EtlProcessor', () => {
   });
 
   it('does not silently complete unsupported datasets', async () => {
-    await expect(
-      processor.process({
-        ...job,
-        data: { jobId: 'job-1', dataset: 'unknown' },
-      } as typeof job),
-    ).rejects.toThrow();
+    await expect(processor.process(crearJob('unknown'))).rejects.toThrow();
     expect(importCatalog).not.toHaveBeenCalled();
     expect(ejecuciones.update).toHaveBeenLastCalledWith(
       expect.objectContaining({ estado: 'failed' }),

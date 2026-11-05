@@ -44,12 +44,13 @@ export const OPENFLIGHTS_COLUMNS: Record<CatalogDataset, string[]> = {
 };
 
 export function catalogValue(value: unknown): string | null {
-  const text =
-    typeof value === 'string'
-      ? value.trim()
-      : typeof value === 'number' || typeof value === 'boolean'
-        ? String(value)
-        : '';
+  if (
+    typeof value !== 'string' &&
+    typeof value !== 'number' &&
+    typeof value !== 'boolean'
+  )
+    return null;
+  const text = typeof value === 'string' ? value.trim() : String(value);
   return text === '' || text === String.raw`\N` ? null : text;
 }
 
@@ -73,6 +74,30 @@ function requiredText(value: unknown, campo: string) {
   return text;
 }
 
+function normalizeRouteRow(row: Record<string, unknown>): CatalogRecord {
+  const text = catalogValue(row.escalas);
+  const escalas =
+    text !== null && /^\d+$/.test(text) ? Number(text) : Number.NaN;
+  if (!Number.isSafeInteger(escalas) || escalas > 2147483647)
+    throw new Error('escalas: entero no negativo obligatorio');
+  const codigoCompartido = catalogValue(row.codigoCompartido)?.toUpperCase();
+  if (
+    codigoCompartido &&
+    !['Y', 'N', 'TRUE', 'FALSE'].includes(codigoCompartido)
+  )
+    throw new Error('codigoCompartido: indicador invalido');
+  return {
+    codigoAerolinea: code(row.codigoAerolinea, /^[A-Z0-9]{2,3}$/),
+    idOpenflightsAerolinea: identifier(row.idOpenflightsAerolinea),
+    codigoOrigen: code(row.codigoOrigen, /^[A-Z0-9]{3,4}$/),
+    idOpenflightsOrigen: identifier(row.idOpenflightsOrigen),
+    codigoDestino: code(row.codigoDestino, /^[A-Z0-9]{3,4}$/),
+    idOpenflightsDestino: identifier(row.idOpenflightsDestino),
+    codigoCompartido: codigoCompartido === 'Y' || codigoCompartido === 'TRUE',
+    escalas,
+  };
+}
+
 export function normalizeCatalogRow(
   dataset: CatalogDataset,
   row: Record<string, unknown>,
@@ -82,45 +107,20 @@ export function normalizeCatalogRow(
       nombre: requiredText(row.nombre, 'nombre'),
       codigoIso: code(row.codigoIso, /^[A-Z]{2}$/),
     };
-  if (dataset === 'rutas') {
-    const text = catalogValue(row.escalas);
-    const escalas =
-      text !== null && /^\d+$/.test(text) ? Number(text) : Number.NaN;
-    if (!Number.isSafeInteger(escalas) || escalas > 2147483647)
-      throw new Error('escalas: entero no negativo obligatorio');
-    const codigoCompartido = catalogValue(row.codigoCompartido)?.toUpperCase();
-    if (
-      codigoCompartido &&
-      !['Y', 'N', 'TRUE', 'FALSE'].includes(codigoCompartido)
-    )
-      throw new Error('codigoCompartido: indicador invalido');
-    return {
-      codigoAerolinea: code(row.codigoAerolinea, /^[A-Z0-9]{2,3}$/),
-      idOpenflightsAerolinea: identifier(row.idOpenflightsAerolinea),
-      codigoOrigen: code(row.codigoOrigen, /^[A-Z0-9]{3,4}$/),
-      idOpenflightsOrigen: identifier(row.idOpenflightsOrigen),
-      codigoDestino: code(row.codigoDestino, /^[A-Z0-9]{3,4}$/),
-      idOpenflightsDestino: identifier(row.idOpenflightsDestino),
-      codigoCompartido: codigoCompartido === 'Y' || codigoCompartido === 'TRUE',
-      escalas,
-    };
-  }
+  if (dataset === 'rutas') return normalizeRouteRow(row);
   const common = {
     idOpenflights: identifier(row.idOpenflights, true),
     nombre: requiredText(row.nombre, 'nombre'),
   };
   if (dataset === 'aerolineas') {
-    const activa = catalogValue(row.activa)?.toUpperCase();
+    const indicador = catalogValue(row.activa)?.toUpperCase() ?? '';
+    const activa = ['N', 'FALSE'].includes(indicador) ? false : null;
     return {
       ...common,
       iata: code(row.iata, /^[A-Z0-9]{2}$/),
       icao: code(row.icao, /^[A-Z0-9]{3}$/),
       pais: catalogValue(row.pais),
-      activa: ['Y', 'TRUE'].includes(activa ?? '')
-        ? true
-        : ['N', 'FALSE'].includes(activa ?? '')
-          ? false
-          : null,
+      activa: ['Y', 'TRUE'].includes(indicador) ? true : activa,
     };
   }
   const coordenadas: Record<string, number> = {};

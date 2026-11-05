@@ -139,7 +139,8 @@ export class RefreshSessionsService implements OnModuleDestroy {
 
   private verify(token?: string, ignoreExpiration = false): RefreshPayload {
     try {
-      if (!token || token.length > 2048) throw new Error();
+      if (!token || token.length > 2048)
+        throw new Error('Token de renovación ausente o demasiado largo.');
       const payload = this.jwt.verify<RefreshPayload>(token, {
         audience: 'refresh',
         algorithms: ['HS256'],
@@ -151,7 +152,7 @@ export class RefreshSessionsService implements OnModuleDestroy {
         typeof payload.remember !== 'boolean' ||
         typeof payload.exp !== 'number'
       )
-        throw new Error();
+        throw new Error('Datos de sesión inválidos.');
       return payload;
     } catch {
       throw new UnauthorizedException('La sesión venció o es inválida.');

@@ -109,7 +109,7 @@ export function useAnimatedNumber(
       return;
     }
 
-    const startVal = fromVal !== undefined ? fromVal : displayValue.value;
+    const startVal = fromVal ?? displayValue.value;
     if (startVal === targetVal) {
       cancelAnimation();
       displayValue.value = targetVal;

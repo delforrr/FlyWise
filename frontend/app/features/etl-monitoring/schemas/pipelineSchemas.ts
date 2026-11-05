@@ -57,7 +57,7 @@ export const pipelineConnectionSchema = z
       .array(
         z.object({
           key: z.string(),
-          referenciaCredencial: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Use el nombre de una variable del servidor.'),
+          referenciaCredencial: z.string().regex(/^[A-Za-z_]\w*$/, 'Use el nombre de una variable del servidor.'),
         }),
       )
       .optional(),
@@ -209,7 +209,7 @@ export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
   } else {
     const unmapped = requiredDefs.filter((def) => {
       const rule = mappings.find((m) => m.campoDestino === def.key);
-      return !rule || !rule.columnaOrigen || !rule.columnaOrigen.trim();
+      return !rule?.columnaOrigen?.trim();
     });
 
     if (unmapped.length > 0) {

@@ -135,7 +135,10 @@ function getAriaLabel(
   route: FlightRoute,
   dest: ReturnType<typeof getConnectedDestination>,
 ): string {
-  return `Ruta hacia ${dest.ciudad} (${dest.iata}), operada por ${route.primaryAirline}. Distancia ${route.distanciaKm.toLocaleString()} kilómetros. Puntualidad ${route.averageOtp15 === null ? "sin datos" : `${route.averageOtp15.toFixed(1)}% OTP-15`}. Presione para aislar y seleccionar como destino.`;
+  const otpText = route.averageOtp15 === null
+    ? "sin datos"
+    : `${route.averageOtp15.toFixed(1)}% OTP-15`;
+  return `Ruta hacia ${dest.ciudad} (${dest.iata}), operada por ${route.primaryAirline}. Distancia ${route.distanciaKm.toLocaleString()} kilómetros. Puntualidad ${otpText}. Presione para aislar y seleccionar como destino.`;
 }
 </script>
 

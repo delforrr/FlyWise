@@ -283,7 +283,6 @@ onUnmounted(() => {
 }
 
 .radar-sweep-beam {
-  animation: radar-sweep 2.8s linear infinite;
   background: conic-gradient(
     from 0deg,
     rgba(56, 189, 248, 0.4) 0deg,
@@ -293,30 +292,36 @@ onUnmounted(() => {
   );
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .radar-sweep-beam {
+    animation: radar-sweep 2.8s linear infinite;
+  }
+}
+
 :deep(.maplibregl-canvas) {
   outline: none;
 }
-:deep(.maplibregl-ctrl-bottom-right) {
-  display: none !important;
+:deep(.maplibregl-map .maplibregl-ctrl-bottom-right) {
+  display: none;
 }
 :deep(.maplibregl-ctrl-bottom-left) {
   margin: 0 0 12px 16px;
   z-index: 20;
 }
-:deep(.maplibregl-ctrl-attrib) {
-  background-color: var(--hud-panel-bg, rgba(15, 20, 24, 0.75)) !important;
+:deep(.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib) {
+  background-color: var(--hud-panel-bg, rgba(15, 20, 24, 0.75));
   backdrop-filter: blur(8px);
   border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
   border-radius: 6px;
   padding: 2px 6px;
   font-size: 10px;
-  color: var(--color-text-muted, #94a3b8) !important;
+  color: var(--color-text-muted, #94a3b8);
 }
-:deep(.maplibregl-ctrl-attrib a) {
-  color: var(--color-text-main, #cbd5e1) !important;
+:deep(.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib a) {
+  color: var(--color-text-main, #cbd5e1);
   text-decoration: none;
 }
-:deep(.maplibregl-ctrl-attrib a:hover) {
+:deep(.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib a:hover) {
   text-decoration: underline;
 }
 </style>

@@ -46,7 +46,7 @@ describe('Global map filter draft', () => {
     await wrapper.get('input[name="map-zone"][value="domestic"]').setValue();
     const apply = wrapper.findAll('button').find(b => b.text() === 'Aplicar filtros')!;
     expect(apply.attributes('disabled')).toBeDefined();
-    expect(wrapper.get('[role="status"]').text()).toContain('Selecciona un país');
+    expect(wrapper.get('output').text()).toContain('Selecciona un país');
     wrapper.findComponent(menu).vm.$emit('update:modelValue', 'ar');
     await wrapper.get('input[name="map-limit"][value="20"]').setValue();
     expect(wrapper.get('#map-limit-help').text()).toContain('Hasta 20 conexiones');

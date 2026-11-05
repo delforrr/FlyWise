@@ -22,9 +22,14 @@ export function useEtlData() {
       pipelines.value = stored.map(p => {
         const job = history.find(j => j.procesoId === p.id);
         const scheduleDescription = p.configuracionProgramacion?.expresionCron ? `${p.configuracionProgramacion.expresionCron} (UTC)` : 'Manual';
+        let estado: ProcesoEtl['estado'] = 'idle';
+        if (job?.estado === 'running' || job?.estado === 'pending') estado = 'running';
+        else if (p.pausado) estado = 'pausado';
+        else if (job?.estado === 'failed') estado = 'error';
+        else if (job?.estado === 'completed') estado = 'success';
         return {
           ...p, icon: 'i-lucide-database', latestJobId: job?.id, intento: job?.intento ?? 0,
-          estado: job?.estado === 'running' || job?.estado === 'pending' ? 'running' : p.pausado ? 'pausado' : job?.estado === 'failed' ? 'error' : job?.estado === 'completed' ? 'success' : 'idle',
+          estado,
           filasProcesadas: job?.filasProcesadas ?? 0, filasDescartadas: job?.filasDescartadas ?? 0,
           totalEstimatedRows: job?.filasTotales ?? 0,
           progressPercent: job?.estado === 'completed' ? 100 : 0,

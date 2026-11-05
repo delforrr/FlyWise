@@ -139,10 +139,11 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
       <div class="flex flex-wrap items-center gap-2">
         <!-- Filtro por Entidad -->
         <div class="flex items-center gap-1 text-xs">
-          <span class="text-[11px] text-text-muted font-semibold hidden sm:inline">
+          <label for="etl-entity-filter" class="text-[11px] text-text-muted font-semibold sr-only sm:not-sr-only">
             Entidad:
-          </span>
+          </label>
           <select
+            id="etl-entity-filter"
             v-model="selectedEntityFilter"
             class="rounded-lg border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main font-medium focus:border-primary focus:outline-none"
           >
@@ -159,10 +160,11 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
 
         <!-- Filtro por Tipo de Origen -->
         <div class="flex items-center gap-1 text-xs">
-          <span class="text-[11px] text-text-muted font-semibold hidden sm:inline">
+          <label for="etl-origin-filter" class="text-[11px] text-text-muted font-semibold sr-only sm:not-sr-only">
             Origen:
-          </span>
+          </label>
           <select
+            id="etl-origin-filter"
             v-model="selectedSourceTypeFilter"
             class="rounded-lg border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main font-medium focus:border-primary focus:outline-none"
           >

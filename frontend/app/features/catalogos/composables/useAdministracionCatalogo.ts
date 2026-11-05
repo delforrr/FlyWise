@@ -7,6 +7,14 @@ import type {
   RegistroCatalogo,
 } from "../schemas/catalogos";
 
+function mensaje(causa: unknown) {
+  const valor = (causa as { data?: { message?: unknown } })?.data?.message;
+  if (Array.isArray(valor)) return valor.join(" ");
+  return typeof valor === "string"
+    ? valor
+    : "No pudimos completar la solicitud. Intentá nuevamente.";
+}
+
 export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
   const request = useBackendRequest();
   const toast = useToast();
@@ -22,14 +30,6 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
   let lectura: AbortController | undefined;
   onScopeDispose(() => lectura?.abort());
 
-  function mensaje(causa: unknown) {
-    const valor = (causa as { data?: { message?: unknown } })?.data?.message;
-    return Array.isArray(valor)
-      ? valor.join(" ")
-      : typeof valor === "string"
-        ? valor
-        : "No pudimos completar la solicitud. Intentá nuevamente.";
-  }
   async function cargar() {
     lectura?.abort();
     const actual = new AbortController();
@@ -53,8 +53,8 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
         registros.value = resultado.datos;
         total.value = resultado.total;
       }
-    } catch (causa: unknown) {
-      if (!actual.signal.aborted) error.value = mensaje(causa);
+    } catch (error_: unknown) {
+      if (!actual.signal.aborted) error.value = mensaje(error_);
     } finally {
       if (lectura === actual) cargando.value = false;
     }
@@ -73,8 +73,8 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
         `/administracion/${recurso}/${id}`,
         { signal },
       );
-    } catch (causa: unknown) {
-      throw new Error(mensaje(causa));
+    } catch (error_: unknown) {
+      throw new Error(mensaje(error_));
     }
   }
   async function guardar(
@@ -94,8 +94,8 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
       });
       await cargar();
       return true;
-    } catch (causa: unknown) {
-      throw new Error(mensaje(causa));
+    } catch (error_: unknown) {
+      throw new Error(mensaje(error_));
     } finally {
       guardando.value = false;
     }
@@ -113,8 +113,8 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
       if (registros.value.length === 1 && pagina.value > 1) pagina.value--;
       else await cargar();
       return true;
-    } catch (causa: unknown) {
-      throw new Error(mensaje(causa));
+    } catch (error_: unknown) {
+      throw new Error(mensaje(error_));
     } finally {
       guardando.value = false;
     }
@@ -134,8 +134,8 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
       toast.add({ title: "Oferta guardada", color: "success" });
       await cargar();
       return true;
-    } catch (causa: unknown) {
-      throw new Error(mensaje(causa));
+    } catch (error_: unknown) {
+      throw new Error(mensaje(error_));
     } finally {
       guardando.value = false;
     }
@@ -150,8 +150,8 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
       toast.add({ title: "Oferta archivada", color: "success" });
       await cargar();
       return true;
-    } catch (causa: unknown) {
-      throw new Error(mensaje(causa));
+    } catch (error_: unknown) {
+      throw new Error(mensaje(error_));
     } finally {
       guardando.value = false;
     }

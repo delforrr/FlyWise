@@ -1,3 +1,4 @@
+import { escaparLike } from '../prisma/escape-like.js';
 import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
   bloquearCatalogo,
@@ -29,7 +30,7 @@ export class AirlinesService {
             or(
               aerolinea.iata.eq(term.toUpperCase()),
               aerolinea.icao.eq(term.toUpperCase()),
-              aerolinea.nombre.ilike(`%${term.replace(/[\\%_]/g, '\\$&')}%`),
+              aerolinea.nombre.ilike(`%${escaparLike(term)}%`),
             ),
         )
       : this.prisma.models.Aerolinea.where({ archivadoEn: null });
@@ -105,7 +106,7 @@ export class AirlinesService {
     if (consulta.estado === 'archivados')
       query = query.where((a) => a.archivadoEn.isNotNull());
     if (consulta.busqueda) {
-      const patron = `%${consulta.busqueda.replace(/[\\%_]/g, '\\$&')}%`;
+      const patron = `%${escaparLike(consulta.busqueda)}%`;
       query = query.where((a) =>
         or(a.nombre.ilike(patron), a.iata.ilike(patron), a.icao.ilike(patron)),
       );

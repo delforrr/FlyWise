@@ -273,8 +273,7 @@ export class EtlService {
         for await (const raw of rows) {
           if (
             total === 0 &&
-            configuration &&
-            configuration.mapeoEsquema.some(
+            configuration?.mapeoEsquema.some(
               (rule) => !Object.hasOwn(raw, rule.columnaOrigen),
             )
           )

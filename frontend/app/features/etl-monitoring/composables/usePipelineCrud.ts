@@ -59,7 +59,11 @@ export function usePipelineCrud() {
   }));
   async function testEndpoint(conexion: PipelineConnectionConfig) {
     isTestingEndpoint.value = true;
-    try { return lastProbeResult.value = await request<ProbeEndpointResult>('/etl/procesos/probar', { method: 'POST', body: conexion }); }
+    try {
+      const result = await request<ProbeEndpointResult>('/etl/procesos/probar', { method: 'POST', body: conexion });
+      lastProbeResult.value = result;
+      return result;
+    }
     finally { isTestingEndpoint.value = false; }
   }
   async function createPipeline(data: Partial<ProcesoEtl>) {

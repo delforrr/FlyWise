@@ -95,7 +95,7 @@ function apply() {
         </div>
         <p id="map-limit-help" class="mt-3 text-xs leading-relaxed text-text-muted">Hasta {{ draft.limit }} conexiones, ordenadas por conectividad de sus aeropuertos, no por cantidad de vuelos. Solo verás los aeropuertos de esas conexiones.</p>
       </fieldset>
-      <p v-if="!valid" role="status" class="text-sm text-text-muted">{{ draft.mode === 'domestic' ? 'Selecciona un país para explorar sus conexiones nacionales.' : 'Completa el origen y el destino con ubicaciones diferentes para aplicar los filtros.' }}</p>
+      <output v-if="!valid" class="block text-sm text-text-muted">{{ draft.mode === 'domestic' ? 'Selecciona un país para explorar sus conexiones nacionales.' : 'Completa el origen y el destino con ubicaciones diferentes para aplicar los filtros.' }}</output>
     </template>
     <template #footer>
       <UButton label="Cancelar" color="neutral" variant="ghost" class="min-h-11 w-full justify-center sm:w-auto" @click="isOpen = false" />

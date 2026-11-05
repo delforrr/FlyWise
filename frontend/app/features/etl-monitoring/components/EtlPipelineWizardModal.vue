@@ -3,7 +3,6 @@ import { ref, computed, watch } from "vue";
 import type {
   ProcesoEtl,
   PipelineConnectionConfig,
-  PipelineScheduleConfig,
   FieldMappingRule,
   TargetEntity,
   IngestionSourceType,
@@ -377,7 +376,7 @@ function handleSave() {
     return;
   }
 
-  let scheduleDesc = "Diario";
+  let scheduleDesc: string;
   let cronExpr = customCron.value;
 
   if (cronPreset.value === "manual") {
@@ -478,10 +477,11 @@ function handleSave() {
         <div v-show="currentStep === 1" class="space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block font-semibold text-text-main mb-1">
+              <label for="etl-nombre" class="block font-semibold text-text-main mb-1">
                 Nombre del Servicio *
               </label>
               <UInput
+                id="etl-nombre"
                 v-model="nombre"
                 placeholder="Ej. OpenSky Live Vectors"
                 size="sm"
@@ -497,10 +497,11 @@ function handleSave() {
               </p>
             </div>
             <div>
-              <label class="block font-semibold text-text-main mb-1">
+              <label for="etl-nombreConjunto" class="block font-semibold text-text-main mb-1">
                 Nombre del Dataset *
               </label>
               <UInput
+                id="etl-nombreConjunto"
                 v-model="nombreConjunto"
                 placeholder="Ej. OpenSky Network API"
                 size="sm"
@@ -518,10 +519,11 @@ function handleSave() {
           </div>
 
           <div>
-            <label class="block font-semibold text-text-main mb-1">
+            <label for="etl-descripcion" class="block font-semibold text-text-main mb-1">
               Descripción Operativa
             </label>
             <UInput
+              id="etl-descripcion"
               v-model="descripcion"
               placeholder="Finalidad del dataset, cobertura geográfica y origen de los datos..."
               size="sm"
@@ -530,12 +532,13 @@ function handleSave() {
           </div>
 
           <!-- Selector de Entidad Destino -->
-          <div>
-            <label class="block font-semibold text-text-main mb-1.5">
+          <fieldset>
+            <legend class="block font-semibold text-text-main mb-1.5">
               Entidad de Destino en FlyWise *
-            </label>
+            </legend>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
+                :aria-pressed="entidadDestino === opt.value"
                 v-for="opt in targetEntityOptions"
                 :key="opt.value"
                 :disabled="opt.value === 'otp_metrics'"
@@ -556,15 +559,17 @@ function handleSave() {
                 </span>
               </button>
             </div>
-          </div>
+          </fieldset>
 
           <!-- Selector de Icono -->
-          <div>
-            <label class="block font-semibold text-text-muted text-[11px] mb-1.5">
+          <fieldset>
+            <legend class="block font-semibold text-text-muted text-[11px] mb-1.5">
               Icono de Identificación
-            </label>
+            </legend>
             <div class="flex items-center gap-2 flex-wrap">
               <button
+                :aria-pressed="icon === ic"
+                :aria-label="ic"
                 v-for="ic in availableIcons"
                 :key="ic"
                 type="button"
@@ -579,7 +584,7 @@ function handleSave() {
                 <UIcon :name="ic" class="w-4 h-4" />
               </button>
             </div>
-          </div>
+          </fieldset>
         </div>
 
         <!-- ============================================== -->
@@ -588,10 +593,11 @@ function handleSave() {
         <div v-show="currentStep === 2" class="space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label class="block font-semibold text-text-main mb-1">
+              <label for="etl-tipoFuente" class="block font-semibold text-text-main mb-1">
                 Tipo de Conexión *
               </label>
               <select
+                id="etl-tipoFuente"
                 v-model="tipoFuente"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
@@ -600,10 +606,11 @@ function handleSave() {
             </div>
 
             <div>
-              <label class="block font-semibold text-text-main mb-1">
+              <label for="etl-metodoHttp" class="block font-semibold text-text-main mb-1">
                 Método HTTP *
               </label>
               <select
+                id="etl-metodoHttp"
                 v-model="metodoHttp"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
@@ -612,10 +619,11 @@ function handleSave() {
             </div>
 
             <div>
-              <label class="block font-semibold text-text-main mb-1">
+              <label for="etl-formatoDatos" class="block font-semibold text-text-main mb-1">
                 Formato de Datos *
               </label>
               <select
+                id="etl-formatoDatos"
                 v-model="formatoDatos"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
@@ -626,10 +634,11 @@ function handleSave() {
 
           <!-- URL del Endpoint -->
           <div>
-            <label class="block font-semibold text-text-main mb-1">
+            <label for="etl-urlEndpoint" class="block font-semibold text-text-main mb-1">
               URL del Endpoint / Recurso Remoto *
             </label>
             <UInput
+              id="etl-urlEndpoint"
               v-model="urlEndpoint"
               placeholder="https://api.aviation-feed.com/v1/delays.csv"
               size="sm"
@@ -655,10 +664,11 @@ function handleSave() {
             class="grid grid-cols-2 gap-3 p-3 rounded-xl border border-border-subtle bg-surface-card"
           >
             <div>
-              <label class="block text-[11px] font-semibold text-text-muted mb-1">
+              <label for="etl-separadorCsv" class="block text-[11px] font-semibold text-text-muted mb-1">
                 Delimitador CSV: *
               </label>
               <UInput
+                id="etl-separadorCsv"
                 v-model="separadorCsv"
                 size="xs"
                 :color="hasAttemptedStep2 && csvDelimiterError ? 'error' : undefined"
@@ -770,12 +780,13 @@ function handleSave() {
         <!-- PASO 4: Planificación & Guardrails RNF-04       -->
         <!-- ============================================== -->
         <div v-show="currentStep === 4" class="space-y-4">
-          <div>
-            <label class="block font-semibold text-text-main mb-1.5">
+          <fieldset>
+            <legend class="block font-semibold text-text-main mb-1.5">
               Cadencia y Frecuencia de Ejecución
-            </label>
+            </legend>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <button
+                :aria-pressed="cronPreset === preset.value"
                 v-for="preset in cronPresetsOptions"
                 :key="preset.value"
                 type="button"
@@ -790,13 +801,14 @@ function handleSave() {
                 {{ preset.label }}
               </button>
             </div>
-          </div>
+          </fieldset>
 
           <div v-if="cronPreset === 'custom'">
-            <label class="block text-[11px] font-semibold text-text-muted mb-1">
+            <label for="etl-customCron" class="block text-[11px] font-semibold text-text-muted mb-1">
               Expresión Cron Estándar (5 campos): *
             </label>
             <UInput
+              id="etl-customCron"
               v-model="customCron"
               placeholder="0 4 * * *"
               size="sm"
@@ -846,10 +858,11 @@ function handleSave() {
           <!-- Concurrencia y Resiliencia -->
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-[11px] font-semibold text-text-muted mb-1">
+              <label for="etl-maximoReintentos" class="block text-[11px] font-semibold text-text-muted mb-1">
                 Reintentos ante Fallo:
               </label>
               <select
+                id="etl-maximoReintentos"
                 v-model.number="maximoReintentos"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >

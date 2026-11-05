@@ -41,7 +41,8 @@ export function useUsers() {
       sessionUser.value = currentUser.value;
       usuarios.value = userSchema.array().parse(rows);
     } catch (cause: unknown) {
-      error.value = cause instanceof ZodError ? 'La API devolvió datos de usuarios incompatibles.' : cause instanceof Error ? cause.message : 'No pudimos cargar los usuarios.';
+      if (cause instanceof ZodError) error.value = 'La API devolvió datos de usuarios incompatibles.';
+      else error.value = cause instanceof Error ? cause.message : 'No pudimos cargar los usuarios.';
     } finally {
       loading.value = false;
     }

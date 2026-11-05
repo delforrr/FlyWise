@@ -106,7 +106,7 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
       const iatas = result.map((a) => a.iata);
       const uniqueIatas = new Set(iatas);
 
-      expect(iatas.length).toBe(uniqueIatas.size);
+      expect(iatas).toHaveLength(uniqueIatas.size);
       expect(result.some((a) => a.iata === "EZE")).toBe(true);
       expect(result.some((a) => a.iata === "MIA")).toBe(true);
     });

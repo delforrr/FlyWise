@@ -16,9 +16,10 @@ export function useEtlMonitoring() {
     const totalRecords = ejecuciones.value.reduce((sum,j) => sum + j.filasProcesadas, 0);
     const totalDiscarded = ejecuciones.value.reduce((sum,j) => sum + j.filasDescartadas, 0);
     const activa = ejecuciones.value.filter(j => j.estado === 'running' || j.estado === 'pending').length;
+    const healthyStatus = activa ? 'syncing' : 'optimal';
     return { totalAeroRecords: totalRecords, totalDiscardedCount: totalDiscarded, activeJobsCount: activa,
       successRatePercent: totalRecords + totalDiscarded ? 100 * totalRecords / (totalRecords + totalDiscarded) : 0,
-      systemHealth: data.error.value || ejecuciones.value.some(j => j.estado === 'failed') ? 'attention_needed' : activa ? 'syncing' : 'optimal',
+      systemHealth: data.error.value || ejecuciones.value.some(j => j.estado === 'failed') ? 'attention_needed' : healthyStatus,
       lastGlobalSync: ejecuciones.value.find(j => j.finalizadoEn)?.finalizadoEn ?? 'Sin ejecuciones',
     };
   });

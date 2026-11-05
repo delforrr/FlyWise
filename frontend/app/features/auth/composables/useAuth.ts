@@ -24,7 +24,7 @@ export function useAuth(options?: UseAuthOptions) {
 
   function isAuthenticated() {
     try {
-      const payload = JSON.parse(atob(token.value!.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number };
+      const payload = JSON.parse(atob(token.value!.split('.')[1]!.replaceAll('-', '+').replaceAll('_', '/'))) as { exp?: number };
       return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
     } catch { return false; }
   }
@@ -47,9 +47,9 @@ export function useAuth(options?: UseAuthOptions) {
     } catch (cause: unknown) {
       const failure = cause as { data?: { message?: string | string[] }; message?: string };
       const message = failure?.data?.message;
-      error.value = Array.isArray(message) ? message.join(' ') : message ||
-        (failure?.message && !['Internal Server Error', 'Error'].includes(failure.message)
-          ? failure.message : 'Error de autenticación');
+      const fallback = failure?.message && !['Internal Server Error', 'Error'].includes(failure.message)
+        ? failure.message : 'Error de autenticación';
+      error.value = Array.isArray(message) ? message.join(' ') : message || fallback;
       clearSession();
       return false;
     } finally {
@@ -63,7 +63,7 @@ export function useAuth(options?: UseAuthOptions) {
       return Promise.resolve(false);
     }
     const pending = refreshes.get(scope);
-    if (pending) return pending;
+    if (pending !== undefined) return pending;
     async function restore() {
       try {
         if (import.meta.server) {

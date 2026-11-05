@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const userRoleSchema = z.enum(['ADMIN', 'OPERATOR']);
-const correo = z.string().trim().toLowerCase().email('Ingresá un correo válido.');
+const correo = z.string().trim().toLowerCase().pipe(z.email('Ingresá un correo válido.'));
 const password = z.string().trim().min(8, 'Usá al menos 8 caracteres.');
 
 export const createUserSchema = z.object({
@@ -17,10 +17,10 @@ export const updateUserSchema = z.object({
 });
 
 export const userSchema = z.object({
-  id: z.string().uuid(),
-  correo: z.string().email(),
+  id: z.uuid(),
+  correo: z.email(),
   rol: userRoleSchema,
-  creadoEn: z.string().datetime().optional(),
+  creadoEn: z.iso.datetime().optional(),
 });
 
 export type ManagedUser = z.infer<typeof userSchema>;

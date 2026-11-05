@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed, useId } from "vue";
 import type { TargetEntity, FieldMappingRule } from "../types/etl";
 import { TARGET_FIELDS_CATALOG } from "../types/etl";
 
@@ -10,6 +10,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const mapperId = useId();
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: FieldMappingRule[]): void;
@@ -207,10 +208,11 @@ function autoDetectMapping() {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
           <!-- Columna Origen -->
           <div>
-            <label class="block text-[10px] font-semibold text-text-muted mb-1">
+            <label :for="`${mapperId}-source-${target.key}`" class="block text-[10px] font-semibold text-text-muted mb-1">
               Columna en Fuente / Endpoint:
             </label>
             <UInput
+              :id="`${mapperId}-source-${target.key}`"
               v-if="detectedColumns.length === 0"
               :model-value="getMappingForField(target.key).columnaOrigen"
               placeholder="Ej: ident, origin_iata, etc."
@@ -221,6 +223,7 @@ function autoDetectMapping() {
               "
             />
             <select
+              :id="`${mapperId}-source-${target.key}`"
               v-else
               :value="getMappingForField(target.key).columnaOrigen"
               class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main font-mono focus:border-primary focus:outline-none"
@@ -244,10 +247,11 @@ function autoDetectMapping() {
 
           <!-- Transformación -->
           <div>
-            <label class="block text-[10px] font-semibold text-text-muted mb-1">
+            <label :for="`${mapperId}-transform-${target.key}`" class="block text-[10px] font-semibold text-text-muted mb-1">
               Transformación / Normalización:
             </label>
             <select
+              :id="`${mapperId}-transform-${target.key}`"
               :value="getMappingForField(target.key).transform || 'none'"
               class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               @change="

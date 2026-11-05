@@ -58,7 +58,9 @@ describe('Archivo lógico de catálogos (PostgreSQL)', () => {
               .build(),
           );
           expect(
-            await module.get(AirportsService).search({ q: 'Archivo origen' }),
+            await module
+              .get(AirportsService)
+              .search({ q: 'Archivo origen', limit: 20 }),
           ).toEqual([]);
           expect(
             await module
