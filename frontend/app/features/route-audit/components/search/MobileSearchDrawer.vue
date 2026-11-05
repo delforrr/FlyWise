@@ -17,6 +17,10 @@ const {
   triggerFit,
 } = useFlightSelection();
 
+const { findAirportByCode } = useCatalog();
+const toast = useToast();
+const loadingHub = ref(false);
+
 const defaultDate = shallowRef<DateValue>(today(getLocalTimeZone()));
 const rotation = ref(0);
 
@@ -36,13 +40,21 @@ function swapAirports() {
   rotation.value += 180;
 }
 
-function handleSelectHub(iata: string) {
-  if (!selectedOrigin.value) {
-    selectedOrigin.value = iata;
-  } else if (!selectedDestination.value && selectedOrigin.value !== iata) {
-    selectedDestination.value = iata;
-  } else {
-    selectedOrigin.value = iata;
+async function handleSelectHub(iata: string) {
+  if (loadingHub.value) return;
+  loadingHub.value = true;
+  try {
+    const { id } = await findAirportByCode(iata);
+    if (!isMobileSearchOpen.value) return;
+    if (selectedOrigin.value && !selectedDestination.value && selectedOrigin.value !== id) {
+      selectedDestination.value = id;
+    } else {
+      selectedOrigin.value = id;
+    }
+  } catch {
+    toast.add({ title: "No se pudo encontrar el aeropuerto", color: "error" });
+  } finally {
+    loadingHub.value = false;
   }
 }
 

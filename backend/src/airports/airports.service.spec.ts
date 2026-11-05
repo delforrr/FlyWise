@@ -68,6 +68,25 @@ describe('AirportsService', () => {
     });
   });
 
+  it('prioritizes exact codes, removes duplicates and caps results', async () => {
+    const other = { ...mockAirport, id: 'airport-uuid-2', iata: 'ABC' };
+    prismaService.models.Aeropuerto.all
+      .mockResolvedValueOnce([mockAirport])
+      .mockResolvedValueOnce([other, mockAirport]);
+    await expect(service.search({ q: ' eZe ', limit: 2 })).resolves.toEqual([
+      mockAirport,
+      other,
+    ]);
+  });
+
+  it('falls back to name or city when short text has no exact code match', async () => {
+    prismaService.models.Aeropuerto.all.mockResolvedValueOnce([]);
+    await expect(service.search({ q: 'BUE', limit: 20 })).resolves.toEqual([
+      mockAirport,
+    ]);
+    expect(prismaService.models.Aeropuerto.all).toHaveBeenCalledTimes(2);
+  });
+
   describe('findNearby', () => {
     it('should execute PostGIS raw query and return nearby aeropuertos', async () => {
       const mockNearby = [

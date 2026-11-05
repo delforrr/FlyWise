@@ -47,24 +47,37 @@ export class AirportsService {
 
   async search(searchDto: SearchAirportsDto) {
     const term = searchDto.q.trim();
+    const limit = searchDto.limit ?? 20;
     const upperTerm = term.toUpperCase();
+    const active = this.prisma.models.Aeropuerto.where({
+      archivadoEn: null,
+    }).orderBy([
+      (airport) => airport.cantidadRutas.desc(),
+      (airport) => airport.nombre.asc(),
+      (airport) => airport.id.asc(),
+    ]);
+    const exact = /^[A-Z0-9]{3,4}$/.test(upperTerm)
+      ? await active
+          .where((airport) =>
+            or(airport.iata.eq(upperTerm), airport.icao.eq(upperTerm)),
+          )
+          .limit(limit)
+          .all()
+      : [];
+    if (exact.length === limit) return exact;
 
     const pattern = `%${escaparLike(term)}%`;
-    return this.prisma.models.Aeropuerto.where((airport) =>
-      or(
-        airport.iata.eq(upperTerm),
-        airport.icao.eq(upperTerm),
-        airport.nombre.ilike(pattern),
-        airport.ciudad.ilike(pattern),
-      ),
-    )
-      .where({ archivadoEn: null })
-      .orderBy([
-        (airport) => airport.cantidadRutas.desc(),
-        (airport) => airport.nombre.asc(),
-      ])
-      .limit(searchDto.limit ?? 20)
+    const byName = await active
+      .where((airport) =>
+        or(airport.nombre.ilike(pattern), airport.ciudad.ilike(pattern)),
+      )
+      .limit(limit)
       .all();
+    const exactIds = new Set(exact.map((airport) => airport.id));
+    return [
+      ...exact,
+      ...byName.filter((airport) => !exactIds.has(airport.id)),
+    ].slice(0, limit);
   }
 
   async findNearby(
