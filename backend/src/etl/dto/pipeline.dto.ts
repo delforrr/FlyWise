@@ -26,6 +26,7 @@ import {
 
 export class PipelineIdDto {
   @ApiProperty({ format: 'uuid' })
+  @Type(() => String)
   @IsUUID()
   id!: string;
 }

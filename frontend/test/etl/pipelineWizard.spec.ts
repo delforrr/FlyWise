@@ -67,8 +67,15 @@ it('muestra el error de detalle y bloquea el formulario', async () => {
   wrapper.unmount();
 });
 
-it('guarda el detalle cargado sin cambiar configuración ni referencias de credenciales', async () => {
-  const detail = pipeline('a', 'Detalle A');
+it.each([false, true])('guarda la configuración y referencias sin cambios (previa: %s)', async legacy => {
+  const detail = pipeline('a', legacy ? 'A' : 'Detalle A');
+  if (legacy) {
+    detail.nombreConjunto = 'B';
+    delete detail.conexion!.csvConCabecera;
+    delete detail.conexion!.separadorCsv;
+    detail.configuracionProgramacion!.expresionCron = '0 0 4 * * *';
+    detail.configuracionProgramacion!.maximoReintentos = 3;
+  }
   request.mockResolvedValueOnce(detail);
   const wrapper = openWizard();
   await flushPromises();
@@ -84,5 +91,38 @@ it('guarda el detalle cargado sin cambiar configuración ni referencias de crede
     mapeoEsquema: detail.mapeoEsquema,
     configuracionProgramacion: detail.configuracionProgramacion,
   })]]);
+  wrapper.unmount();
+});
+
+it('terminar de guardar un pipeline anterior no cierra el editor actual', async () => {
+  vi.stubGlobal('definePageMeta', vi.fn());
+  vi.stubGlobal('useSeoMeta', vi.fn());
+  const first = pipeline('a', 'Detalle A');
+  const second = pipeline('b', 'Detalle B');
+  let finishSave!: () => void;
+  request.mockImplementation((path: string, options?: { method?: string }) => {
+    if (options?.method === 'PATCH') return new Promise<void>(resolve => { finishSave = resolve; });
+    if (path === '/etl/procesos') return Promise.resolve([first, second]);
+    return Promise.resolve([]);
+  });
+  const { useEtlData } = await import('~/features/etl-monitoring/composables/useEtlData');
+  await useEtlData().refresh();
+  const { default: Services } = await import('~/pages/admin/servicios.vue');
+  const { default: ServiceTable } = await import('~/features/etl-monitoring/components/EtlServiceTable.vue');
+  const wrapper = mount(Services, { shallow: true, global: {
+    stubs: { UButton: true, UIcon: true, UBadge: true, UCard: true, UAlert: true },
+  } });
+  const table = wrapper.findComponent(ServiceTable);
+  const wizard = wrapper.findComponent(Wizard);
+  table.vm.$emit('edit', first);
+  await wrapper.vm.$nextTick();
+  expect(wizard.props('pipelineToEdit')).toEqual(first);
+  wizard.vm.$emit('save', first);
+  wizard.vm.$emit('close');
+  table.vm.$emit('edit', second);
+  finishSave();
+  await flushPromises();
+  expect(wizard.props('pipelineToEdit')).toEqual(second);
+  expect(wizard.props('isOpen')).toBe(true);
   wrapper.unmount();
 });

@@ -83,9 +83,7 @@ const step1Validation = computed(() => {
   return pipelineIdentitySchema.safeParse({
     nombre: nombre.value,
     nombreConjunto: nombreConjunto.value,
-    descripcion: props.pipelineToEdit
-      ? descripcion.value
-      : descripcion.value.trim() || "Pipeline de ingesta de datos aeronáuticos.",
+    descripcion: descripcion.value,
     icon: icon.value,
     entidadDestino: entidadDestino.value,
   });
@@ -838,7 +836,7 @@ function handleSave() {
 
           <div v-if="cronPreset === 'custom'">
             <label for="etl-customCron" class="block text-[11px] font-semibold text-text-muted mb-1">
-              Expresión Cron Estándar (5 campos): *
+              Expresión cron: *
             </label>
             <UInput
               id="etl-customCron"
@@ -899,6 +897,9 @@ function handleSave() {
                 v-model.number="maximoReintentos"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
+                <option v-if="![1, 2, 5].includes(maximoReintentos)" :value="maximoReintentos">
+                  {{ maximoReintentos }} reintentos
+                </option>
                 <option :value="1">1 reintento</option>
                 <option :value="2">2 reintentos (Backoff exponencial)</option>
                 <option :value="5">5 reintentos</option>

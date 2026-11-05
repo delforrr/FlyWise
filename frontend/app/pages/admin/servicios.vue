@@ -46,6 +46,7 @@ const { triggerSync } = useEtlMonitoring();
 // Estado de modales
 const isWizardModalOpen = ref(false);
 const pipelineToEdit = ref<ProcesoEtl | null>(null);
+let wizardVersion = 0;
 
 const isDeleteModalOpen = ref(false);
 const pipelineToDelete = ref<ProcesoEtl | null>(null);
@@ -57,11 +58,13 @@ const isTriggerModalOpen = ref(false);
 const pipelineForTrigger = ref<ProcesoEtl | null>(null);
 
 function handleOpenCreate() {
+  wizardVersion++;
   pipelineToEdit.value = null;
   isWizardModalOpen.value = true;
 }
 
 function handleOpenEdit(proceso: ProcesoEtl) {
+  wizardVersion++;
   pipelineToEdit.value = proceso;
   isWizardModalOpen.value = true;
 }
@@ -104,12 +107,13 @@ async function handleSavePipeline(data: Partial<ProcesoEtl>) {
   if (!validation.isValid) {
     return;
   }
+  const version = wizardVersion;
   if (pipelineToEdit.value) {
     await updatePipeline(pipelineToEdit.value.id, data);
   } else {
     await createPipeline(data);
   }
-  isWizardModalOpen.value = false;
+  if (version === wizardVersion) isWizardModalOpen.value = false;
 }
 
 async function handleConfirmDelete(id: string) {
