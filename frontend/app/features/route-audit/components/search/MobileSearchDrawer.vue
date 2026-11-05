@@ -19,7 +19,10 @@ const {
 
 const { findAirportByCode } = useCatalog();
 const toast = useToast();
-const loadingHub = ref(false);
+let hubLookup: AbortController | undefined;
+watch([isMobileSearchOpen, selectedOrigin, selectedDestination], ([open], _, onCleanup) => {
+  if (open) onCleanup(() => hubLookup?.abort());
+}, { immediate: true, flush: "sync" });
 
 const defaultDate = shallowRef<DateValue>(today(getLocalTimeZone()));
 const rotation = ref(0);
@@ -41,20 +44,21 @@ function swapAirports() {
 }
 
 async function handleSelectHub(iata: string) {
-  if (loadingHub.value) return;
-  loadingHub.value = true;
+  hubLookup?.abort();
+  const controller = new AbortController();
+  hubLookup = controller;
   try {
-    const { id } = await findAirportByCode(iata);
-    if (!isMobileSearchOpen.value) return;
+    const { id } = await findAirportByCode(iata, controller.signal);
+    if (controller.signal.aborted) return;
     if (selectedOrigin.value && !selectedDestination.value && selectedOrigin.value !== id) {
       selectedDestination.value = id;
     } else {
       selectedOrigin.value = id;
     }
   } catch {
-    toast.add({ title: "No se pudo encontrar el aeropuerto", color: "error" });
-  } finally {
-    loadingHub.value = false;
+    if (!controller.signal.aborted) {
+      toast.add({ title: "No se pudo encontrar el aeropuerto", color: "error" });
+    }
   }
 }
 

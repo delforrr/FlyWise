@@ -1,6 +1,7 @@
 import { defineComponent, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import { afterEach, expect, it, vi } from 'vitest';
+import { useCatalog } from '~/shared/composables/useCatalog';
 import AirportSelectInput from '~/features/route-audit/components/search/AirportSelectInput.vue';
 
 const request = vi.hoisted(() => vi.fn());
@@ -63,6 +64,8 @@ it('descarta respuestas tardías y conserva la etiqueta al montar otro selector'
 
   input.vm.$emit('update:modelValue', { id: 'eze' });
   expect(wrapper.emitted('update:modelValue')).toEqual([['eze']]);
+  request.mockResolvedValueOnce([]);
+  await useCatalog().loadAirports();
   const hud = mount(AirportSelectInput, { props: { mode: 'hud', modelValue: 'eze' }, global });
   expect(hud.findComponent(menu).props('modelValue')).toEqual(
     expect.objectContaining({ id: 'eze', label: expect.stringContaining('EZE') }),
