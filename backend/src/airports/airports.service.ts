@@ -53,7 +53,9 @@ export class AirportsService {
   async search(searchDto: SearchAirportsDto) {
     const term = searchDto.q.trim();
     const limit = searchDto.limit ?? 20;
-    const key = `airports:search:v1:${limit}:${term.toLowerCase()}`;
+    const upperTerm = term.toUpperCase();
+    const code = /^[A-Z0-9]{3,4}$/.test(upperTerm) ? upperTerm : null;
+    const key = `airports:search:v1:${limit}:${code ?? ''}:${term.toLowerCase()}`;
     try {
       const cached = await firstValueFrom(
         from(this.redis.get(key)).pipe(timeout(50)),
@@ -65,16 +67,15 @@ export class AirportsService {
         }
       }
     } catch {
-      return this.findMatches(term, limit);
+      return this.findMatches(term, limit, code);
     }
 
-    const matches = await this.findMatches(term, limit);
+    const matches = await this.findMatches(term, limit, code);
     void this.redis.set(key, JSON.stringify(matches), 60).catch(() => {});
     return matches;
   }
 
-  private async findMatches(term: string, limit: number) {
-    const upperTerm = term.toUpperCase();
+  private async findMatches(term: string, limit: number, code: string | null) {
     const active = this.prisma.models.Aeropuerto.where({
       archivadoEn: null,
     }).orderBy([
@@ -82,11 +83,9 @@ export class AirportsService {
       (airport) => airport.nombre.asc(),
       (airport) => airport.id.asc(),
     ]);
-    const exact = /^[A-Z0-9]{3,4}$/.test(upperTerm)
+    const exact = code
       ? await active
-          .where((airport) =>
-            or(airport.iata.eq(upperTerm), airport.icao.eq(upperTerm)),
-          )
+          .where((airport) => or(airport.iata.eq(code), airport.icao.eq(code)))
           .limit(limit)
           .all()
       : [];

@@ -116,6 +116,12 @@ describe('AirportsService', () => {
       expect(prismaService.models.Aeropuerto.all).toHaveBeenCalledTimes(3);
     });
 
+    it('separates a code from a term with the same lowercase spelling', async () => {
+      await service.search({ q: 'KLM', limit: 20 });
+      await service.search({ q: 'KLM', limit: 20 });
+      expect(redis.get.mock.calls[0][0]).not.toBe(redis.get.mock.calls[1][0]);
+    });
+
     it('queries the database if Redis is unresponsive', async () => {
       redis.get.mockImplementationOnce(() => new Promise(() => {}));
       await expect(
