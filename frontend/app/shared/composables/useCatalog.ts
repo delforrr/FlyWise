@@ -38,6 +38,20 @@ export function useCatalog() {
   const loaded = useState('catalog_loaded', () => false);
   const routeQuery = useState<string | null>('catalog_route_query', () => null);
   const routeRequestId = useState('catalog_route_request', () => 0);
+  function rememberAirport(airport: Aeropuerto) {
+    if (!aeropuertos.value.some(a => a.id === airport.id)) aeropuertos.value.push(airport);
+  }
+  async function findAirportByCode(code: string, signal: AbortSignal) {
+    const known = aeropuertos.value.find(a => a.iata === code);
+    if (known) return known;
+    const row = await request<CatalogAirport>(
+      `/aeropuertos/por-codigo/${encodeURIComponent(code)}`,
+      { signal },
+    );
+    const airport = mapCatalogAirport(row);
+    if (!signal.aborted) rememberAirport(airport);
+    return airport;
+  }
   async function loadAirports() {
     if (loading.value || loaded.value) return;
     loading.value = true;
@@ -48,7 +62,9 @@ export function useCatalog() {
         result.push(...page.map(mapCatalogAirport));
         if (page.length < 1000) break;
       }
-      aeropuertos.value = result; loaded.value = true; error.value = null;
+      const catalogIds = new Set(result.map(airport => airport.id));
+      aeropuertos.value = [...result, ...aeropuertos.value.filter(airport => !catalogIds.has(airport.id))];
+      loaded.value = true; error.value = null;
     } catch (err) { error.value = err instanceof Error ? err.message : 'No se pudo cargar el catálogo'; }
     finally { loading.value = false; }
   }
@@ -64,7 +80,7 @@ export function useCatalog() {
       if (id === routeRequestId.value) { routeQuery.value = null; rutas.value = []; error.value = err instanceof Error ? err.message : 'No se pudieron consultar las rutas'; }
     }
   }
-  return { aeropuertos, rutas, error, loading, loadAirports, loadRoutes };
+  return { aeropuertos, rutas, error, loading, rememberAirport, findAirportByCode, loadAirports, loadRoutes };
 }
 
 export function groupArcRoutes(rows: ArcRoute[]): FlightRoute[] {

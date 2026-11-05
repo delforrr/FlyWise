@@ -8,12 +8,12 @@ export const pipelineIdentitySchema = z.object({
     .string('El nombre del servicio es obligatorio.')
     .trim()
     .min(1, 'El nombre del servicio es obligatorio.')
-    .min(3, 'El nombre debe contener al menos 3 caracteres.'),
+    .max(120, 'El nombre no puede superar 120 caracteres.'),
   nombreConjunto: z
     .string('El nombre del dataset es obligatorio.')
     .trim()
     .min(1, 'El nombre del dataset es obligatorio.')
-    .min(2, 'El nombre del dataset debe contener al menos 2 caracteres.'),
+    .max(120, 'El nombre del dataset no puede superar 120 caracteres.'),
   descripcion: z.string().optional().default(''),
   icon: z.string().optional().default('i-lucide-database'),
   entidadDestino: z.enum(['aeropuertos', 'aerolineas', 'paises', 'rutas', 'otp_metrics'], {
@@ -118,14 +118,13 @@ export const pipelineScheduleConfigSchema = z
     (data) => {
       if (data.cronPreset === 'custom') {
         if (!data.expresionCron) return false;
-        const parts = data.expresionCron.trim().split(/\s+/);
-        return parts.length === 5;
+        return data.expresionCron.trim().length > 0 && data.expresionCron.length <= 100;
       }
       return true;
     },
     {
       message:
-        'La expresión cron personalizada debe contener 5 campos (ej. 0 4 * * *).',
+        'Ingresá una expresión cron de hasta 100 caracteres.',
       path: ['expresionCron'],
     },
   );
@@ -143,7 +142,7 @@ export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
     .string('El nombre del servicio es obligatorio.')
     .trim()
     .min(1, 'El nombre del servicio es obligatorio.')
-    .min(3, 'El nombre debe contener al menos 3 caracteres.')
+    .max(120, 'El nombre no puede superar 120 caracteres.')
     .safeParse(data.nombre);
   if (!nameRes.success) {
     for (const issue of nameRes.error.issues) {
@@ -156,7 +155,7 @@ export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
     .string('El nombre del dataset es obligatorio.')
     .trim()
     .min(1, 'El nombre del dataset es obligatorio.')
-    .min(2, 'El nombre del dataset debe contener al menos 2 caracteres.')
+    .max(120, 'El nombre del dataset no puede superar 120 caracteres.')
     .safeParse(data.nombreConjunto);
   if (!datasetRes.success) {
     for (const issue of datasetRes.error.issues) {
@@ -223,13 +222,12 @@ export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
 
   // 5. Expresión Cron si es personalizada
   if (data.configuracionProgramacion?.expresionCron) {
-    const cron = data.configuracionProgramacion.expresionCron?.trim() || '';
-    const parts = cron.split(/\s+/);
-    if (parts.length !== 5) {
+    const cron = data.configuracionProgramacion.expresionCron;
+    if (!cron.trim() || cron.length > 100) {
       ctx.addIssue({
         code: 'custom',
         message:
-          'La expresión cron personalizada debe contener 5 campos (ej. 0 4 * * *).',
+          'Ingresá una expresión cron de hasta 100 caracteres.',
         path: ['expresionCron'],
       });
     }

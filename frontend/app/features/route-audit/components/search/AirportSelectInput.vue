@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { useCatalog } from "~/shared/composables/useCatalog";
-const { aeropuertos, loadAirports, loading, error } = useCatalog();
-onMounted(() => { void loadAirports(); });
+import { computed, ref } from "vue";
+import { useAirportSearch } from "../../composables/useAirportSearch";
+import type { Aeropuerto } from "~/types/airport";
 
 export interface AirportOption {
   id: string;
@@ -11,8 +10,7 @@ export interface AirportOption {
   ciudad: string;
   pais: string;
   label: string;
-  descripcion: string;
-  value: string;
+
 }
 
 export interface AirportSelectInputProps {
@@ -77,26 +75,34 @@ const modelValue = defineModel<string | undefined>({
   default: undefined,
 });
 
-const airportItems = computed<AirportOption[]>(() => {
-  return aeropuertos.value.map((a) => {
-    let label = `${a.iata} — ${a.ciudad}`;
-    if (props.mode === "hero") {
-      label = `${a.nombre} [${a.iata}]`;
-    } else if (props.mode === "drawer") {
-      label = `${a.iata} — ${a.ciudad}`;
-    }
+const searchTerm = ref("");
+const open = ref(false);
+const { aeropuertos, results, loading, searchError, rememberResult } = useAirportSearch(() =>
+  open.value && searchTerm.value !== selectedOption.value?.label ? searchTerm.value : "",
+);
 
-    return {
-      id: a.id,
-      iata: a.iata,
-      nombre: a.nombre,
-      ciudad: a.ciudad,
-      pais: a.pais,
-      label,
-      descripcion: `${a.pais}, ${a.ciudad}`,
-      value: a.id,
-    };
-  });
+function airportOption(a: Aeropuerto): AirportOption {
+  return {
+    id: a.id,
+    iata: a.iata,
+    nombre: a.nombre,
+    ciudad: a.ciudad,
+    pais: a.pais,
+    label: props.mode === "hero" ? `${a.nombre} [${a.iata}]` : `${a.iata} — ${a.ciudad}`,
+  };
+}
+
+const airportItems = computed(() => results.value.map(airportOption));
+const selectedOption = computed<AirportOption | undefined>({
+  get() {
+    if (!modelValue.value) return;
+    const airport = aeropuertos.value.find(a => a.id === modelValue.value);
+    return airport && airportOption(airport);
+  },
+  set(option) {
+    if (option) rememberResult(option.id);
+    modelValue.value = option?.id;
+  },
 });
 
 const resolvedSize = computed(() => {
@@ -200,11 +206,13 @@ const resolvedUi = computed(() => {
 <template>
   <UInputMenu
     :loading="loading"
-    v-model="modelValue"
+    v-model="selectedOption"
+    v-model:open="open"
     :items="airportItems"
-    value-key="value"
+    by="id"
     label-key="label"
-    :filter-fields="['iata', 'nombre', 'ciudad', 'pais']"
+    v-model:search-term="searchTerm"
+    ignore-filter
     :placeholder="resolvedPlaceholder"
     :icon="icon"
     :size="resolvedSize"
@@ -216,6 +224,7 @@ const resolvedUi = computed(() => {
     :ui="resolvedUi"
     @clear="handleClear"
   >
+    <template v-if="searchError" #empty>No se pudieron buscar aeropuertos.</template>
     <template #item-label="{ item }">
       <div class="flex items-center justify-between gap-3 w-full min-w-0">
         <span class="truncate text-xs sm:text-sm font-medium text-text-main">

@@ -1,5 +1,6 @@
 import { Map, type IControl } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
+import mapWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import type { Aeropuerto } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
@@ -136,6 +137,8 @@ export const useFlightMap = () => {
     if (!container || mapInstance.value) return;
 
     try {
+      // Nuxt publica el worker y sus dependencias con una URL generada por Vite.
+      maplibregl.setWorkerUrl(mapWorkerUrl);
       const center: [number, number] = options?.center ?? [-30, 20];
       const zoom: number = options?.zoom ?? 2.5;
       const pitch: number = options?.pitch ?? 30;

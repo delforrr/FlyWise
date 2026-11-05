@@ -7,7 +7,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 @ApiSchema({
   name: 'BuscarPuntos',
@@ -19,6 +19,9 @@ export class SearchAirportsDto {
     example: 'EZE',
   })
   @IsString()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @MinLength(2, {
     message: 'El término de búsqueda debe tener al menos 2 caracteres',
   })

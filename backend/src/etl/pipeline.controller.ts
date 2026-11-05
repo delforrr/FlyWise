@@ -22,6 +22,7 @@ import type { UserDto } from '../users/dto/user.dto.js';
 import {
   CreatePipelineDto,
   PipelineConnectionDto,
+  PipelineIdDto,
   UpdatePipelineDto,
 } from './dto/pipeline.dto.js';
 import { PipelinesService } from './pipelines.service.js';
@@ -52,6 +53,11 @@ export class PipelineController {
   })
   probe(@Body() dto: PipelineConnectionDto) {
     return this.service.probe(dto);
+  }
+  @Get('procesos/:id')
+  @ApiOperation({ summary: 'Consulta la configuración de una carga' })
+  detail(@Param() params: PipelineIdDto) {
+    return this.service.find(params.id);
   }
   @Patch('procesos/:id')
   @ApiOperation({ summary: 'Actualiza una configuración de carga' })

@@ -9,6 +9,7 @@ import { EtlService } from '../src/etl/etl.service.js';
 import { AirlinesService } from '../src/airlines/airlines.service.js';
 import { AirlinesController } from '../src/airlines/airlines.controller.js';
 import { AirportsService } from '../src/airports/airports.service.js';
+import { RedisService } from '../src/redis/redis.service.js';
 import { AirportsController } from '../src/airports/airports.controller.js';
 import request from 'supertest';
 import type { Server } from 'node:http';
@@ -78,6 +79,13 @@ describe('Data validation regressions (PostgreSQL)', () => {
         providers: [
           AirlinesService,
           AirportsService,
+          {
+            provide: RedisService,
+            useValue: {
+              get: () => Promise.resolve(null),
+              set: () => Promise.resolve(),
+            },
+          },
           {
             provide: PrismaService,
             useValue: { models: tx.orm.public, db: tx },

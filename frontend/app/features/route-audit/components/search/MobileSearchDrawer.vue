@@ -17,6 +17,13 @@ const {
   triggerFit,
 } = useFlightSelection();
 
+const { findAirportByCode } = useCatalog();
+const toast = useToast();
+let hubLookup: AbortController | undefined;
+watch([isMobileSearchOpen, selectedOrigin, selectedDestination], ([open], _, onCleanup) => {
+  if (open) onCleanup(() => hubLookup?.abort());
+}, { immediate: true, flush: "sync" });
+
 const defaultDate = shallowRef<DateValue>(today(getLocalTimeZone()));
 const rotation = ref(0);
 
@@ -36,13 +43,22 @@ function swapAirports() {
   rotation.value += 180;
 }
 
-function handleSelectHub(iata: string) {
-  if (!selectedOrigin.value) {
-    selectedOrigin.value = iata;
-  } else if (!selectedDestination.value && selectedOrigin.value !== iata) {
-    selectedDestination.value = iata;
-  } else {
-    selectedOrigin.value = iata;
+async function handleSelectHub(iata: string) {
+  hubLookup?.abort();
+  const controller = new AbortController();
+  hubLookup = controller;
+  try {
+    const { id } = await findAirportByCode(iata, controller.signal);
+    if (controller.signal.aborted) return;
+    if (selectedOrigin.value && !selectedDestination.value && selectedOrigin.value !== id) {
+      selectedDestination.value = id;
+    } else {
+      selectedOrigin.value = id;
+    }
+  } catch {
+    if (!controller.signal.aborted) {
+      toast.add({ title: "No se pudo encontrar el aeropuerto", color: "error" });
+    }
   }
 }
 

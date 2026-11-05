@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { AirportsService } from '../src/airports/airports.service.js';
+import { RedisService } from '../src/redis/redis.service.js';
 import { RoutesService } from '../src/routes/routes.service.js';
 import { CountriesService } from '../src/countries/countries.service.js';
 
@@ -37,6 +38,13 @@ describe('Archivo lógico de catálogos (PostgreSQL)', () => {
         const module = await Test.createTestingModule({
           providers: [
             AirportsService,
+            {
+              provide: RedisService,
+              useValue: {
+                get: () => Promise.resolve(null),
+                set: () => Promise.resolve(),
+              },
+            },
             RoutesService,
             CountriesService,
             {
@@ -70,6 +78,34 @@ describe('Archivo lógico de catálogos (PostgreSQL)', () => {
           expect(
             await tx.orm.public.OfertaRuta.first({ id: ruta.id }),
           ).toBeDefined();
+
+          const rutas = module.get(RoutesService);
+          const consulta = { busqueda: 'Archivo', pagina: 1, limite: 20 };
+          expect(
+            await rutas.listarAdmin({ ...consulta, estado: 'vigentes' }),
+          ).toMatchObject({ total: 1, datos: [{ id: ruta.rutaId }] });
+          expect(
+            await rutas.listarAdmin({
+              ...consulta,
+              busqueda: '%',
+              estado: 'todos',
+            }),
+          ).toMatchObject({ total: 0, datos: [] });
+
+          await tx.execute(
+            tx.raw
+              .sql`UPDATE rutas SET archivado_en=now() WHERE id=${ruta.rutaId}`
+              .affectedCount()
+              .build(),
+          );
+          expect(
+            await rutas.listarAdmin({ ...consulta, estado: 'vigentes' }),
+          ).toMatchObject({ total: 0, datos: [] });
+          for (const estado of ['archivados', 'todos'] as const) {
+            expect(
+              await rutas.listarAdmin({ ...consulta, estado }),
+            ).toMatchObject({ total: 1, datos: [{ id: ruta.rutaId }] });
+          }
           await expect(
             tx.orm.public.Aeropuerto.where({ id: destino.id }).delete(),
           ).rejects.toThrow(/foreign key/i);

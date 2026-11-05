@@ -2,6 +2,7 @@
 import { ref, computed, watch } from "vue";
 import type {
   ProcesoEtl,
+  StoredPipeline,
   PipelineConnectionConfig,
   FieldMappingRule,
   TargetEntity,
@@ -18,6 +19,7 @@ import {
 } from "../schemas/pipelineSchemas";
 import EtlEndpointProbeCard from "./EtlEndpointProbeCard.vue";
 import EtlSchemaMapper from "./EtlSchemaMapper.vue";
+import { usePipelineCrud } from "../composables/usePipelineCrud";
 
 interface Props {
   isOpen: boolean;
@@ -31,6 +33,10 @@ const emit = defineEmits<{
   (e: "save", data: Partial<ProcesoEtl>): void;
 }>();
 
+const { loadPipeline, testEndpoint } = usePipelineCrud();
+let editorVersion = 0;
+const detailLoading = ref(false);
+const detailError = ref("");
 const currentStep = ref(1);
 const totalSteps = 4;
 
@@ -52,8 +58,8 @@ const tipoFuente = ref<IngestionSourceType>("http_stream");
 const urlEndpoint = ref("");
 const metodoHttp = ref<"GET">("GET");
 const formatoDatos = ref<IngestionDataFormat>("csv");
-const separadorCsv = ref(",");
-const csvConCabecera = ref(true);
+const separadorCsv = ref<string | undefined>(",");
+const csvConCabecera = ref<boolean | undefined>(true);
 const headersList = ref<{ key: string; referenciaCredencial: string }[]>([]);
 
 // Test Endpoint Probe
@@ -220,8 +226,12 @@ const connectionConfig = computed<PipelineConnectionConfig>(() => ({
 
 // Reset o precarga al abrir el modal
 watch(
-  () => props.isOpen,
-  (open) => {
+  [() => props.isOpen, () => props.pipelineToEdit?.id],
+  async ([open, id], _, onCleanup) => {
+    editorVersion++;
+    isTesting.value = false;
+    detailError.value = "";
+    detailLoading.value = Boolean(open && id);
     if (open) {
       currentStep.value = 1;
       probeResult.value = null;
@@ -230,37 +240,47 @@ watch(
       hasAttemptedStep3.value = false;
       hasAttemptedStep4.value = false;
 
-      if (props.pipelineToEdit) {
-        // Cargar datos existentes
-        const p = props.pipelineToEdit;
-        nombre.value = p.nombre;
-        nombreConjunto.value = p.nombreConjunto;
-        descripcion.value = p.descripcion;
-        icon.value = p.icon;
-        entidadDestino.value = p.entidadDestino || "otp_metrics";
-
-        if (p.conexion) {
-          tipoFuente.value = p.conexion.tipoFuente;
-          urlEndpoint.value = p.conexion.urlEndpoint;
-          metodoHttp.value = p.conexion.metodoHttp;
-          formatoDatos.value = p.conexion.formatoDatos;
-          separadorCsv.value = p.conexion.separadorCsv || ",";
-          csvConCabecera.value = p.conexion.csvConCabecera ?? true;
-          headersList.value = p.conexion.headers ? [...p.conexion.headers] : [];
+      if (id) {
+        const controller = new AbortController();
+        onCleanup(() => controller.abort());
+        let detail: StoredPipeline;
+        try {
+          detail = await loadPipeline(id, controller.signal);
+          if (controller.signal.aborted) return;
+          if (!detail.conexion || !detail.mapeoEsquema || !detail.configuracionProgramacion || !detail.entidadDestino) {
+            throw new Error("La configuración del pipeline está incompleta.");
+          }
+        } catch (error) {
+          if (!controller.signal.aborted) {
+            detailError.value = error instanceof Error ? error.message : "No se pudo cargar el pipeline.";
+          }
+          return;
+        } finally {
+          if (!controller.signal.aborted) detailLoading.value = false;
         }
+        nombre.value = detail.nombre;
+        nombreConjunto.value = detail.nombreConjunto;
+        descripcion.value = detail.descripcion;
+        icon.value = props.pipelineToEdit?.icon ?? "i-lucide-database";
+        entidadDestino.value = detail.entidadDestino;
 
-        mapeoEsquema.value = p.mapeoEsquema ? [...p.mapeoEsquema] : [];
-        detectedColumns.value = mapeoEsquema.value.map(rule => rule.columnaOrigen);
+        const { conexion, mapeoEsquema: rules, configuracionProgramacion: schedule } = detail;
+        tipoFuente.value = conexion.tipoFuente;
+        urlEndpoint.value = conexion.urlEndpoint;
+        metodoHttp.value = conexion.metodoHttp;
+        formatoDatos.value = conexion.formatoDatos;
+        separadorCsv.value = conexion.separadorCsv;
+        csvConCabecera.value = conexion.csvConCabecera;
+        headersList.value = (conexion.headers ?? []).map(header => ({ ...header }));
 
-        if (p.configuracionProgramacion) {
-          cronPreset.value = p.configuracionProgramacion.expresionCron ? "custom" : "manual";
-          customCron.value = p.configuracionProgramacion.expresionCron;
-          tamanoLote.value = p.configuracionProgramacion.tamanoLote;
-          tiempoLimiteSegundos.value = p.configuracionProgramacion.tiempoLimiteSegundos;
-          maximoReintentos.value = p.configuracionProgramacion.maximoReintentos;
-        }
+        mapeoEsquema.value = [...rules];
+        detectedColumns.value = rules.map(rule => rule.columnaOrigen);
+        cronPreset.value = schedule.expresionCron ? "custom" : "manual";
+        customCron.value = schedule.expresionCron;
+        tamanoLote.value = schedule.tamanoLote;
+        tiempoLimiteSegundos.value = schedule.tiempoLimiteSegundos;
+        maximoReintentos.value = schedule.maximoReintentos;
       } else {
-        // Valores por defecto para nueva creación
         nombre.value = "";
         nombreConjunto.value = "";
         descripcion.value = "";
@@ -283,6 +303,7 @@ watch(
       }
     }
   },
+  { immediate: true },
 );
 
 function addHeader() {
@@ -293,15 +314,20 @@ function removeHeader(idx: number) {
   headersList.value.splice(idx, 1);
 }
 
-const { testEndpoint } = usePipelineCrud();
 async function handleTestConnection() {
+  const version = editorVersion;
   isTesting.value = true;
   try {
-    probeResult.value = await testEndpoint(connectionConfig.value);
-    detectedColumns.value = probeResult.value.detectedColumns;
+    const result = await testEndpoint(connectionConfig.value);
+    if (version !== editorVersion) return;
+    probeResult.value = result;
+    detectedColumns.value = result.detectedColumns;
   } catch (error) {
+    if (version !== editorVersion) return;
     probeResult.value = { success: false, statusCode: 0, latencyMs: 0, contentType: '', sampleRows: [], detectedColumns: [], mensajeError: error instanceof Error ? error.message : 'No se pudo comprobar el recurso' };
-  } finally { isTesting.value = false; }
+  } finally {
+    if (version === editorVersion) isTesting.value = false;
+  }
 }
 
 function handleApplyDetectedColumns(columns: string[]) {
@@ -354,6 +380,7 @@ function handlePrevStep() {
 }
 
 function handleSave() {
+  if (detailLoading.value || detailError.value) return;
   hasAttemptedStep1.value = true;
   hasAttemptedStep2.value = true;
   hasAttemptedStep3.value = true;
@@ -401,7 +428,9 @@ function handleSave() {
   const payload: Partial<ProcesoEtl> = {
     nombre: nombre.value.trim(),
     nombreConjunto: nombreConjunto.value.trim(),
-    descripcion: descripcion.value.trim() || "Pipeline de ingesta de datos aeronáuticos.",
+    descripcion: props.pipelineToEdit
+      ? descripcion.value
+      : descripcion.value.trim() || "Pipeline de ingesta de datos aeronáuticos.",
     icon: icon.value,
     entidadDestino: entidadDestino.value,
     conexion: connectionConfig.value,
@@ -440,7 +469,9 @@ function handleSave() {
     "
   >
     <template #body>
-      <div class="space-y-6 text-xs font-feature-tech">
+      <p v-if="detailLoading" role="status">Cargando configuración del pipeline…</p>
+      <p v-else-if="detailError" role="alert">{{ detailError }}</p>
+      <div v-else class="space-y-6 text-xs font-feature-tech">
         <!-- Indicador de Pasos (Stepper) -->
         <div class="grid grid-cols-4 gap-2 border-b border-border-subtle pb-4">
           <button
@@ -771,7 +802,7 @@ function handleSave() {
 
           <EtlSchemaMapper
             v-model="mapeoEsquema"
-            :target-entity="entidadDestino"
+            :entidad-destino="entidadDestino"
             :detected-columns="detectedColumns"
           />
         </div>
@@ -805,7 +836,7 @@ function handleSave() {
 
           <div v-if="cronPreset === 'custom'">
             <label for="etl-customCron" class="block text-[11px] font-semibold text-text-muted mb-1">
-              Expresión Cron Estándar (5 campos): *
+              Expresión cron: *
             </label>
             <UInput
               id="etl-customCron"
@@ -866,6 +897,9 @@ function handleSave() {
                 v-model.number="maximoReintentos"
                 class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main focus:border-primary focus:outline-none"
               >
+                <option v-if="![1, 2, 5].includes(maximoReintentos)" :value="maximoReintentos">
+                  {{ maximoReintentos }} reintentos
+                </option>
                 <option :value="1">1 reintento</option>
                 <option :value="2">2 reintentos (Backoff exponencial)</option>
                 <option :value="5">5 reintentos</option>
@@ -888,7 +922,7 @@ function handleSave() {
           Cancelar
         </UButton>
 
-        <div class="flex items-center gap-2">
+        <div v-if="!detailLoading && !detailError" class="flex items-center gap-2">
           <UButton
             v-if="currentStep > 1"
             variant="outline"

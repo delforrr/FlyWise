@@ -16,6 +16,8 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RedisService } from '../redis/redis.service.js';
+import { firstValueFrom, from, timeout } from 'rxjs';
 import { CatalogAirportsDto } from './dto/catalog-airports.dto.js';
 import { SearchAirportsDto } from './dto/search-airports.dto.js';
 import { NearbyAirportsDto } from './dto/nearby-airports.dto.js';
@@ -35,7 +37,10 @@ export interface NearbyAirportResult {
 
 @Injectable()
 export class AirportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   catalog(dto: CatalogAirportsDto) {
     return this.prisma.models.Aeropuerto.where({ archivadoEn: null })
@@ -47,24 +52,57 @@ export class AirportsService {
 
   async search(searchDto: SearchAirportsDto) {
     const term = searchDto.q.trim();
+    const limit = searchDto.limit ?? 20;
     const upperTerm = term.toUpperCase();
+    const code = /^[A-Z0-9]{3,4}$/.test(upperTerm) ? upperTerm : null;
+    const key = `airports:search:v1:${limit}:${code ?? ''}:${term.toLowerCase()}`;
+    try {
+      const cached = await firstValueFrom(
+        from(this.redis.get(key)).pipe(timeout(50)),
+      );
+      if (cached !== null) {
+        const rows: unknown = JSON.parse(cached);
+        if (Array.isArray(rows)) {
+          return rows as Awaited<ReturnType<AirportsService['findMatches']>>;
+        }
+      }
+    } catch {
+      return this.findMatches(term, limit, code);
+    }
+
+    const matches = await this.findMatches(term, limit, code);
+    void this.redis.set(key, JSON.stringify(matches), 60).catch(() => {});
+    return matches;
+  }
+
+  private async findMatches(term: string, limit: number, code: string | null) {
+    const active = this.prisma.models.Aeropuerto.where({
+      archivadoEn: null,
+    }).orderBy([
+      (airport) => airport.cantidadRutas.desc(),
+      (airport) => airport.nombre.asc(),
+      (airport) => airport.id.asc(),
+    ]);
+    const exact = code
+      ? await active
+          .where((airport) => or(airport.iata.eq(code), airport.icao.eq(code)))
+          .limit(limit)
+          .all()
+      : [];
+    if (exact.length === limit) return exact;
 
     const pattern = `%${escaparLike(term)}%`;
-    return this.prisma.models.Aeropuerto.where((airport) =>
-      or(
-        airport.iata.eq(upperTerm),
-        airport.icao.eq(upperTerm),
-        airport.nombre.ilike(pattern),
-        airport.ciudad.ilike(pattern),
-      ),
-    )
-      .where({ archivadoEn: null })
-      .orderBy([
-        (airport) => airport.cantidadRutas.desc(),
-        (airport) => airport.nombre.asc(),
-      ])
-      .limit(searchDto.limit ?? 20)
+    const byName = await active
+      .where((airport) =>
+        or(airport.nombre.ilike(pattern), airport.ciudad.ilike(pattern)),
+      )
+      .limit(limit)
       .all();
+    const exactIds = new Set(exact.map((airport) => airport.id));
+    return [
+      ...exact,
+      ...byName.filter((airport) => !exactIds.has(airport.id)),
+    ].slice(0, limit);
   }
 
   async findNearby(

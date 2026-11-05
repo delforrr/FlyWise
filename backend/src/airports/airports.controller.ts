@@ -26,7 +26,8 @@ export class AirportsController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Puntos coincidentes ordenados por cantidad de enlaces',
+    description:
+      'Códigos exactos primero, luego coincidencias por nombre o localidad',
   })
   async search(@Query() searchDto: SearchAirportsDto) {
     return this.airportsService.search(searchDto);
