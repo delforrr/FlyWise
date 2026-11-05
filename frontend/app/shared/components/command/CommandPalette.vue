@@ -10,7 +10,7 @@ const flightSelection = useFlightSelection();
 interface PaletteItem {
   id: string;
   label: string;
-  description?: string;
+  descripcion?: string;
   icon?: string;
   suffix?: string;
   kbds?: string[];
@@ -102,14 +102,14 @@ const groups = computed<PaletteGroup[]>(() => [
     }],
   },
   {
-    id: "airports",
+    id: "aeropuertos",
     label: "Aeropuertos Populares & Hubs",
     icon: "i-lucide-plane-takeoff",
     items: [
       {
         id: "airport-eze",
         label: "EZE — Buenos Aires (Ezeiza)",
-        description: "Aeropuerto Internacional Ministro Pistarini, Argentina",
+        descripcion: "Aeropuerto Internacional Ministro Pistarini, Argentina",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Cono Sur",
         onSelect: () => selectAirport("EZE"),
@@ -117,7 +117,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "airport-mad",
         label: "MAD — Madrid (Barajas)",
-        description: "Aeropuerto Adolfo Suárez Madrid-Barajas, España",
+        descripcion: "Aeropuerto Adolfo Suárez Madrid-Barajas, España",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Europa",
         onSelect: () => selectAirport("MAD"),
@@ -125,7 +125,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "airport-mia",
         label: "MIA — Miami International",
-        description: "Miami International Airport, Estados Unidos",
+        descripcion: "Miami International Aeropuerto, Estados Unidos",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Norte",
         onSelect: () => selectAirport("MIA"),
@@ -133,7 +133,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "airport-jfk",
         label: "JFK — New York (JFK)",
-        description: "John F. Kennedy International Airport, Estados Unidos",
+        descripcion: "John F. Kennedy International Aeropuerto, Estados Unidos",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Costa Este",
         onSelect: () => selectAirport("JFK"),
@@ -141,7 +141,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "airport-bog",
         label: "BOG — Bogotá (El Dorado)",
-        description: "Aeropuerto Internacional El Dorado, Colombia",
+        descripcion: "Aeropuerto Internacional El Dorado, Colombia",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Andino",
         onSelect: () => selectAirport("BOG"),
@@ -149,7 +149,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "airport-gru",
         label: "GRU — São Paulo (Guarulhos)",
-        description: "Aeroporto Internacional de São Paulo-Guarulhos, Brasil",
+        descripcion: "Aeroporto Internacional de São Paulo-Guarulhos, Brasil",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Sudamérica",
         onSelect: () => selectAirport("GRU"),
@@ -157,7 +157,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "airport-scl",
         label: "SCL — Santiago de Chile",
-        description: "Aeropuerto Internacional Arturo Merino Benítez, Chile",
+        descripcion: "Aeropuerto Internacional Arturo Merino Benítez, Chile",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Pacífico",
         onSelect: () => selectAirport("SCL"),
@@ -165,7 +165,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "airport-cor",
         label: "COR — Córdoba (Pajas Blancas)",
-        description:
+        descripcion:
           "Aeropuerto Internacional Ing. Ambrosio Taravella, Argentina",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Central",
@@ -174,7 +174,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "airport-lim",
         label: "LIM — Lima (Jorge Chávez)",
-        description: "Aeropuerto Internacional Jorge Chávez, Perú",
+        descripcion: "Aeropuerto Internacional Jorge Chávez, Perú",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Pacífico",
         onSelect: () => selectAirport("LIM"),
@@ -182,7 +182,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "airport-gig",
         label: "GIG — Río de Janeiro (Galeão)",
-        description: "Aeroporto Internacional Antônio Carlos Jobim, Brasil",
+        descripcion: "Aeroporto Internacional Antônio Carlos Jobim, Brasil",
         icon: "i-lucide-plane-takeoff",
         suffix: "Hub Atlántico",
         onSelect: () => selectAirport("GIG"),
@@ -197,7 +197,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "action-toggle-3d",
         label: "Alternar perspectiva 2D / 3D",
-        description:
+        descripcion:
           "Cambiar inclinación y ángulo visual del mapa de navegación",
         icon: "i-lucide-box",
         kbds: ["M"],
@@ -206,7 +206,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "action-reset-north",
         label: "Orientar mapa al Norte (0°)",
-        description: "Restablecer orientación azimutal de navegación a 0°",
+        descripcion: "Restablecer orientación azimutal de navegación a 0°",
         icon: "i-lucide-compass",
         kbds: ["N"],
         onSelect: () => handleResetNorth(),
@@ -214,7 +214,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "action-fit-route",
         label: "Reencuadrar cámara a la ruta",
-        description:
+        descripcion:
           "Ajustar la cámara a los puntos de vuelo y hubs seleccionados",
         icon: "i-lucide-focus",
         kbds: ["F"],
@@ -223,7 +223,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "action-clear-selection",
         label: "Limpiar selección de ruta",
-        description:
+        descripcion:
           "Deseleccionar origen, destino y reiniciar visualización global",
         icon: "i-lucide-rotate-ccw",
         kbds: ["Esc"],
@@ -239,7 +239,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "nav-explorar",
         label: "Explorador de Rutas y Puntualidad",
-        description: "Visualizador geoespacial interactivo y auditoría OTP-15",
+        descripcion: "Visualizador geoespacial interactivo y auditoría OTP-15",
         icon: "i-lucide-map",
         suffix: "/explorar",
         onSelect: () => handleNavigate("/explorar"),
@@ -247,7 +247,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "nav-admin",
         label: "Consola de Monitoreo ETL",
-        description:
+        descripcion:
           "Estado de pipelines, métricas de ingesta y auditoría de descartes",
         icon: "i-lucide-activity",
         suffix: "/admin",
@@ -256,7 +256,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "nav-login",
         label: "Iniciar Sesión Administrativa",
-        description: "Panel de acceso y credenciales para operadores",
+        descripcion: "Panel de acceso y credenciales para operadores",
         icon: "i-lucide-lock",
         suffix: "/login",
         onSelect: () => handleNavigate("/login"),
@@ -264,7 +264,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "nav-home",
         label: "Inicio / Portada",
-        description: "Pantalla principal del sistema FlyWise",
+        descripcion: "Pantalla principal del sistema FlyWise",
         icon: "i-lucide-home",
         suffix: "/",
         onSelect: () => handleNavigate("/"),
@@ -279,7 +279,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "action-toggle-theme",
         label: "Alternar Modo Claro / Oscuro",
-        description: "Cambiar el esquema de iluminación instrumental de cabina",
+        descripcion: "Cambiar el esquema de iluminación instrumental de cabina",
         icon: "i-lucide-sun-moon",
         kbds: ["T"],
         onSelect: () => handleToggleTheme(),
@@ -294,7 +294,7 @@ const groups = computed<PaletteGroup[]>(() => [
       {
         id: "action-shortcuts",
         label: "Ver atajos de teclado (?)",
-        description: "Desplegar la guía de comandos y atajos operacionales",
+        descripcion: "Desplegar la guía de comandos y atajos operacionales",
         icon: "i-lucide-help-circle",
         kbds: ["?"],
         onSelect: () => handleOpenShortcuts(),
@@ -355,7 +355,7 @@ function handlePaletteSelect(item: unknown) {
         :fuse="{
           fuseOptions: {
             threshold: 0.2,
-            keys: ['label', 'description', 'suffix', 'id'],
+            keys: ['label', 'descripcion', 'suffix', 'id'],
           },
           resultLimit: 25,
         }"

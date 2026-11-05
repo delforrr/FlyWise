@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useFlightSelection } from "../../app/features/route-audit/composables/useFlightSelection";
-import type { Airport } from "../../app/types/airport";
+import type { Aeropuerto } from "../../app/types/airport";
 import type { FlightRoute } from "../../app/types/route";
 
 describe("useFlightSelection — Composable de Selección Reactiva de Rutas y Aeropuertos", () => {
@@ -39,16 +39,16 @@ describe("useFlightSelection — Composable de Selección Reactiva de Rutas y Ae
       expect(selection.hasActiveRoute.value).toBe(false);
     });
 
-    it("acepta un objeto Airport y conserva su identidad interna", () => {
+    it("acepta un objeto Aeropuerto y conserva su identidad interna", () => {
       const selection = useFlightSelection();
-      const mockAirport: Airport = {
+      const mockAirport: Aeropuerto = {
         id: "eze",
         iata: "EZE",
         icao: "SAEZ",
-        name: "Ezeiza",
-        city: "Buenos Aires",
-        country: "Argentina",
-        coordinates: [-58.53, -34.82],
+        nombre: "Ezeiza",
+        ciudad: "Buenos Aires",
+        pais: "Argentina",
+        coordenadas: [-58.53, -34.82],
         type: "large_airport",
       };
 

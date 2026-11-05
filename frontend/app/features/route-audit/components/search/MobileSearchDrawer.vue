@@ -21,14 +21,14 @@ const defaultDate = shallowRef<DateValue>(today(getLocalTimeZone()));
 const rotation = ref(0);
 
 const quickHubs = [
-  { iata: "EZE", city: "Buenos Aires" },
-  { iata: "COR", city: "Córdoba" },
-  { iata: "MDZ", city: "Mendoza" },
-  { iata: "BRC", city: "Bariloche" },
-  { iata: "MAD", city: "Madrid" },
-  { iata: "MIA", city: "Miami" },
-  { iata: "SCL", city: "Santiago" },
-  { iata: "GRU", city: "São Paulo" },
+  { iata: "EZE", ciudad: "Buenos Aires" },
+  { iata: "COR", ciudad: "Córdoba" },
+  { iata: "MDZ", ciudad: "Mendoza" },
+  { iata: "BRC", ciudad: "Bariloche" },
+  { iata: "MAD", ciudad: "Madrid" },
+  { iata: "MIA", ciudad: "Miami" },
+  { iata: "SCL", ciudad: "Santiago" },
+  { iata: "GRU", ciudad: "São Paulo" },
 ];
 
 function swapAirports() {
@@ -195,7 +195,7 @@ function handleSearch() {
               >
                 {{ hub.iata }}
                 <span class="text-[10px] font-sans opacity-70 font-normal">
-                  {{ hub.city }}
+                  {{ hub.ciudad }}
                 </span>
               </UButton>
             </div>

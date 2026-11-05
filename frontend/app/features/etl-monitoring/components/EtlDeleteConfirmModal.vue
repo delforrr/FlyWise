@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { EtlPipeline } from "../types/etl";
+import type { ProcesoEtl } from "../types/etl";
 
 interface Props {
   isOpen: boolean;
-  pipeline: EtlPipeline | null;
+  proceso: ProcesoEtl | null;
 }
 
 const props = defineProps<Props>();
@@ -14,8 +14,8 @@ const emit = defineEmits<{
 }>();
 
 function handleConfirm() {
-  if (props.pipeline) {
-    emit("confirm", props.pipeline.id);
+  if (props.proceso) {
+    emit("confirm", props.proceso.id);
     emit("close");
   }
 }
@@ -23,9 +23,9 @@ function handleConfirm() {
 
 <template>
   <UModal
-    :open="isOpen && !!pipeline"
+    :open="isOpen && !!proceso"
     title="Eliminar Servicio de Ingesta"
-    description="Esta acción removerá el pipeline y sus configuraciones de conexión."
+    description="Esta acción removerá el proceso y sus configuraciones de conexión."
     :ui="{
       content:
         'max-w-md bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
@@ -37,7 +37,7 @@ function handleConfirm() {
     "
   >
     <template #body>
-      <div v-if="pipeline" class="space-y-3.5 text-xs">
+      <div v-if="proceso" class="space-y-3.5 text-xs">
         <div
           class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3 text-rose-600 dark:text-rose-400"
         >
@@ -50,8 +50,8 @@ function handleConfirm() {
               ¿Estás seguro de que deseas eliminar este servicio?
             </span>
             <p class="text-[11px] leading-relaxed text-text-muted">
-              Se eliminará la configuración del pipeline
-              <strong class="text-text-main font-semibold">"{{ pipeline.name }}"</strong>
+              Se eliminará la configuración del proceso
+              <strong class="text-text-main font-semibold">"{{ proceso.nombre }}"</strong>
               y se cancelarán las tareas programadas en BullMQ asociadas a esta fuente.
             </p>
           </div>
@@ -60,7 +60,7 @@ function handleConfirm() {
         <div
           class="p-2.5 rounded-lg bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim truncate"
         >
-          Endpoint: {{ pipeline.connection?.endpointUrl || "Sin endpoint registrado" }}
+          Endpoint: {{ proceso.conexion?.urlEndpoint || "Sin endpoint registrado" }}
         </div>
       </div>
     </template>

@@ -4,7 +4,7 @@ import { AirlinesService } from './airlines.service.js';
 import { QueryAirlinesDto } from './dto/query-airlines.dto.js';
 
 @ApiTags('Entidades')
-@Controller('airlines')
+@Controller('aerolineas')
 export class AirlinesController {
   constructor(private readonly airlinesService: AirlinesService) {}
 
@@ -17,7 +17,7 @@ export class AirlinesController {
     return this.airlinesService.findAll(queryDto);
   }
 
-  @Get(':code')
+  @Get('por-codigo/:codigo')
   @ApiOperation({
     summary: 'Consulta una entidad por código',
   })
@@ -31,7 +31,7 @@ export class AirlinesController {
     description: 'Entidad con hasta 20 enlaces asociados',
   })
   @ApiResponse({ status: 404, description: 'Entidad no encontrada' })
-  async findByCode(@Param('code') code: string) {
+  async findByCode(@Param('codigo') code: string) {
     return this.airlinesService.findByCode(code);
   }
 }

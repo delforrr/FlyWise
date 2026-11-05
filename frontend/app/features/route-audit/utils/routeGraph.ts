@@ -1,11 +1,11 @@
 import type { FlightRoute } from '~/types/route';
 
-export function findRouteBetween(routes: FlightRoute[], originId?: string, destinationId?: string): FlightRoute | null {
-  if (!originId || !destinationId) return null;
-  return routes.find(r => r.originId === originId && r.destinationId === destinationId && r.flightType !== 'connecting') ?? null;
+export function findRouteBetween(rutas: FlightRoute[], origenId?: string, destinoId?: string): FlightRoute | null {
+  if (!origenId || !destinoId) return null;
+  return rutas.find(r => r.origenId === origenId && r.destinoId === destinoId && r.flightType !== 'connecting') ?? null;
 }
-export function queryMatchingRoutes(routes: FlightRoute[], originId?: string, destinationId?: string): FlightRoute[] {
-  return routes.filter(r =>
-    (!originId || r.originId === originId) && (!destinationId || r.destinationId === destinationId)
+export function queryMatchingRoutes(rutas: FlightRoute[], origenId?: string, destinoId?: string): FlightRoute[] {
+  return rutas.filter(r =>
+    (!origenId || r.origenId === origenId) && (!destinoId || r.destinoId === destinoId)
   );
 }

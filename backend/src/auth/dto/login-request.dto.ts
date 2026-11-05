@@ -7,7 +7,7 @@ import { CreateUserDto } from '../../users/dto/create-user.dto.js';
   description: 'Credenciales y preferencia de duración de sesión.',
 })
 export class LoginRequestDto extends PickType(CreateUserDto, [
-  'email',
+  'correo',
   'password',
 ] as const) {
   @IsOptional()

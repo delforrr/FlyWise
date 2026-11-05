@@ -18,11 +18,11 @@ export class CreateUserDto {
     example: 'operator@flywise.com',
     description: 'Correo electrónico del usuario',
   })
-  @IsEmail({}, { message: 'Debe tener formato de email' })
+  @IsEmail({}, { message: 'Debe tener formato de correo' })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
-  email!: string;
+  correo!: string;
 
   @ApiProperty({
     example: 'password123',
@@ -40,5 +40,5 @@ export class CreateUserDto {
   })
   @IsOptional()
   @IsIn(['ADMIN', 'OPERATOR'])
-  role?: 'ADMIN' | 'OPERATOR';
+  rol?: 'ADMIN' | 'OPERATOR';
 }

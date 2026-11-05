@@ -6,5 +6,5 @@ import { CreateUserDto } from '../../users/dto/create-user.dto.js';
   description: 'Datos de registro; el rol asignado es OPERATOR.',
 })
 export class RegisterUserDto extends OmitType(CreateUserDto, [
-  'role',
+  'rol',
 ] as const) {}

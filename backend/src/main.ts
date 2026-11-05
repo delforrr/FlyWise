@@ -35,7 +35,7 @@ async function bootstrap() {
         bearerFormat: 'JWT',
         name: 'JWT',
         description:
-          'Pegá únicamente el valor de accessToken obtenido en POST /api/auth/login, sin comillas ni el prefijo Bearer. Swagger agrega el prefijo automáticamente.',
+          'Pegá únicamente el valor de accessToken obtenido en POST /api/autenticacion/iniciar-sesion, sin comillas ni el prefijo Bearer. Swagger agrega el prefijo automáticamente.',
       },
       'bearer',
     )

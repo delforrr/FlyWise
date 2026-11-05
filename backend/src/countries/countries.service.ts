@@ -7,26 +7,27 @@ export class CountriesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll() {
-    const countries = await this.prisma.models.Country.orderBy((country) =>
-      country.name.asc(),
+    const paises = await this.prisma.models.Pais.orderBy((pais) =>
+      pais.nombre.asc(),
     ).all();
-    return countries.map((country) => ({
-      ...country,
-      continent: countryContinent(country.isoCode),
+    return paises.map((pais) => ({
+      ...pais,
+      continent: countryContinent(pais.codigoIso),
     }));
   }
 
-  async findByName(name: string) {
-    const country = await this.prisma.models.Country.where((country) =>
-      country.name.ilike(name.replace(/[\\%_]/g, '\\$&')),
+  async findByName(nombre: string) {
+    const pais = await this.prisma.models.Pais.where((pais) =>
+      pais.nombre.ilike(nombre.replace(/[\\%_]/g, '\\$&')),
     ).first();
-    if (!country) throw new NotFoundException(`País "${name}" no encontrado`);
-    const airports = await this.prisma.models.Airport.where((airport) =>
-      airport.countryName.ilike(country.name.replace(/[\\%_]/g, '\\$&')),
+    if (!pais) throw new NotFoundException(`País "${nombre}" no encontrado`);
+    const aeropuertos = await this.prisma.models.Aeropuerto.where((airport) =>
+      airport.paisId.eq(pais.id),
     )
-      .orderBy((airport) => airport.routeCount.desc())
+      .where({ archivadoEn: null })
+      .orderBy((airport) => airport.cantidadRutas.desc())
       .limit(50)
       .all();
-    return { ...country, airports };
+    return { ...pais, aeropuertos };
   }
 }

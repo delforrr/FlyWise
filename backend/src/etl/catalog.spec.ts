@@ -3,63 +3,63 @@ import { normalizeCatalogRow, catalogValue } from './catalog.js';
 describe('OpenFlights catalog validation', () => {
   it('preserves the textual NAN code used by Nadi in airports.dat', () => {
     expect(
-      normalizeCatalogRow('airports', {
-        openflightsId: '1960',
-        name: 'Nadi International Airport',
+      normalizeCatalogRow('aeropuertos', {
+        idOpenflights: '1960',
+        nombre: 'Nadi International Aeropuerto',
         iata: 'NAN',
         icao: 'NFFN',
-        latitude: '-17.755399703979492',
-        longitude: '177.4429931640625',
+        latitud: '-17.755399703979492',
+        longitud: '177.4429931640625',
       }),
     ).toMatchObject({ iata: 'NAN', icao: 'NFFN' });
   });
-  it('preserves airports without codes and coordinates at zero', () => {
+  it('preserves aeropuertos without codes and coordenadas at zero', () => {
     expect(
-      normalizeCatalogRow('airports', {
-        openflightsId: '42',
-        name: 'Airport',
+      normalizeCatalogRow('aeropuertos', {
+        idOpenflights: '42',
+        nombre: 'Aeropuerto',
         iata: '\\N',
-        latitude: '0',
-        longitude: '-58',
+        latitud: '0',
+        longitud: '-58',
       }),
     ).toMatchObject({
-      openflightsId: 42,
+      idOpenflights: 42,
       iata: null,
-      latitude: 0,
-      longitude: -58,
+      latitud: 0,
+      longitud: -58,
     });
   });
-  it('keeps inactive airlines and unknown activity', () => {
+  it('keeps inactive aerolineas and unknown activity', () => {
     expect(
-      normalizeCatalogRow('airlines', {
-        openflightsId: '2',
-        name: 'Historical',
-        active: 'n',
+      normalizeCatalogRow('aerolineas', {
+        idOpenflights: '2',
+        nombre: 'Historical',
+        activa: 'n',
       }),
-    ).toMatchObject({ active: false });
+    ).toMatchObject({ activa: false });
     expect(
-      normalizeCatalogRow('airlines', {
-        openflightsId: '3',
-        name: 'Unknown status',
-        active: '\\N',
+      normalizeCatalogRow('aerolineas', {
+        idOpenflights: '3',
+        nombre: 'Unknown estado',
+        activa: '\\N',
       }),
-    ).toMatchObject({ active: null });
+    ).toMatchObject({ activa: null });
   });
-  it('rejects missing coordinates instead of creating a point at zero', () => {
+  it('rejects missing coordenadas instead of creating a point at zero', () => {
     expect(() =>
-      normalizeCatalogRow('airports', {
-        openflightsId: '1',
-        name: 'Airport',
-        latitude: '\\N',
-        longitude: '10',
+      normalizeCatalogRow('aeropuertos', {
+        idOpenflights: '1',
+        nombre: 'Aeropuerto',
+        latitud: '\\N',
+        longitud: '10',
       }),
-    ).toThrow(/latitude/);
+    ).toThrow(/latitud/);
   });
   it('keeps entities when optional codes are malformed', () => {
     expect(
-      normalizeCatalogRow('airlines', {
-        openflightsId: '1',
-        name: 'Airline',
+      normalizeCatalogRow('aerolineas', {
+        idOpenflights: '1',
+        nombre: 'Aerolinea',
         iata: 'N/A',
         icao: '-',
       }),
@@ -69,20 +69,23 @@ describe('OpenFlights catalog validation', () => {
     expect(catalogValue('-')).toBe('-');
     expect(catalogValue(' \\N ')).toBeNull();
     expect(() =>
-      normalizeCatalogRow('airlines', { openflightsId: '-1', name: 'Unknown' }),
+      normalizeCatalogRow('aerolineas', {
+        idOpenflights: '-1',
+        nombre: 'Unknown',
+      }),
     ).toThrow(/marcador/);
   });
-  it('retains stops and codeshare, rejects fractional stops', () => {
+  it('retains escalas and codigoCompartido, rejects fractional escalas', () => {
     expect(
-      normalizeCatalogRow('routes', {
-        originCode: 'AAA',
-        destinationCode: 'BBB',
-        stops: '1',
-        codeshare: 'Y',
+      normalizeCatalogRow('rutas', {
+        codigoOrigen: 'AAA',
+        codigoDestino: 'BBB',
+        escalas: '1',
+        codigoCompartido: 'Y',
       }),
-    ).toMatchObject({ stops: 1, codeshare: true });
-    expect(() => normalizeCatalogRow('routes', { stops: '1.5' })).toThrow(
-      /stops/,
+    ).toMatchObject({ escalas: 1, codigoCompartido: true });
+    expect(() => normalizeCatalogRow('rutas', { escalas: '1.5' })).toThrow(
+      /escalas/,
     );
   });
 });

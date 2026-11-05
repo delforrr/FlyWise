@@ -1,110 +1,120 @@
 classDiagram
-    %% Vista simplificada: identificadores originales y descripciones en español.
-    %% PK = clave primaria; FK = clave foránea; UK = valor único.
-    Country "0..1" -- "0..*" Airport : agrupa
-    Country "0..1" -- "0..*" Airline : agrupa
-    User "0..1" -- "0..*" EtlJob : solicita
-    EtlPipeline "0..1" -- "0..*" EtlJob : genera
-    EtlJob "1" -- "0..*" EtlDiscardedSample : contiene
-    EtlJob "1" -- "0..*" EtlJobEvent : registra
-    Airport "1" -- "0..*" Route : origen
-    Airport "1" -- "0..*" Route : destino
-    Airline "0..1" -- "0..*" Route : opera
-    Airport "1" -- "0..*" Flight : origen
-    Airport "1" -- "0..*" Flight : destino
-    Airline "1" -- "0..*" Flight : opera
-    EtlJob "0..1" -- "0..*" Flight : incorpora
-    Airport "1" -- "0..*" RouteMetric : origen
-    Airport "1" -- "0..*" RouteMetric : destino
-    Airline "1" -- "0..*" RouteMetric : opera
+    %% Vista del modelo implementado. PK y restricciones completas en contract.prisma.
+    Pais "0..1" -- "0..*" Aeropuerto : agrupa
+    Pais "0..1" -- "0..*" Aerolinea : agrupa
+    Usuario "0..1" -- "0..*" EjecucionEtl : solicita
+    ProcesoEtl "0..1" -- "0..*" EjecucionEtl : genera
+    EjecucionEtl "1" -- "0..*" MuestraDescartadaEtl : contiene
+    EjecucionEtl "1" -- "0..*" EventoEjecucionEtl : registra
+    Aeropuerto "1" -- "0..*" Ruta : origen
+    Aeropuerto "1" -- "0..*" Ruta : destino
+    Ruta "1" -- "0..*" OfertaRuta : ofrece
+    Aerolinea "0..1" -- "0..*" OfertaRuta : opera
+    Aeropuerto "1" -- "0..*" Vuelo : origen
+    Aeropuerto "1" -- "0..*" Vuelo : destino
+    Aerolinea "1" -- "0..*" Vuelo : opera
+    EjecucionEtl "1" -- "0..*" Vuelo : incorpora
+    Aeropuerto "1" -- "0..*" MetricaRuta : origen
+    Aeropuerto "1" -- "0..*" MetricaRuta : destino
+    Aerolinea "1" -- "0..*" MetricaRuta : opera
+    EjecucionEtl "1" -- "0..*" MetricaRuta : calcula
 
-    class User {
+    class Usuario {
         +string id
-        +string email
-        +Role role
+        +string correo
+        +Role rol
     }
-    note for User "id: PK\nemail: UK"
-    class Country {
+    class Pais {
         +string id
-        +string name
-        +string isoCode
+        +string nombre
+        +string codigoIso
     }
-    note for Country "id: PK\nname: UK\nisoCode: opcional"
-    class Airport {
+    class Aeropuerto {
         +string id
-        +string name
-        +string countryId
-        +float latitude
-        +float longitude
+        +int idOpenflights
+        +string nombre
+        +string paisId
+        +float latitud
+        +float longitud
+        +timestamp archivadoEn
+        +boolean protegidoManualmente
     }
-    note for Airport "id: PK\ncountryId: FK opcional"
-    class Airline {
+    class Aerolinea {
         +string id
-        +string name
-        +string countryId
+        +int idOpenflights
+        +string nombre
+        +string paisId
+        +timestamp archivadoEn
+        +boolean protegidoManualmente
     }
-    note for Airline "id: PK\ncountryId: FK opcional"
-    class Route {
+    class Ruta {
         +string id
-        +string originId
-        +string destinationId
-        +string airlineId
-        +int stops
+        +string origenId
+        +string destinoId
+        +timestamp archivadoEn
     }
-    note for Route "id: PK\noriginId: FK\ndestinationId: FK\nairlineId: FK opcional"
-    %% Flight y RouteMetric: carga y agregación aún no activadas.
-    class Flight {
+    class OfertaRuta {
         +string id
-        +date flightDate
-        +string originId
-        +string destinationId
-        +string airlineId
-        +string etlJobId
-        +FlightStatus status
-        +int arrivalDelayMinutes
+        +string rutaId
+        +string aerolineaId
+        +string codigoAerolinea
+        +boolean codigoCompartido
+        +int escalas
+        +string fuente
+        +string claveImportacion
+        +timestamp archivadoEn
+        +boolean protegidoManualmente
     }
-    note for Flight "id: PK\noriginId: FK\ndestinationId: FK\nairlineId: FK\netlJobId: FK opcional\nstatus: aterrizado, cancelado o desviado\narrivalDelayMinutes: solo si aterrizó"
-    class RouteMetric {
-        +string originId
-        +string destinationId
-        +string airlineId
-        +date period
-        +int totalFlights
-        +int cancelledFlights
-        +int divertedFlights
-        +int onTimeFlights
-        +bigint totalArrivalDelayMinutes
-    }
-    note for RouteMetric "originId: PK, FK\ndestinationId: PK, FK\nairlineId: PK, FK\nperiod: PK primer día del mes"
-    class EtlPipeline {
+    %% Vuelo y MetricaRuta: importación operacional y agregación aún no activadas.
+    class Vuelo {
         +string id
-        +string name
-        +EtlTargetEntity targetEntity
-        +boolean paused
+        +string fuente
+        +string idRegistroFuente
+        +date fechaVuelo
+        +string origenId
+        +string destinoId
+        +string aerolineaId
+        +string ejecucionEtlId
+        +FlightStatus estado
+        +int demoraLlegadaMinutos
     }
-    note for EtlPipeline "id: PK\ntargetEntity: países, aeropuertos, aerolíneas, rutas o métricas"
-    class EtlJob {
+    class MetricaRuta {
+        +string origenId
+        +string destinoId
+        +string aerolineaId
+        +date periodo
+        +string ejecucionEtlId
+        +int vuelosTotales
+        +int vuelosCancelados
+        +int vuelosDesviados
+        +int vuelosPuntuales
+        +bigint demoraLlegadaTotalMinutos
+    }
+    class ProcesoEtl {
         +string id
-        +string pipelineId
-        +string requestedById
-        +string status
-        +int totalRows
-        +int processedRows
-        +int discardedRows
+        +string nombre
+        +EtlTargetEntity entidadDestino
+        +boolean pausado
     }
-    note for EtlJob "id: PK\npipelineId: FK opcional\nrequestedById: FK opcional\nstatus: pendiente, en curso, completada o fallida"
-    class EtlDiscardedSample {
+    class EjecucionEtl {
         +string id
-        +string jobId
-        +int rowIndex
-        +string reason
-        +string rawSample
+        +string procesoId
+        +string solicitanteId
+        +string estado
+        +int filasTotales
+        +int filasProcesadas
+        +int filasDescartadas
     }
-    note for EtlDiscardedSample "id: PK\njobId: FK"
-    class EtlJobEvent {
+    class MuestraDescartadaEtl {
         +string id
-        +string jobId
-        +EtlLogLevel level
-        +string message
+        +string ejecucionId
+        +int numeroFila
+        +string motivo
+        +string muestraOriginal
     }
-    note for EtlJobEvent "id: PK\njobId: FK\nlevel: información, éxito, advertencia o error"
+    class EventoEjecucionEtl {
+        +string id
+        +string ejecucionId
+        +EtlLogLevel nivel
+        +string mensaje
+    }

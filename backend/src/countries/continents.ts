@@ -1,7 +1,7 @@
 export const CONTINENTS = ['AF', 'AN', 'AS', 'EU', 'NA', 'OC', 'SA'] as const;
 export type Continent = (typeof CONTINENTS)[number];
 
-// ISO classification: https://github.com/datasets/country-codes (Continent column).
+// ISO classification: https://github.com/datasets/pais-codes (Continent column).
 const codes: Record<Continent, string> = {
   AF: 'AO BF BI BJ BW CD CF CG CI CM CV DJ DZ EG EH ER ET GA GH GM GN GQ GW KE KM LR LS LY MA MG ML MR MU MW MZ NA NE NG RE RW SC SD SH SL SN SO SS ST SZ TD TG TN TZ UG YT ZA ZM ZW',
   AN: 'AQ BV GS HM TF',

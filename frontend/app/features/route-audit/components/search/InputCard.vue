@@ -5,16 +5,16 @@ import type { InputCardType } from "~/types/hud";
 export type { InputCardType };
 
 export interface InputCardAirportInfo {
-  name?: string;
-  city?: string;
-  country?: string;
+  nombre?: string;
+  ciudad?: string;
+  pais?: string;
   iata?: string;
 }
 
 interface Props {
   /**
-   * Tipo de tarjeta de aeropuerto: 'origin' (Origen) o 'destination' (Destino).
-   * @default 'origin'
+   * Tipo de tarjeta de aeropuerto: 'origen' (Origen) o 'destino' (Destino).
+   * @default 'origen'
    */
   type?: InputCardType;
 
@@ -47,7 +47,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  type: "origin",
+  type: "origen",
   label: undefined,
   iata: null,
   airport: null,
@@ -55,7 +55,7 @@ const props = withDefaults(defineProps<Props>(), {
   class: "",
 });
 
-const isOrigin = computed(() => props.type === "origin");
+const isOrigin = computed(() => props.type === "origen");
 
 const resolvedLabel = computed(() => {
   if (props.label) return props.label;
@@ -69,7 +69,7 @@ const resolvedIcon = computed(() => {
 
 const subtitleText = computed(() => {
   if (!props.airport) return "";
-  const parts = [props.airport.city, props.airport.country].filter(Boolean);
+  const parts = [props.airport.ciudad, props.airport.pais].filter(Boolean);
   return parts.join(", ");
 });
 </script>

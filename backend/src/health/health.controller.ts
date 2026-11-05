@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
 
 @ApiTags('Disponibilidad')
-@Controller('health')
+@Controller('salud')
 export class HealthController {
   constructor(
     private readonly prisma: PrismaService,
@@ -52,7 +52,7 @@ export class HealthController {
       : HttpStatus.SERVICE_UNAVAILABLE;
 
     return res.status(statusCode).json({
-      status: isHealthy ? 'ok' : 'degraded',
+      estado: isHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
       services: {
         database: dbStatus,

@@ -4,7 +4,7 @@ import type { TargetEntity, FieldMappingRule } from "../types/etl";
 import { TARGET_FIELDS_CATALOG } from "../types/etl";
 
 interface Props {
-  targetEntity: TargetEntity;
+  entidadDestino: TargetEntity;
   detectedColumns: string[];
   modelValue: FieldMappingRule[];
 }
@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>();
 
 const currentTargetFields = computed(() => {
-  return TARGET_FIELDS_CATALOG[props.targetEntity] || [];
+  return TARGET_FIELDS_CATALOG[props.entidadDestino] || [];
 });
 
 const totalRequiredCount = computed(() => currentTargetFields.value.filter(f => f.required).length);
@@ -24,8 +24,8 @@ const totalRequiredCount = computed(() => currentTargetFields.value.filter(f => 
 const mappedRequiredCount = computed(() => {
   return currentTargetFields.value.filter((f) => {
     if (!f.required) return false;
-    const rule = props.modelValue.find((m) => m.targetField === f.key);
-    return !!rule && !!rule.sourceColumn && rule.sourceColumn.trim() !== "";
+    const rule = props.modelValue.find((m) => m.campoDestino === f.key);
+    return !!rule && !!rule.columnaOrigen && rule.columnaOrigen.trim() !== "";
   }).length;
 });
 
@@ -42,11 +42,11 @@ const transformOptions = [
 ];
 
 function getMappingForField(targetKey: string): FieldMappingRule {
-  const existing = props.modelValue.find((m) => m.targetField === targetKey);
+  const existing = props.modelValue.find((m) => m.campoDestino === targetKey);
   if (existing) return existing;
   return {
-    sourceColumn: "",
-    targetField: targetKey,
+    columnaOrigen: "",
+    campoDestino: targetKey,
     transform: "none",
     required: currentTargetFields.value.find((f) => f.key === targetKey)?.required || false,
   };
@@ -54,7 +54,7 @@ function getMappingForField(targetKey: string): FieldMappingRule {
 
 function updateRule(targetKey: string, fieldPatch: Partial<FieldMappingRule>) {
   const next = [...props.modelValue];
-  const idx = next.findIndex((m) => m.targetField === targetKey);
+  const idx = next.findIndex((m) => m.campoDestino === targetKey);
   const targetDef = currentTargetFields.value.find((f) => f.key === targetKey);
 
   if (idx >= 0) {
@@ -65,8 +65,8 @@ function updateRule(targetKey: string, fieldPatch: Partial<FieldMappingRule>) {
     } as FieldMappingRule;
   } else {
     next.push({
-      sourceColumn: "",
-      targetField: targetKey,
+      columnaOrigen: "",
+      campoDestino: targetKey,
       transform: "none",
       required: targetDef?.required || false,
       ...fieldPatch,
@@ -96,8 +96,8 @@ function autoDetectMapping() {
 
     if (match) {
       next.push({
-        sourceColumn: match,
-        targetField: target.key,
+        columnaOrigen: match,
+        campoDestino: target.key,
         transform: target.type === "number" ? "to_number" : "none",
         required: target.required,
       });
@@ -165,7 +165,7 @@ function autoDetectMapping() {
         :key="target.key"
         class="p-3 rounded-xl border transition-colors space-y-2"
         :class="[
-          target.required && (!getMappingForField(target.key).sourceColumn || !getMappingForField(target.key).sourceColumn.trim())
+          target.required && (!getMappingForField(target.key).columnaOrigen || !getMappingForField(target.key).columnaOrigen.trim())
             ? 'border-rose-500/50 bg-rose-500/5 hover:border-rose-500/70'
             : 'border-border-subtle bg-surface-card hover:border-primary/40'
         ]"
@@ -188,7 +188,7 @@ function autoDetectMapping() {
               Requerido *
             </UBadge>
             <span
-              v-if="target.required && (!getMappingForField(target.key).sourceColumn || !getMappingForField(target.key).sourceColumn.trim())"
+              v-if="target.required && (!getMappingForField(target.key).columnaOrigen || !getMappingForField(target.key).columnaOrigen.trim())"
               class="text-[10px] font-medium text-rose-500 ml-1 hidden sm:inline"
             >
               (Sin asignar)
@@ -200,7 +200,7 @@ function autoDetectMapping() {
         </div>
 
         <p class="text-[11px] text-text-muted">
-          {{ target.description }}
+          {{ target.descripcion }}
         </p>
 
         <!-- Controles de Mapeo -->
@@ -212,22 +212,22 @@ function autoDetectMapping() {
             </label>
             <UInput
               v-if="detectedColumns.length === 0"
-              :model-value="getMappingForField(target.key).sourceColumn"
+              :model-value="getMappingForField(target.key).columnaOrigen"
               placeholder="Ej: ident, origin_iata, etc."
               size="sm"
               class="w-full font-mono text-xs"
               @update:model-value="
-                (val) => updateRule(target.key, { sourceColumn: String(val) })
+                (val) => updateRule(target.key, { columnaOrigen: String(val) })
               "
             />
             <select
               v-else
-              :value="getMappingForField(target.key).sourceColumn"
+              :value="getMappingForField(target.key).columnaOrigen"
               class="w-full rounded-md border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main font-mono focus:border-primary focus:outline-none"
               @change="
                 (e) =>
                   updateRule(target.key, {
-                    sourceColumn: (e.target as HTMLSelectElement).value,
+                    columnaOrigen: (e.target as HTMLSelectElement).value,
                   })
               "
             >

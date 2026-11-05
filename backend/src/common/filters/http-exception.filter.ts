@@ -17,7 +17,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const status =
+    const estado =
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
@@ -41,14 +41,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
       error = (resObj.error as string) ?? error;
     }
 
-    if (status >= 500) {
+    if (estado >= 500) {
       this.logger.error(
-        `[${request.method}] ${request.url} - ${status} - Error: ${exception instanceof Error ? exception.message : 'Unknown'}`,
+        `[${request.method}] ${request.url} - ${estado} - Error: ${exception instanceof Error ? exception.message : 'Unknown'}`,
       );
     }
 
-    response.status(status).json({
-      statusCode: status,
+    response.status(estado).json({
+      statusCode: estado,
       timestamp: new Date().toISOString(),
       path: request.url,
       error,

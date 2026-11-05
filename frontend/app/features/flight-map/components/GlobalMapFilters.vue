@@ -2,20 +2,20 @@
 import { MAP_CONTINENTS, type GlobalMapFilter } from '../composables/useGlobalMap';
 
 const emit = defineEmits<{ apply: [filter: GlobalMapFilter] }>();
-const { filter, isOpen, countries, countriesLoading, countriesError, loadCountries } = useGlobalMap();
+const { filter, isOpen, paises, countriesLoading, countriesError, loadCountries } = useGlobalMap();
 const draft = ref<GlobalMapFilter>({ ...filter.value });
 const modes = [
-  { value: 'global', label: 'Todo el mundo', description: 'Explora la red global.', icon: 'i-lucide-globe-2' },
-  { value: 'domestic', label: 'Dentro de un país', description: 'Conexiones nacionales.', icon: 'i-lucide-map-pin' },
-  { value: 'countries', label: 'Entre países', description: 'Elige origen y destino.', icon: 'i-lucide-route' },
-  { value: 'continents', label: 'Entre continentes', description: 'Conecta dos regiones.', icon: 'i-lucide-earth' },
+  { value: 'global', label: 'Todo el mundo', descripcion: 'Explora la red global.', icon: 'i-lucide-globe-2' },
+  { value: 'domestic', label: 'Dentro de un país', descripcion: 'Conexiones nacionales.', icon: 'i-lucide-map-pin' },
+  { value: 'paises', label: 'Entre países', descripcion: 'Elige origen y destino.', icon: 'i-lucide-route' },
+  { value: 'continents', label: 'Entre continentes', descripcion: 'Conecta dos regiones.', icon: 'i-lucide-earth' },
 ];
 const limits = [10, 20, 50, 100].map(value => ({ value, label: `Top ${value}` }));
 const valid = computed(() => {
   const d = draft.value;
-  if (d.mode === 'domestic') return Boolean(d.originCountryId);
-  if (d.mode === 'countries') return Boolean(d.originCountryId && d.destinationCountryId && d.originCountryId !== d.destinationCountryId);
-  if (d.mode === 'continents') return Boolean(d.originContinent && d.destinationContinent && d.originContinent !== d.destinationContinent);
+  if (d.mode === 'domestic') return Boolean(d.paisOrigenId);
+  if (d.mode === 'paises') return Boolean(d.paisOrigenId && d.paisDestinoId && d.paisOrigenId !== d.paisDestinoId);
+  if (d.mode === 'continents') return Boolean(d.continenteOrigen && d.continenteDestino && d.continenteOrigen !== d.continenteDestino);
   return true;
 });
 watch(isOpen, (open) => {
@@ -26,12 +26,12 @@ watch(isOpen, (open) => {
 
 function apply() {
   if (!valid.value) return;
-  const { mode, limit, originCountryId, destinationCountryId, originContinent, destinationContinent } = draft.value;
+  const { mode, limit, paisOrigenId, paisDestinoId, continenteOrigen, continenteDestino } = draft.value;
   emit('apply', {
     mode, limit,
-    ...(mode === 'domestic' || mode === 'countries' ? { originCountryId } : {}),
-    ...(mode === 'countries' ? { destinationCountryId } : {}),
-    ...(mode === 'continents' ? { originContinent, destinationContinent } : {}),
+    ...(mode === 'domestic' || mode === 'paises' ? { paisOrigenId } : {}),
+    ...(mode === 'paises' ? { paisDestinoId } : {}),
+    ...(mode === 'continents' ? { continenteOrigen, continenteDestino } : {}),
   });
 }
 </script>
@@ -53,19 +53,19 @@ function apply() {
               </span>
               <span class="min-w-0">
                 <span class="block text-sm font-semibold">{{ mode.label }}</span>
-                <span :id="`map-zone-${mode.value}-help`" class="mt-1 block text-xs leading-relaxed text-text-muted">{{ mode.description }}</span>
+                <span :id="`map-zone-${mode.value}-help`" class="mt-1 block text-xs leading-relaxed text-text-muted">{{ mode.descripcion }}</span>
               </span>
             </span>
           </label>
         </div>
       </fieldset>
-      <div v-if="draft.mode === 'domestic' || draft.mode === 'countries'" class="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-border-subtle bg-surface-accent/40 p-4">
+      <div v-if="draft.mode === 'domestic' || draft.mode === 'paises'" class="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-border-subtle bg-surface-accent/40 p-4">
         <UFormField :label="draft.mode === 'domestic' ? 'País' : 'País de origen'" name="originCountry" required>
-          <USelectMenu v-model="draft.originCountryId" :items="countries" value-key="id" label-key="name"
+          <USelectMenu v-model="draft.paisOrigenId" :items="paises" value-key="id" label-key="nombre"
             :loading="countriesLoading" placeholder="Buscar país" size="lg" icon="i-lucide-map-pin" class="w-full" />
         </UFormField>
-        <UFormField v-if="draft.mode === 'countries'" label="País de destino" name="destinationCountry" required>
-          <USelectMenu v-model="draft.destinationCountryId" :items="countries.filter(c => c.id !== draft.originCountryId)" value-key="id" label-key="name"
+        <UFormField v-if="draft.mode === 'paises'" label="País de destino" name="destinationCountry" required>
+          <USelectMenu v-model="draft.paisDestinoId" :items="paises.filter(c => c.id !== draft.paisOrigenId)" value-key="id" label-key="nombre"
             :loading="countriesLoading" placeholder="Buscar país" size="lg" icon="i-lucide-map-pin" class="w-full" />
         </UFormField>
         <div v-if="countriesError" role="alert" class="sm:col-span-2 text-sm text-error">
@@ -74,15 +74,15 @@ function apply() {
         </div>
       </div>
       <div v-if="draft.mode === 'continents'" class="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-border-subtle bg-surface-accent/40 p-4">
-        <UFormField label="Continente de origen" name="originContinent" required>
-          <USelectMenu v-model="draft.originContinent" :items="MAP_CONTINENTS" value-key="value" placeholder="Buscar continente" size="lg" class="w-full" />
+        <UFormField label="Continente de origen" name="continenteOrigen" required>
+          <USelectMenu v-model="draft.continenteOrigen" :items="MAP_CONTINENTS" value-key="value" placeholder="Buscar continente" size="lg" class="w-full" />
         </UFormField>
-        <UFormField label="Continente de destino" name="destinationContinent" required>
-          <USelectMenu v-model="draft.destinationContinent" :items="MAP_CONTINENTS.filter(c => c.value !== draft.originContinent)" value-key="value" placeholder="Buscar continente" size="lg" class="w-full" />
+        <UFormField label="Continente de destino" name="continenteDestino" required>
+          <USelectMenu v-model="draft.continenteDestino" :items="MAP_CONTINENTS.filter(c => c.value !== draft.continenteOrigen)" value-key="value" placeholder="Buscar continente" size="lg" class="w-full" />
         </UFormField>
         <p class="sm:col-span-2 text-xs leading-relaxed text-text-muted">América del Norte incluye Centroamérica y el Caribe.</p>
       </div>
-      <p v-if="draft.mode === 'countries' || draft.mode === 'continents'" class="text-xs leading-relaxed text-text-muted">
+      <p v-if="draft.mode === 'paises' || draft.mode === 'continents'" class="text-xs leading-relaxed text-text-muted">
         Mostramos conexiones desde el origen hacia el destino. Al abrirlas podrás consultar sus aerolíneas y la vuelta, si está disponible.
       </p>
       <fieldset aria-describedby="map-limit-help" class="border-t border-border-subtle pt-5">

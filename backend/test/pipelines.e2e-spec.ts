@@ -11,7 +11,7 @@ describe('Pipeline persistence and immutable execution configuration', () => {
     await db.close();
   });
   it('keeps captured mappings, schedules natively, archives without losing audit, and handles enqueue failures', async () => {
-    const rollback = new Error('rollback pipeline verification');
+    const rollback = new Error('rollback proceso verification');
     try {
       await db.transaction(async (tx) => {
         const queue = {
@@ -25,67 +25,67 @@ describe('Pipeline persistence and immutable execution configuration', () => {
           queue as unknown as Queue,
         );
         const dto: CreatePipelineDto = {
-          name: 'Pipeline fixture',
-          datasetName: 'countries',
-          targetEntity: 'countries',
-          connection: {
-            sourceType: 'http_stream',
-            endpointUrl:
+          nombre: 'Pipeline fixture',
+          nombreConjunto: 'paises',
+          entidadDestino: 'paises',
+          conexion: {
+            tipoFuente: 'http_stream',
+            urlEndpoint:
               'https://raw.githubusercontent.com/jpatokal/openflights/master/data/countries.dat',
-            httpMethod: 'GET',
-            dataFormat: 'csv',
-            csvHasHeader: false,
+            metodoHttp: 'GET',
+            formatoDatos: 'csv',
+            csvConCabecera: false,
           },
-          schemaMapping: [
-            { sourceColumn: '0', targetField: 'name' },
-            { sourceColumn: '1', targetField: 'isoCode' },
+          mapeoEsquema: [
+            { columnaOrigen: '0', campoDestino: 'nombre' },
+            { columnaOrigen: '1', campoDestino: 'codigoIso' },
           ],
-          scheduleConfig: {
-            cronExpression: '0 4 * * *',
-            batchSize: 2000,
-            timeoutSeconds: 300,
-            maxRetries: 2,
+          configuracionProgramacion: {
+            expresionCron: '0 4 * * *',
+            tamanoLote: 2000,
+            tiempoLimiteSegundos: 300,
+            maximoReintentos: 2,
           },
         };
-        const pipeline = await service.create(dto);
+        const proceso = await service.create(dto);
         expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
-          pipeline.id,
+          proceso.id,
           { pattern: '0 4 * * *', tz: 'UTC' },
           expect.objectContaining({ name: 'scheduled-pipeline' }),
         );
-        const execution = await service.run(pipeline.id);
+        const execution = await service.run(proceso.id);
         expect(execution).not.toBeNull();
-        const job = await service.job(execution!.jobId);
-        expect(job.configurationSnapshot).toMatchObject({
-          schemaMapping: dto.schemaMapping,
+        const job = await service.job(execution!.ejecucionId);
+        expect(job.instantaneaConfiguracion).toMatchObject({
+          mapeoEsquema: dto.mapeoEsquema,
         });
-        await service.update(pipeline.id, {
-          schemaMapping: [{ sourceColumn: '1', targetField: 'name' }],
+        await service.update(proceso.id, {
+          mapeoEsquema: [{ columnaOrigen: '1', campoDestino: 'nombre' }],
         });
-        expect((await service.job(job.id)).configurationSnapshot).toEqual(
-          job.configurationSnapshot,
+        expect((await service.job(job.id)).instantaneaConfiguracion).toEqual(
+          job.instantaneaConfiguracion,
         );
-        await service.update(pipeline.id, { paused: true });
-        expect(queue.removeJobScheduler).toHaveBeenCalledWith(pipeline.id);
-        await expect(service.run(pipeline.id)).rejects.toThrow(/pausado/);
-        await service.archive(pipeline.id);
-        expect((await service.job(job.id)).pipelineId).toBe(pipeline.id);
-        await expect(service.run(pipeline.id)).rejects.toThrow(/no encontrado/);
+        await service.update(proceso.id, { pausado: true });
+        expect(queue.removeJobScheduler).toHaveBeenCalledWith(proceso.id);
+        await expect(service.run(proceso.id)).rejects.toThrow(/pausado/);
+        await service.archive(proceso.id);
+        expect((await service.job(job.id)).procesoId).toBe(proceso.id);
+        await expect(service.run(proceso.id)).rejects.toThrow(/no encontrado/);
         const another = await service.create({
           ...dto,
-          name: 'Queue failure fixture',
+          nombre: 'Queue failure fixture',
         });
         queue.add.mockRejectedValueOnce(
           new Error('internal Redis credentials'),
         );
         await expect(service.run(another.id)).rejects.toThrow(/encolar/);
-        const failed = await tx.orm.public.EtlJob.where({
-          pipelineId: another.id,
+        const failed = await tx.orm.public.EjecucionEtl.where({
+          procesoId: another.id,
         }).firstOrThrow();
-        expect(failed.status).toBe('failed');
-        expect(failed.errorMessage).not.toContain('credentials');
-        await tx.orm.public.EtlPipeline.where({ id: another.id }).update({
-          schemaMapping: [null],
+        expect(failed.estado).toBe('failed');
+        expect(failed.mensajeError).not.toContain('credentials');
+        await tx.orm.public.ProcesoEtl.where({ id: another.id }).update({
+          mapeoEsquema: [null],
         });
         await expect(service.run(another.id)).rejects.toThrow(/Bad Request/);
         await expect(service.onModuleInit()).resolves.toBeUndefined();

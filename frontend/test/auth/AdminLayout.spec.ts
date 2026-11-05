@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { shallowMount } from '@vue/test-utils';
 import { nextTick, ref } from 'vue';
 import AdminLayout from '~/layouts/admin.vue';
-import type { User } from '~/services/authService';
+import type { Usuario } from '~/services/authService';
 
 vi.mock('~/features/etl-monitoring/composables/useEtlMonitoring', () => ({
   useEtlMonitoring: () => ({}),
 }));
 
 describe('Identidad en la cabecera administrativa', () => {
-  const user = ref<User | null>(null);
+  const user = ref<Usuario | null>(null);
 
   beforeEach(() => {
     user.value = null;
@@ -34,7 +34,7 @@ describe('Identidad en la cabecera administrativa', () => {
     const wrapper = mountLayout();
     expect(wrapper.find('[role="img"]').exists()).toBe(false);
 
-    user.value = { id: '1', email: 'maria.perez@flywise.aero', role: 'ADMIN' };
+    user.value = { id: '1', correo: 'maria.perez@flywise.aero', rol: 'ADMIN' };
     await nextTick();
 
     expect(wrapper.text()).toContain('maria.perez');

@@ -1,7 +1,7 @@
 import { Map, type IControl } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import type { Airport } from "~/types/airport";
+import type { Aeropuerto } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { useCatalog } from "~/shared/composables/useCatalog";
 import { MAP_STYLES } from "../utils/mapUtils";
@@ -39,7 +39,7 @@ function getAdaptivePadding(): {
 }
 
 export const useFlightMap = () => {
-  const { airports } = useCatalog();
+  const { aeropuertos } = useCatalog();
   const {
     setHoveredEntity,
     clearHoveredEntity,
@@ -64,7 +64,7 @@ export const useFlightMap = () => {
       selectedOrigin: selectedOrigin.value,
       selectedDestination: selectedDestination.value,
       matchingRoutes: selectedOrigin.value || selectedDestination.value ? matchingRoutes.value : globalMap.visibleRoutes.value,
-      airports: airports.value,
+      aeropuertos: aeropuertos.value,
     });
   }
 
@@ -84,21 +84,21 @@ export const useFlightMap = () => {
    */
   function fitHub(airportIata: string): void {
     if (!mapInstance.value) return;
-    const airport = airports.value.find((a) => a.id === airportIata);
+    const airport = aeropuertos.value.find((a) => a.id === airportIata);
     if (!airport) return;
 
     const connectedRoutes = matchingRoutes.value.filter(
-      (r) => r.originId === airportIata || r.destinationId === airportIata,
+      (r) => r.origenId === airportIata || r.destinoId === airportIata,
     );
 
     if (connectedRoutes.length === 0) {
-      flyToAirport(airport.coordinates, 5);
+      flyToAirport(airport.coordenadas, 5);
       return;
     }
 
     const bounds = new maplibregl.LngLatBounds(
-      airport.coordinates,
-      airport.coordinates,
+      airport.coordenadas,
+      airport.coordenadas,
     );
     for (const r of connectedRoutes) {
       bounds.extend(r.originCoordinates);
@@ -171,7 +171,7 @@ export const useFlightMap = () => {
             const isRoute = "originIata" in (info.object as object);
             setHoveredEntity({
               type: isRoute ? "route" : "airport",
-              data: info.object as FlightRoute | Airport,
+              data: info.object as FlightRoute | Aeropuerto,
               x: Math.round(info.x),
               y: Math.round(info.y),
             });
@@ -183,9 +183,9 @@ export const useFlightMap = () => {
           if (info?.object) {
             if ("originIata" in (info.object as object)) {
               const route = info.object as FlightRoute;
-              setRoute(route.originId, route.destinationId);
+              setRoute(route.origenId, route.destinoId);
             } else if ("iata" in (info.object as object)) {
-              const airport = info.object as Airport;
+              const airport = info.object as Aeropuerto;
               if (!selectedOrigin.value) {
                 setOrigin(airport.id);
               } else if (selectedOrigin.value === airport.id) {
@@ -374,10 +374,10 @@ export const useFlightMap = () => {
 
   function fitGlobal(): void {
     if (!mapInstance.value || selectedOrigin.value || selectedDestination.value) return;
-    const routes = globalMap.visibleRoutes.value;
-    if (!routes.length) return;
+    const rutas = globalMap.visibleRoutes.value;
+    if (!rutas.length) return;
     const bounds = new maplibregl.LngLatBounds();
-    for (const route of routes) {
+    for (const route of rutas) {
       bounds.extend(route.originCoordinates);
       bounds.extend(route.destinationCoordinates);
     }

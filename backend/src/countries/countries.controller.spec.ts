@@ -10,9 +10,9 @@ describe('CountriesController', () => {
   };
 
   const mockCountry = {
-    id: 'country-uuid-1',
-    name: 'Argentina',
-    isoCode: 'AR',
+    id: 'pais-uuid-1',
+    nombre: 'Argentina',
+    codigoIso: 'AR',
   };
 
   beforeEach(async () => {
@@ -38,13 +38,13 @@ describe('CountriesController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('should call findAll and return list of countries', async () => {
+  it('should call findAll and return list of paises', async () => {
     const res = await controller.findAll();
     expect(countriesService.findAll).toHaveBeenCalled();
     expect(res).toEqual([mockCountry]);
   });
 
-  it('should call findByName and return specific country', async () => {
+  it('should call findByName and return specific pais', async () => {
     const res = await controller.findByName('Argentina');
     expect(countriesService.findByName).toHaveBeenCalledWith('Argentina');
     expect(res).toEqual(mockCountry);

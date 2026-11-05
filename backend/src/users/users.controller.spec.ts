@@ -11,8 +11,8 @@ describe('UsersController', () => {
 
   const mockUserDto: UserDto = {
     id: 'd3b07384-d113-4a69-8d7b-9907f7b3b9b9',
-    email: 'admin@flywise.com',
-    role: 'ADMIN',
+    correo: 'admin@flywise.com',
+    rol: 'ADMIN',
   };
 
   beforeEach(async () => {
@@ -44,7 +44,7 @@ describe('UsersController', () => {
   });
 
   describe('getUsers', () => {
-    it('should return all users', async () => {
+    it('should return all usuarios', async () => {
       const result = await controller.getUsers();
       expect(userService.getUsers).toHaveBeenCalledTimes(1);
       expect(result).toEqual([mockUserDto]);
@@ -62,7 +62,7 @@ describe('UsersController', () => {
   describe('postUser', () => {
     it('should create and return a new user', async () => {
       const createDto: CreateUserDto = {
-        email: 'new@flywise.com',
+        correo: 'new@flywise.com',
         password: 'password123',
       };
       const result = await controller.postUser(createDto);
@@ -74,7 +74,7 @@ describe('UsersController', () => {
   describe('putUser', () => {
     it('should update and return the user', async () => {
       const updateDto: UpdateUserDto = {
-        email: 'updated@flywise.com',
+        correo: 'updated@flywise.com',
       };
       const result = await controller.putUser(mockUserDto.id, updateDto);
       expect(userService.updateUser).toHaveBeenCalledWith(

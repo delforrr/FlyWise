@@ -4,7 +4,7 @@ import { useAuth } from '../../app/features/auth/composables/useAuth';
 type Middleware = (to: { path: string }) => Promise<unknown>;
 let middleware: Middleware;
 const fetcher = vi.fn();
-const user = { id: 'user-1', email: 'admin@flywise.com', role: 'ADMIN' };
+const user = { id: 'user-1', correo: 'admin@flywise.com', rol: 'ADMIN' };
 const token = `header.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 900 }))}.signature`;
 
 beforeAll(async () => {

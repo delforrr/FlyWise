@@ -6,7 +6,7 @@ import { UsersService } from '../users/users.service.js';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { RedisService } from '../redis/redis.service.js';
-import { User } from '../users/interfaces/users.interface.js';
+import { Usuario } from '../users/interfaces/users.interface.js';
 import { UserDto } from '../users/dto/user.dto.js';
 import { CreateUserDto } from '../users/dto/create-user.dto.js';
 
@@ -17,23 +17,23 @@ describe('AuthService', () => {
   let sessions: jest.Mocked<RefreshSessionsService>;
   let redisService: jest.Mocked<RedisService>;
 
-  const mockUser: User = {
+  const mockUser: Usuario = {
     id: 'd3b07384-d113-4a69-8d7b-9907f7b3b9b9',
-    email: 'admin@flywise.com',
-    passwordHash: '',
-    role: 'ADMIN',
-    createdAt: '2026-10-24 00:00:00' as User['createdAt'],
-    updatedAt: '2026-10-24 00:00:00' as User['updatedAt'],
+    correo: 'admin@flywise.com',
+    hashContrasena: '',
+    rol: 'ADMIN',
+    creadoEn: '2026-10-24 00:00:00' as Usuario['creadoEn'],
+    actualizadoEn: '2026-10-24 00:00:00' as Usuario['actualizadoEn'],
   };
 
   const mockUserDto: UserDto = {
     id: 'd3b07384-d113-4a69-8d7b-9907f7b3b9b9',
-    email: 'admin@flywise.com',
-    role: 'ADMIN',
+    correo: 'admin@flywise.com',
+    rol: 'ADMIN',
   };
 
   beforeEach(async () => {
-    mockUser.passwordHash = await bcrypt.hash('secretPassword', 10);
+    mockUser.hashContrasena = await bcrypt.hash('secretPassword', 10);
 
     const mockUsersService = {
       findByEmail: jest.fn(),
@@ -105,11 +105,11 @@ describe('AuthService', () => {
       );
       expect(result).toEqual({
         id: mockUser.id,
-        email: 'admin@flywise.com',
-        role: 'ADMIN',
-        createdAt: new Date('2026-10-24T00:00:00Z'),
+        correo: 'admin@flywise.com',
+        rol: 'ADMIN',
+        creadoEn: new Date('2026-10-24T00:00:00Z'),
       });
-      expect(result).not.toHaveProperty('passwordHash');
+      expect(result).not.toHaveProperty('hashContrasena');
     });
 
     it('should return null when password does not match', async () => {
@@ -133,7 +133,7 @@ describe('AuthService', () => {
   describe('register', () => {
     it('should create and return the user through usersService', async () => {
       const createDto: CreateUserDto = {
-        email: 'new@flywise.com',
+        correo: 'new@flywise.com',
         password: 'pass',
       };
       usersService.createUser.mockResolvedValue(mockUserDto);
@@ -141,7 +141,7 @@ describe('AuthService', () => {
       const result = await service.register(createDto);
       expect(usersService.createUser).toHaveBeenCalledWith({
         ...createDto,
-        role: 'OPERATOR',
+        rol: 'OPERATOR',
       });
       expect(result).toEqual(mockUserDto);
     });
@@ -154,8 +154,8 @@ describe('AuthService', () => {
       expect(jwtService.sign).toHaveBeenCalledWith(
         {
           sub: mockUserDto.id,
-          email: mockUserDto.email,
-          role: mockUserDto.role,
+          correo: mockUserDto.correo,
+          rol: mockUserDto.rol,
         },
         expect.objectContaining({
           audience: 'access',
@@ -169,8 +169,8 @@ describe('AuthService', () => {
         token_type: 'bearer',
         user: {
           id: mockUserDto.id,
-          email: mockUserDto.email,
-          role: mockUserDto.role,
+          correo: mockUserDto.correo,
+          rol: mockUserDto.rol,
         },
       });
     });

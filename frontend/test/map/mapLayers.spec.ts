@@ -8,7 +8,7 @@ import { SEED_AIRPORTS as AIRPORT_FIXTURES, SEED_ROUTES } from "../../app/data/s
 import type { FlightRoute } from "../../app/types/route";
 
 const SEED_AIRPORTS = AIRPORT_FIXTURES.map(a => ({ ...a, id: a.iata }));
-const getVisibleAirports = (hasSelection: boolean, origin?: string | null, destination?: string | null, routes: FlightRoute[] = []) => getVisibleFromCatalog(hasSelection, origin, destination, routes, SEED_AIRPORTS);
+const getVisibleAirports = (hasSelection: boolean, origen?: string | null, destino?: string | null, rutas: FlightRoute[] = []) => getVisibleFromCatalog(hasSelection, origen, destino, rutas, SEED_AIRPORTS);
 
 describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", () => {
   describe("getVisibleAirports() — Filtrado reactivo de nodos aeroportuarios", () => {
@@ -18,13 +18,13 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
     });
 
     it('muestra solo los extremos de las conexiones globales, también en etiquetas', () => {
-      const routes = SEED_ROUTES.slice(0, 1);
-      const expected = getVisibleAirports(false, null, null, routes);
-      const ids = new Set(routes.flatMap(r => [r.originId, r.destinationId]));
+      const rutas = SEED_ROUTES.slice(0, 1);
+      const expected = getVisibleAirports(false, null, null, rutas);
+      const ids = new Set(rutas.flatMap(r => [r.origenId, r.destinoId]));
       expect(expected).toEqual(SEED_AIRPORTS.filter(a => ids.has(a.id)));
-      const layers = buildFlightMapLayers({ isLight: true, airports: SEED_AIRPORTS, matchingRoutes: routes });
-      expect(layers.find(l => l.id === 'airports-labels')?.props.data).toEqual(expected);
-      expect(layers.find(l => l.id === 'airports-nodes')?.props.data).toEqual(expected);
+      const layers = buildFlightMapLayers({ isLight: true, aeropuertos: SEED_AIRPORTS, matchingRoutes: rutas });
+      expect(layers.find(l => l.id === 'aeropuertos-labels')?.props.data).toEqual(expected);
+      expect(layers.find(l => l.id === 'aeropuertos-nodes')?.props.data).toEqual(expected);
     });
 
     it("filtra solo los aeropuertos involucrados cuando hay un origen seleccionado", () => {
@@ -66,38 +66,38 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
       const mockRoutes: FlightRoute[] = [
         {
           id: "R-1",
-          flightNumber: "AR1300",
-          airline: "Aerolineas Argentinas",
-          airlineIata: "AR",
-          originId: "EZE",
-          destinationId: "MIA",
+          numeroVuelo: "AR1300",
+          aerolinea: "Aerolineas Argentinas",
+          iataAerolinea: "AR",
+          origenId: "EZE",
+          destinoId: "MIA",
         originIata: "EZE",
           originCity: "Buenos Aires",
           originCoordinates: [-58.5358, -34.8222],
           destinationIata: "MIA",
           destinationCity: "Miami",
           destinationCoordinates: [-80.2906, 25.7959],
-          distanceKm: 7100,
+          distanciaKm: 7100,
           averageOtp15: 86.5,
-          totalFlights: 300,
+          vuelosTotales: 300,
           delayMinutesAvg: 12,
         },
         {
           id: "R-2",
-          flightNumber: "AA900",
-          airline: "American Airlines",
-          airlineIata: "AA",
-          originId: "EZE",
-          destinationId: "MIA",
+          numeroVuelo: "AA900",
+          aerolinea: "American Airlines",
+          iataAerolinea: "AA",
+          origenId: "EZE",
+          destinoId: "MIA",
         originIata: "EZE",
           originCity: "Buenos Aires",
           originCoordinates: [-58.5358, -34.8222],
           destinationIata: "MIA",
           destinationCity: "Miami",
           destinationCoordinates: [-80.2906, 25.7959],
-          distanceKm: 7100,
+          distanciaKm: 7100,
           averageOtp15: 82.0,
-          totalFlights: 250,
+          vuelosTotales: 250,
           delayMinutesAvg: 15,
         },
       ];
@@ -124,34 +124,34 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: null,
         selectedDestination: null,
-        airports: SEED_AIRPORTS,
+        aeropuertos: SEED_AIRPORTS,
         matchingRoutes: SEED_ROUTES,
       };
 
       const layers = buildFlightMapLayers(options);
       expect(layers.length).toBeGreaterThanOrEqual(3);
 
-      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+      const arcLayer = layers.find((l) => l.id === "flight-rutas-arc");
       expect(arcLayer).toBeDefined();
       // Verificamos que la capa de arcos no tenga datos a renderizar
       expect(arcLayer?.props.data).toEqual(SEED_ROUTES);
     });
 
     it("con selección activa genera datos en la capa ArcLayer con greatCircle = true", () => {
-      const routes = SEED_ROUTES.slice(0, 3);
+      const rutas = SEED_ROUTES.slice(0, 3);
       const options: BuildLayersOptions = {
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: null,
-        airports: SEED_AIRPORTS,
-        matchingRoutes: routes,
+        aeropuertos: SEED_AIRPORTS,
+        matchingRoutes: rutas,
       };
 
       const layers = buildFlightMapLayers(options);
-      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+      const arcLayer = layers.find((l) => l.id === "flight-rutas-arc");
 
       expect(arcLayer).toBeDefined();
-      expect(arcLayer?.props.data).toEqual(routes);
+      expect(arcLayer?.props.data).toEqual(rutas);
       expect(arcLayer?.props.greatCircle).toBe(true);
       expect(arcLayer?.props.pickable).toBe(true);
     });
@@ -161,15 +161,15 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
-        airports: SEED_AIRPORTS,
+        aeropuertos: SEED_AIRPORTS,
         matchingRoutes: SEED_ROUTES.filter((r) => r.originIata === "EZE" && r.destinationIata === "MIA"),
       };
 
       const layers = buildFlightMapLayers(options);
-      const nodesLayer = layers.find((l) => l.id === "airports-nodes");
-      const labelsLayer = layers.find((l) => l.id === "airports-labels");
-      const haloLayer = layers.find((l) => l.id === "airports-radar-halo");
-      const ringLayer = layers.find((l) => l.id === "airports-radar-ring-outer");
+      const nodesLayer = layers.find((l) => l.id === "aeropuertos-nodes");
+      const labelsLayer = layers.find((l) => l.id === "aeropuertos-labels");
+      const haloLayer = layers.find((l) => l.id === "aeropuertos-radar-halo");
+      const ringLayer = layers.find((l) => l.id === "aeropuertos-radar-ring-outer");
 
       expect(nodesLayer).toBeDefined();
       expect(labelsLayer).toBeDefined();
@@ -186,12 +186,12 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: true,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
-        airports: SEED_AIRPORTS,
+        aeropuertos: SEED_AIRPORTS,
         matchingRoutes: SEED_ROUTES.slice(0, 2),
       };
 
       const layersLight = buildFlightMapLayers(optionsLight);
-      const arcLayer = layersLight.find((l) => l.id === "flight-routes-arc");
+      const arcLayer = layersLight.find((l) => l.id === "flight-rutas-arc");
       expect(arcLayer?.props.highlightColor).toEqual([2, 132, 199, 255]);
     });
 
@@ -200,32 +200,32 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
-        airports: SEED_AIRPORTS,
+        aeropuertos: SEED_AIRPORTS,
         matchingRoutes: SEED_ROUTES.slice(0, 2),
       };
 
       const layersDark = buildFlightMapLayers(optionsDark);
-      const arcLayer = layersDark.find((l) => l.id === "flight-routes-arc");
+      const arcLayer = layersDark.find((l) => l.id === "flight-rutas-arc");
       expect(arcLayer?.props.highlightColor).toEqual([56, 189, 248, 255]);
     });
 
     it("evalúa correctamente los accesores de color getSourceColor y getTargetColor en las rutas", () => {
       const directRoute: FlightRoute = {
         id: "R-DIR",
-        flightNumber: "TEST1",
-        airline: "Test Air",
-        airlineIata: "TA",
-        originId: "EZE",
-        destinationId: "MIA",
+        numeroVuelo: "TEST1",
+        aerolinea: "Test Air",
+        iataAerolinea: "TA",
+        origenId: "EZE",
+        destinoId: "MIA",
         originIata: "EZE",
         originCity: "Buenos Aires",
         originCoordinates: [-58.5358, -34.8222],
         destinationIata: "MIA",
         destinationCity: "Miami",
         destinationCoordinates: [-80.2906, 25.7959],
-        distanceKm: 7100,
+        distanciaKm: 7100,
         averageOtp15: 90.0,
-        totalFlights: 100,
+        vuelosTotales: 100,
         delayMinutesAvg: 10,
       };
 
@@ -233,12 +233,12 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
-        airports: SEED_AIRPORTS,
+        aeropuertos: SEED_AIRPORTS,
         matchingRoutes: [directRoute],
       };
 
       const layers = buildFlightMapLayers(options);
-      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+      const arcLayer = layers.find((l) => l.id === "flight-rutas-arc");
       expect(arcLayer).toBeDefined();
 
       const getSourceColor = (arcLayer?.props as any).getSourceColor;
@@ -259,18 +259,18 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
     it("soporta rutas con coordenadas en el antimeridiano (-180° / +180°) y polos sin distorsión", () => {
       const antimeridianRoute: FlightRoute = {
         id: "R-ANTI",
-        flightNumber: "NZ1",
-        airline: "Air New Zealand",
-        airlineIata: "NZ",
+        numeroVuelo: "NZ1",
+        aerolinea: "Air New Zealand",
+        iataAerolinea: "NZ",
         originIata: "AKL",
         originCity: "Auckland",
         originCoordinates: [174.79, -37.0],
         destinationIata: "RAR",
         destinationCity: "Rarotonga",
         destinationCoordinates: [-159.8, -21.2],
-        distanceKm: 3000,
+        distanciaKm: 3000,
         averageOtp15: 88.0,
-        totalFlights: 90,
+        vuelosTotales: 90,
         delayMinutesAvg: 8,
       };
 
@@ -278,12 +278,12 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "AKL",
         selectedDestination: "RAR",
-        airports: SEED_AIRPORTS,
+        aeropuertos: SEED_AIRPORTS,
         matchingRoutes: [antimeridianRoute],
       };
 
       const layers = buildFlightMapLayers(options);
-      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+      const arcLayer = layers.find((l) => l.id === "flight-rutas-arc");
       expect(arcLayer).toBeDefined();
 
       const getSourcePos = (arcLayer?.props as any).getSourcePosition;
@@ -297,39 +297,39 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
     it("distingue el grosor y opacidad entre la ruta directa activa (8px) y rutas secundarias de escala (3px)", () => {
       const directRoute: FlightRoute = {
         id: "R-DIR",
-        flightNumber: "AR1300",
-        airline: "Aerolineas Argentinas",
-        airlineIata: "AR",
-        originId: "EZE",
-        destinationId: "MIA",
+        numeroVuelo: "AR1300",
+        aerolinea: "Aerolineas Argentinas",
+        iataAerolinea: "AR",
+        origenId: "EZE",
+        destinoId: "MIA",
         originIata: "EZE",
         originCity: "Buenos Aires",
         originCoordinates: [-58.53, -34.82],
         destinationIata: "MIA",
         destinationCity: "Miami",
         destinationCoordinates: [-80.29, 25.79],
-        distanceKm: 7100,
+        distanciaKm: 7100,
         averageOtp15: 85.0,
-        totalFlights: 100,
+        vuelosTotales: 100,
         delayMinutesAvg: 10,
       };
 
       const connectingRoute: FlightRoute = {
         id: "R-CONN",
-        flightNumber: "LA500",
-        airline: "LATAM",
-        airlineIata: "LA",
-        originId: "EZE",
-        destinationId: "SCL",
+        numeroVuelo: "LA500",
+        aerolinea: "LATAM",
+        iataAerolinea: "LA",
+        origenId: "EZE",
+        destinoId: "SCL",
         originIata: "EZE",
         originCity: "Buenos Aires",
         originCoordinates: [-58.53, -34.82],
         destinationIata: "SCL",
         destinationCity: "Santiago",
         destinationCoordinates: [-70.79, -33.39],
-        distanceKm: 1150,
+        distanciaKm: 1150,
         averageOtp15: 78.0,
-        totalFlights: 150,
+        vuelosTotales: 150,
         delayMinutesAvg: 18,
       };
 
@@ -337,12 +337,12 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
         isLight: false,
         selectedOrigin: "EZE",
         selectedDestination: "MIA",
-        airports: SEED_AIRPORTS,
+        aeropuertos: SEED_AIRPORTS,
         matchingRoutes: [directRoute, connectingRoute],
       };
 
       const layers = buildFlightMapLayers(options);
-      const arcLayer = layers.find((l) => l.id === "flight-routes-arc");
+      const arcLayer = layers.find((l) => l.id === "flight-rutas-arc");
       const getWidth = (arcLayer?.props as any).getWidth;
       const getSourceColor = (arcLayer?.props as any).getSourceColor;
 

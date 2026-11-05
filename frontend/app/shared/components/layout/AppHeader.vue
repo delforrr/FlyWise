@@ -30,7 +30,7 @@ const { isOpen: isGlobalFilterOpen } = useGlobalMap();
   >
     <!-- Logo & Título de Precisión Aeronáutica -->
     <template #title>
-      <NuxtLink to="/" class="flex flex-col cursor-pointer group">
+      <span class="flex flex-col group">
         <span class="flex flex-row items-center gap-2 sm:gap-2.5">
           <span
             class="font-display font-bold text-xl sm:text-2xl text-text-main tracking-tight group-hover:text-primary transition-colors"
@@ -38,12 +38,12 @@ const { isOpen: isGlobalFilterOpen } = useGlobalMap();
             FlyWise
           </span>
         </span>
-        <p
+        <span
           class="text-[11px] font-mono text-text-muted hidden sm:block tracking-tight"
         >
           Volá con Confianza
-        </p>
-      </NuxtLink>
+        </span>
+      </span>
     </template>
 
     <!-- Navs de la página principal -->

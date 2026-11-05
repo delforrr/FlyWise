@@ -1,32 +1,32 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { EtlPipeline } from "../types/etl";
+import type { ProcesoEtl } from "../types/etl";
 
 interface Props {
-  pipeline: EtlPipeline;
+  proceso: ProcesoEtl;
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: "trigger-sync", pipeline: EtlPipeline): void;
-  (e: "pause", id: EtlPipeline["id"]): void;
-  (e: "resume", id: EtlPipeline["id"]): void;
-  (e: "retry", id: EtlPipeline["id"]): void;
-  (e: "view-discarded", pipeline: EtlPipeline): void;
-  (e: "view-detail", pipeline: EtlPipeline): void;
+  (e: "trigger-sync", proceso: ProcesoEtl): void;
+  (e: "pause", id: ProcesoEtl["id"]): void;
+  (e: "resume", id: ProcesoEtl["id"]): void;
+  (e: "retry", id: ProcesoEtl["id"]): void;
+  (e: "view-discarded", proceso: ProcesoEtl): void;
+  (e: "view-detail", proceso: ProcesoEtl): void;
 }>();
 
 // Formateo de tiempo de ejecución estimado según filas y velocidad promedio
 const executionTimeFormatted = computed<string | null>(() => {
   if (
-    !props.pipeline.averageSpeedRowsPerSec ||
-    props.pipeline.averageSpeedRowsPerSec <= 0
+    !props.proceso.averageSpeedRowsPerSec ||
+    props.proceso.averageSpeedRowsPerSec <= 0
   ) {
     return null;
   }
   const totalSeconds = Math.round(
-    props.pipeline.processedRows / props.pipeline.averageSpeedRowsPerSec,
+    props.proceso.filasProcesadas / props.proceso.averageSpeedRowsPerSec,
   );
   if (totalSeconds < 60) {
     return `${totalSeconds}s`;
@@ -38,8 +38,8 @@ const executionTimeFormatted = computed<string | null>(() => {
 
 // Tasa porcentual de registros descartados
 const errorRateFormatted = computed<string>(() => {
-  const processed = props.pipeline.processedRows ?? 0;
-  const discarded = props.pipeline.discardedRows ?? 0;
+  const processed = props.proceso.filasProcesadas ?? 0;
+  const discarded = props.proceso.filasDescartadas ?? 0;
   const attempted = processed + discarded;
   return `${(attempted ? 100 * discarded / attempted : 0).toFixed(2)}%`;
 });
@@ -56,15 +56,15 @@ const errorRateFormatted = computed<string>(() => {
           <div
             class="w-10 h-10 rounded-lg border border-border-subtle bg-surface-accent flex items-center justify-center text-primary shrink-0"
           >
-            <UIcon :name="pipeline.icon" class="w-5 h-5" />
+            <UIcon :name="proceso.icon" class="w-5 h-5" />
           </div>
           <div>
             <h3 class="text-base font-bold text-text-main leading-tight">
-              {{ pipeline.name }}
+              {{ proceso.nombre }}
             </h3>
             <div class="flex items-center gap-1.5 mt-0.5">
               <span class="text-xs font-medium text-text-muted">
-                {{ pipeline.datasetName }}
+                {{ proceso.nombreConjunto }}
               </span>
               <span
                 class="text-[10px] font-mono px-1 py-0.2 bg-surface-accent rounded text-text-dim border border-border-subtle/60"
@@ -78,7 +78,7 @@ const errorRateFormatted = computed<string>(() => {
         <!-- Badges de Estado -->
         <div class="shrink-0">
           <UBadge
-            v-if="pipeline.status === 'success'"
+            v-if="proceso.estado === 'success'"
             color="success"
             variant="subtle"
             size="sm"
@@ -96,7 +96,7 @@ const errorRateFormatted = computed<string>(() => {
           </UBadge>
 
           <UBadge
-            v-else-if="pipeline.status === 'running'"
+            v-else-if="proceso.estado === 'running'"
             color="info"
             variant="subtle"
             size="sm"
@@ -114,7 +114,7 @@ const errorRateFormatted = computed<string>(() => {
           </UBadge>
 
           <UBadge
-            v-else-if="pipeline.status === 'paused'"
+            v-else-if="proceso.estado === 'pausado'"
             color="warning"
             variant="subtle"
             size="sm"
@@ -129,7 +129,7 @@ const errorRateFormatted = computed<string>(() => {
           </UBadge>
 
           <UBadge
-            v-else-if="pipeline.status === 'error'"
+            v-else-if="proceso.estado === 'error'"
             color="error"
             variant="subtle"
             size="sm"
@@ -165,12 +165,12 @@ const errorRateFormatted = computed<string>(() => {
 
       <!-- Explicación -->
       <p class="text-xs text-text-muted mt-3 line-clamp-2 leading-relaxed">
-        {{ pipeline.description }}
+        {{ proceso.descripcion }}
       </p>
 
       <!-- Barra de Progreso (Visible cuando está corriendo o pausado) -->
       <div
-        v-if="pipeline.status === 'running' || pipeline.status === 'paused'"
+        v-if="proceso.estado === 'running' || proceso.estado === 'pausado'"
         class="mt-4 pt-3 border-t border-border-subtle/60"
       >
         <div
@@ -178,18 +178,18 @@ const errorRateFormatted = computed<string>(() => {
         >
           <span class="text-text-muted">Progreso de importación</span>
           <span class="font-mono tabular-nums text-text-main font-semibold">
-            {{ pipeline.status === 'running' ? "Total pendiente" : `${pipeline.progressPercent}%` }}
+            {{ proceso.estado === 'running' ? "Total pendiente" : `${proceso.progressPercent}%` }}
           </span>
         </div>
         <UProgress
-          :model-value="pipeline.status === 'running' ? null : pipeline.progressPercent"
+          :model-value="proceso.estado === 'running' ? null : proceso.progressPercent"
           color="primary"
           size="sm"
         />
         <p
           class="text-[11px] text-text-dim mt-1.5 font-mono tabular-nums truncate"
         >
-          {{ pipeline.currentStepMessage }}
+          {{ proceso.currentStepMessage }}
         </p>
       </div>
     </div>
@@ -205,21 +205,21 @@ const errorRateFormatted = computed<string>(() => {
             color="neutral"
             icon="i-lucide-eye"
             class="text-xs font-medium cursor-pointer transform-gpu transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
-            title="Ver detalle del pipeline"
-            aria-label="Ver detalle del pipeline"
-            @click="emit('view-detail', pipeline)"
+            title="Ver detalle del proceso"
+            aria-label="Ver detalle del proceso"
+            @click="emit('view-detail', proceso)"
           >
             Detalle
           </UButton>
 
           <UButton
-            v-if="pipeline.discardedRows > 0"
+            v-if="proceso.filasDescartadas > 0"
             size="xs"
             variant="ghost"
             color="neutral"
             icon="i-lucide-file-text"
             class="text-xs font-medium cursor-pointer transform-gpu transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
-            @click="emit('view-discarded', pipeline)"
+            @click="emit('view-discarded', proceso)"
           >
             Auditar descartes
           </UButton>
@@ -239,25 +239,25 @@ const errorRateFormatted = computed<string>(() => {
         <div class="flex items-center gap-1.5">
           <!-- Pausar si está corriendo -->
           <UButton
-            v-if="pipeline.status === 'running' && !pipeline.paused"
+            v-if="proceso.estado === 'running' && !proceso.pausado"
             size="xs"
             variant="outline"
             color="neutral"
             icon="i-lucide-pause"
             class="text-xs font-semibold cursor-pointer transform-gpu transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
-            @click="emit('pause', pipeline.id)"
+            @click="emit('pause', proceso.id)"
           >
             Pausar programación
           </UButton>
 
           <!-- Reanudar si está pausado -->
           <UButton
-            v-else-if="pipeline.paused"
+            v-else-if="proceso.pausado"
             size="xs"
             color="primary"
             icon="i-lucide-play"
             class="text-xs font-semibold cursor-pointer text-white transform-gpu transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
-            @click="emit('resume', pipeline.id)"
+            @click="emit('resume', proceso.id)"
           >
             Reanudar
           </UButton>
@@ -270,7 +270,7 @@ const errorRateFormatted = computed<string>(() => {
             color="primary"
             icon="i-lucide-refresh-cw"
             class="text-xs font-semibold cursor-pointer transform-gpu transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-surface-card"
-            @click="emit('trigger-sync', pipeline)"
+            @click="emit('trigger-sync', proceso)"
           >
             Sincronizar
           </UButton>

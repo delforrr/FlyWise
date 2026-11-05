@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { Airport } from "~/types/airport";
+import type { Aeropuerto } from "~/types/airport";
 import AnimatedCounter from "~/shared/components/ui/AnimatedCounter.vue";
 
 const props = defineProps<{
   selectedOrigin?: string | null;
   selectedDestination?: string | null;
-  originAirport: Airport | null;
-  destinationAirport: Airport | null;
+  originAirport: Aeropuerto | null;
+  destinationAirport: Aeropuerto | null;
   matchingCount: number;
   isCollapsed: boolean;
 }>();
@@ -21,11 +21,11 @@ const emit = defineEmits<{
 
 // Distance comes from the selected route's PostGIS query.
 const { selectedRouteData } = useFlightSelection();
-const distanceKm = computed(() => selectedRouteData.value?.distanceKm ?? null);
+const distanciaKm = computed(() => selectedRouteData.value?.distanciaKm ?? null);
 
-const distanceNm = computed<number | null>(() => {
-  if (distanceKm.value === null) return null;
-  return Math.round(distanceKm.value * 0.539957);
+const distanciaNm = computed<number | null>(() => {
+  if (distanciaKm.value === null) return null;
+  return Math.round(distanciaKm.value * 0.539957);
 });
 
 // Formateo de coordenadas geográficas [lon, lat] bajo estándar SRID 4326
@@ -94,16 +94,16 @@ function formatCoordinates(coords?: [number, number]): string {
             class="text-xs text-text-muted leading-snug mt-0.5 wrap-break-word"
           >
             <template v-if="originAirport && destinationAirport">
-              {{ originAirport.name }} ({{ originAirport.city }}) ➔
-              {{ destinationAirport.name }} ({{ destinationAirport.city }})
+              {{ originAirport.nombre }} ({{ originAirport.ciudad }}) ➔
+              {{ destinationAirport.nombre }} ({{ destinationAirport.ciudad }})
             </template>
             <template v-else-if="originAirport">
-              {{ originAirport.name }} · {{ originAirport.city }},
-              {{ originAirport.country }}
+              {{ originAirport.nombre }} · {{ originAirport.ciudad }},
+              {{ originAirport.pais }}
             </template>
             <template v-else-if="destinationAirport">
-              Llegadas a {{ destinationAirport.name }} ·
-              {{ destinationAirport.city }}
+              Llegadas a {{ destinationAirport.nombre }} ·
+              {{ destinationAirport.ciudad }}
             </template>
           </p>
         </div>
@@ -161,7 +161,7 @@ function formatCoordinates(coords?: [number, number]): string {
       <!-- Par Origen y Destino con cálculo de distancia y coordenadas -->
       <template v-if="selectedOrigin && selectedDestination">
         <div
-          v-if="distanceKm !== null"
+          v-if="distanciaKm !== null"
           class="flex items-center gap-1.5 shrink-0"
         >
           <UIcon
@@ -169,13 +169,13 @@ function formatCoordinates(coords?: [number, number]): string {
             class="w-3 h-3 text-primary shrink-0"
           />
           <AnimatedCounter
-            :value="distanceKm"
+            :value="distanciaKm"
             suffix=" km"
             format-locale
             class="font-semibold text-text-main"
           />
           <AnimatedCounter
-            :value="distanceNm ?? 0"
+            :value="distanciaNm ?? 0"
             prefix="("
             suffix=" nm)"
             format-locale
@@ -184,15 +184,15 @@ function formatCoordinates(coords?: [number, number]): string {
         </div>
 
         <div
-          v-if="distanceKm !== null"
+          v-if="distanciaKm !== null"
           class="h-3 w-px bg-border-subtle/60 shrink-0"
         />
 
         <div
           class="truncate font-mono tabular-nums tracking-tight text-[10px] text-text-muted"
-          :title="`Origen: ${formatCoordinates(originAirport?.coordinates)} | Destino: ${formatCoordinates(destinationAirport?.coordinates)}`"
+          :title="`Origen: ${formatCoordinates(originAirport?.coordenadas)} | Destino: ${formatCoordinates(destinationAirport?.coordenadas)}`"
         >
-          <span>{{ formatCoordinates(originAirport?.coordinates) }}</span>
+          <span>{{ formatCoordinates(originAirport?.coordenadas) }}</span>
         </div>
 
         <div class="h-3 w-px bg-border-subtle/60 shrink-0" />
@@ -221,7 +221,7 @@ function formatCoordinates(coords?: [number, number]): string {
           >
             {{
               formatCoordinates(
-                originAirport?.coordinates || destinationAirport?.coordinates,
+                originAirport?.coordenadas || destinationAirport?.coordenadas,
               )
             }}
           </span>

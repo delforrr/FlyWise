@@ -16,11 +16,11 @@ describe('PerformanceInterceptor', () => {
     const context = {
       switchToHttp: () => ({
         getResponse: () => ({ headersSent: true, setHeader }),
-        getRequest: () => ({ method: 'GET', url: '/api/health' }),
+        getRequest: () => ({ method: 'GET', url: '/api/salud' }),
       }),
     } as unknown as ExecutionContext;
     interceptor
-      .intercept(context, { handle: () => of({ status: 'ok' }) })
+      .intercept(context, { handle: () => of({ estado: 'ok' }) })
       .subscribe({
         error: done,
         complete: () => {
@@ -35,7 +35,7 @@ describe('PerformanceInterceptor', () => {
     const mockContext = {
       switchToHttp: () => ({
         getResponse: () => ({ setHeader: mockSetHeader }),
-        getRequest: () => ({ method: 'GET', url: '/api/routes/explore' }),
+        getRequest: () => ({ method: 'GET', url: '/api/rutas/explorar' }),
       }),
     } as unknown as ExecutionContext;
 

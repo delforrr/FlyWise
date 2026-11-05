@@ -2,7 +2,7 @@
 import type { FlightRoute } from "~/types/route";
 
 defineProps<{
-  routes: FlightRoute[];
+  rutas: FlightRoute[];
 }>();
 
 const emit = defineEmits<{
@@ -13,12 +13,12 @@ function getAriaLabel(route: FlightRoute): string {
   const stopoverText = route.viaStopover
     ? `escala en ${route.viaStopover}`
     : "1 escala";
-  return `Ruta con conexión ${route.originIata} hacia ${route.destinationIata}, operada por ${route.primaryAirline}, ${stopoverText}. Distancia: ${route.distanceKm.toLocaleString()} kilómetros. Puntualidad promedio: ${route.averageOtp15 === null ? "sin datos" : `${route.averageOtp15.toFixed(1)}% OTP-15`}. Presione para enfocar en mapa.`;
+  return `Ruta con conexión ${route.originIata} hacia ${route.destinationIata}, operada por ${route.primaryAirline}, ${stopoverText}. Distancia: ${route.distanciaKm.toLocaleString()} kilómetros. Puntualidad promedio: ${route.averageOtp15 === null ? "sin datos" : `${route.averageOtp15.toFixed(1)}% OTP-15`}. Presione para enfocar en mapa.`;
 }
 </script>
 
 <template>
-  <div v-if="routes.length > 0" class="flex flex-col gap-2">
+  <div v-if="rutas.length > 0" class="flex flex-col gap-2">
     <!-- Encabezado de sección de Navegación Avionics -->
     <div class="flex items-center justify-between px-0.5">
       <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-dim">
@@ -26,14 +26,14 @@ function getAriaLabel(route: FlightRoute): string {
         <span>Alternativas con Escala / Conexión</span>
       </span>
       <span class="text-[10px] font-mono text-text-dim tabular-nums">
-        {{ routes.length }} {{ routes.length === 1 ? 'alternativa' : 'alternativas' }}
+        {{ rutas.length }} {{ rutas.length === 1 ? 'alternativa' : 'alternativas' }}
       </span>
     </div>
 
     <!-- Lista de tarjetas de navegación -->
     <div class="flex flex-col gap-2">
       <button
-        v-for="cRoute in routes"
+        v-for="cRoute in rutas"
         :key="cRoute.id"
         type="button"
         :aria-label="getAriaLabel(cRoute)"
@@ -97,7 +97,7 @@ function getAriaLabel(route: FlightRoute): string {
           <!-- Distancia en km -->
           <div class="flex items-center gap-1 text-[11px] text-text-muted font-mono shrink-0">
             <UIcon name="i-lucide-milestone" class="w-3 h-3 text-text-dim shrink-0" />
-            <span>{{ cRoute.distanceKm.toLocaleString() }} km</span>
+            <span>{{ cRoute.distanciaKm.toLocaleString() }} km</span>
           </div>
         </div>
 

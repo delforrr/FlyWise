@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   useAuth,
-  type User,
+  type Usuario,
   type AuthResponse,
 } from '../../app/features/auth/composables/useAuth';
 
@@ -54,15 +54,15 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
         accessToken: validToken,
         user: {
           id: 'user-001',
-          email: 'admin@flywise.aero',
-          role: 'ADMIN',
+          correo: 'admin@flywise.aero',
+          rol: 'ADMIN',
         },
       };
 
       mockFetch.mockResolvedValueOnce(mockSuccessResponse);
 
       const loginSuccess = await auth.login({
-        email: 'admin@flywise.aero',
+        correo: 'admin@flywise.aero',
         password: 'ValidPassword2026!',
       });
 
@@ -75,11 +75,11 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
       expect(auth.error.value).toBeNull();
 
       // Verificación de contrato con el backend
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/login', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/autenticacion/iniciar-sesion', {
         method: 'POST',
         headers: { 'X-FlyWise-Session': '1' },
         body: {
-          email: 'admin@flywise.aero',
+          correo: 'admin@flywise.aero',
           password: 'ValidPassword2026!',
         },
       });
@@ -90,14 +90,14 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
 
     it('gestiona credenciales incorrectas (401 Unauthorized) limpiando estado y seteando error', async () => {
       mockFetch.mockRejectedValueOnce({
-        status: 401,
+        estado: 401,
         data: {
           message: 'Credenciales inválidas o sin permisos de acceso',
         },
       });
 
       const loginSuccess = await auth.login({
-        email: 'hacker@malicious.com',
+        correo: 'hacker@malicious.com',
         password: 'wrong-password',
       });
 
@@ -119,7 +119,7 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
       mockFetch.mockReturnValueOnce(pendingPromise);
 
       const loginPromise = auth.login({
-        email: 'admin@flywise.aero',
+        correo: 'admin@flywise.aero',
         password: 'password123',
       });
 
@@ -129,7 +129,7 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
       // Resolvemos
       resolvePromise({
         accessToken: 'token-123',
-        user: { id: '1', email: 'admin@flywise.aero', role: 'ADMIN' },
+        user: { id: '1', correo: 'admin@flywise.aero', rol: 'ADMIN' },
       });
       await loginPromise;
 
@@ -141,7 +141,7 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
       mockFetch.mockRejectedValueOnce(new Error('Internal Server Error'));
 
       const loginSuccess = await auth.login({
-        email: 'admin@flywise.aero',
+        correo: 'admin@flywise.aero',
         password: 'Password123!',
       });
 
@@ -154,33 +154,33 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
     it('soporta usuarios con rol OPERATOR así como ADMIN', async () => {
       const operatorResponse: AuthResponse = {
         accessToken: 'operator-token-jwt',
-        user: { id: 'u-operator', email: 'op@flywise.aero', role: 'OPERATOR' },
+        user: { id: 'u-operator', correo: 'op@flywise.aero', rol: 'OPERATOR' },
       };
       mockFetch.mockResolvedValueOnce(operatorResponse);
 
       const loginSuccess = await auth.login({
-        email: 'op@flywise.aero',
+        correo: 'op@flywise.aero',
         password: 'Password123!',
       });
 
       expect(loginSuccess).toBe(true);
-      expect(auth.user.value?.role).toBe('OPERATOR');
+      expect(auth.user.value?.rol).toBe('OPERATOR');
       expect(cookieStorage.token).toBe('operator-token-jwt');
     });
 
     it('limpia errores previos al reintentar un nuevo inicio de sesión', async () => {
       mockFetch.mockRejectedValueOnce({ data: { message: 'Fallo 1' } });
-      await auth.login({ email: 'a@b.com', password: '123' });
+      await auth.login({ correo: 'a@b.com', password: '123' });
       expect(auth.error.value).toBe('Fallo 1');
 
       let resolveLogin: any;
       mockFetch.mockReturnValueOnce(new Promise((r) => { resolveLogin = r; }));
-      const promise = auth.login({ email: 'a@b.com', password: '123' });
+      const promise = auth.login({ correo: 'a@b.com', password: '123' });
 
       // Durante la nueva solicitud el error debe haberse reseteado a null
       expect(auth.error.value).toBeNull();
 
-      resolveLogin({ accessToken: 'ok', user: { id: '1', email: 'a@b.com', role: 'ADMIN' } });
+      resolveLogin({ accessToken: 'ok', user: { id: '1', correo: 'a@b.com', rol: 'ADMIN' } });
       await promise;
       expect(auth.error.value).toBeNull();
     });
@@ -188,25 +188,25 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
     it('soporta inicios de sesión sucesivos reemplazando credenciales previas limpiamente', async () => {
       mockFetch.mockResolvedValueOnce({
         accessToken: 'token-admin',
-        user: { id: 'u-1', email: 'admin1@flywise.aero', role: 'ADMIN' },
+        user: { id: 'u-1', correo: 'admin1@flywise.aero', rol: 'ADMIN' },
       });
-      await auth.login({ email: 'admin1@flywise.aero', password: 'p1' });
+      await auth.login({ correo: 'admin1@flywise.aero', password: 'p1' });
       expect(auth.token.value).toBe('token-admin');
 
       mockFetch.mockResolvedValueOnce({
         accessToken: 'token-operator',
-        user: { id: 'u-2', email: 'op@flywise.aero', role: 'OPERATOR' },
+        user: { id: 'u-2', correo: 'op@flywise.aero', rol: 'OPERATOR' },
       });
-      await auth.login({ email: 'op@flywise.aero', password: 'p2' });
+      await auth.login({ correo: 'op@flywise.aero', password: 'p2' });
       expect(auth.token.value).toBe('token-operator');
-      expect(auth.user.value?.email).toBe('op@flywise.aero');
+      expect(auth.user.value?.correo).toBe('op@flywise.aero');
       expect(cookieStorage.token).toBe('token-operator');
     });
   });
 
   describe('Flujo de Cierre de Sesión (logout)', () => {
     it('revoca la sesión, limpia tokens de memoria/cookie y redirige a /login', async () => {
-      cookieStorage.token = 'active-session-token';
+      cookieStorage.token = 'activa-session-token';
       const activeAuth = useAuth({
         mockFetch,
         mockNavigateTo,
@@ -236,7 +236,7 @@ describe('useAuth — Suite de Pruebas Unitarias del Composable de Autenticació
 
 
 describe('sesión recordada y renovación', () => {
-  const user = { id: '1', email: 'admin@flywise.aero', role: 'ADMIN' as const };
+  const user = { id: '1', correo: 'admin@flywise.aero', rol: 'ADMIN' as const };
 
   it('envía remember al backend y restaura una sesión sin un JWT en memoria', async () => {
     const fetcher = vi.fn().mockResolvedValue({ accessToken: 'restored', user });
@@ -244,9 +244,9 @@ describe('sesión recordada y renovación', () => {
     expect(await auth.restoreSession()).toBe(true);
     expect(auth.token.value).toBe('restored');
     expect(auth.user.value).toEqual(user);
-    expect(fetcher).toHaveBeenCalledWith('/api/auth/refresh', expect.objectContaining({ method: 'POST' }));
-    await auth.login({ email: user.email, password: 'password123', remember: true });
-    expect(fetcher).toHaveBeenLastCalledWith('/api/auth/login', expect.objectContaining({ body: { email: user.email, password: 'password123', remember: true } }));
+    expect(fetcher).toHaveBeenCalledWith('/api/autenticacion/renovar', expect.objectContaining({ method: 'POST' }));
+    await auth.login({ correo: user.correo, password: 'password123', remember: true });
+    expect(fetcher).toHaveBeenLastCalledWith('/api/autenticacion/iniciar-sesion', expect.objectContaining({ body: { correo: user.correo, password: 'password123', remember: true } }));
   });
 
   it('renueva una sola vez las solicitudes simultáneas y reintenta con el JWT nuevo', async () => {
@@ -289,12 +289,12 @@ describe('sesión recordada y renovación', () => {
   it('revoca en el backend antes de borrar la sesión y conserva el estado si logout falla', async () => {
     const fetcher = vi.fn().mockRejectedValueOnce({ statusCode: 503 }).mockResolvedValueOnce({});
     const navigate = vi.fn();
-    const auth = useAuth({ mockFetch: fetcher, mockNavigateTo: navigate, cookieStorage: { token: 'active' } });
+    const auth = useAuth({ mockFetch: fetcher, mockNavigateTo: navigate, cookieStorage: { token: 'activa' } });
     await expect(auth.logout()).rejects.toEqual({ statusCode: 503 });
-    expect(auth.token.value).toBe('active');
+    expect(auth.token.value).toBe('activa');
     await auth.logout();
     expect(auth.token.value).toBeNull();
-    expect(fetcher).toHaveBeenLastCalledWith('/api/auth/logout', expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer active' }) }));
+    expect(fetcher).toHaveBeenLastCalledWith('/api/autenticacion/cerrar-sesion', expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer activa' }) }));
     expect(navigate).toHaveBeenCalledWith('/login');
   });
 });

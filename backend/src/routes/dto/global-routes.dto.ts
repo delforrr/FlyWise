@@ -8,14 +8,14 @@ import { CONTINENTS, type Continent } from '../../countries/continents.js';
   description: 'Filtros de agrupaciones y cantidad de pares.',
 })
 export class GlobalRoutesDto {
-  @IsIn(['global', 'domestic', 'countries', 'continents'])
+  @IsIn(['global', 'domestic', 'paises', 'continents'])
   @ApiPropertyOptional({
     description:
-      'global: todos; domestic: una agrupación; countries: dos agrupaciones; continents: dos conjuntos',
-    enum: ['global', 'domestic', 'countries', 'continents'],
+      'global: todos; domestic: una agrupación; paises: dos agrupaciones; continents: dos conjuntos',
+    enum: ['global', 'domestic', 'paises', 'continents'],
     default: 'global',
   })
-  mode: 'global' | 'domestic' | 'countries' | 'continents' = 'global';
+  mode: 'global' | 'domestic' | 'paises' | 'continents' = 'global';
 
   @Type(() => Number)
   @IsInt()
@@ -30,43 +30,43 @@ export class GlobalRoutesDto {
   @ValidateIf(
     (dto: GlobalRoutesDto) =>
       dto.mode === 'domestic' ||
-      dto.mode === 'countries' ||
-      dto.originCountryId !== undefined,
+      dto.mode === 'paises' ||
+      dto.paisOrigenId !== undefined,
   )
   @ApiPropertyOptional({
     description:
-      'UUID de agrupación inicial; obligatorio con domestic o countries',
+      'UUID de agrupación inicial; obligatorio con domestic o paises',
     format: 'uuid',
   })
   @IsUUID()
-  originCountryId?: string;
+  paisOrigenId?: string;
 
   @ValidateIf(
     (dto: GlobalRoutesDto) =>
-      dto.mode === 'countries' || dto.destinationCountryId !== undefined,
+      dto.mode === 'paises' || dto.paisDestinoId !== undefined,
   )
   @ApiPropertyOptional({
     description:
-      'UUID de agrupación final, distinto del inicial; obligatorio con countries',
+      'UUID de agrupación final, distinto del inicial; obligatorio con paises',
     format: 'uuid',
   })
   @IsUUID()
-  destinationCountryId?: string;
+  paisDestinoId?: string;
 
   @ValidateIf(
     (dto: GlobalRoutesDto) =>
-      dto.mode === 'continents' || dto.originContinent !== undefined,
+      dto.mode === 'continents' || dto.continenteOrigen !== undefined,
   )
   @ApiPropertyOptional({
     description: 'Conjunto inicial; obligatorio con continents',
     enum: CONTINENTS,
   })
   @IsIn(CONTINENTS)
-  originContinent?: Continent;
+  continenteOrigen?: Continent;
 
   @ValidateIf(
     (dto: GlobalRoutesDto) =>
-      dto.mode === 'continents' || dto.destinationContinent !== undefined,
+      dto.mode === 'continents' || dto.continenteDestino !== undefined,
   )
   @ApiPropertyOptional({
     description:
@@ -74,5 +74,5 @@ export class GlobalRoutesDto {
     enum: CONTINENTS,
   })
   @IsIn(CONTINENTS)
-  destinationContinent?: Continent;
+  continenteDestino?: Continent;
 }

@@ -6,11 +6,11 @@ import { SearchAirportsDto } from './dto/search-airports.dto.js';
 import { NearbyAirportsDto } from './dto/nearby-airports.dto.js';
 
 @ApiTags('Puntos')
-@Controller('airports')
+@Controller('aeropuertos')
 export class AirportsController {
   constructor(private readonly airportsService: AirportsService) {}
 
-  @Get('catalog')
+  @Get('catalogo')
   @ApiOperation({ summary: 'Lista puntos con límite y desplazamiento' })
   @ApiResponse({
     status: 200,
@@ -20,7 +20,7 @@ export class AirportsController {
     return this.airportsService.catalog(dto);
   }
 
-  @Get('search')
+  @Get('buscar')
   @ApiOperation({
     summary: 'Busca puntos por código, nombre o localidad',
   })
@@ -32,7 +32,7 @@ export class AirportsController {
     return this.airportsService.search(searchDto);
   }
 
-  @Get('nearby')
+  @Get('cercanos')
   @ApiOperation({
     summary: 'Busca puntos dentro de un radio',
   })
@@ -44,7 +44,7 @@ export class AirportsController {
     return this.airportsService.findNearby(nearbyDto);
   }
 
-  @Get(':code')
+  @Get('por-codigo/:codigo')
   @ApiOperation({
     summary: 'Consulta un punto por código',
   })
@@ -61,7 +61,7 @@ export class AirportsController {
     status: 404,
     description: 'Punto no encontrado',
   })
-  async findByCode(@Param('code') code: string) {
+  async findByCode(@Param('codigo') code: string) {
     return this.airportsService.findByCode(code);
   }
 }

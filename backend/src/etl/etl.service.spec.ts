@@ -23,10 +23,10 @@ describe('EtlService', () => {
   };
   let prismaMock: {
     models: {
-      EtlJob: ReturnType<typeof mockCollection>;
-      Airport: ReturnType<typeof mockCollection>;
-      Airline: ReturnType<typeof mockCollection>;
-      Country: ReturnType<typeof mockCollection>;
+      EjecucionEtl: ReturnType<typeof mockCollection>;
+      Aeropuerto: ReturnType<typeof mockCollection>;
+      Aerolinea: ReturnType<typeof mockCollection>;
+      Pais: ReturnType<typeof mockCollection>;
     };
     db: ReturnType<typeof mockDatabase>;
   };
@@ -42,20 +42,22 @@ describe('EtlService', () => {
 
     prismaMock = {
       models: {
-        EtlJob: mockCollection(),
-        Airport: mockCollection(),
-        Airline: mockCollection(),
-        Country: mockCollection(),
+        EjecucionEtl: mockCollection(),
+        Aeropuerto: mockCollection(),
+        Aerolinea: mockCollection(),
+        Pais: mockCollection(),
       },
       db: mockDatabase(),
     };
-    prismaMock.models.EtlJob.create.mockResolvedValue({ id: 'job-record-1' });
-    prismaMock.models.EtlJob.all.mockResolvedValue([
-      { id: 'job-record-1', status: 'completed' },
+    prismaMock.models.EjecucionEtl.create.mockResolvedValue({
+      id: 'job-record-1',
+    });
+    prismaMock.models.EjecucionEtl.all.mockResolvedValue([
+      { id: 'job-record-1', estado: 'completed' },
     ]);
-    prismaMock.models.Airport.createAndCount.mockResolvedValue(0);
-    prismaMock.models.Airline.createAndCount.mockResolvedValue(0);
-    prismaMock.models.Country.createAndCount.mockImplementation(
+    prismaMock.models.Aeropuerto.createAndCount.mockResolvedValue(0);
+    prismaMock.models.Aerolinea.createAndCount.mockResolvedValue(0);
+    prismaMock.models.Pais.createAndCount.mockImplementation(
       (rows: unknown[]) => Promise.resolve(rows.length),
     );
 
@@ -90,13 +92,13 @@ describe('EtlService', () => {
     },
   );
 
-  it('bounds country batches and counts actual inserts, including duplicates', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'flywise-countries-'));
+  it('bounds pais batches and counts actual inserts, including duplicates', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'flywise-paises-'));
     try {
       const file = join(directory, 'countries.dat');
       await writeFile(
         file,
-        Array.from({ length: 2001 }, (_, i) => `Country ${i},XX,XX`).join('\n'),
+        Array.from({ length: 2001 }, (_, i) => `Pais ${i},XX,XX`).join('\n'),
       );
       prismaMock.db.query
         .mockResolvedValueOnce(
@@ -120,7 +122,7 @@ describe('EtlService', () => {
       'processAirports',
       '1,Ezeiza,City,Argentina,EZE,SAEZ,-34,-58,0,0,N,UTC,airport,OpenFlights',
     ],
-    ['processAirlines', '1,Airline,Alias,AR,ARG,Callsign,Argentina,Y'],
+    ['processAirlines', '1,Aerolinea,Alias,AR,ARG,Callsign,Argentina,Y'],
   ] as const)(
     '%s does not count duplicate rows as inserts',
     async (method, row) => {
@@ -141,8 +143,8 @@ describe('EtlService', () => {
     },
   );
 
-  it('discards out-of-range and non-finite coordinates before inserting a batch', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'flywise-airports-'));
+  it('discards out-of-range and non-finite coordenadas before inserting a batch', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'flywise-aeropuertos-'));
     try {
       const file = join(directory, 'airports.dat');
       await writeFile(
@@ -159,7 +161,9 @@ describe('EtlService', () => {
         inserted: 0,
         discarded: 3,
       });
-      expect(prismaMock.models.Airport.createAndCount).not.toHaveBeenCalled();
+      expect(
+        prismaMock.models.Aeropuerto.createAndCount,
+      ).not.toHaveBeenCalled();
     } finally {
       await rm(directory, { recursive: true });
     }
@@ -167,59 +171,63 @@ describe('EtlService', () => {
 
   describe('Configured CSV mapping', () => {
     const configuration: PipelineConfiguration = {
-      connection: {
-        sourceType: 'http_stream',
-        endpointUrl: 'https://raw.githubusercontent.com/catalog.csv',
-        httpMethod: 'GET',
-        dataFormat: 'csv',
-        csvHasHeader: true,
-        csvDelimiter: ';',
+      conexion: {
+        tipoFuente: 'http_stream',
+        urlEndpoint: 'https://raw.githubusercontent.com/catalog.csv',
+        metodoHttp: 'GET',
+        formatoDatos: 'csv',
+        csvConCabecera: true,
+        separadorCsv: ';',
       },
-      schemaMapping: [
+      mapeoEsquema: [
         {
-          sourceColumn: 'id',
-          targetField: 'openflightsId',
-          transform: 'to_number',
-        },
-        { sourceColumn: 'title', targetField: 'name', transform: 'uppercase' },
-        {
-          sourceColumn: 'lat',
-          targetField: 'latitude',
+          columnaOrigen: 'id',
+          campoDestino: 'idOpenflights',
           transform: 'to_number',
         },
         {
-          sourceColumn: 'lng',
-          targetField: 'longitude',
+          columnaOrigen: 'title',
+          campoDestino: 'nombre',
+          transform: 'uppercase',
+        },
+        {
+          columnaOrigen: 'lat',
+          campoDestino: 'latitud',
+          transform: 'to_number',
+        },
+        {
+          columnaOrigen: 'lng',
+          campoDestino: 'longitud',
           transform: 'to_number',
         },
       ],
-      scheduleConfig: {
-        cronExpression: '',
-        batchSize: 2000,
-        timeoutSeconds: 300,
-        maxRetries: 2,
+      configuracionProgramacion: {
+        expresionCron: '',
+        tamanoLote: 2000,
+        tiempoLimiteSegundos: 300,
+        maximoReintentos: 2,
       },
     };
     it.each([
-      ['city', '   '],
+      ['ciudad', '   '],
       ['iata', 'INVALID'],
-      ['countryName', ' \\N '],
+      ['nombrePais', ' \\N '],
     ])(
       'discards a required %s that normalizes to absence or a fallback',
-      async (field, value) => {
+      async (campo, value) => {
         const directory = await mkdtemp(join(tmpdir(), 'flywise-required-'));
         try {
-          const file = join(directory, 'airports.csv');
+          const file = join(directory, 'aeropuertos.csv');
           await writeFile(
             file,
-            `id;title;lat;lng;extra\n42;Airport;0;0;${value}\n`,
+            `id;title;lat;lng;extra\n42;Aeropuerto;0;0;${value}\n`,
           );
           await expect(
-            service.importCatalog('airports', file, undefined, {
+            service.importCatalog('aeropuertos', file, undefined, {
               ...configuration,
-              schemaMapping: [
-                ...configuration.schemaMapping,
-                { sourceColumn: 'extra', targetField: field, required: true },
+              mapeoEsquema: [
+                ...configuration.mapeoEsquema,
+                { columnaOrigen: 'extra', campoDestino: campo, required: true },
               ],
             }),
           ).resolves.toMatchObject({ total: 1, processed: 0, discarded: 1 });
@@ -235,19 +243,19 @@ describe('EtlService', () => {
           join(tmpdir(), 'flywise-numeric-code-'),
         );
         try {
-          const file = join(directory, 'airports.csv');
+          const file = join(directory, 'aeropuertos.csv');
           await writeFile(
             file,
-            `id;title;lat;lng;code\n42;Airport;0;0;${value}\n`,
+            `id;title;lat;lng;code\n42;Aeropuerto;0;0;${value}\n`,
           );
           await expect(
-            service.importCatalog('airports', file, undefined, {
+            service.importCatalog('aeropuertos', file, undefined, {
               ...configuration,
-              schemaMapping: [
-                ...configuration.schemaMapping,
+              mapeoEsquema: [
+                ...configuration.mapeoEsquema,
                 {
-                  sourceColumn: 'code',
-                  targetField: 'iata',
+                  columnaOrigen: 'code',
+                  campoDestino: 'iata',
                   transform: 'to_number',
                   required: true,
                 },
@@ -262,11 +270,11 @@ describe('EtlService', () => {
     it('uses native CSV quoting, header names and transformations without inventing optional codes', async () => {
       const directory = await mkdtemp(join(tmpdir(), 'flywise-mapping-'));
       try {
-        const file = join(directory, 'airports.csv');
+        const file = join(directory, 'aeropuertos.csv');
         await writeFile(file, 'id;title;lat;lng\n2147480000;" a; b ";0;-58\n');
         prismaMock.db.query.mockResolvedValueOnce([{ inserted: true }]);
         await expect(
-          service.importCatalog('airports', file, undefined, configuration),
+          service.importCatalog('aeropuertos', file, undefined, configuration),
         ).resolves.toEqual({
           total: 1,
           processed: 1,
@@ -274,14 +282,18 @@ describe('EtlService', () => {
           discarded: 0,
         });
         const batch: unknown = JSON.parse(
-          String(prismaMock.db.raw.sql.mock.calls[0][1]),
+          String(
+            prismaMock.db.raw.sql.mock.calls.find(
+              ([, value]) => typeof value === 'string' && value.startsWith('['),
+            )?.[1],
+          ),
         );
         expect(batch).toMatchObject([
           {
-            openflightsId: 2147480000,
-            name: 'A; B',
-            latitude: 0,
-            longitude: -58,
+            idOpenflights: 2147480000,
+            nombre: 'A; B',
+            latitud: 0,
+            longitud: -58,
             iata: null,
           },
         ]);
@@ -294,14 +306,14 @@ describe('EtlService', () => {
         join(tmpdir(), 'flywise-inherited-column-'),
       );
       try {
-        const file = join(directory, 'airports.csv');
-        await writeFile(file, 'id;title;lat;lng\n42;Airport;0;0\n');
+        const file = join(directory, 'aeropuertos.csv');
+        await writeFile(file, 'id;title;lat;lng\n42;Aeropuerto;0;0\n');
         await expect(
-          service.importCatalog('airports', file, undefined, {
+          service.importCatalog('aeropuertos', file, undefined, {
             ...configuration,
-            schemaMapping: configuration.schemaMapping.map((rule) =>
-              rule.targetField === 'name'
-                ? { ...rule, sourceColumn: 'toString' }
+            mapeoEsquema: configuration.mapeoEsquema.map((rule) =>
+              rule.campoDestino === 'nombre'
+                ? { ...rule, columnaOrigen: 'toString' }
                 : rule,
             ),
           }),
@@ -313,10 +325,10 @@ describe('EtlService', () => {
     it('fails a wrong mapping before writing or classifying all rows as discarded', async () => {
       const directory = await mkdtemp(join(tmpdir(), 'flywise-mapping-'));
       try {
-        const file = join(directory, 'airports.csv');
+        const file = join(directory, 'aeropuertos.csv');
         await writeFile(file, 'wrong;columns\n1;2\n');
         await expect(
-          service.importCatalog('airports', file, undefined, configuration),
+          service.importCatalog('aeropuertos', file, undefined, configuration),
         ).rejects.toThrow(/columnas/);
         expect(prismaMock.db.query).not.toHaveBeenCalled();
       } finally {
@@ -330,7 +342,7 @@ describe('EtlService', () => {
       await expect(service.triggerJob('unknown')).rejects.toThrow(
         BadRequestException,
       );
-      expect(prismaMock.models.EtlJob.create).not.toHaveBeenCalled();
+      expect(prismaMock.models.EjecucionEtl.create).not.toHaveBeenCalled();
     });
 
     it('marks the job failed if it cannot be queued', async () => {
@@ -338,49 +350,49 @@ describe('EtlService', () => {
       await expect(service.triggerJob('all')).rejects.toThrow(
         'Queue unavailable',
       );
-      expect(prismaMock.models.EtlJob.update).toHaveBeenCalledWith({
-        status: 'failed',
-        errorMessage: 'Queue unavailable',
+      expect(prismaMock.models.EjecucionEtl.update).toHaveBeenCalledWith({
+        estado: 'failed',
+        mensajeError: 'Queue unavailable',
       });
     });
     it('should create database record and enqueue BullMQ job', async () => {
-      const res = await service.triggerJob('airports');
+      const res = await service.triggerJob('aeropuertos');
 
-      expect(prismaMock.models.EtlJob.create).toHaveBeenCalledWith({
-        source: 'airports',
-        status: 'pending',
+      expect(prismaMock.models.EjecucionEtl.create).toHaveBeenCalledWith({
+        fuente: 'aeropuertos',
+        estado: 'pending',
       });
       expect(queueMock.add).toHaveBeenCalled();
-      expect(res.jobId).toBe('job-record-1');
+      expect(res.ejecucionId).toBe('job-record-1');
       expect(res.bullJobId).toBe('bull-job-1');
     });
   });
 
   describe('getStatus', () => {
-    it('should return queue metrics', async () => {
+    it('should return queue metricas', async () => {
       const res = await service.getStatus();
       expect(queueMock.getActiveCount).toHaveBeenCalled();
-      expect(res.counts.active).toBe(1);
+      expect(res.counts.activa).toBe(1);
       expect(res.counts.completed).toBe(5);
     });
   });
 
   describe('getHistory', () => {
-    it('derives duration from timestamps and leaves unfinished jobs without a duration', async () => {
-      prismaMock.models.EtlJob.all.mockResolvedValue([
+    it('derives duration from timestamps and leaves unfinished ejecuciones without a duration', async () => {
+      prismaMock.models.EjecucionEtl.all.mockResolvedValue([
         {
           id: 'finished',
-          startedAt: '2026-09-01 00:00:00',
-          finishedAt: '2026-09-01 00:00:02',
+          iniciadoEn: '2026-09-01 00:00:00',
+          finalizadoEn: '2026-09-01 00:00:02',
         },
-        { id: 'pending', startedAt: null, finishedAt: null },
+        { id: 'pending', iniciadoEn: null, finalizadoEn: null },
       ]);
       const history = await service.getHistory();
       expect(history.map((job) => job.durationMs)).toEqual([2000, null]);
     });
-    it('should return recent ETL jobs', async () => {
+    it('should return recent ETL ejecuciones', async () => {
       const res = await service.getHistory();
-      expect(prismaMock.models.EtlJob.all).toHaveBeenCalled();
+      expect(prismaMock.models.EjecucionEtl.all).toHaveBeenCalled();
       expect(res).toHaveLength(1);
     });
   });

@@ -24,10 +24,10 @@ import {
 } from 'class-validator';
 
 export const CATALOG_TARGETS = [
-  'countries',
-  'airports',
-  'airlines',
-  'routes',
+  'paises',
+  'aeropuertos',
+  'aerolineas',
+  'rutas',
 ] as const;
 export type CatalogTarget = (typeof CATALOG_TARGETS)[number];
 
@@ -52,7 +52,7 @@ export class PipelineHeaderDto {
       'Referencia de credencial autorizada; no admite secretos literales',
     maxLength: 100,
   })
-  credentialRef!: string;
+  referenciaCredencial!: string;
 }
 
 @ApiSchema({
@@ -62,7 +62,7 @@ export class PipelineHeaderDto {
 export class PipelineConnectionDto {
   @ApiProperty({ description: 'Tipo de conexión', enum: ['http_stream'] })
   @IsIn(['http_stream'])
-  sourceType!: 'http_stream';
+  tipoFuente!: 'http_stream';
   @ApiProperty({
     description:
       'URL HTTPS autorizada, sin credenciales, consulta ni fragmento',
@@ -70,13 +70,13 @@ export class PipelineConnectionDto {
   })
   @IsString()
   @Length(1, 2048)
-  endpointUrl!: string;
+  urlEndpoint!: string;
   @ApiProperty({ description: 'Método de lectura', enum: ['GET'] })
   @IsIn(['GET'])
-  httpMethod!: 'GET';
+  metodoHttp!: 'GET';
   @ApiProperty({ description: 'Formato de entrada', enum: ['csv'] })
   @IsIn(['csv'])
-  dataFormat!: 'csv';
+  formatoDatos!: 'csv';
   @ApiPropertyOptional({
     description: 'Separador de columnas',
     minLength: 1,
@@ -85,13 +85,13 @@ export class PipelineConnectionDto {
   @IsOptional()
   @IsString()
   @Length(1, 1)
-  csvDelimiter?: string;
+  separadorCsv?: string;
   @ApiPropertyOptional({
     description: 'Indica si la primera fila contiene nombres de columnas',
   })
   @IsOptional()
   @IsBoolean()
-  csvHasHeader?: boolean;
+  csvConCabecera?: boolean;
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
@@ -117,7 +117,7 @@ export class FieldMappingDto {
   })
   @IsString()
   @Length(1, 128)
-  sourceColumn!: string;
+  columnaOrigen!: string;
   @ApiProperty({
     description: 'Campo admitido por el destino; no puede repetirse',
     minLength: 1,
@@ -125,7 +125,7 @@ export class FieldMappingDto {
   })
   @IsString()
   @Length(1, 100)
-  targetField!: string;
+  campoDestino!: string;
   @IsOptional()
   @IsIn(['none', 'trim', 'uppercase', 'to_number', 'to_boolean'])
   @ApiPropertyOptional({
@@ -150,12 +150,12 @@ export class PipelineScheduleDto {
   })
   @IsString()
   @MaxLength(100)
-  cronExpression!: string;
+  expresionCron!: string;
   @ApiProperty({ description: 'Filas por lote', minimum: 1000, maximum: 5000 })
   @IsInt()
   @Min(1000)
   @Max(5000)
-  batchSize!: number;
+  tamanoLote!: number;
   @ApiProperty({
     description: 'Tiempo máximo de lectura en segundos',
     minimum: 1,
@@ -164,7 +164,7 @@ export class PipelineScheduleDto {
   @IsInt()
   @Min(1)
   @Max(3600)
-  timeoutSeconds!: number;
+  tiempoLimiteSegundos!: number;
   @ApiProperty({
     description: 'Reintentos permitidos',
     minimum: 0,
@@ -173,7 +173,7 @@ export class PipelineScheduleDto {
   @IsInt()
   @Min(0)
   @Max(10)
-  maxRetries!: number;
+  maximoReintentos!: number;
 }
 
 @ApiSchema({
@@ -191,7 +191,7 @@ export class CreatePipelineDto {
     minLength: 1,
     maxLength: 120,
   })
-  name!: string;
+  nombre!: string;
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
@@ -202,7 +202,7 @@ export class CreatePipelineDto {
     minLength: 1,
     maxLength: 120,
   })
-  datasetName!: string;
+  nombreConjunto!: string;
   @ApiPropertyOptional({
     description: 'Descripción de la configuración',
     maxLength: 1000,
@@ -210,17 +210,17 @@ export class CreatePipelineDto {
   @IsOptional()
   @IsString()
   @MaxLength(1000)
-  description?: string;
+  descripcion?: string;
   @ApiProperty({
     description: 'Destino de los registros',
     enum: CATALOG_TARGETS,
   })
   @IsIn(CATALOG_TARGETS)
-  targetEntity!: CatalogTarget;
+  entidadDestino!: CatalogTarget;
   @ApiPropertyOptional({ description: 'Impide iniciar nuevas ejecuciones' })
   @IsOptional()
   @IsBoolean()
-  paused?: boolean;
+  pausado?: boolean;
   @IsDefined()
   @ValidateNested()
   @Type(() => PipelineConnectionDto)
@@ -228,7 +228,7 @@ export class CreatePipelineDto {
     description: 'Parámetros de conexión',
     type: () => PipelineConnectionDto,
   })
-  connection!: PipelineConnectionDto;
+  conexion!: PipelineConnectionDto;
   @IsDefined()
   @IsArray()
   @ArrayMaxSize(40)
@@ -239,7 +239,7 @@ export class CreatePipelineDto {
     type: () => [FieldMappingDto],
     maxItems: 40,
   })
-  schemaMapping!: FieldMappingDto[];
+  mapeoEsquema!: FieldMappingDto[];
   @IsDefined()
   @ValidateNested()
   @Type(() => PipelineScheduleDto)
@@ -247,7 +247,7 @@ export class CreatePipelineDto {
     description: 'Programación y límites de lectura',
     type: () => PipelineScheduleDto,
   })
-  scheduleConfig!: PipelineScheduleDto;
+  configuracionProgramacion!: PipelineScheduleDto;
 }
 
 @ApiSchema({
@@ -257,34 +257,34 @@ export class CreatePipelineDto {
 export class UpdatePipelineDto extends PartialType(CreatePipelineDto) {}
 
 export class PipelineExecutionDto extends PickType(CreatePipelineDto, [
-  'targetEntity',
-  'connection',
-  'schemaMapping',
-  'scheduleConfig',
+  'entidadDestino',
+  'conexion',
+  'mapeoEsquema',
+  'configuracionProgramacion',
 ] as const) {}
 
 export const CATALOG_FIELDS: Record<CatalogTarget, readonly string[]> = {
-  countries: ['name', 'isoCode'],
-  airports: [
-    'openflightsId',
-    'name',
-    'city',
-    'countryName',
+  paises: ['nombre', 'codigoIso'],
+  aeropuertos: [
+    'idOpenflights',
+    'nombre',
+    'ciudad',
+    'nombrePais',
     'iata',
     'icao',
-    'latitude',
-    'longitude',
-    'source',
+    'latitud',
+    'longitud',
+    'fuente',
   ],
-  airlines: ['openflightsId', 'name', 'iata', 'icao', 'country', 'active'],
-  routes: [
-    'airlineCode',
-    'airlineOpenflightsId',
-    'originOpenflightsId',
-    'originCode',
-    'destinationOpenflightsId',
-    'destinationCode',
-    'codeshare',
-    'stops',
+  aerolineas: ['idOpenflights', 'nombre', 'iata', 'icao', 'pais', 'activa'],
+  rutas: [
+    'codigoAerolinea',
+    'idOpenflightsAerolinea',
+    'idOpenflightsOrigen',
+    'codigoOrigen',
+    'idOpenflightsDestino',
+    'codigoDestino',
+    'codigoCompartido',
+    'escalas',
   ],
 };

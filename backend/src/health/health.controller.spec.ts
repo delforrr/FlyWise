@@ -39,7 +39,7 @@ describe('HealthController', () => {
     expect(mockStatus).toHaveBeenCalledWith(HttpStatus.OK);
     expect(mockJson).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: 'ok',
+        estado: 'ok',
         services: { database: 'up', redis: 'up' },
       }),
     );
@@ -57,7 +57,7 @@ describe('HealthController', () => {
     expect(mockStatus).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
     expect(mockJson).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: 'degraded',
+        estado: 'degraded',
         services: { database: 'down', redis: 'up' },
       }),
     );

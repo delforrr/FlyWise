@@ -1,5 +1,5 @@
 import { computed, watch } from "vue";
-import { type Airport } from "~/types/airport";
+import { type Aeropuerto } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { type MapPickingInfo } from "~/types/map";
 import { findRouteBetween, queryMatchingRoutes } from "../utils/routeGraph";
@@ -7,15 +7,15 @@ import { findRouteBetween, queryMatchingRoutes } from "../utils/routeGraph";
 let hoverRafId: number | null = null;
 
 export const useFlightSelection = () => {
-  const routes = useState<FlightRoute[]>("catalog_routes", () => []);
+  const rutas = useState<FlightRoute[]>("catalog_routes", () => []);
   // Estado base (usar undefined en lugar de null para compatibilidad estricta con UInputMenu de Nuxt UI)
   const selectedOrigin = useState<string | undefined>("flight_origin", () => undefined);
   const selectedDestination = useState<string | undefined>(
     "flight_destination",
     () => undefined,
   );
-  watch([selectedOrigin, selectedDestination], ([origin, destination]) => {
-    if (origin && origin === destination) selectedDestination.value = undefined;
+  watch([selectedOrigin, selectedDestination], ([origen, destino]) => {
+    if (origen && origen === destino) selectedDestination.value = undefined;
   }, { flush: 'sync', immediate: true });
   const hoveredEntity = useState<MapPickingInfo>("flight_hovered", () => null);
   const mapFitTrigger = useState<number>("flight_map_fit_trigger", () => 0);
@@ -41,10 +41,10 @@ export const useFlightSelection = () => {
   });
 
   const selectedRouteData = computed<FlightRoute | null>(() => {
-    return findRouteBetween(routes.value, selectedOrigin.value, selectedDestination.value);
+    return findRouteBetween(rutas.value, selectedOrigin.value, selectedDestination.value);
   });
   const selectedReturnData = computed<FlightRoute | null>(() => {
-    return findRouteBetween(routes.value, selectedDestination.value, selectedOrigin.value);
+    return findRouteBetween(rutas.value, selectedDestination.value, selectedOrigin.value);
   });
 
   /**
@@ -53,7 +53,7 @@ export const useFlightSelection = () => {
    */
   const matchingRoutes = computed<FlightRoute[]>(() => {
     if (selectedOrigin.value && selectedDestination.value && !selectedRouteData.value && selectedReturnData.value) return [selectedReturnData.value];
-    return queryMatchingRoutes(routes.value, selectedOrigin.value, selectedDestination.value);
+    return queryMatchingRoutes(rutas.value, selectedOrigin.value, selectedDestination.value);
   });
 
   // Set de IDs para resolución instantánea O(1)
@@ -78,7 +78,7 @@ export const useFlightSelection = () => {
    * Valida y setea el origen según el input de usuario
    * @param airport Aeropuerto o código IATA
    */
-  function setOrigin(airport?: Airport | string | null): void {
+  function setOrigin(airport?: Aeropuerto | string | null): void {
     const iata = typeof airport === "string" ? airport : airport?.id;
 
     if (!iata) {
@@ -102,7 +102,7 @@ export const useFlightSelection = () => {
    * Valida y setea el destino según el input de usuario
    * @param airport Aeropuerto o código IATA
    */
-  function setDestination(airport?: Airport | string | null): void {
+  function setDestination(airport?: Aeropuerto | string | null): void {
     const iata = typeof airport === "string" ? airport : airport?.id;
 
     if (!iata) {

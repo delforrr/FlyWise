@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import type { TableColumn } from "@nuxt/ui";
-import type { EtlPipeline } from "../types/etl";
+import type { ProcesoEtl } from "../types/etl";
 
 interface Props {
-  pipelines: EtlPipeline[];
+  pipelines: ProcesoEtl[];
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  (e: "trigger-sync", pipeline: EtlPipeline): void;
-  (e: "pause", id: EtlPipeline["id"]): void;
-  (e: "resume", id: EtlPipeline["id"]): void;
-  (e: "retry", id: EtlPipeline["id"]): void;
-  (e: "view-discarded", pipeline: EtlPipeline): void;
-  (e: "view-detail", pipeline: EtlPipeline): void;
+  (e: "trigger-sync", proceso: ProcesoEtl): void;
+  (e: "pause", id: ProcesoEtl["id"]): void;
+  (e: "resume", id: ProcesoEtl["id"]): void;
+  (e: "retry", id: ProcesoEtl["id"]): void;
+  (e: "view-discarded", proceso: ProcesoEtl): void;
+  (e: "view-detail", proceso: ProcesoEtl): void;
 }>();
 
 const page = ref(1);
@@ -26,15 +26,15 @@ const paginatedPipelines = computed(() => {
   return props.pipelines.slice(start, start + itemsPerPage.value);
 });
 
-const columns: TableColumn<EtlPipeline>[] = [
+const columns: TableColumn<ProcesoEtl>[] = [
   {
-    accessorKey: "name",
-    id: "name",
+    accessorKey: "nombre",
+    id: "nombre",
     header: "Fuente / Dataset",
   },
   {
-    accessorKey: "status",
-    id: "status",
+    accessorKey: "estado",
+    id: "estado",
     header: "Estado",
   },
   {
@@ -58,7 +58,7 @@ const columns: TableColumn<EtlPipeline>[] = [
       class="w-full text-xs font-sans"
     >
       <!-- 1. Fuente / Dataset -->
-      <template #name-cell="{ row }">
+      <template #nombre-cell="{ row }">
         <div class="flex items-center gap-2.5 min-w-48 py-1">
           <div
             class="w-8 h-8 rounded-lg bg-surface-accent border border-border-subtle flex items-center justify-center text-primary shrink-0"
@@ -67,19 +67,19 @@ const columns: TableColumn<EtlPipeline>[] = [
           </div>
           <div class="min-w-0">
             <span class="font-bold text-text-main block truncate text-xs">
-              {{ row.original.name }}
+              {{ row.original.nombre }}
             </span>
             <span class="text-[11px] text-text-muted block truncate font-mono">
-              {{ row.original.datasetName }}
+              {{ row.original.nombreConjunto }}
             </span>
           </div>
         </div>
       </template>
 
       <!-- 2. Estado -->
-      <template #status-cell="{ row }">
+      <template #estado-cell="{ row }">
         <UBadge
-          v-if="row.original.status === 'success'"
+          v-if="row.original.estado === 'success'"
           color="success"
           variant="subtle"
           size="sm"
@@ -89,7 +89,7 @@ const columns: TableColumn<EtlPipeline>[] = [
           Al día
         </UBadge>
         <UBadge
-          v-else-if="row.original.status === 'running'"
+          v-else-if="row.original.estado === 'running'"
           color="info"
           variant="subtle"
           size="sm"
@@ -99,7 +99,7 @@ const columns: TableColumn<EtlPipeline>[] = [
           Sincronizando
         </UBadge>
         <UBadge
-          v-else-if="row.original.status === 'paused'"
+          v-else-if="row.original.estado === 'pausado'"
           color="warning"
           variant="subtle"
           size="sm"
@@ -109,7 +109,7 @@ const columns: TableColumn<EtlPipeline>[] = [
           Pausado
         </UBadge>
         <UBadge
-          v-else-if="row.original.status === 'error'"
+          v-else-if="row.original.estado === 'error'"
           color="error"
           variant="subtle"
           size="sm"
@@ -133,26 +133,26 @@ const columns: TableColumn<EtlPipeline>[] = [
       <template #health-cell="{ row }">
         <div
           v-if="
-            row.original.status === 'running' ||
-            row.original.status === 'paused'
+            row.original.estado === 'running' ||
+            row.original.estado === 'pausado'
           "
           class="space-y-1 min-w-28"
         >
           <div class="flex items-center justify-between text-[11px] font-mono">
             <span class="text-text-muted">Lotes</span>
             <span class="font-bold text-text-main tabular-nums">
-              {{ row.original.status === 'running' ? "Total pendiente" : `${row.original.progressPercent}%` }}
+              {{ row.original.estado === 'running' ? "Total pendiente" : `${row.original.progressPercent}%` }}
             </span>
           </div>
           <UProgress
-            :model-value="row.original.status === 'running' ? null : row.original.progressPercent"
+            :model-value="row.original.estado === 'running' ? null : row.original.progressPercent"
             size="xs"
             color="primary"
             class="h-1 rounded-full"
           />
         </div>
         <span
-          v-else-if="row.original.status === 'success'"
+          v-else-if="row.original.estado === 'success'"
           class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"
         >
           <UIcon name="i-lucide-check" class="w-3.5 h-3.5" />
@@ -172,15 +172,15 @@ const columns: TableColumn<EtlPipeline>[] = [
             variant="ghost"
             color="neutral"
             icon="i-lucide-eye"
-            title="Ver detalle del pipeline"
-            aria-label="Ver detalle del pipeline"
+            title="Ver detalle del proceso"
+            aria-label="Ver detalle del proceso"
             class="cursor-pointer hover:bg-surface-accent"
             @click="emit('view-detail', row.original)"
           />
 
           <!-- Botón Auditar Descartes (si existen descartes) -->
           <UButton
-            v-if="row.original.discardedRows > 0"
+            v-if="row.original.filasDescartadas > 0"
             size="xs"
             variant="ghost"
             color="neutral"
@@ -193,7 +193,7 @@ const columns: TableColumn<EtlPipeline>[] = [
 
           <!-- Controles de ejecución (Pausar / Reanudar / Sincronizar) -->
           <UButton
-            v-if="row.original.status === 'running' && !row.original.paused"
+            v-if="row.original.estado === 'running' && !row.original.pausado"
             size="xs"
             variant="outline"
             color="neutral"
@@ -204,12 +204,12 @@ const columns: TableColumn<EtlPipeline>[] = [
             @click="emit('pause', row.original.id)"
           />
           <UButton
-            v-else-if="row.original.paused"
+            v-else-if="row.original.pausado"
             size="xs"
             color="primary"
             icon="i-lucide-play"
-            title="Reanudar pipeline"
-            aria-label="Reanudar pipeline"
+            title="Reanudar proceso"
+            aria-label="Reanudar proceso"
             class="cursor-pointer text-white"
             @click="emit('resume', row.original.id)"
           />

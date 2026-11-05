@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { EtlPipeline } from "../types/etl";
+import type { ProcesoEtl } from "../types/etl";
 
 interface Props {
   isOpen: boolean;
-  pipeline: EtlPipeline | null;
+  proceso: ProcesoEtl | null;
 }
 
 const props = defineProps<Props>();
@@ -14,8 +14,8 @@ const emit = defineEmits<{
 }>();
 
 function handleConfirm() {
-  if (props.pipeline) {
-    emit("confirm", props.pipeline.id);
+  if (props.proceso) {
+    emit("confirm", props.proceso.id);
     emit("close");
   }
 }
@@ -23,7 +23,7 @@ function handleConfirm() {
 
 <template>
   <UModal
-    :open="isOpen && !!pipeline"
+    :open="isOpen && !!proceso"
     title="Pausar Servicio de Ingesta"
     description="Esta acción suspenderá temporalmente la sincronización programada de este servicio."
     :ui="{
@@ -37,7 +37,7 @@ function handleConfirm() {
     "
   >
     <template #body>
-      <div v-if="pipeline" class="space-y-3.5 text-xs">
+      <div v-if="proceso" class="space-y-3.5 text-xs">
         <div
           class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3 text-amber-600 dark:text-amber-400"
         >
@@ -51,8 +51,8 @@ function handleConfirm() {
             </span>
             <p class="text-[11px] leading-relaxed text-text-muted">
               Se congelarán las ejecuciones automáticas de
-              <strong class="text-text-main font-semibold">"{{ pipeline.name }}"</strong>
-              en BullMQ. El pipeline permanecerá inactivo hasta que decidas reanudarlo manualmente.
+              <strong class="text-text-main font-semibold">"{{ proceso.nombre }}"</strong>
+              en BullMQ. El proceso permanecerá inactivo hasta que decidas reanudarlo manualmente.
             </p>
           </div>
         </div>
@@ -63,19 +63,19 @@ function handleConfirm() {
           <div class="flex items-center justify-between">
             <span class="text-text-muted font-medium">Cadencia actual:</span>
             <span class="font-semibold text-text-main">
-              {{ pipeline.scheduleDescription }}
+              {{ proceso.scheduleDescription }}
             </span>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-text-muted font-medium">Entidad destino:</span>
             <span class="font-mono text-primary font-bold capitalize">
-              {{ pipeline.targetEntity || "otp_metrics" }}
+              {{ proceso.entidadDestino || "otp_metrics" }}
             </span>
           </div>
           <div class="pt-1 border-t border-border-subtle/60 flex items-center gap-1.5 text-text-dim font-mono text-[10px] truncate">
             <UIcon name="i-lucide-link" class="w-3.5 h-3.5 shrink-0" />
             <span class="truncate">
-              {{ pipeline.connection?.endpointUrl || "Sin endpoint registrado" }}
+              {{ proceso.conexion?.urlEndpoint || "Sin endpoint registrado" }}
             </span>
           </div>
         </div>

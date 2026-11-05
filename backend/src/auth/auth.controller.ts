@@ -34,7 +34,7 @@ import { CurrentUser } from '../users/decorators/current-user.decorator.js';
 import { UserDto } from '../users/dto/user.dto.js';
 
 @ApiTags('Autenticación')
-@Controller('auth')
+@Controller('autenticacion')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
@@ -51,13 +51,13 @@ export class AuthController {
   }
 
   private checkOrigin(req: ExpressRequest, requireHeader = true) {
-    const origin = req.headers.origin;
+    const origen = req.headers.origin;
     if (
       (requireHeader && req.headers['x-flywise-session'] !== '1') ||
       req.headers['sec-fetch-site'] === 'cross-site' ||
-      (origin &&
-        origin !== this.config.get('CORS_ORIGIN', 'http://localhost:3000') &&
-        origin !== `${req.protocol}://${req.headers.host}`)
+      (origen &&
+        origen !== this.config.get('CORS_ORIGIN', 'http://localhost:3000') &&
+        origen !== `${req.protocol}://${req.headers.host}`)
     ) {
       throw new ForbiddenException('Origen de sesión no permitido.');
     }
@@ -89,7 +89,7 @@ export class AuthController {
   }
 
   @UseGuards(LocalAuthGuard)
-  @Post('/login')
+  @Post('/iniciar-sesion')
   @ApiOperation({
     summary: 'Autentica a un usuario y genera un token de acceso JWT',
   })
@@ -123,7 +123,7 @@ export class AuthController {
     required: true,
     schema: { default: '1' },
   })
-  @Get('/session')
+  @Get('/sesion')
   @ApiResponse({
     status: 200,
     type: UserDto,
@@ -146,7 +146,7 @@ export class AuthController {
     required: true,
     schema: { default: '1' },
   })
-  @Post('/refresh')
+  @Post('/renovar')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Renueva la sesión y el token de acceso' })
   async refresh(
@@ -167,7 +167,7 @@ export class AuthController {
     }
   }
 
-  @Post('/register')
+  @Post('/registrar')
   @ApiOperation({
     summary: 'Registra un nuevo usuario en la plataforma',
   })
@@ -186,7 +186,7 @@ export class AuthController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get('/me')
+  @Get('/perfil')
   @ApiOperation({
     summary: 'Obtiene el perfil del usuario actualmente autenticado',
   })
@@ -208,7 +208,7 @@ export class AuthController {
     required: true,
     schema: { default: '1' },
   })
-  @Post('/logout')
+  @Post('/cerrar-sesion')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cierra la sesión' })
   async logout(

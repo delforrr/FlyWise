@@ -3,10 +3,10 @@ import { IsIn } from 'class-validator';
 
 export const ETL_DATASETS: readonly string[] = [
   'all',
-  'countries',
-  'airports',
-  'airlines',
-  'routes',
+  'paises',
+  'aeropuertos',
+  'aerolineas',
+  'rutas',
 ];
 
 @ApiSchema({

@@ -25,11 +25,11 @@ const {
   clearHoveredEntity,
 } = useFlightSelection();
 
-const { airports, routes } = useCatalog();
+const { aeropuertos, rutas } = useCatalog();
 const globalMap = useGlobalMap();
 watch([globalMap.visibleRoutes, globalMap.fitTrigger], () => { clearHoveredEntity(); updateLayers(); fitGlobal(); });
 watch(isLoaded, loaded => { if (loaded) fitGlobal(); });
-watch([airports, routes], () => { updateLayers(); });
+watch([aeropuertos, rutas], () => { updateLayers(); });
 
 const colorMode = useColorMode();
 

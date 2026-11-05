@@ -8,13 +8,13 @@ useSeoMeta({
     "Exploración de rutas del catálogo histórico; la puntualidad se muestra solo cuando hay datos operativos.",
 });
 
-const { airports, routes, error, loadAirports, loadRoutes } = useCatalog();
+const { aeropuertos, rutas, error, loadAirports, loadRoutes } = useCatalog();
 const { selectedOrigin, selectedDestination, clearSelection } = useFlightSelection();
 const globalMap = useGlobalMap();
 const hasSelection = computed(() => Boolean(selectedOrigin.value || selectedDestination.value));
 const globalAirportsCount = computed(() => {
-  const ids = new Set(globalMap.visibleRoutes.value.flatMap(r => [r.originId, r.destinationId]));
-  return airports.value.filter(a => ids.has(a.id)).length;
+  const ids = new Set(globalMap.visibleRoutes.value.flatMap(r => [r.origenId, r.destinoId]));
+  return aeropuertos.value.filter(a => ids.has(a.id)).length;
 });
 let applying = false;
 onMounted(() => {
@@ -23,8 +23,8 @@ onMounted(() => {
   else { globalMap.isOpen.value = true; void globalMap.load(); }
 });
 onUnmounted(() => { globalMap.isOpen.value = false; });
-watch([selectedOrigin, selectedDestination], ([origin, destination]) => {
-  if (origin || destination) { void loadRoutes(origin, destination); return; }
+watch([selectedOrigin, selectedDestination], ([origen, destino]) => {
+  if (origen || destino) { void loadRoutes(origen, destino); return; }
   if (applying) { applying = false; return; }
   globalMap.isOpen.value = true;
   void globalMap.load();

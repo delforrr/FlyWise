@@ -2,7 +2,7 @@
 
 Rama: `refactor/backend-data-validation`. Destino: `develop`.
 Base revisada: `2fc7cacdfd4d9294e0b094b902b4c59a2cef06a1`.
-Los tickets y sus criterios están en [el registro de trabajo](../.scratch/backend-data-validation/issues/).
+El alcance del trabajo está en [la especificación](./backend-data-validation/spec.md).
 
 Este documento consolida las revisiones independientes de estándares, cumplimiento de los tickets y revisión adversarial, junto con las correcciones y pruebas realizadas después de sus observaciones.
 

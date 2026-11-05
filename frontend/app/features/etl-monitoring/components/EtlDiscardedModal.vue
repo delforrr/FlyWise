@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import type { EtlPipeline } from "../types/etl";
+import type { ProcesoEtl } from "../types/etl";
 import { useEtlData } from '../composables/useEtlData';
 
 interface Props {
   isOpen: boolean;
-  pipeline: EtlPipeline | null;
+  proceso: ProcesoEtl | null;
 }
 
 const props = defineProps<Props>();
@@ -20,13 +20,13 @@ const selectedAttempt = ref(0);
 const samplesLoading = ref(false);
 const { loadSamples } = useEtlData();
 const toast = useToast();
-const attemptOptions = computed(() => Array.from({ length: (props.pipeline?.attempt ?? 0) + 1 }, (_, value) => ({ value, label: value === 0 ? 'Histórico sin intento' : `Intento ${value}` })));
-watch(() => [props.pipeline?.latestJobId, props.pipeline?.attempt], () => { selectedAttempt.value = props.pipeline?.attempt ?? 0; }, { immediate: true });
+const attemptOptions = computed(() => Array.from({ length: (props.proceso?.intento ?? 0) + 1 }, (_, value) => ({ value, label: value === 0 ? 'Histórico sin intento' : `Intento ${value}` })));
+watch(() => [props.proceso?.latestJobId, props.proceso?.intento], () => { selectedAttempt.value = props.proceso?.intento ?? 0; }, { immediate: true });
 async function selectAttempt(value: number) {
-  if (!props.pipeline || samplesLoading.value) return;
+  if (!props.proceso || samplesLoading.value) return;
   samplesLoading.value = true;
   try {
-    await loadSamples(props.pipeline, value);
+    await loadSamples(props.proceso, value);
     selectedAttempt.value = value;
     fieldFilter.value = 'all';
   } catch { toast.add({ title: 'No se pudieron cargar las muestras del intento', color: 'error' }); }
@@ -35,13 +35,13 @@ async function selectAttempt(value: number) {
 const copiedRecordId = ref<string | null>(null);
 
 const uniqueFields = computed<string[]>(() => {
-  if (!props.pipeline?.discardedSamples) return [];
-  const fields = new Set(props.pipeline.discardedSamples.map((s) => s.field));
+  if (!props.proceso?.muestrasDescartadas) return [];
+  const fields = new Set(props.proceso.muestrasDescartadas.map((s) => s.campo));
   return Array.from(fields);
 });
 
 const fieldOptions = computed(() => {
-  const total = props.pipeline?.discardedSamples.length ?? 0;
+  const total = props.proceso?.muestrasDescartadas.length ?? 0;
   const options = [{ label: `Todos los campos (${total})`, value: "all" }];
   for (const f of uniqueFields.value) {
     options.push({ label: f, value: f });
@@ -50,10 +50,10 @@ const fieldOptions = computed(() => {
 });
 
 const filteredSamples = computed(() => {
-  if (!props.pipeline?.discardedSamples) return [];
-  if (fieldFilter.value === "all") return props.pipeline.discardedSamples;
-  return props.pipeline.discardedSamples.filter(
-    (s) => s.field === fieldFilter.value,
+  if (!props.proceso?.muestrasDescartadas) return [];
+  if (fieldFilter.value === "all") return props.proceso.muestrasDescartadas;
+  return props.proceso.muestrasDescartadas.filter(
+    (s) => s.campo === fieldFilter.value,
   );
 });
 
@@ -70,7 +70,7 @@ async function copyRawSample(id: string, text: string) {
 }
 
 function exportDiscardedCsv() {
-  if (!props.pipeline?.discardedSamples || typeof window === "undefined")
+  if (!props.proceso?.muestrasDescartadas || typeof window === "undefined")
     return;
 
   const headers = [
@@ -81,12 +81,12 @@ function exportDiscardedCsv() {
     "RawSample",
     "Timestamp",
   ];
-  const rows = props.pipeline.discardedSamples.map((s) => [
-    s.attempt ?? 0,
-    s.rowIndex,
-    `"${s.field}"`,
-    `"${s.reason.replaceAll('"', '""')}"`,
-    `"${s.rawSample.replaceAll('"', '""')}"`,
+  const rows = props.proceso.muestrasDescartadas.map((s) => [
+    s.intento ?? 0,
+    s.numeroFila,
+    `"${s.campo}"`,
+    `"${s.motivo.replaceAll('"', '""')}"`,
+    `"${s.muestraOriginal.replaceAll('"', '""')}"`,
     `"${s.timestamp}"`,
   ]);
 
@@ -99,7 +99,7 @@ function exportDiscardedCsv() {
   link.setAttribute("href", url);
   link.setAttribute(
     "download",
-    `flywise-discarded-${props.pipeline.id}-${Date.now()}.csv`,
+    `flywise-discarded-${props.proceso.id}-${Date.now()}.csv`,
   );
   document.body.appendChild(link);
   link.click();
@@ -110,8 +110,8 @@ function exportDiscardedCsv() {
 
 <template>
   <UModal
-    :open="isOpen && !!pipeline"
-    :title="`Auditoría de Registros Descartados — ${pipeline?.name ?? ''}`"
+    :open="isOpen && !!proceso"
+    :title="`Auditoría de Registros Descartados — ${proceso?.nombre ?? ''}`"
     description="Registros omitidos durante la ingesta streaming por incumplimiento de reglas de integridad (RNF-03/04)."
     :ui="{
       content:
@@ -124,7 +124,7 @@ function exportDiscardedCsv() {
     "
   >
     <template #body>
-      <div v-if="pipeline" class="space-y-4">
+      <div v-if="proceso" class="space-y-4">
         <USelect :model-value="selectedAttempt" :items="attemptOptions" :disabled="samplesLoading" :loading="samplesLoading" aria-label="Intento de ejecución" @update:model-value="selectAttempt" />
         <!-- Resumen y Filtro de Campo -->
         <div
@@ -135,7 +135,7 @@ function exportDiscardedCsv() {
             <span
               class="font-bold text-text-main ml-1.5 font-mono tabular-nums"
             >
-              {{ pipeline.discardedSamples.length }} filas
+              {{ proceso.muestrasDescartadas.length }} filas
             </span>
           </div>
 
@@ -160,7 +160,7 @@ function exportDiscardedCsv() {
             <div class="flex items-start justify-between gap-2">
               <div class="flex items-center gap-2">
                 <span class="font-mono font-bold text-text-main">
-                  Fila #{{ record.rowIndex }}
+                  Fila #{{ record.numeroFila }}
                 </span>
                 <UBadge
                   color="warning"
@@ -168,7 +168,7 @@ function exportDiscardedCsv() {
                   size="sm"
                   class="font-mono text-[10px]"
                 >
-                  Campo: {{ record.field }}
+                  Campo: {{ record.campo }}
                 </UBadge>
               </div>
 
@@ -177,7 +177,7 @@ function exportDiscardedCsv() {
 
             <!-- Explicación amigable -->
             <p class="text-text-main font-medium leading-relaxed">
-              {{ record.reason }}
+              {{ record.motivo }}
             </p>
 
             <!-- Datos crudos recibidos con botón de copia rápida UButton -->
@@ -185,7 +185,7 @@ function exportDiscardedCsv() {
               <div
                 class="p-2.5 rounded-lg bg-surface-accent border border-border-subtle font-mono text-[11px] text-text-dim break-all pr-20"
               >
-                {{ record.rawSample }}
+                {{ record.muestraOriginal }}
               </div>
               <UButton
                 size="xs"
@@ -200,7 +200,7 @@ function exportDiscardedCsv() {
                 class="absolute top-2 right-2 text-[10px] font-mono cursor-pointer"
                 :class="{ 'text-emerald-500': copiedRecordId === record.id }"
                 title="Copiar datos crudos"
-                @click="copyRawSample(record.id, record.rawSample)"
+                @click="copyRawSample(record.id, record.muestraOriginal)"
               />
             </div>
           </div>

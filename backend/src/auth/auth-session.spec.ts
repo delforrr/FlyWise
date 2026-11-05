@@ -15,8 +15,8 @@ import { UsersService } from '../users/users.service.js';
 
 const profile = {
   id: 'd3b07384-d113-4a69-8d7b-9907f7b3b9b9',
-  email: 'session-test@flywise.example',
-  role: 'ADMIN',
+  correo: 'session-test@flywise.example',
+  rol: 'ADMIN',
 };
 
 describe('sesión HTTP completa', () => {
@@ -28,7 +28,7 @@ describe('sesión HTTP completa', () => {
   const headers = { 'X-FlyWise-Session': '1', Origin: 'http://localhost:3000' };
 
   beforeAll(async () => {
-    const passwordHash = await bcrypt.hash('Password123!', 10);
+    const hashContrasena = await bcrypt.hash('Password123!', 10);
     const module = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'test-only-http-secret' })],
       controllers: [AuthController],
@@ -48,13 +48,13 @@ describe('sesión HTTP completa', () => {
         {
           provide: UsersService,
           useValue: {
-            findByEmail: (email: string) =>
+            findByEmail: (correo: string) =>
               Promise.resolve(
-                email === profile.email
+                correo === profile.correo
                   ? {
                       ...profile,
-                      passwordHash,
-                      createdAt: '2026-10-24 00:00:00',
+                      hashContrasena,
+                      creadoEn: '2026-10-24 00:00:00',
                     }
                   : null,
               ),
@@ -89,9 +89,9 @@ describe('sesión HTTP completa', () => {
 
   async function login(remember = true) {
     const result = await request(server)
-      .post('/api/auth/login')
+      .post('/api/autenticacion/iniciar-sesion')
       .set(headers)
-      .send({ email: profile.email, password: 'Password123!', remember })
+      .send({ correo: profile.correo, password: 'Password123!', remember })
       .expect(200);
     const body = result.body as { accessToken: string };
     sessions.push(jwt.verify<{ sid: string }>(body.accessToken).sid);
@@ -110,7 +110,7 @@ describe('sesión HTTP completa', () => {
     expect(access.exp - access.iat).toBe(900);
     expect(first.body).not.toHaveProperty('refreshToken');
     const ssr = await request(server)
-      .get('/api/auth/session')
+      .get('/api/autenticacion/sesion')
       .set(headers)
       .set('Cookie', cookie)
       .expect(200);
@@ -118,7 +118,7 @@ describe('sesión HTTP completa', () => {
     expect(ssr.body).not.toHaveProperty('accessToken');
     expect(ssr.headers['set-cookie']).toBeUndefined();
     const next = await request(server)
-      .post('/api/auth/refresh')
+      .post('/api/autenticacion/renovar')
       .set(headers)
       .set('Cookie', cookie)
       .expect(200);
@@ -126,12 +126,12 @@ describe('sesión HTTP completa', () => {
     const nextToken = (next.body as { accessToken: string }).accessToken;
     expect(nextCookie).not.toBe(cookie);
     await request(server)
-      .get('/api/auth/me')
+      .get('/api/autenticacion/perfil')
       .auth(nextToken, { type: 'bearer' })
       .expect(200);
     // Un refresh token nunca debe servir como JWT de acceso.
     await request(server)
-      .get('/api/auth/me')
+      .get('/api/autenticacion/perfil')
       .auth(nextCookie.split('=')[1], { type: 'bearer' })
       .expect(401);
     const expired = jwt.sign(
@@ -139,23 +139,23 @@ describe('sesión HTTP completa', () => {
       { audience: 'access', expiresIn: -1 },
     );
     const logout = await request(server)
-      .post('/api/auth/logout')
+      .post('/api/autenticacion/cerrar-sesion')
       .set(headers)
       .set('Cookie', nextCookie)
       .auth(expired, { type: 'bearer' })
       .expect(200);
     expect(logout.headers['set-cookie'][0]).toContain('refresh_token=;');
     await request(server)
-      .post('/api/auth/refresh')
+      .post('/api/autenticacion/renovar')
       .set(headers)
       .set('Cookie', nextCookie)
       .expect(401);
     await request(server)
-      .get('/api/auth/me')
+      .get('/api/autenticacion/perfil')
       .auth(first.body.accessToken, { type: 'bearer' })
       .expect(401);
     await request(server)
-      .get('/api/auth/me')
+      .get('/api/autenticacion/perfil')
       .auth(nextToken, { type: 'bearer' })
       .expect(401);
   });
@@ -165,47 +165,50 @@ describe('sesión HTTP completa', () => {
     expect(first.headers['set-cookie'][0]).not.toMatch(/Max-Age=|Expires=/);
     const cookie = first.headers['set-cookie'][0].split(';')[0];
     const next = await request(server)
-      .post('/api/auth/refresh')
+      .post('/api/autenticacion/renovar')
       .set(headers)
       .set('Cookie', cookie)
       .expect(200);
     const nextToken = (next.body as { accessToken: string }).accessToken;
     await request(server)
-      .post('/api/auth/refresh')
+      .post('/api/autenticacion/renovar')
       .set(headers)
       .set('Cookie', cookie)
       .expect(401);
     await request(server)
-      .get('/api/auth/me')
+      .get('/api/autenticacion/perfil')
       .auth(nextToken, { type: 'bearer' })
       .expect(401);
   });
 
   it('rechaza credenciales incorrectas, remember inválido, origen externo y falta de cookie', async () => {
     await request(server)
-      .post('/api/auth/login')
+      .post('/api/autenticacion/iniciar-sesion')
       .set(headers)
       .send({
-        email: profile.email,
+        correo: profile.correo,
         password: 'wrong-password',
         remember: true,
       })
       .expect(401);
     await request(server)
-      .post('/api/auth/login')
+      .post('/api/autenticacion/iniciar-sesion')
       .set(headers)
       .send({
-        email: profile.email,
+        correo: profile.correo,
         password: 'Password123!',
         remember: 'false',
       })
       .expect(400);
     await request(server)
-      .post('/api/auth/login')
+      .post('/api/autenticacion/iniciar-sesion')
       .set({ ...headers, Origin: 'https://attacker.example' })
-      .send({ email: profile.email, password: 'Password123!' })
+      .send({ correo: profile.correo, password: 'Password123!' })
       .expect(403);
-    await request(server).post('/api/auth/refresh').set(headers).expect(401);
-    await request(server).post('/api/auth/refresh').expect(403);
+    await request(server)
+      .post('/api/autenticacion/renovar')
+      .set(headers)
+      .expect(401);
+    await request(server).post('/api/autenticacion/renovar').expect(403);
   });
 });

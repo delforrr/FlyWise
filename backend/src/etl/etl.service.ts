@@ -1,3 +1,7 @@
+import {
+  bloquearCatalogo,
+  recalcularCantidadRutas,
+} from '../prisma/catalog-state.js';
 import { timestampToDate } from '../prisma/timestamp.js';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -5,11 +9,12 @@ import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service.js';
 import * as fs from 'node:fs';
 import csv from 'csv-parser';
-import { pipeline } from 'node:stream/promises';
+import { pipeline as proceso } from 'node:stream/promises';
 import { ETL_DATASETS } from './dto/trigger-etl.dto.js';
 import { createHash } from 'node:crypto';
 import {
   catalogValue,
+  claveRutaFuente,
   normalizeCatalogRow,
   OPENFLIGHTS_COLUMNS,
   type CatalogDataset,
@@ -36,9 +41,9 @@ export class EtlService {
     if (!ETL_DATASETS.includes(dataset)) {
       throw new BadRequestException('Dataset no soportado');
     }
-    const jobRecord = await this.prisma.models.EtlJob.create({
-      source: dataset,
-      status: 'pending',
+    const jobRecord = await this.prisma.models.EjecucionEtl.create({
+      fuente: dataset,
+      estado: 'pending',
     });
 
     try {
@@ -55,20 +60,20 @@ export class EtlService {
       );
       return {
         message: `Job ${dataset} encolado exitosamente`,
-        jobId: jobRecord.id,
+        ejecucionId: jobRecord.id,
         bullJobId: job.id,
       };
     } catch (error) {
-      await this.prisma.models.EtlJob.where({ id: jobRecord.id }).update({
-        status: 'failed',
-        errorMessage: error instanceof Error ? error.message : String(error),
+      await this.prisma.models.EjecucionEtl.where({ id: jobRecord.id }).update({
+        estado: 'failed',
+        mensajeError: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
   }
 
   async getStatus() {
-    const [waiting, active, completed, failed] = await Promise.all([
+    const [waiting, activa, completed, failed] = await Promise.all([
       this.etlQueue.getWaitingCount(),
       this.etlQueue.getActiveCount(),
       this.etlQueue.getCompletedCount(),
@@ -79,7 +84,7 @@ export class EtlService {
       queue: 'etl-queue',
       counts: {
         waiting,
-        active,
+        activa,
         completed,
         failed,
       },
@@ -87,116 +92,132 @@ export class EtlService {
   }
 
   async getHistory() {
-    const jobs = await this.prisma.models.EtlJob.orderBy((job) =>
-      job.startedAt.desc(),
+    const ejecuciones = await this.prisma.models.EjecucionEtl.orderBy((job) =>
+      job.iniciadoEn.desc(),
     )
       .limit(20)
       .all();
-    return jobs.map((job) => {
-      const startedAt = job.startedAt ? timestampToDate(job.startedAt) : null;
-      const finishedAt = job.finishedAt
-        ? timestampToDate(job.finishedAt)
+    return ejecuciones.map((job) => {
+      const iniciadoEn = job.iniciadoEn
+        ? timestampToDate(job.iniciadoEn)
+        : null;
+      const finalizadoEn = job.finalizadoEn
+        ? timestampToDate(job.finalizadoEn)
         : null;
       return {
         ...job,
-        startedAt,
-        finishedAt,
+        iniciadoEn,
+        finalizadoEn,
         durationMs:
-          startedAt && finishedAt
-            ? finishedAt.getTime() - startedAt.getTime()
+          iniciadoEn && finalizadoEn
+            ? finalizadoEn.getTime() - iniciadoEn.getTime()
             : null,
       };
     });
   }
 
-  processCountries(filePath: string, jobId?: string) {
-    return this.importCatalog('countries', filePath, jobId);
+  processCountries(filePath: string, ejecucionId?: string) {
+    return this.importCatalog('paises', filePath, ejecucionId);
   }
-  processAirports(filePath: string, jobId?: string) {
-    return this.importCatalog('airports', filePath, jobId);
+  processAirports(filePath: string, ejecucionId?: string) {
+    return this.importCatalog('aeropuertos', filePath, ejecucionId);
   }
-  processAirlines(filePath: string, jobId?: string) {
-    return this.importCatalog('airlines', filePath, jobId);
+  processAirlines(filePath: string, ejecucionId?: string) {
+    return this.importCatalog('aerolineas', filePath, ejecucionId);
   }
-  processRoutes(filePath: string, jobId?: string) {
-    return this.importCatalog('routes', filePath, jobId);
+  processRoutes(filePath: string, ejecucionId?: string) {
+    return this.importCatalog('rutas', filePath, ejecucionId);
   }
 
   async importCatalog(
     dataset: CatalogDataset,
     filePath: string | null,
-    jobId?: string,
+    ejecucionId?: string,
     configuration?: PipelineConfiguration,
   ) {
-    const source = filePath
+    const fuente = filePath
       ? fs.createReadStream(filePath)
       : await openCsvSource(
-          configuration!.connection,
-          configuration!.scheduleConfig.timeoutSeconds,
+          configuration!.conexion,
+          configuration!.configuracionProgramacion.tiempoLimiteSegundos,
         );
     const checksum = createHash('sha256');
-    const headers = configuration?.connection.csvHasHeader ? undefined : false;
-    const batchSize = configuration?.scheduleConfig.batchSize ?? 2000;
+    const headers = configuration?.conexion.csvConCabecera ? undefined : false;
+    const tamanoLote =
+      configuration?.configuracionProgramacion.tamanoLote ?? 2000;
     let total = 0,
       inserted = 0,
       discarded = 0;
-    let batch: { row: CatalogRecord; rowIndex: number; sample: string }[] = [];
+    let batch: { row: CatalogRecord; numeroFila: number; sample: string }[] =
+      [];
     let samples: {
-      attempt: number;
-      rowIndex: number;
-      field: string | null;
-      reason: string;
-      rawSample: string;
+      intento: number;
+      numeroFila: number;
+      campo: string | null;
+      motivo: string;
+      muestraOriginal: string;
     }[] = [];
     let sampleCount = 0;
     let normalizedCodes = 0;
-    const before = jobId
-      ? await this.prisma.models.EtlJob.where({ id: jobId }).firstOrThrow()
+    let omitidas = 0;
+    const before = ejecucionId
+      ? await this.prisma.models.EjecucionEtl.where({
+          id: ejecucionId,
+        }).firstOrThrow()
       : null;
     const base = {
-      total: before?.totalRows ?? 0,
-      processed: before?.processedRows ?? 0,
-      inserted: before?.insertedRows ?? 0,
-      discarded: before?.discardedRows ?? 0,
+      total: before?.filasTotales ?? 0,
+      processed: before?.filasProcesadas ?? 0,
+      inserted: before?.filasInsertadas ?? 0,
+      discarded: before?.filasDescartadas ?? 0,
     };
     const recordDiscard = (
-      rowIndex: number,
-      reason: string,
+      numeroFila: number,
+      motivo: string,
       sample: string,
     ) => {
       discarded++;
       if (sampleCount < MAX_DISCARDED_SAMPLES_PER_JOB) {
         samples.push({
-          attempt: before?.attempt ?? 0,
-          rowIndex: base.total + rowIndex,
-          field: reason.includes(':') ? reason.split(':')[0] : null,
-          reason,
-          rawSample: sample.slice(0, 4096),
+          intento: before?.intento ?? 0,
+          numeroFila: base.total + numeroFila,
+          campo: motivo.includes(':') ? motivo.split(':')[0] : null,
+          motivo,
+          muestraOriginal: sample.slice(0, 4096),
         });
         sampleCount++;
       }
     };
-    if (jobId) {
-      const count = await this.prisma.models.EtlDiscardedSample.where({
-        jobId,
-        attempt: before?.attempt ?? 0,
+    if (ejecucionId) {
+      const count = await this.prisma.models.MuestraDescartadaEtl.where({
+        ejecucionId,
+        intento: before?.intento ?? 0,
       }).aggregate((a) => ({ count: a.count() }));
       sampleCount = Number(count.count);
     }
     const flush = async () => {
       await this.prisma.db.transaction(async (tx) => {
+        await bloquearCatalogo(tx);
         let rows = batch.map(({ row }) => row);
-        if (dataset === 'routes' && rows.length) {
+        if (dataset === 'rutas' && rows.length) {
           const resolved = await resolveRouteBatch(tx, rows);
           rows = batch.flatMap((entry, index) => {
             const refs = resolved[index];
+            if (refs?.motivo) {
+              recordDiscard(
+                entry.numeroFila,
+                `identidad: ${refs.motivo}`,
+                entry.sample,
+              );
+              return [];
+            }
             if (
-              !refs?.originId ||
-              !refs.destinationId ||
-              refs.originId === refs.destinationId
+              !refs?.origenId ||
+              !refs.destinoId ||
+              refs.origenId === refs.destinoId
             ) {
               recordDiscard(
-                entry.rowIndex,
+                entry.numeroFila,
                 'endpoints: ausentes, ambiguos o iguales',
                 entry.sample,
               );
@@ -205,33 +226,37 @@ export class EtlService {
             return [
               {
                 ...entry.row,
-                originId: refs.originId,
-                destinationId: refs.destinationId,
-                airlineId: refs.airlineId,
+                id: refs.ofertaId,
+                origenId: refs.origenId,
+                destinoId: refs.destinoId,
+                aerolineaId: refs.aerolineaId,
               },
             ];
           });
         }
-        if (rows.length)
-          inserted += await upsertCatalogBatch(tx, dataset, rows);
-        if (jobId) {
+        if (rows.length) {
+          const resultado = await upsertCatalogBatch(tx, dataset, rows);
+          inserted += resultado.insertadas;
+          omitidas += resultado.omitidas;
+        }
+        if (ejecucionId) {
           if (samples.length)
-            await tx.orm.public.EtlDiscardedSample.createAndCount(
-              samples.map((sample) => ({ ...sample, jobId })),
+            await tx.orm.public.MuestraDescartadaEtl.createAndCount(
+              samples.map((sample) => ({ ...sample, ejecucionId })),
             );
-          await tx.orm.public.EtlJob.where({ id: jobId }).update({
-            totalRows: base.total + total,
-            processedRows: base.processed + total - discarded,
-            insertedRows: base.inserted + inserted,
-            discardedRows: base.discarded + discarded,
+          await tx.orm.public.EjecucionEtl.where({ id: ejecucionId }).update({
+            filasTotales: base.total + total,
+            filasProcesadas: base.processed + total - discarded,
+            filasInsertadas: base.inserted + inserted,
+            filasDescartadas: base.discarded + discarded,
           });
         }
       });
       batch = [];
       samples = [];
     };
-    await pipeline(
-      source,
+    await proceso(
+      fuente,
       async function* (chunks: AsyncIterable<Buffer>) {
         for await (const chunk of chunks) {
           checksum.update(chunk);
@@ -240,7 +265,7 @@ export class EtlService {
       },
       csv({
         headers,
-        separator: configuration?.connection.csvDelimiter ?? ',',
+        separator: configuration?.conexion.separadorCsv ?? ',',
         maxRowBytes: 1024 * 1024,
         strict: Boolean(headers === undefined),
       }),
@@ -249,22 +274,22 @@ export class EtlService {
           if (
             total === 0 &&
             configuration &&
-            configuration.schemaMapping.some(
-              (rule) => !Object.hasOwn(raw, rule.sourceColumn),
+            configuration.mapeoEsquema.some(
+              (rule) => !Object.hasOwn(raw, rule.columnaOrigen),
             )
           )
             throw new Error('El mapeo referencia columnas que no existen');
           total++;
           const safe = configuration
-            ? redactSourceRow(raw, configuration.connection)
+            ? redactSourceRow(raw, configuration.conexion)
             : raw;
           const sample = JSON.stringify(safe).slice(0, 4096);
           try {
             let mapped: Record<string, unknown> = {};
             if (configuration) {
-              for (const rule of configuration.schemaMapping) {
+              for (const rule of configuration.mapeoEsquema) {
                 let value: string | number | boolean | null | undefined =
-                  raw[rule.sourceColumn];
+                  raw[rule.columnaOrigen];
                 if (rule.transform === 'uppercase')
                   value = String(value ?? '').toUpperCase();
                 if (rule.transform === 'trim')
@@ -285,52 +310,54 @@ export class EtlService {
                     text !== String.raw`\N` &&
                     !['Y', 'N', 'TRUE', 'FALSE', '1', '0'].includes(text)
                   )
-                    throw new Error(`${rule.targetField}: booleano invalido`);
+                    throw new Error(`${rule.campoDestino}: booleano invalido`);
                   value =
                     !text || text === String.raw`\N`
                       ? null
                       : ['Y', 'TRUE', '1'].includes(text);
                 }
                 if (typeof value === 'number' && !Number.isFinite(value))
-                  throw new Error(`${rule.targetField}: número no finito`);
+                  throw new Error(`${rule.campoDestino}: número no finito`);
                 if (rule.required && catalogValue(value) === null)
-                  throw new Error(`${rule.targetField}: obligatorio`);
-                mapped[rule.targetField] = value;
+                  throw new Error(`${rule.campoDestino}: obligatorio`);
+                mapped[rule.campoDestino] = value;
               }
             } else {
               const columns = OPENFLIGHTS_COLUMNS[dataset];
               if (Object.keys(raw).length !== columns.length)
                 throw new Error('columns: cantidad incorrecta');
               mapped = Object.fromEntries(
-                columns.map((field, index) => [field, raw[String(index)]]),
+                columns.map((campo, index) => [campo, raw[String(index)]]),
               );
             }
             const normalized = normalizeCatalogRow(dataset, mapped);
-            for (const rule of configuration?.schemaMapping ?? []) {
-              if (rule.required && normalized[rule.targetField] === null)
-                throw new Error(`${rule.targetField}: obligatorio o inválido`);
+            if (dataset === 'rutas')
+              normalized.claveImportacion = claveRutaFuente(normalized);
+            for (const rule of configuration?.mapeoEsquema ?? []) {
+              if (rule.required && normalized[rule.campoDestino] === null)
+                throw new Error(`${rule.campoDestino}: obligatorio o inválido`);
             }
-            for (const field of [
+            for (const campo of [
               'iata',
               'icao',
-              'isoCode',
-              'originCode',
-              'destinationCode',
-              'airlineCode',
+              'codigoIso',
+              'codigoOrigen',
+              'codigoDestino',
+              'codigoAerolinea',
             ]) {
-              const original = catalogValue(mapped[field]);
+              const original = catalogValue(mapped[campo]);
               if (
                 original &&
                 !['-', 'N/A'].includes(original.toUpperCase()) &&
-                normalized[field] === null
+                normalized[campo] === null
               ) {
                 normalizedCodes++;
-                normalized[`${field}Invalid`] = true;
+                normalized[`${campo}Invalid`] = true;
               }
             }
             batch.push({
               row: normalized,
-              rowIndex: total,
+              numeroFila: total,
               sample,
             });
           } catch (error) {
@@ -340,25 +367,32 @@ export class EtlService {
               sample,
             );
           }
-          if (total % batchSize === 0) await flush();
+          if (total % tamanoLote === 0) await flush();
         }
-        if (batch.length || samples.length || total % batchSize !== 0)
+        if (batch.length || samples.length || total % tamanoLote !== 0)
           await flush();
       },
     );
-    if (total > discarded && dataset !== 'routes')
+    if (total > discarded && dataset !== 'rutas')
       await linkCatalogCountries(this.prisma.db);
-    if (dataset === 'routes') await this.computeRouteCounts();
-    if (normalizedCodes && jobId)
-      await this.prisma.models.EtlJobEvent.create({
-        jobId,
-        attempt: before?.attempt ?? 0,
-        level: 'warn',
-        message: `${dataset}: ${normalizedCodes} códigos opcionales inválidos normalizados a NULL`,
+    if (dataset === 'rutas') await this.computeRouteCounts();
+    if (omitidas && ejecucionId)
+      await this.prisma.models.EventoEjecucionEtl.create({
+        ejecucionId,
+        intento: before?.intento ?? 0,
+        nivel: 'info',
+        mensaje: `${dataset}: ${omitidas} filas conservadas por archivo o protección manual`,
       });
-    if (jobId && configuration)
-      await this.prisma.models.EtlJob.where({ id: jobId }).update({
-        sourceChecksum: checksum.digest('hex'),
+    if (normalizedCodes && ejecucionId)
+      await this.prisma.models.EventoEjecucionEtl.create({
+        ejecucionId,
+        intento: before?.intento ?? 0,
+        nivel: 'warn',
+        mensaje: `${dataset}: ${normalizedCodes} códigos opcionales inválidos normalizados a NULL`,
+      });
+    if (ejecucionId && configuration)
+      await this.prisma.models.EjecucionEtl.where({ id: ejecucionId }).update({
+        checksumFuente: checksum.digest('hex'),
       });
     this.logger.log(
       `${dataset}: ${total} leidas, ${total - discarded} procesadas, ${inserted} nuevas, ${discarded} descartadas`,
@@ -367,19 +401,9 @@ export class EtlService {
   }
 
   async computeRouteCounts() {
-    await this.prisma.db.execute(
-      this.prisma.db.raw.sql`
-      WITH counts AS (
-        SELECT airport_id, count(*)::int AS count FROM (
-          SELECT origin_id AS airport_id FROM routes UNION ALL SELECT destination_id FROM routes
-        ) endpoints GROUP BY airport_id
-      )
-      UPDATE airports a SET route_count=COALESCE(c.count,0)
-      FROM (SELECT a2.id, counts.count FROM airports a2 LEFT JOIN counts ON counts.airport_id=a2.id) c
-      WHERE a.id=c.id
-    `
-        .affectedCount()
-        .build(),
-    );
+    await this.prisma.db.transaction(async (tx) => {
+      await bloquearCatalogo(tx);
+      await recalcularCantidadRutas(tx);
+    });
   }
 }

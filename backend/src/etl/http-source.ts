@@ -5,8 +5,8 @@ import { get } from 'node:https';
 import type { IncomingMessage } from 'node:http';
 import type { PipelineConnectionConfig } from './interfaces/pipeline-configuration.js';
 
-function envList(name: string, fallback = ''): string[] {
-  return (process.env[name] ?? fallback)
+function envList(nombre: string, fallback = ''): string[] {
+  return (process.env[nombre] ?? fallback)
     .split(',')
     .map((entry) => entry.trim())
     .filter(Boolean);
@@ -41,24 +41,24 @@ export function validateSourceUrl(input: string): URL {
 }
 
 export function sourceHeaders(
-  connection: PipelineConnectionConfig,
+  conexion: PipelineConnectionConfig,
 ): Record<string, string> {
   const headers: Record<string, string> = {};
   const allowed = envList('ETL_ALLOWED_CREDENTIAL_REFS');
-  for (const header of connection.headers ?? []) {
+  for (const header of conexion.headers ?? []) {
     if (
       !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(header.key) ||
       /^(host|connection|content-length|transfer-encoding|proxy-.*|cookie)$/i.test(
         header.key,
       ) ||
-      !allowed.includes(header.credentialRef) ||
-      !process.env[header.credentialRef]
+      !allowed.includes(header.referenciaCredencial) ||
+      !process.env[header.referenciaCredencial]
     ) {
       throw new BadRequestException(
         'Header o referencia de credencial no autorizados',
       );
     }
-    const value = process.env[header.credentialRef]!;
+    const value = process.env[header.referenciaCredencial]!;
     if (/[\r\n]/.test(value))
       throw new BadRequestException('Credencial inválida');
     headers[header.key] = value;
@@ -84,12 +84,12 @@ function publicAddress(address: string): boolean {
 
 // Pin the validated IPv4 address so a second DNS lookup cannot bypass SSRF checks.
 export async function openCsvSource(
-  connection: PipelineConnectionConfig,
-  timeoutSeconds = 300,
+  conexion: PipelineConnectionConfig,
+  tiempoLimiteSegundos = 300,
 ): Promise<IncomingMessage> {
-  const url = validateSourceUrl(connection.endpointUrl);
-  const headers = sourceHeaders(connection);
-  const signal = AbortSignal.timeout(timeoutSeconds * 1000);
+  const url = validateSourceUrl(conexion.urlEndpoint);
+  const headers = sourceHeaders(conexion);
+  const signal = AbortSignal.timeout(tiempoLimiteSegundos * 1000);
   let records: Awaited<ReturnType<typeof lookup>>[];
   try {
     records = await Promise.race([
@@ -160,10 +160,10 @@ export async function openCsvSource(
 
 export function redactSourceRow(
   row: Record<string, string>,
-  connection: PipelineConnectionConfig,
+  conexion: PipelineConnectionConfig,
 ): Record<string, string> {
-  const secrets = (connection.headers ?? [])
-    .map(({ credentialRef }) => process.env[credentialRef])
+  const secrets = (conexion.headers ?? [])
+    .map(({ referenciaCredencial }) => process.env[referenciaCredencial])
     .filter((value): value is string => Boolean(value));
   return Object.fromEntries(
     Object.entries(row).map(([key, value]) => [

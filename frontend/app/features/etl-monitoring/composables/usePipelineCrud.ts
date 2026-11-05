@@ -5,7 +5,7 @@ export interface PipelineValidationResult {
   errors: Record<string, string>;
 }
 
-export function validatePipeline(data: Partial<EtlPipeline>): PipelineValidationResult {
+export function validatePipeline(data: Partial<ProcesoEtl>): PipelineValidationResult {
   const result = pipelineSchema.safeParse(data);
   if (result.success) {
     return {
@@ -30,14 +30,14 @@ export function validatePipeline(data: Partial<EtlPipeline>): PipelineValidation
 
 
 import { useEtlData } from './useEtlData';
-import type { EtlPipeline, PipelineConnectionConfig, ProbeEndpointResult, TargetEntity } from '../types/etl';
+import type { ProcesoEtl, PipelineConnectionConfig, ProbeEndpointResult, TargetEntity } from '../types/etl';
 
-function pipelinePayload(data: Partial<EtlPipeline>) {
-  const { name, datasetName, description, targetEntity, connection, schemaMapping, scheduleConfig, paused } = data;
-  return { name, datasetName, description, targetEntity, connection, schemaMapping, scheduleConfig: scheduleConfig && {
-    cronExpression: scheduleConfig.cronExpression, batchSize: scheduleConfig.batchSize,
-    timeoutSeconds: scheduleConfig.timeoutSeconds, maxRetries: scheduleConfig.maxRetries,
-  }, ...(paused === undefined ? {} : { paused }) };
+function pipelinePayload(data: Partial<ProcesoEtl>) {
+  const { nombre, nombreConjunto, descripcion, entidadDestino, conexion, mapeoEsquema, configuracionProgramacion, pausado } = data;
+  return { nombre, nombreConjunto, descripcion, entidadDestino, conexion, mapeoEsquema, configuracionProgramacion: configuracionProgramacion && {
+    expresionCron: configuracionProgramacion.expresionCron, tamanoLote: configuracionProgramacion.tamanoLote,
+    tiempoLimiteSegundos: configuracionProgramacion.tiempoLimiteSegundos, maximoReintentos: configuracionProgramacion.maximoReintentos,
+  }, ...(pausado === undefined ? {} : { pausado }) };
 }
 export function usePipelineCrud() {
   const { pipelines, refresh, request } = useEtlData();
@@ -47,43 +47,43 @@ export function usePipelineCrud() {
   const selectedSourceTypeFilter = ref<'all' | 'system' | 'custom'>('all');
   const searchQuery = ref('');
   const filteredServices = computed(() => pipelines.value.filter(p =>
-    (selectedEntityFilter.value === 'all' || p.targetEntity === selectedEntityFilter.value) &&
-    (selectedSourceTypeFilter.value === 'all' || Boolean(p.isSystem) === (selectedSourceTypeFilter.value === 'system')) &&
-    `${p.name} ${p.datasetName} ${p.description} ${p.connection?.endpointUrl ?? ''}`.toLowerCase().includes(searchQuery.value.trim().toLowerCase())
+    (selectedEntityFilter.value === 'all' || p.entidadDestino === selectedEntityFilter.value) &&
+    (selectedSourceTypeFilter.value === 'all' || Boolean(p.esSistema) === (selectedSourceTypeFilter.value === 'system')) &&
+    `${p.nombre} ${p.nombreConjunto} ${p.descripcion} ${p.conexion?.urlEndpoint ?? ''}`.toLowerCase().includes(searchQuery.value.trim().toLowerCase())
   ));
   const serviceStats = computed(() => ({
-    total: pipelines.value.length, systemCount: pipelines.value.filter(p => p.isSystem).length,
-    customCount: pipelines.value.filter(p => !p.isSystem).length,
-    activeCount: pipelines.value.filter(p => p.status !== 'paused').length,
-    errorCount: pipelines.value.filter(p => p.status === 'error').length,
+    total: pipelines.value.length, systemCount: pipelines.value.filter(p => p.esSistema).length,
+    customCount: pipelines.value.filter(p => !p.esSistema).length,
+    activeCount: pipelines.value.filter(p => p.estado !== 'pausado').length,
+    errorCount: pipelines.value.filter(p => p.estado === 'error').length,
   }));
-  async function testEndpoint(connection: PipelineConnectionConfig) {
+  async function testEndpoint(conexion: PipelineConnectionConfig) {
     isTestingEndpoint.value = true;
-    try { return lastProbeResult.value = await request<ProbeEndpointResult>('/etl/pipelines/probe', { method: 'POST', body: connection }); }
+    try { return lastProbeResult.value = await request<ProbeEndpointResult>('/etl/procesos/probar', { method: 'POST', body: conexion }); }
     finally { isTestingEndpoint.value = false; }
   }
-  async function createPipeline(data: Partial<EtlPipeline>) {
+  async function createPipeline(data: Partial<ProcesoEtl>) {
     const validation = validatePipeline(data);
     if (!validation.isValid) throw new Error(Object.values(validation.errors)[0]);
-    const created = await request<EtlPipeline>('/etl/pipelines', { method: 'POST', body: pipelinePayload(data) });
+    const created = await request<ProcesoEtl>('/etl/procesos', { method: 'POST', body: pipelinePayload(data) });
     await refresh(); return created;
   }
-  async function updatePipeline(id: string, patch: Partial<EtlPipeline>) {
+  async function updatePipeline(id: string, patch: Partial<ProcesoEtl>) {
     const current = pipelines.value.find(p => p.id === id);
     if (!current) return false;
-    await request(`/etl/pipelines/${id}`, { method: 'PATCH', body: pipelinePayload({ ...current, ...patch }) });
+    await request(`/etl/procesos/${id}`, { method: 'PATCH', body: pipelinePayload({ ...current, ...patch }) });
     await refresh(); return true;
   }
   async function deletePipeline(id: string) {
-    await request(`/etl/pipelines/${id}`, { method: 'DELETE' }); await refresh(); return true;
+    await request(`/etl/procesos/${id}`, { method: 'DELETE' }); await refresh(); return true;
   }
   async function duplicatePipeline(id: string) {
-    const source = pipelines.value.find(p => p.id === id);
-    return source ? createPipeline({ ...source, name: `${source.name} (Copia)` }) : null;
+    const fuente = pipelines.value.find(p => p.id === id);
+    return fuente ? createPipeline({ ...fuente, nombre: `${fuente.nombre} (Copia)` }) : null;
   }
   async function togglePipelineStatus(id: string) {
-    const source = pipelines.value.find(p => p.id === id);
-    if (source) await updatePipeline(id, { paused: !source.paused });
+    const fuente = pipelines.value.find(p => p.id === id);
+    if (fuente) await updatePipeline(id, { pausado: !fuente.pausado });
   }
   return { pipelines, filteredServices, serviceStats, selectedEntityFilter, selectedSourceTypeFilter, searchQuery,
     validatePipeline, isTestingEndpoint, lastProbeResult, testEndpoint, createPipeline, updatePipeline, deletePipeline, duplicatePipeline, togglePipelineStatus };

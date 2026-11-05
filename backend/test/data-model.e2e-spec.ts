@@ -1,3 +1,4 @@
+import { crearOfertaFixture } from './helpers/oferta-fixture.js';
 import { AirlinesService } from '../src/airlines/airlines.service.js';
 import { UsersService } from '../src/users/users.service.js';
 import 'dotenv/config';
@@ -9,21 +10,21 @@ import { Test } from '@nestjs/testing';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { RoutesService } from '../src/routes/routes.service.js';
 const configuration: PipelineConfiguration = {
-  connection: {
-    sourceType: 'http_stream',
-    endpointUrl: 'https://example.test/flights.csv',
-    httpMethod: 'GET',
-    dataFormat: 'csv',
-    headers: [{ key: 'Authorization', credentialRef: 'BTS_API_TOKEN' }],
+  conexion: {
+    tipoFuente: 'http_stream',
+    urlEndpoint: 'https://example.test/vuelos.csv',
+    metodoHttp: 'GET',
+    formatoDatos: 'csv',
+    headers: [{ key: 'Authorization', referenciaCredencial: 'BTS_API_TOKEN' }],
   },
-  schemaMapping: [
-    { sourceColumn: 'ORIGIN', targetField: 'originId', required: true },
+  mapeoEsquema: [
+    { columnaOrigen: 'ORIGIN', campoDestino: 'origenId', required: true },
   ],
-  scheduleConfig: {
-    cronExpression: '',
-    batchSize: 2000,
-    timeoutSeconds: 60,
-    maxRetries: 3,
+  configuracionProgramacion: {
+    expresionCron: '',
+    tamanoLote: 2000,
+    tiempoLimiteSegundos: 60,
+    maximoReintentos: 3,
   },
 };
 describe('Data model (PostgreSQL integration)', () => {
@@ -69,25 +70,25 @@ describe('Data model (PostgreSQL integration)', () => {
   afterAll(async () => {
     await prisma.close();
   });
-  it('queries route codes through airports and computes uncached distances in PostGIS', async () => {
+  it('queries route codes through aeropuertos and computes uncached distances in PostGIS', async () => {
     await isolated(async (tx) => {
-      const origin = await tx.orm.public.Airport.create({
-        name: 'EZE fixture',
-        countryName: 'Argentina',
-        iata: 'EZE',
-        latitude: -34.8222,
-        longitude: -58.5358,
+      const origen = await tx.orm.public.Aeropuerto.create({
+        nombre: 'EZE fixture',
+        nombrePais: 'Argentina',
+        iata: 'QZA',
+        latitud: -34.8222,
+        longitud: -58.5358,
       });
-      const destination = await tx.orm.public.Airport.create({
-        name: 'MIA fixture',
-        countryName: 'United States',
-        iata: 'MIA',
-        latitude: 25.7959,
-        longitude: -80.2906,
+      const destino = await tx.orm.public.Aeropuerto.create({
+        nombre: 'MIA fixture',
+        nombrePais: 'United States',
+        iata: 'QZB',
+        latitud: 25.7959,
+        longitud: -80.2906,
       });
-      await tx.orm.public.Route.create({
-        originId: origin.id,
-        destinationId: destination.id,
+      await crearOfertaFixture(tx, {
+        origenId: origen.id,
+        destinoId: destino.id,
       });
       const module = await Test.createTestingModule({
         providers: [
@@ -101,147 +102,153 @@ describe('Data model (PostgreSQL integration)', () => {
       try {
         const route = await module
           .get(RoutesService)
-          .findDirect({ origin: 'eze', destination: 'mia' });
-        expect(route.origin.iata).toBe('EZE');
-        expect(route.distanceKm).toBeGreaterThan(7000);
-        expect(route.distanceKm).toBeLessThan(7200);
-        expect(route.distanceNm).toBeCloseTo(route.distanceKm / 1.852, 0);
+          .findDirect({ origen: 'qza', destino: 'qzb' });
+        expect(route.origen.iata).toBe('QZA');
+        expect(route.distanciaKm).toBeGreaterThan(7000);
+        expect(route.distanciaKm).toBeLessThan(7200);
+        expect(route.distanciaNm).toBeCloseTo(route.distanciaKm / 1.852, 0);
       } finally {
         await module.close();
       }
     });
   });
-  it('links only unique normalized country names and preserves explicit links and labels', async () => {
+  it('links only unique normalized pais names and preserves explicit links and labels', async () => {
     await isolated(async (tx) => {
       const prefix = randomUUID();
-      const country = await tx.orm.public.Country.create({
-        name: `${prefix} Unique`,
+      const pais = await tx.orm.public.Pais.create({
+        nombre: `${prefix} Unique`,
       });
-      await tx.orm.public.Country.createAndCount([
-        { name: `${prefix} Ambiguous` },
-        { name: ` ${prefix} AMBIGUOUS ` },
+      await tx.orm.public.Pais.createAndCount([
+        { nombre: `${prefix} Ambiguous` },
+        { nombre: ` ${prefix} AMBIGUOUS ` },
       ]);
-      const airports = await Promise.all(
+      const aeropuertos = await Promise.all(
         [`${prefix} UNIQUE `, `${prefix} ambiguous`, `${prefix} unknown`].map(
-          (countryName) =>
-            tx.orm.public.Airport.create({
-              name: 'Test airport',
-              countryName,
-              latitude: 0,
-              longitude: 0,
+          (nombrePais) =>
+            tx.orm.public.Aeropuerto.create({
+              nombre: 'Test airport',
+              nombrePais,
+              latitud: 0,
+              longitud: 0,
             }),
         ),
       );
-      const airline = await tx.orm.public.Airline.create({
-        name: prefix,
-        country: ` ${prefix} unique`,
+      const aerolinea = await tx.orm.public.Aerolinea.create({
+        nombre: prefix,
+        pais: ` ${prefix} unique`,
       });
       await linkCatalogCountries(tx);
-      const linked = await tx.orm.public.Airport.where((row) =>
-        row.id.in(airports.map((a) => a.id)),
+      const linked = await tx.orm.public.Aeropuerto.where((row) =>
+        row.id.in(aeropuertos.map((a) => a.id)),
       ).all();
-      expect(linked.find((a) => a.id === airports[0].id)?.countryId).toBe(
-        country.id,
+      expect(linked.find((a) => a.id === aeropuertos[0].id)?.paisId).toBe(
+        pais.id,
       );
-      expect(linked.filter((a) => a.countryId === null)).toHaveLength(2);
+      expect(linked.filter((a) => a.paisId === null)).toHaveLength(2);
       expect(
-        (await tx.orm.public.Airline.firstOrThrow({ id: airline.id }))
-          .countryId,
-      ).toBe(country.id);
-      await tx.orm.public.Airport.where({ id: airports[2].id }).update({
-        countryId: country.id,
+        (await tx.orm.public.Aerolinea.firstOrThrow({ id: aerolinea.id }))
+          .paisId,
+      ).toBe(pais.id);
+      await tx.orm.public.Aeropuerto.where({ id: aeropuertos[2].id }).update({
+        paisId: pais.id,
       });
       await linkCatalogCountries(tx);
       expect(
-        (await tx.orm.public.Airport.firstOrThrow({ id: airports[2].id }))
-          .countryName,
+        (await tx.orm.public.Aeropuerto.firstOrThrow({ id: aeropuertos[2].id }))
+          .nombrePais,
       ).toBe(`${prefix} unknown`);
       expect(
-        (await tx.orm.public.Airport.firstOrThrow({ id: airports[2].id }))
-          .countryId,
-      ).toBe(country.id);
+        (await tx.orm.public.Aeropuerto.firstOrThrow({ id: aeropuertos[2].id }))
+          .paisId,
+      ).toBe(pais.id);
       await rejected(
         tx,
-        () => tx.orm.public.Country.where({ id: country.id }).delete(),
+        () => tx.orm.public.Pais.where({ id: pais.id }).delete(),
         /foreign key/i,
       );
     });
   });
-  it('archives pipelines without losing execution configuration, samples or events', async () => {
+  it('archives pipelines without losing execution configuration, samples or eventos', async () => {
     await isolated(async (tx) => {
-      const user = await tx.orm.public.User.create({
-        email: `${randomUUID()}@example.test`,
-        passwordHash: 'fixture',
+      const user = await tx.orm.public.Usuario.create({
+        correo: `${randomUUID()}@example.test`,
+        hashContrasena: 'fixture',
       });
-      expect(user.role).toBe('OPERATOR');
-      const pipeline = await tx.orm.public.EtlPipeline.create({
-        name: 'BTS',
-        datasetName: 'Flights',
-        targetEntity: 'otp_metrics',
+      expect(user.rol).toBe('OPERATOR');
+      const proceso = await tx.orm.public.ProcesoEtl.create({
+        nombre: 'BTS',
+        nombreConjunto: 'Flights',
+        entidadDestino: 'otp_metrics',
         ...configuration,
       });
-      const job = await tx.orm.public.EtlJob.create({
-        source: 'bts-transtats',
-        status: 'pending',
-        pipelineId: pipeline.id,
-        requestedById: user.id,
-        configurationSnapshot: configuration,
-        sourceUri: 's3://flywise/flights.csv',
-        sourceChecksum: 'a'.repeat(64),
+      const job = await tx.orm.public.EjecucionEtl.create({
+        fuente: 'bts-transtats',
+        estado: 'pending',
+        procesoId: proceso.id,
+        solicitanteId: user.id,
+        instantaneaConfiguracion: configuration,
+        uriFuente: 's3://flywise/vuelos.csv',
+        checksumFuente: 'a'.repeat(64),
       });
-      await tx.orm.public.EtlDiscardedSample.create({
-        jobId: job.id,
-        rowIndex: 2,
-        field: 'originId',
-        reason: 'Unknown airport',
-        rawSample: 'UNKNOWN',
+      await tx.orm.public.MuestraDescartadaEtl.create({
+        ejecucionId: job.id,
+        numeroFila: 2,
+        campo: 'origenId',
+        motivo: 'Unknown airport',
+        muestraOriginal: 'UNKNOWN',
       });
-      await tx.orm.public.EtlJobEvent.create({
-        jobId: job.id,
-        level: 'warn',
-        message: 'Discarded row 2',
+      await tx.orm.public.EventoEjecucionEtl.create({
+        ejecucionId: job.id,
+        nivel: 'warn',
+        mensaje: 'Discarded row 2',
       });
-      await tx.orm.public.EtlPipeline.where({ id: pipeline.id }).update({
-        archivedAt: new Date().toISOString().replace('T', ' ').replace('Z', ''),
-        schemaMapping: [],
+      await tx.orm.public.ProcesoEtl.where({ id: proceso.id }).update({
+        archivadoEn: new Date()
+          .toISOString()
+          .replace('T', ' ')
+          .replace('Z', ''),
+        mapeoEsquema: [],
       });
-      const saved = await tx.orm.public.EtlJob.include('discardedSamples')
-        .include('events')
+      const saved = await tx.orm.public.EjecucionEtl.include(
+        'muestrasDescartadas',
+      )
+        .include('eventos')
         .firstOrThrow({ id: job.id });
-      expect(saved.configurationSnapshot).toEqual(configuration);
-      expect(saved.discardedSamples).toHaveLength(1);
-      expect(saved.events).toHaveLength(1);
+      expect(saved.instantaneaConfiguracion).toEqual(configuration);
+      expect(saved.muestrasDescartadas).toHaveLength(1);
+      expect(saved.eventos).toHaveLength(1);
       await rejected(
         tx,
-        () => tx.orm.public.EtlPipeline.where({ id: pipeline.id }).delete(),
+        () => tx.orm.public.ProcesoEtl.where({ id: proceso.id }).delete(),
         /foreign key/i,
       );
       await rejected(
         tx,
-        () => tx.orm.public.EtlJob.where({ id: job.id }).delete(),
+        () => tx.orm.public.EjecucionEtl.where({ id: job.id }).delete(),
         /foreign key/i,
       );
-      await tx.orm.public.User.where({ id: user.id }).delete();
+      await tx.orm.public.Usuario.where({ id: user.id }).delete();
       expect(
-        (await tx.orm.public.EtlJob.firstOrThrow({ id: job.id })).requestedById,
+        (await tx.orm.public.EjecucionEtl.firstOrThrow({ id: job.id }))
+          .solicitanteId,
       ).toBeNull();
     });
   });
-  it('rejects unsafe connection storage, invalid scheduling and missing snapshots', async () => {
+  it('rejects unsafe conexion storage, invalid scheduling and missing snapshots', async () => {
     await isolated(async (tx) => {
       const data = {
-        name: 'Pipeline',
-        datasetName: 'Flights',
-        targetEntity: 'otp_metrics' as const,
+        nombre: 'Pipeline',
+        nombreConjunto: 'Flights',
+        entidadDestino: 'otp_metrics' as const,
         ...configuration,
       };
       await rejected(
         tx,
         () =>
-          tx.orm.public.EtlPipeline.create({
+          tx.orm.public.ProcesoEtl.create({
             ...data,
-            connection: {
-              ...configuration.connection,
+            conexion: {
+              ...configuration.conexion,
               headers: [{ key: 'Authorization', value: 'secret' }],
             },
           }),
@@ -250,11 +257,11 @@ describe('Data model (PostgreSQL integration)', () => {
       await rejected(
         tx,
         () =>
-          tx.orm.public.EtlPipeline.create({
+          tx.orm.public.ProcesoEtl.create({
             ...data,
-            connection: {
-              ...configuration.connection,
-              endpointUrl: 'https://user:password@example.test/file',
+            conexion: {
+              ...configuration.conexion,
+              urlEndpoint: 'https://user:password@example.test/file',
             },
           }),
         /etl_pipelines_connection_check/,
@@ -262,11 +269,11 @@ describe('Data model (PostgreSQL integration)', () => {
       await rejected(
         tx,
         () =>
-          tx.orm.public.EtlPipeline.create({
+          tx.orm.public.ProcesoEtl.create({
             ...data,
-            scheduleConfig: {
-              ...configuration.scheduleConfig,
-              batchSize: 999,
+            configuracionProgramacion: {
+              ...configuration.configuracionProgramacion,
+              tamanoLote: 999,
             },
           }),
         /etl_pipelines_schedule_check/,
@@ -274,95 +281,98 @@ describe('Data model (PostgreSQL integration)', () => {
       await rejected(
         tx,
         () =>
-          tx.orm.public.EtlPipeline.create({
+          tx.orm.public.ProcesoEtl.create({
             ...data,
-            scheduleConfig: {
-              ...configuration.scheduleConfig,
-              maxRetries: -1,
+            configuracionProgramacion: {
+              ...configuration.configuracionProgramacion,
+              maximoReintentos: -1,
             },
           }),
         /etl_pipelines_schedule_check/,
       );
-      const pipeline = await tx.orm.public.EtlPipeline.create(data);
+      const proceso = await tx.orm.public.ProcesoEtl.create(data);
       await rejected(
         tx,
         () =>
-          tx.orm.public.EtlJob.create({
-            source: 'BTS',
-            status: 'pending',
-            pipelineId: pipeline.id,
+          tx.orm.public.EjecucionEtl.create({
+            fuente: 'BTS',
+            estado: 'pending',
+            procesoId: proceso.id,
           }),
         /etl_jobs_snapshot_check/,
       );
       await rejected(
         tx,
         () =>
-          tx.orm.public.EtlJob.create({
-            source: 'BTS',
-            status: 'pending',
-            configurationSnapshot: { password: 'secret' },
+          tx.orm.public.EjecucionEtl.create({
+            fuente: 'BTS',
+            estado: 'pending',
+            instantaneaConfiguracion: { password: 'secret' },
           }),
         /etl_jobs_snapshot_check/,
       );
     });
   });
-  it('bounds discarded samples and accepts legacy jobs without inferred provenance', async () => {
+  it('bounds discarded samples and accepts legacy ejecuciones without inferred provenance', async () => {
     await isolated(async (tx) => {
-      const job = await tx.orm.public.EtlJob.create({
-        source: 'all',
-        status: 'pending',
+      const job = await tx.orm.public.EjecucionEtl.create({
+        fuente: 'all',
+        estado: 'pending',
       });
-      expect(job.pipelineId).toBeNull();
-      expect(job.configurationSnapshot).toBeNull();
+      expect(job.procesoId).toBeNull();
+      expect(job.instantaneaConfiguracion).toBeNull();
       const sample = {
-        jobId: job.id,
-        rowIndex: 1,
-        reason: 'Invalid row',
-        rawSample: 'x',
+        ejecucionId: job.id,
+        numeroFila: 1,
+        motivo: 'Invalid row',
+        muestraOriginal: 'x',
       };
       await rejected(
         tx,
         () =>
-          tx.orm.public.EtlDiscardedSample.create({ ...sample, rowIndex: 0 }),
+          tx.orm.public.MuestraDescartadaEtl.create({
+            ...sample,
+            numeroFila: 0,
+          }),
         /etl_discarded_samples_row_check/,
       );
       await rejected(
         tx,
         () =>
-          tx.orm.public.EtlDiscardedSample.create({
+          tx.orm.public.MuestraDescartadaEtl.create({
             ...sample,
-            rawSample: 'x'.repeat(4097),
+            muestraOriginal: 'x'.repeat(4097),
           }),
         /too long|length/i,
       );
       await rejected(
         tx,
         () =>
-          tx.orm.public.EtlJob.create({
-            source: 'BTS',
-            status: 'pending',
-            sourceChecksum: 'invalid',
+          tx.orm.public.EjecucionEtl.create({
+            fuente: 'BTS',
+            estado: 'pending',
+            checksumFuente: 'invalid',
           }),
         /etl_jobs_checksum_check/,
       );
     });
   });
-  it('keeps WGS 84 locations synchronized and rejects invalid coordinates', async () => {
+  it('keeps WGS 84 locations synchronized and rejects invalid coordenadas', async () => {
     await isolated(async (tx) => {
-      const airport = await tx.orm.public.Airport.create({
-        name: 'EZE',
-        countryName: 'Argentina',
-        latitude: -34.8222,
-        longitude: -58.5358,
+      const airport = await tx.orm.public.Aeropuerto.create({
+        nombre: 'EZE',
+        nombrePais: 'Argentina',
+        latitud: -34.8222,
+        longitud: -58.5358,
       });
-      await tx.orm.public.Airport.where({ id: airport.id }).update({
-        longitude: -58,
+      await tx.orm.public.Aeropuerto.where({ id: airport.id }).update({
+        longitud: -58,
       });
-      const [location] = await tx.query(
+      const [ubicacion] = await tx.query(
         tx.raw.sql`
-        SELECT ST_SRID(location::geometry) AS srid, ST_X(location::geometry) AS lng,
-          ST_DWithin(location, ST_SetSRID(ST_MakePoint(-58, -34.8222), 4326)::geography, 1) AS nearby
-        FROM airports WHERE id = ${airport.id}
+        SELECT ST_SRID(ubicacion::geometry) AS srid, ST_X(ubicacion::geometry) AS lng,
+          ST_DWithin(ubicacion, ST_SetSRID(ST_MakePoint(-58, -34.8222), 4326)::geography, 1) AS nearby
+        FROM aeropuertos WHERE id = ${airport.id}
       `
           .returnsRow({
             srid: 'pg/float8@1',
@@ -371,96 +381,119 @@ describe('Data model (PostgreSQL integration)', () => {
           })
           .build(),
       );
-      expect(location).toEqual({ srid: 4326, lng: -58, nearby: true });
+      expect(ubicacion).toEqual({ srid: 4326, lng: -58, nearby: true });
       await rejected(
         tx,
         () =>
-          tx.orm.public.Airport.where({ id: airport.id }).update({
-            latitude: 91,
+          tx.orm.public.Aeropuerto.where({ id: airport.id }).update({
+            latitud: 91,
           }),
         /valid_airport_coordinates/,
       );
     });
   });
-  it('preserves flight history, source identity and monthly aggregation semantics', async () => {
+  it('preserves flight history, fuente identity and monthly aggregation semantics', async () => {
     await isolated(async (tx) => {
-      const origin = await tx.orm.public.Airport.create({
-        name: 'Origin',
-        countryName: 'Test',
-        latitude: 0,
-        longitude: 0,
+      const origen = await tx.orm.public.Aeropuerto.create({
+        nombre: 'Origin',
+        nombrePais: 'Test',
+        latitud: 0,
+        longitud: 0,
       });
-      const destination = await tx.orm.public.Airport.create({
-        name: 'Destination',
-        countryName: 'Test',
-        latitude: 1,
-        longitude: 1,
+      const destino = await tx.orm.public.Aeropuerto.create({
+        nombre: 'Destination',
+        nombrePais: 'Test',
+        latitud: 1,
+        longitud: 1,
       });
-      const airline = await tx.orm.public.Airline.create({ name: 'Operator' });
+      const aerolinea = await tx.orm.public.Aerolinea.create({
+        nombre: 'Operator',
+      });
+      const ejecucion = await tx.orm.public.EjecucionEtl.create({
+        fuente: 'test',
+        estado: 'running',
+      });
       const tuple = {
-        originId: origin.id,
-        destinationId: destination.id,
-        airlineId: airline.id,
+        origenId: origen.id,
+        destinoId: destino.id,
+        aerolineaId: aerolinea.id,
       };
       const flight = {
         ...tuple,
-        source: 'test',
-        flightDate: '2026-09-01',
-        flightNumber: '001',
+        ejecucionEtlId: ejecucion.id,
+        fuente: 'test',
+        fechaVuelo: '2026-09-01',
+        numeroVuelo: '001',
       };
-      await tx.orm.public.Flight.createAndCount([
+      await tx.orm.public.Vuelo.createAndCount([
         {
           ...flight,
-          sourceRecordId: 'early',
-          status: 'ARRIVED',
-          arrivalDelayMinutes: -10,
+          idRegistroFuente: 'early',
+          estado: 'ARRIVED',
+          demoraLlegadaMinutos: -10,
         },
         {
           ...flight,
-          sourceRecordId: 'boundary',
-          status: 'ARRIVED',
-          arrivalDelayMinutes: 15,
+          idRegistroFuente: 'boundary',
+          estado: 'ARRIVED',
+          demoraLlegadaMinutos: 15,
         },
         {
           ...flight,
-          sourceRecordId: 'late',
-          status: 'ARRIVED',
-          arrivalDelayMinutes: 16,
+          idRegistroFuente: 'late',
+          estado: 'ARRIVED',
+          demoraLlegadaMinutos: 16,
         },
-        { ...flight, sourceRecordId: 'cancelled', status: 'CANCELLED' },
-        { ...flight, sourceRecordId: 'diverted', status: 'DIVERTED' },
+        { ...flight, idRegistroFuente: 'cancelled', estado: 'CANCELLED' },
+        { ...flight, idRegistroFuente: 'diverted', estado: 'DIVERTED' },
       ]);
       await rejected(
         tx,
         () =>
-          tx.orm.public.Flight.create({
+          tx.orm.public.Vuelo.create({
             ...flight,
-            sourceRecordId: 'early',
-            status: 'ARRIVED',
-            arrivalDelayMinutes: 0,
+            idRegistroFuente: 'early',
+            estado: 'ARRIVED',
+            demoraLlegadaMinutos: 0,
           }),
         /unique constraint/i,
       );
       await rejected(
         tx,
-        () => tx.orm.public.Airport.where({ id: origin.id }).delete(),
+        () => tx.orm.public.Aeropuerto.where({ id: origen.id }).delete(),
         /foreign key/i,
       );
       await rejected(
         tx,
         () =>
-          tx.orm.public.Flight.create({
+          tx.orm.public.Vuelo.create({
             ...flight,
-            sourceRecordId: 'unknown',
-            status: 'ARRIVED',
+            idRegistroFuente: 'unknown',
+            estado: 'ARRIVED',
           }),
         /flights_arrival_delay_check/,
       );
+      await rejected(
+        tx,
+        () => tx.orm.public.EjecucionEtl.where({ id: ejecucion.id }).delete(),
+        /foreign key/i,
+      );
+      await rejected(
+        tx,
+        () =>
+          tx.execute(
+            tx.raw
+              .sql`UPDATE vuelos SET ejecucion_etl_id=NULL WHERE origen_id=${origen.id}`
+              .affectedCount()
+              .build(),
+          ),
+        /not-null|null value/i,
+      );
       const [result] = await tx.query(
         tx.raw.sql`
-        SELECT (100.0 * count(*) FILTER (WHERE status = 'ARRIVED' AND arrival_delay_minutes <= 15)
-          / NULLIF(count(*) FILTER (WHERE status <> 'CANCELLED'), 0))::float8 AS otp,
-          avg(arrival_delay_minutes)::float8 AS mean FROM flights WHERE origin_id = ${origin.id}
+        SELECT (100.0 * count(*) FILTER (WHERE estado = 'ARRIVED' AND demora_llegada_minutos <= 15)
+          / NULLIF(count(*) FILTER (WHERE estado <> 'CANCELLED'), 0))::float8 AS otp,
+          avg(demora_llegada_minutos)::float8 AS mean FROM vuelos WHERE origen_id = ${origen.id}
       `
           .returnsRow({
             otp: 'pg/float8@1',
@@ -470,53 +503,68 @@ describe('Data model (PostgreSQL integration)', () => {
       );
       expect(result.otp).toBe(50);
       expect(result.mean).toBe(7);
-      const metric = await tx.orm.public.RouteMetric.create({
+      const metric = await tx.orm.public.MetricaRuta.create({
+        ejecucionEtlId: ejecucion.id,
         ...tuple,
-        period: '2026-09-01',
-        totalFlights: 5,
-        cancelledFlights: 1,
-        divertedFlights: 1,
-        onTimeFlights: 2,
-        totalArrivalDelayMinutes: 21n,
+        periodo: '2026-09-01',
+        vuelosTotales: 5,
+        vuelosCancelados: 1,
+        vuelosDesviados: 1,
+        vuelosPuntuales: 2,
+        demoraLlegadaTotalMinutos: 21n,
       });
       await rejected(
         tx,
         () =>
-          tx.orm.public.RouteMetric.create({
+          tx.orm.public.MetricaRuta.create({
+            ejecucionEtlId: ejecucion.id,
             ...tuple,
-            period: metric.period,
-            totalFlights: 1,
+            periodo: metric.periodo,
+            vuelosTotales: 1,
           }),
         /unique constraint/i,
       );
       await rejected(
         tx,
         () =>
-          tx.orm.public.RouteMetric.where({
+          tx.orm.public.MetricaRuta.where({
             ...tuple,
-            period: metric.period,
-          }).update({ period: '2026-09-02' }),
+            periodo: metric.periodo,
+          }).update({ periodo: '2026-09-02' }),
         /route_metrics_period_check/,
       );
       await rejected(
         tx,
         () =>
-          tx.orm.public.RouteMetric.where({
+          tx.orm.public.MetricaRuta.where({
             ...tuple,
-            period: metric.period,
-          }).update({ onTimeFlights: 4 }),
+            periodo: metric.periodo,
+          }).update({ vuelosPuntuales: 4 }),
         /route_metrics_counts_check/,
       );
-      await tx.orm.public.RouteMetric.create({
+      await tx.orm.public.MetricaRuta.create({
+        ejecucionEtlId: ejecucion.id,
         ...tuple,
-        period: '2026-10-01',
-        totalFlights: 100,
-        onTimeFlights: 100,
+        periodo: '2026-10-01',
+        vuelosTotales: 100,
+        vuelosPuntuales: 100,
       });
+      expect(metric.ejecucionEtlId).toBe(ejecucion.id);
+      await rejected(
+        tx,
+        () =>
+          tx.execute(
+            tx.raw
+              .sql`UPDATE metricas_ruta SET ejecucion_etl_id=NULL WHERE origen_id=${origen.id}`
+              .affectedCount()
+              .build(),
+          ),
+        /not-null|null value/i,
+      );
       const [combined] = await tx.query(
         tx.raw.sql`
-        SELECT (100.0 * sum(on_time_flights) / NULLIF(sum(total_flights - cancelled_flights), 0))::float8 AS otp
-        FROM route_metrics WHERE origin_id = ${origin.id}
+        SELECT (100.0 * sum(vuelos_puntuales) / NULLIF(sum(vuelos_totales - vuelos_cancelados), 0))::float8 AS otp
+        FROM metricas_ruta WHERE origen_id = ${origen.id}
       `
           .returnsRow({
             otp: 'pg/float8@1',
@@ -524,20 +572,20 @@ describe('Data model (PostgreSQL integration)', () => {
           .build(),
       );
       expect(combined.otp).toBeCloseTo((100 * 102) / 104);
-      await tx.orm.public.RouteMetric.where({
+      await tx.orm.public.MetricaRuta.where({
         ...tuple,
-        period: metric.period,
+        periodo: metric.periodo,
       }).update({
-        totalFlights: 1,
-        cancelledFlights: 1,
-        divertedFlights: 0,
-        onTimeFlights: 0,
-        totalArrivalDelayMinutes: 0n,
+        vuelosTotales: 1,
+        vuelosCancelados: 1,
+        vuelosDesviados: 0,
+        vuelosPuntuales: 0,
+        demoraLlegadaTotalMinutos: 0n,
       });
       const [empty] = await tx.query(
         tx.raw.sql`
-        SELECT (100.0 * on_time_flights / NULLIF(total_flights - cancelled_flights, 0))::float8 AS otp
-        FROM route_metrics WHERE origin_id = ${tuple.originId} AND period = ${metric.period}::date
+        SELECT (100.0 * vuelos_puntuales / NULLIF(vuelos_totales - vuelos_cancelados, 0))::float8 AS otp
+        FROM metricas_ruta WHERE origen_id = ${tuple.origenId} AND periodo = ${metric.periodo}::date
       `
           .returnsRow({
             otp: { codecId: 'pg/float8@1', nullable: true },
@@ -548,58 +596,58 @@ describe('Data model (PostgreSQL integration)', () => {
     });
   });
 
-  it('combines airport and airline filters in the database', async () => {
+  it('combines airport and aerolinea filters in the database', async () => {
     await isolated(async (tx) => {
-      const airports = [0, 1, 2].map((index) => ({
+      const aeropuertos = [0, 1, 2].map((index) => ({
         id: randomUUID(),
-        name: 'Audit airport',
-        countryName: 'Audit',
+        nombre: 'Audit airport',
+        nombrePais: 'Audit',
         iata: `QX${String.fromCharCode(65 + index)}`,
-        latitude: index,
-        longitude: index,
+        latitud: index,
+        longitud: index,
       }));
-      await tx.orm.public.Airport.createAndCount(airports);
-      const airline = 'Z1';
-      const routes = [
+      await tx.orm.public.Aeropuerto.createAndCount(aeropuertos);
+      const aerolinea = 'Z1';
+      const rutas = [
         {
           id: randomUUID(),
-          originId: airports[0].id,
-          destinationId: airports[1].id,
-          airlineCode: airline,
+          origenId: aeropuertos[0].id,
+          destinoId: aeropuertos[1].id,
+          codigoAerolinea: aerolinea,
         },
         {
           id: randomUUID(),
-          originId: airports[0].id,
-          destinationId: airports[1].id,
-          airlineCode: 'Z2',
+          origenId: aeropuertos[0].id,
+          destinoId: aeropuertos[1].id,
+          codigoAerolinea: 'Z2',
         },
         {
           id: randomUUID(),
-          originId: airports[2].id,
-          destinationId: airports[1].id,
-          airlineCode: airline,
+          origenId: aeropuertos[2].id,
+          destinoId: aeropuertos[1].id,
+          codigoAerolinea: aerolinea,
         },
       ];
-      await tx.orm.public.Route.createAndCount(routes);
+      for (const ruta of rutas) await crearOfertaFixture(tx, ruta);
       const module = await services(tx);
       try {
         const found = await module
           .get(RoutesService)
-          .explore({ originId: airports[0].id, origin: 'qxa', airline });
-        expect(found.map((route) => route.id)).toEqual([routes[0].id]);
+          .explore({ origenId: aeropuertos[0].id, origen: 'qxa', aerolinea });
+        expect(found.map((route) => route.id)).toEqual([rutas[0].id]);
       } finally {
         await module.close();
       }
     });
   });
 
-  it('paginates airlines with offset, active-first ordering and literal search characters', async () => {
+  it('paginates aerolineas with offset, activa-first ordering and literal search characters', async () => {
     await isolated(async (tx) => {
       const prefix = `Audit_%${randomUUID()}`;
-      await tx.orm.public.Airline.createAndCount([
-        { name: `${prefix} A`, active: false },
-        { name: `${prefix} B`, active: true },
-        { name: `${prefix} C`, active: true },
+      await tx.orm.public.Aerolinea.createAndCount([
+        { nombre: `${prefix} A`, activa: false },
+        { nombre: `${prefix} B`, activa: true },
+        { nombre: `${prefix} C`, activa: true },
       ]);
       const module = await services(tx);
       try {
@@ -608,9 +656,9 @@ describe('Data model (PostgreSQL integration)', () => {
         const second = await service.findAll({ q: prefix, page: 2, limit: 1 });
         const last = await service.findAll({ q: prefix, page: 3, limit: 1 });
         expect([
-          first.data[0].name,
-          second.data[0].name,
-          last.data[0].name,
+          first.data[0].nombre,
+          second.data[0].nombre,
+          last.data[0].nombre,
         ]).toEqual([`${prefix} B`, `${prefix} C`, `${prefix} A`]);
         expect(second.pagination).toEqual({
           page: 2,
@@ -624,23 +672,23 @@ describe('Data model (PostgreSQL integration)', () => {
     });
   });
 
-  it('selects public user fields and persists role changes', async () => {
+  it('selects public user fields and persists rol changes', async () => {
     await isolated(async (tx) => {
-      const user = await tx.orm.public.User.create({
-        email: `${randomUUID()}@example.test`,
-        passwordHash: 'private',
-        role: 'OPERATOR',
+      const user = await tx.orm.public.Usuario.create({
+        correo: `${randomUUID()}@example.test`,
+        hashContrasena: 'private',
+        rol: 'OPERATOR',
       });
       const module = await services(tx);
       try {
         const service = module.get(UsersService);
         const profile = await service.getUserById(user.id);
-        expect(profile).not.toHaveProperty('passwordHash');
-        expect(profile).not.toHaveProperty('updatedAt');
-        expect(profile.createdAt).toBeInstanceOf(Date);
-        expect(profile.role).toBe('OPERATOR');
-        await service.updateUser(user.id, { role: 'ADMIN' });
-        expect((await service.getUserById(user.id)).role).toBe('ADMIN');
+        expect(profile).not.toHaveProperty('hashContrasena');
+        expect(profile).not.toHaveProperty('actualizadoEn');
+        expect(profile.creadoEn).toBeInstanceOf(Date);
+        expect(profile.rol).toBe('OPERATOR');
+        await service.updateUser(user.id, { rol: 'ADMIN' });
+        expect((await service.getUserById(user.id)).rol).toBe('ADMIN');
       } finally {
         await module.close();
       }

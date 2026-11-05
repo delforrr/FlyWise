@@ -7,17 +7,17 @@ describe('Completed job integrity (PostgreSQL)', () => {
     const rollback = new Error('rollback job fixtures');
     try {
       await db.transaction(async (tx) => {
-        const job = await tx.orm.public.EtlJob.create({
-          source: 'countries',
-          status: 'pending',
-          totalRows: 10,
+        const job = await tx.orm.public.EjecucionEtl.create({
+          fuente: 'paises',
+          estado: 'pending',
+          filasTotales: 10,
         });
         await tx.execute(
           tx.raw.sql`SAVEPOINT invalid_completion`.affectedCount().build(),
         );
         await expect(
-          tx.orm.public.EtlJob.where({ id: job.id }).update({
-            status: 'completed',
+          tx.orm.public.EjecucionEtl.where({ id: job.id }).update({
+            estado: 'completed',
           }),
         ).rejects.toThrow(/etl_jobs_completion_check/);
         await tx.execute(
@@ -26,10 +26,10 @@ describe('Completed job integrity (PostgreSQL)', () => {
             .build(),
         );
         await expect(
-          tx.orm.public.EtlJob.where({ id: job.id }).update({
-            status: 'completed',
-            startedAt: '2026-10-29 00:00:00',
-            finishedAt: '2026-10-29 00:00:01',
+          tx.orm.public.EjecucionEtl.where({ id: job.id }).update({
+            estado: 'completed',
+            iniciadoEn: '2026-10-29 00:00:00',
+            finalizadoEn: '2026-10-29 00:00:01',
           }),
         ).rejects.toThrow(/etl_jobs_completion_check/);
         await tx.execute(
@@ -37,17 +37,19 @@ describe('Completed job integrity (PostgreSQL)', () => {
             .affectedCount()
             .build(),
         );
-        const saved = await tx.orm.public.EtlJob.where({ id: job.id }).update({
-          status: 'completed',
-          startedAt: '2026-10-29 00:00:00',
-          finishedAt: '2026-10-29 00:00:01',
-          processedRows: 8,
-          discardedRows: 2,
+        const saved = await tx.orm.public.EjecucionEtl.where({
+          id: job.id,
+        }).update({
+          estado: 'completed',
+          iniciadoEn: '2026-10-29 00:00:00',
+          finalizadoEn: '2026-10-29 00:00:01',
+          filasProcesadas: 8,
+          filasDescartadas: 2,
         });
         expect(saved).toMatchObject({
-          status: 'completed',
-          processedRows: 8,
-          discardedRows: 2,
+          estado: 'completed',
+          filasProcesadas: 8,
+          filasDescartadas: 2,
         });
         throw rollback;
       });

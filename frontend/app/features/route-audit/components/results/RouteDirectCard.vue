@@ -8,7 +8,7 @@ const props = defineProps<{
 
 // Volumen total de vuelos comerciales muestreados y auditados
 const sampleFlightsCount = computed(() => {
-  return props.route.airlines.reduce(
+  return props.route.aerolineas.reduce(
     (total, a) => total + (a.sampleFlightsCount || 0),
     0,
   );
@@ -81,7 +81,7 @@ const bannerAccentClass = computed(() => {
           <span>Distancia:</span>
         </span>
         <span class="font-bold text-text-main tabular-nums">
-          {{ route.distanceKm.toLocaleString() }} km
+          {{ route.distanciaKm.toLocaleString() }} km
         </span>
       </div>
 
@@ -144,7 +144,7 @@ const bannerAccentClass = computed(() => {
     <div class="flex flex-col gap-1.5 border-t border-border-subtle/60 pt-2.5">
       <div class="flex items-center justify-between">
         <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-dim">
-          Desempeño por Aerolínea ({{ route.airlines.length }}):
+          Desempeño por Aerolínea ({{ route.aerolineas.length }}):
         </span>
         <span class="text-[10px] font-mono text-text-dim">
           Sin historial operativo
@@ -152,9 +152,9 @@ const bannerAccentClass = computed(() => {
       </div>
 
       <RouteAirlineRow
-        v-for="airline in route.airlines"
-        :key="airline.airlineCode"
-        :airline="airline"
+        v-for="aerolinea in route.aerolineas"
+        :key="aerolinea.codigoAerolinea"
+        :aerolinea="aerolinea"
       />
     </div>
   </div>

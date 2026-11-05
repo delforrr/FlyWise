@@ -8,13 +8,13 @@ import { UpdateUserDto } from '../../users/dto/update-user.dto.js';
 describe.each([LoginRequestDto, RegisterUserDto, CreateUserDto, UpdateUserDto])(
   '%s credentials',
   (Dto) => {
-    it('normalizes email while preserving the exact password, including symbols and spaces', () => {
+    it('normalizes correo while preserving the exact password, including symbols and spaces', () => {
       const dto = plainToInstance(Dto, {
-        email: ' USER@example.test ',
+        correo: ' USER@example.test ',
         password: ' strong password! ',
       });
       expect(validateSync(dto)).toEqual([]);
-      expect(dto.email).toBe('user@example.test');
+      expect(dto.correo).toBe('user@example.test');
       expect(dto.password).toBe(' strong password! ');
     });
 
@@ -22,7 +22,7 @@ describe.each([LoginRequestDto, RegisterUserDto, CreateUserDto, UpdateUserDto])(
       'rejects passwords bcrypt cannot safely distinguish: %s',
       (password) => {
         const dto = plainToInstance(Dto, {
-          email: 'user@example.test',
+          correo: 'user@example.test',
           password,
         });
         expect(validateSync(dto)).not.toHaveLength(0);

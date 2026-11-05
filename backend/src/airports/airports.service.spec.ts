@@ -11,36 +11,36 @@ describe('AirportsService', () => {
   let service: AirportsService;
   let prismaService: {
     models: {
-      Airline: ReturnType<typeof mockCollection>;
-      Airport: ReturnType<typeof mockCollection>;
-      Country: ReturnType<typeof mockCollection>;
+      Aerolinea: ReturnType<typeof mockCollection>;
+      Aeropuerto: ReturnType<typeof mockCollection>;
+      Pais: ReturnType<typeof mockCollection>;
     };
     db: ReturnType<typeof mockDatabase>;
   };
 
   const mockAirport = {
     id: 'airport-uuid-1',
-    openflightsId: 1,
-    name: 'Ministro Pistarini International Airport',
-    city: 'Buenos Aires',
-    countryName: 'Argentina',
+    idOpenflights: 1,
+    nombre: 'Ministro Pistarini International Aeropuerto',
+    ciudad: 'Buenos Aires',
+    nombrePais: 'Argentina',
     iata: 'EZE',
     icao: 'SAEZ',
-    latitude: -34.8222,
-    longitude: -58.5358,
-    routeCount: 120,
+    latitud: -34.8222,
+    longitud: -58.5358,
+    cantidadRutas: 120,
   };
 
   beforeEach(async () => {
     prismaService = {
       models: {
-        Airline: mockCollection(),
-        Airport: mockCollection(),
-        Country: mockCollection(),
+        Aerolinea: mockCollection(),
+        Aeropuerto: mockCollection(),
+        Pais: mockCollection(),
       },
       db: mockDatabase(),
     };
-    prismaService.models.Airport.all.mockResolvedValue([mockAirport]);
+    prismaService.models.Aeropuerto.all.mockResolvedValue([mockAirport]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,20 +60,20 @@ describe('AirportsService', () => {
   });
 
   describe('search', () => {
-    it('should query airports by search term and return results', async () => {
+    it('should query aeropuertos by search term and return results', async () => {
       const results = await service.search({ q: 'EZE', limit: 10 });
 
-      expect(prismaService.models.Airport.all).toHaveBeenCalled();
+      expect(prismaService.models.Aeropuerto.all).toHaveBeenCalled();
       expect(results).toEqual([mockAirport]);
     });
   });
 
   describe('findNearby', () => {
-    it('should execute PostGIS raw query and return nearby airports', async () => {
+    it('should execute PostGIS raw query and return nearby aeropuertos', async () => {
       const mockNearby = [
         {
           ...mockAirport,
-          distanceKm: 25.4,
+          distanciaKm: 25.4,
         },
       ];
       prismaService.db.query.mockResolvedValue(mockNearby);
@@ -86,21 +86,21 @@ describe('AirportsService', () => {
 
       expect(prismaService.db.query).toHaveBeenCalled();
       expect(results).toEqual(mockNearby);
-      expect(results[0].distanceKm).toBe(25.4);
+      expect(results[0].distanciaKm).toBe(25.4);
     });
   });
 
   describe('findByCode', () => {
     it('should return airport when found by IATA or ICAO', async () => {
-      prismaService.models.Airport.all.mockResolvedValue([mockAirport]);
+      prismaService.models.Aeropuerto.all.mockResolvedValue([mockAirport]);
 
       const result = await service.findByCode('EZE');
-      expect(prismaService.models.Airport.all).toHaveBeenCalled();
+      expect(prismaService.models.Aeropuerto.all).toHaveBeenCalled();
       expect(result).toEqual(mockAirport);
     });
 
     it('should throw NotFoundException when airport is not found', async () => {
-      prismaService.models.Airport.all.mockResolvedValue([]);
+      prismaService.models.Aeropuerto.all.mockResolvedValue([]);
 
       await expect(service.findByCode('XYZ')).rejects.toThrow(
         NotFoundException,

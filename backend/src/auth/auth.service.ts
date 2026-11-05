@@ -26,19 +26,19 @@ export class AuthService {
     private readonly sessions: RefreshSessionsService,
   ) {}
 
-  async validateUser(email: string, pass: string): Promise<UserDto | null> {
-    const user = await this.usersService.findByEmail(email);
+  async validateUser(correo: string, pass: string): Promise<UserDto | null> {
+    const user = await this.usersService.findByEmail(correo);
     if (!user) {
       return null;
     }
 
-    const isMatch = await bcrypt.compare(pass, user.passwordHash);
+    const isMatch = await bcrypt.compare(pass, user.hashContrasena);
     if (isMatch) {
       return {
         id: user.id,
-        email: user.email,
-        role: user.role,
-        createdAt: timestampToDate(user.createdAt),
+        correo: user.correo,
+        rol: user.rol,
+        creadoEn: timestampToDate(user.creadoEn),
       };
     }
 
@@ -46,14 +46,14 @@ export class AuthService {
   }
 
   async register(createUserDto: CreateUserDto): Promise<UserDto> {
-    return this.usersService.createUser({ ...createUserDto, role: 'OPERATOR' });
+    return this.usersService.createUser({ ...createUserDto, rol: 'OPERATOR' });
   }
 
   login(user: UserDto, sessionId?: string) {
     const payload = {
       sub: user.id,
-      email: user.email,
-      role: user.role,
+      correo: user.correo,
+      rol: user.rol,
       ...(sessionId ? { sid: sessionId } : {}),
     };
     const token = this.jwtService.sign(payload, {
@@ -67,8 +67,8 @@ export class AuthService {
       token_type: 'bearer',
       user: {
         id: user.id,
-        email: user.email,
-        role: user.role,
+        correo: user.correo,
+        rol: user.rol,
       },
     };
   }

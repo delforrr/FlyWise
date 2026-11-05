@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { FlightRoute } from "~/types/route";
-import type { Airport } from "~/types/airport";
+import type { Aeropuerto } from "~/types/airport";
 
 const { hoveredEntity } = useFlightSelection();
 
@@ -15,17 +15,17 @@ const routeData = computed<FlightRoute | null>(() => {
   return null;
 });
 
-const airportData = computed<Airport | null>(() => {
+const airportData = computed<Aeropuerto | null>(() => {
   if (isAirport.value && hoveredEntity.value) {
-    return hoveredEntity.value.data as Airport;
+    return hoveredEntity.value.data as Aeropuerto;
   }
   return null;
 });
 
 // Telemetría de coordenadas geográficas (LAT / LON)
 const telemetryCoordinates = computed<string | null>(() => {
-  if (airportData.value?.coordinates && airportData.value.coordinates.length >= 2) {
-    const [lon, lat] = airportData.value.coordinates;
+  if (airportData.value?.coordenadas && airportData.value.coordenadas.length >= 2) {
+    const [lon, lat] = airportData.value.coordenadas;
     const latStr = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"}`;
     const lonStr = `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? "E" : "W"}`;
     return `LAT ${latStr} / LON ${lonStr}`;

@@ -62,7 +62,7 @@ function prefersReducedMotion(): boolean {
  * - Configurable duration (~600-800ms).
  * - Respects prefers-reduced-motion (instant updates when reduced motion is preferred).
  * - Gracefully handles mid-animation value switches without layout jumps.
- * - Cleans up active animation frames on unmount.
+ * - Cleans up activa animation frames on unmount.
  * - SSR-safe.
  */
 export function useAnimatedNumber(

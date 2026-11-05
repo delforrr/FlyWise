@@ -16,7 +16,7 @@ export class QueryDirectRouteDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @Matches(/^(?:[A-Z]{3}|[A-Z0-9]{4})$/)
-  origin!: string;
+  origen!: string;
 
   @ApiProperty({
     description: 'Código IATA o ICAO del aeropuerto de destino',
@@ -27,5 +27,5 @@ export class QueryDirectRouteDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @Matches(/^(?:[A-Z]{3}|[A-Z0-9]{4})$/)
-  destination!: string;
+  destino!: string;
 }

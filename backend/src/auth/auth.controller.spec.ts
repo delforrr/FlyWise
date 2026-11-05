@@ -9,8 +9,8 @@ import { LoginRequestDto } from './dto/login-request.dto.js';
 
 const user = {
   id: 'user-1',
-  email: 'admin@flywise.com',
-  role: 'ADMIN' as const,
+  correo: 'admin@flywise.com',
+  rol: 'ADMIN' as const,
 };
 const session = {
   refreshToken: 'refresh-token',
@@ -57,7 +57,7 @@ describe('AuthController', () => {
       service.createSession.mockResolvedValueOnce({ ...session, remember });
       const result = await controller.loginRequest(
         user,
-        { email: user.email, password: 'password123', remember },
+        { correo: user.correo, password: 'password123', remember },
         request(),
         response,
       );
@@ -145,14 +145,14 @@ describe('AuthController', () => {
   });
 
   it('conserva registro y perfil existentes', async () => {
-    const dto = { email: user.email, password: 'password123' };
+    const dto = { correo: user.correo, password: 'password123' };
     service.register.mockResolvedValueOnce(user);
     expect(await controller.register(dto)).toEqual(user);
     expect(controller.getProfile(user)).toEqual(user);
   });
 
   it('valida remember como booleano y acepta contraseñas existentes con símbolos', () => {
-    const body = { email: user.email, password: 'Password123!' };
+    const body = { correo: user.correo, password: 'Password123!' };
     expect(
       validateSync(
         plainToInstance(LoginRequestDto, { ...body, remember: true }),

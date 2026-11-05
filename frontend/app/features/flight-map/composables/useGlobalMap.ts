@@ -7,21 +7,21 @@ export const MAP_CONTINENTS = [
   { value: 'AS', label: 'Asia' }, { value: 'EU', label: 'Europa' }, { value: 'OC', label: 'Oceanía' },
 ];
 export interface GlobalMapFilter {
-  mode: 'global' | 'domestic' | 'countries' | 'continents';
+  mode: 'global' | 'domestic' | 'paises' | 'continents';
   limit: number;
-  originCountryId?: string;
-  destinationCountryId?: string;
-  originContinent?: string;
-  destinationContinent?: string;
+  paisOrigenId?: string;
+  paisDestinoId?: string;
+  continenteOrigen?: string;
+  continenteDestino?: string;
 }
 export interface GlobalMapConnection {
   id: string;
-  originId: string;
-  destinationId: string;
-  outbound: ArcRoute[];
-  inbound: ArcRoute[];
+  origenId: string;
+  destinoId: string;
+  ida: ArcRoute[];
+  vuelta: ArcRoute[];
 }
-interface MapCountry { id: string; name: string; continent: string | null }
+interface MapCountry { id: string; nombre: string; continent: string | null }
 
 export function useGlobalMap() {
   const request = useBackendRequest();
@@ -31,15 +31,15 @@ export function useGlobalMap() {
   const loading = useState('global_map_loading', () => false);
   const error = useState<string | null>('global_map_error', () => null);
   const requestId = useState('global_map_request', () => 0);
-  const countries = useState<MapCountry[]>('global_map_countries', () => []);
+  const paises = useState<MapCountry[]>('global_map_countries', () => []);
   const countriesLoading = useState('global_map_countries_loading', () => false);
   const countriesError = useState<string | null>('global_map_countries_error', () => null);
   const fitTrigger = useState('global_map_fit', () => 0);
-  const visibleRoutes = computed(() => connections.value.flatMap((connection) => {
-    const outbound = groupArcRoutes(connection.outbound)[0];
-    if (outbound) return [outbound];
-    const inbound = connection.inbound[0];
-    return inbound ? [mapArcRoute({ ...inbound, origin: inbound.destination, destination: inbound.origin })] : [];
+  const visibleRoutes = computed(() => connections.value.flatMap((conexion) => {
+    const ida = groupArcRoutes(conexion.ida)[0];
+    if (ida) return [ida];
+    const vuelta = conexion.vuelta[0];
+    return vuelta ? [mapArcRoute({ ...vuelta, origen: vuelta.destino, destino: vuelta.origen })] : [];
   }));
 
   async function load() {
@@ -48,7 +48,7 @@ export function useGlobalMap() {
     error.value = null;
     connections.value = [];
     try {
-      const result = await request<GlobalMapConnection[]>('/routes/global', { query: { ...filter.value } });
+      const result = await request<GlobalMapConnection[]>('/rutas/globales', { query: { ...filter.value } });
       if (id !== requestId.value) return;
       connections.value = result;
       fitTrigger.value++;
@@ -60,16 +60,16 @@ export function useGlobalMap() {
   }
 
   async function loadCountries() {
-    if (countries.value.length || countriesLoading.value) return;
+    if (paises.value.length || countriesLoading.value) return;
     countriesLoading.value = true;
     countriesError.value = null;
     try {
-      const result = await request<MapCountry[]>('/countries');
-      countries.value = result.filter(country => country.continent);
+      const result = await request<MapCountry[]>('/paises');
+      paises.value = result.filter(pais => pais.continent);
     } catch (err) {
       countriesError.value = err instanceof Error ? err.message : 'No se pudieron cargar los países';
     } finally { countriesLoading.value = false; }
   }
 
-  return { filter, isOpen, connections, visibleRoutes, loading, error, countries, countriesLoading, countriesError, fitTrigger, load, loadCountries };
+  return { filter, isOpen, connections, visibleRoutes, loading, error, paises, countriesLoading, countriesError, fitTrigger, load, loadCountries };
 }

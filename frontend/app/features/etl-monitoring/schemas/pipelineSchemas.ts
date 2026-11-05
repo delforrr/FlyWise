@@ -1,22 +1,22 @@
 import { z } from "zod";
-import type { EtlPipeline, TargetEntity } from "../types/etl";
+import type { ProcesoEtl, TargetEntity } from "../types/etl";
 import { TARGET_FIELDS_CATALOG } from "../types/etl";
 
 // 1. Esquema Zod para Identidad (Paso 1)
 export const pipelineIdentitySchema = z.object({
-  name: z
+  nombre: z
     .string('El nombre del servicio es obligatorio.')
     .trim()
     .min(1, 'El nombre del servicio es obligatorio.')
     .min(3, 'El nombre debe contener al menos 3 caracteres.'),
-  datasetName: z
+  nombreConjunto: z
     .string('El nombre del dataset es obligatorio.')
     .trim()
     .min(1, 'El nombre del dataset es obligatorio.')
     .min(2, 'El nombre del dataset debe contener al menos 2 caracteres.'),
-  description: z.string().optional().default(''),
+  descripcion: z.string().optional().default(''),
   icon: z.string().optional().default('i-lucide-database'),
-  targetEntity: z.enum(['airports', 'airlines', 'countries', 'routes', 'otp_metrics'], {
+  entidadDestino: z.enum(['aeropuertos', 'aerolineas', 'paises', 'rutas', 'otp_metrics'], {
     message: 'Debe seleccionar una entidad destino.',
   }),
 });
@@ -26,10 +26,10 @@ export type PipelineIdentityForm = z.infer<typeof pipelineIdentitySchema>;
 // 2. Esquema Zod para Endpoint & Conexión (Paso 2)
 export const pipelineConnectionSchema = z
   .object({
-    sourceType: z.literal('http_stream'),
-    httpMethod: z.literal('GET'),
-    dataFormat: z.literal('csv'),
-    endpointUrl: z
+    tipoFuente: z.literal('http_stream'),
+    metodoHttp: z.literal('GET'),
+    formatoDatos: z.literal('csv'),
+    urlEndpoint: z
       .string('La URL del endpoint es obligatoria.')
       .trim()
       .min(1, 'La URL del endpoint es obligatoria.')
@@ -50,28 +50,28 @@ export const pipelineConnectionSchema = z
           return false;
         }
       }, 'La sintaxis de la URL es inválida.'),
-    csvDelimiter: z.string().optional(),
-    csvHasHeader: z.boolean().optional(),
+    separadorCsv: z.string().optional(),
+    csvConCabecera: z.boolean().optional(),
     rootJsonPath: z.string().optional(),
     headers: z
       .array(
         z.object({
           key: z.string(),
-          credentialRef: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Use el nombre de una variable del servidor.'),
+          referenciaCredencial: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Use el nombre de una variable del servidor.'),
         }),
       )
       .optional(),
   })
   .refine(
     (data) => {
-      if (data.dataFormat === 'csv' && data.csvDelimiter !== undefined) {
-        return data.csvDelimiter.length > 0;
+      if (data.formatoDatos === 'csv' && data.separadorCsv !== undefined) {
+        return data.separadorCsv.length > 0;
       }
       return true;
     },
     {
       message: 'El delimitador CSV no puede estar vacío.',
-      path: ['csvDelimiter'],
+      path: ['separadorCsv'],
     },
   );
 
@@ -79,8 +79,8 @@ export type PipelineConnectionForm = z.infer<typeof pipelineConnectionSchema>;
 
 // 3. Esquema Zod para Reglas de Mapeo (Paso 3)
 export const pipelineSchemaMappingRuleSchema = z.object({
-  sourceColumn: z.string().optional().default(''),
-  targetField: z.string(),
+  columnaOrigen: z.string().optional().default(''),
+  campoDestino: z.string(),
   transform: z
     .enum([
       'none',
@@ -105,20 +105,20 @@ export const pipelineScheduleConfigSchema = z
       'monthly',
       'custom',
     ]),
-    cronExpression: z.string().optional().default(''),
+    expresionCron: z.string().optional().default(''),
     scheduleDescription: z.string().optional().default('Manual'),
-    batchSize: z
+    tamanoLote: z
       .number()
       .min(1000, 'Mínimo 1.000 filas por lote (RNF-04).')
       .max(5000, 'Máximo 5.000 filas por lote (RNF-04).'),
-    timeoutSeconds: z.number().int().min(1).max(3600),
-    maxRetries: z.number().int().min(0).max(10),
+    tiempoLimiteSegundos: z.number().int().min(1).max(3600),
+    maximoReintentos: z.number().int().min(0).max(10),
   })
   .refine(
     (data) => {
       if (data.cronPreset === 'custom') {
-        if (!data.cronExpression) return false;
-        const parts = data.cronExpression.trim().split(/\s+/);
+        if (!data.expresionCron) return false;
+        const parts = data.expresionCron.trim().split(/\s+/);
         return parts.length === 5;
       }
       return true;
@@ -126,7 +126,7 @@ export const pipelineScheduleConfigSchema = z
     {
       message:
         'La expresión cron personalizada debe contener 5 campos (ej. 0 4 * * *).',
-      path: ['cronExpression'],
+      path: ['expresionCron'],
     },
   );
 
@@ -136,7 +136,7 @@ export type PipelineScheduleConfigForm = z.infer<
 
 // 5. Esquema Zod Completo de Pipeline
 export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
-  const data = (val && typeof val === 'object' ? val : {}) as Partial<EtlPipeline>;
+  const data = (val && typeof val === 'object' ? val : {}) as Partial<ProcesoEtl>;
 
   // 1. Nombre del servicio
   const nameRes = z
@@ -144,10 +144,10 @@ export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
     .trim()
     .min(1, 'El nombre del servicio es obligatorio.')
     .min(3, 'El nombre debe contener al menos 3 caracteres.')
-    .safeParse(data.name);
+    .safeParse(data.nombre);
   if (!nameRes.success) {
     for (const issue of nameRes.error.issues) {
-      ctx.addIssue({ ...issue, path: ['name'] });
+      ctx.addIssue({ ...issue, path: ['nombre'] });
     }
   }
 
@@ -157,15 +157,15 @@ export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
     .trim()
     .min(1, 'El nombre del dataset es obligatorio.')
     .min(2, 'El nombre del dataset debe contener al menos 2 caracteres.')
-    .safeParse(data.datasetName);
+    .safeParse(data.nombreConjunto);
   if (!datasetRes.success) {
     for (const issue of datasetRes.error.issues) {
-      ctx.addIssue({ ...issue, path: ['datasetName'] });
+      ctx.addIssue({ ...issue, path: ['nombreConjunto'] });
     }
   }
 
-  // 3. Endpoint URL (en connection.endpointUrl)
-  const url = data.connection?.endpointUrl;
+  // 3. Endpoint URL (en conexion.urlEndpoint)
+  const url = data.conexion?.urlEndpoint;
   const urlRes = z
     .string('La URL del endpoint es obligatoria.')
     .trim()
@@ -190,57 +190,57 @@ export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
     .safeParse(url);
   if (!urlRes.success) {
     for (const issue of urlRes.error.issues) {
-      ctx.addIssue({ ...issue, path: ['endpointUrl'] });
+      ctx.addIssue({ ...issue, path: ['urlEndpoint'] });
     }
   }
 
   // 4. Mapeo de campos requeridos
-  const targetEntity = (data.targetEntity || 'otp_metrics') as TargetEntity;
-  const targetDefs = TARGET_FIELDS_CATALOG[targetEntity] || [];
+  const entidadDestino = (data.entidadDestino || 'otp_metrics') as TargetEntity;
+  const targetDefs = TARGET_FIELDS_CATALOG[entidadDestino] || [];
   const requiredDefs = targetDefs.filter((d) => d.required);
-  const mappings = Array.isArray(data.schemaMapping) ? data.schemaMapping : [];
+  const mappings = Array.isArray(data.mapeoEsquema) ? data.mapeoEsquema : [];
 
-  if (!data.schemaMapping || mappings.length === 0) {
+  if (!data.mapeoEsquema || mappings.length === 0) {
     ctx.addIssue({
       code: 'custom',
       message: 'Debe configurar las reglas de mapeo de campos requeridos.',
-      path: ['schemaMapping'],
+      path: ['mapeoEsquema'],
     });
   } else {
     const unmapped = requiredDefs.filter((def) => {
-      const rule = mappings.find((m) => m.targetField === def.key);
-      return !rule || !rule.sourceColumn || !rule.sourceColumn.trim();
+      const rule = mappings.find((m) => m.campoDestino === def.key);
+      return !rule || !rule.columnaOrigen || !rule.columnaOrigen.trim();
     });
 
     if (unmapped.length > 0) {
       ctx.addIssue({
         code: 'custom',
         message: `Faltan mapear los siguientes campos requeridos: ${unmapped.map((d) => d.label).join(', ')}.`,
-        path: ['schemaMapping'],
+        path: ['mapeoEsquema'],
       });
     }
   }
 
   // 5. Expresión Cron si es personalizada
-  if (data.scheduleConfig?.cronExpression) {
-    const cron = data.scheduleConfig.cronExpression?.trim() || '';
+  if (data.configuracionProgramacion?.expresionCron) {
+    const cron = data.configuracionProgramacion.expresionCron?.trim() || '';
     const parts = cron.split(/\s+/);
     if (parts.length !== 5) {
       ctx.addIssue({
         code: 'custom',
         message:
           'La expresión cron personalizada debe contener 5 campos (ej. 0 4 * * *).',
-        path: ['cronExpression'],
+        path: ['expresionCron'],
       });
     }
   }
 });
 
-export type PipelineSchemaInput = Partial<EtlPipeline>;
+export type PipelineSchemaInput = Partial<ProcesoEtl>;
 
 // 6. Esquema Zod para Disparador Manual (EtlTriggerModal)
 export const triggerSyncSchema = z.object({
-  pipelineId: z.string().min(1, 'El identificador del pipeline es obligatorio.'),
+  procesoId: z.string().min(1, 'El identificador del proceso es obligatorio.'),
 });
 
 export type TriggerSyncForm = z.infer<typeof triggerSyncSchema>;

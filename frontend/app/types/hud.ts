@@ -20,4 +20,4 @@ export type HudActionType =
   | "fitRoute"
   | "resetNorth";
 
-export type InputCardType = "origin" | "destination";
+export type InputCardType = "origen" | "destino";
