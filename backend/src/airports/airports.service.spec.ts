@@ -6,9 +6,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AirportsService } from './airports.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotFoundException } from '@nestjs/common';
+import { RedisService } from '../redis/redis.service.js';
 
 describe('AirportsService', () => {
   let service: AirportsService;
+  const redis = {
+    get: jest.fn<Promise<string | null>, [string]>(),
+    set: jest.fn<Promise<void>, [string, string, number?]>(),
+  };
   let prismaService: {
     models: {
       Aerolinea: ReturnType<typeof mockCollection>;
@@ -32,6 +37,8 @@ describe('AirportsService', () => {
   };
 
   beforeEach(async () => {
+    redis.get.mockReset().mockResolvedValue(null);
+    redis.set.mockReset().mockResolvedValue(undefined);
     prismaService = {
       models: {
         Aerolinea: mockCollection(),
@@ -45,6 +52,7 @@ describe('AirportsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AirportsService,
+        { provide: RedisService, useValue: redis },
         {
           provide: PrismaService,
           useValue: prismaService,
@@ -85,6 +93,36 @@ describe('AirportsService', () => {
       mockAirport,
     ]);
     expect(prismaService.models.Aeropuerto.all).toHaveBeenCalledTimes(2);
+  });
+
+  describe('search cache', () => {
+    it('caches empty results for 60 seconds and separates result limits', async () => {
+      prismaService.models.Aeropuerto.all.mockResolvedValue([]);
+      await expect(
+        service.search({ q: '  Buenos Aires ', limit: 20 }),
+      ).resolves.toEqual([]);
+      const key = redis.get.mock.calls[0][0];
+      expect(redis.set).toHaveBeenCalledWith(key, '[]', 60);
+      redis.get.mockResolvedValueOnce('[]');
+      await expect(
+        service.search({ q: 'buenos aires', limit: 20 }),
+      ).resolves.toEqual([]);
+      expect(redis.get).toHaveBeenLastCalledWith(key);
+      expect(prismaService.models.Aeropuerto.all).toHaveBeenCalledTimes(1);
+      await service.search({ q: 'Buenos Aires', limit: 10 });
+      expect(redis.get.mock.calls[2][0]).not.toBe(key);
+      await service.search({ q: 'Buenos Aires', limit: 20 });
+      expect(redis.get).toHaveBeenLastCalledWith(key);
+      expect(prismaService.models.Aeropuerto.all).toHaveBeenCalledTimes(3);
+    });
+
+    it('queries the database if Redis is unresponsive', async () => {
+      redis.get.mockImplementationOnce(() => new Promise(() => {}));
+      await expect(
+        service.search({ q: 'Buenos Aires', limit: 20 }),
+      ).resolves.toEqual([mockAirport]);
+      expect(redis.set).not.toHaveBeenCalled();
+    });
   });
 
   describe('findNearby', () => {

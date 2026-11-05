@@ -16,6 +16,8 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RedisService } from '../redis/redis.service.js';
+import { firstValueFrom, from, timeout } from 'rxjs';
 import { CatalogAirportsDto } from './dto/catalog-airports.dto.js';
 import { SearchAirportsDto } from './dto/search-airports.dto.js';
 import { NearbyAirportsDto } from './dto/nearby-airports.dto.js';
@@ -35,7 +37,10 @@ export interface NearbyAirportResult {
 
 @Injectable()
 export class AirportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   catalog(dto: CatalogAirportsDto) {
     return this.prisma.models.Aeropuerto.where({ archivadoEn: null })
@@ -48,6 +53,27 @@ export class AirportsService {
   async search(searchDto: SearchAirportsDto) {
     const term = searchDto.q.trim();
     const limit = searchDto.limit ?? 20;
+    const key = `airports:search:v1:${limit}:${term.toLowerCase()}`;
+    try {
+      const cached = await firstValueFrom(
+        from(this.redis.get(key)).pipe(timeout(50)),
+      );
+      if (cached !== null) {
+        const rows: unknown = JSON.parse(cached);
+        if (Array.isArray(rows)) {
+          return rows as Awaited<ReturnType<AirportsService['findMatches']>>;
+        }
+      }
+    } catch {
+      return this.findMatches(term, limit);
+    }
+
+    const matches = await this.findMatches(term, limit);
+    void this.redis.set(key, JSON.stringify(matches), 60).catch(() => {});
+    return matches;
+  }
+
+  private async findMatches(term: string, limit: number) {
     const upperTerm = term.toUpperCase();
     const active = this.prisma.models.Aeropuerto.where({
       archivadoEn: null,

@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { AirportsService } from '../src/airports/airports.service.js';
+import { RedisService } from '../src/redis/redis.service.js';
 import { RoutesService } from '../src/routes/routes.service.js';
 import { CountriesService } from '../src/countries/countries.service.js';
 
@@ -37,6 +38,13 @@ describe('Archivo lógico de catálogos (PostgreSQL)', () => {
         const module = await Test.createTestingModule({
           providers: [
             AirportsService,
+            {
+              provide: RedisService,
+              useValue: {
+                get: () => Promise.resolve(null),
+                set: () => Promise.resolve(),
+              },
+            },
             RoutesService,
             CountriesService,
             {
