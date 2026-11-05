@@ -23,6 +23,7 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
   const pagina = ref(1);
   const limite = 20;
   const busqueda = ref("");
+  const busquedaAplicada = ref("");
   const estado = ref("vigentes");
   const cargando = ref(false);
   const guardando = ref(false);
@@ -41,7 +42,7 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
         `/administracion/${recurso}`,
         {
           query: {
-            busqueda: busqueda.value,
+            busqueda: busquedaAplicada.value,
             estado: estado.value,
             pagina: pagina.value,
             limite,
@@ -59,11 +60,15 @@ export function useAdministracionCatalogo(recurso: RecursoCatalogo) {
       if (lectura === actual) cargando.value = false;
     }
   }
-  watch([busqueda, estado], () => {
-    if (pagina.value !== 1) pagina.value = 1;
-    else void cargar();
+  watch(() => busqueda.value.trim(), (texto, _, onCleanup) => {
+    const timer = setTimeout(() => { busquedaAplicada.value = texto; }, 250);
+    onCleanup(() => clearTimeout(timer));
   });
-  watch(pagina, () => {
+  watch([busquedaAplicada, estado, pagina], ([texto, filtro], [textoAnterior, filtroAnterior]) => {
+    if ((texto !== textoAnterior || filtro !== filtroAnterior) && pagina.value !== 1) {
+      pagina.value = 1;
+      return;
+    }
     void cargar();
   });
 

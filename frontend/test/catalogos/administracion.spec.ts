@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope, nextTick } from "vue";
 import { flushPromises } from "@vue/test-utils";
 import { useAdministracionCatalogo } from "../../app/features/catalogos/composables/useAdministracionCatalogo";
@@ -9,9 +9,9 @@ vi.mock("~/shared/composables/useBackendRequest", () => ({
 }));
 beforeEach(() => request.mockReset());
 
-function catalogo() {
+function catalogo(recurso: "aeropuertos" | "aerolineas" | "rutas" = "aeropuertos") {
   const scope = effectScope();
-  const crud = scope.run(() => useAdministracionCatalogo("aeropuertos"))!;
+  const crud = scope.run(() => useAdministracionCatalogo(recurso))!;
   return { crud, scope };
 }
 
@@ -88,3 +88,39 @@ describe("Administración de catálogos", () => {
     scope.stop();
   });
 });
+
+afterEach(() => { vi.useRealTimers(); });
+
+it.each(["aeropuertos", "aerolineas", "rutas"] as const)(
+  "agrupa la escritura y aplica estado y página inmediatamente en %s",
+  async (recurso) => {
+    vi.useFakeTimers();
+    request.mockResolvedValue({ datos: [], total: 100 });
+    const { crud, scope } = catalogo(recurso);
+    crud.pagina.value = 3;
+    await nextTick();
+    expect(request.mock.calls[0]?.[1].query.pagina).toBe(3);
+    request.mockClear();
+
+    crud.busqueda.value = "B";
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(200);
+    crud.busqueda.value = "Buenos Aires";
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(249);
+    expect(request).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(request).toHaveBeenCalledExactlyOnceWith(
+      `/administracion/${recurso}`,
+      expect.objectContaining({ query: { busqueda: "Buenos Aires", estado: "vigentes", pagina: 1, limite: 20 } }),
+    );
+
+    crud.pagina.value = 2;
+    await nextTick();
+    crud.estado.value = "archivados";
+    await nextTick();
+    expect(request.mock.calls.map(([, options]) => options.query.pagina)).toEqual([1, 2, 1]);
+    expect(request.mock.calls[2]?.[1].query.estado).toBe("archivados");
+    scope.stop();
+  },
+);
