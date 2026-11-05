@@ -11,6 +11,7 @@ const mockSetStyle = vi.fn();
 const mockRemove = vi.fn();
 const mockAddControl = vi.fn();
 const mockRemoveControl = vi.fn();
+const mockSetWorkerUrl = vi.hoisted(() => vi.fn());
 
 const mockMap = {
   easeTo: mockEaseTo,
@@ -51,6 +52,7 @@ vi.mock("maplibre-gl", () => {
   }
   return {
     Map: vi.fn().mockImplementation(MapMock),
+    setWorkerUrl: mockSetWorkerUrl,
     LngLatBounds,
     default: {
       Map: vi.fn().mockImplementation(MapMock),
@@ -58,6 +60,10 @@ vi.mock("maplibre-gl", () => {
     },
   };
 });
+
+vi.mock("maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url", () => ({
+  default: "/_nuxt/maplibre-worker.js",
+}));
 
 vi.mock("@deck.gl/mapbox", () => {
   function OverlayMock() {
@@ -275,6 +281,7 @@ describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáutica
         bearing: 10,
       });
 
+      expect(mockSetWorkerUrl).toHaveBeenCalledWith("/_nuxt/maplibre-worker.js");
       expect(flightMap.mapInstance.value).toBeDefined();
       expect(flightMap.overlayInstance.value).toBeDefined();
       expect(mockMap.addControl).toHaveBeenCalled();
