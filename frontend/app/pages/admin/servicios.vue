@@ -229,7 +229,7 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
     <!-- Modales Operativos -->
     <EtlPipelineWizardModal
       :is-open="isWizardModalOpen"
-      :proceso-to-edit="pipelineToEdit"
+      :pipeline-to-edit="pipelineToEdit"
       @close="isWizardModalOpen = false"
       @save="handleSavePipeline"
     />

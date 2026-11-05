@@ -99,7 +99,7 @@ export class PipelinesService implements OnModuleInit {
       .all();
   }
 
-  private async find(id: string) {
+  async find(id: string) {
     const row = await this.prisma.models.ProcesoEtl.where({
       id,
       archivadoEn: null,

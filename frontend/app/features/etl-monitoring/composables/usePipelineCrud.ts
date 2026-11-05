@@ -30,7 +30,7 @@ export function validatePipeline(data: Partial<ProcesoEtl>): PipelineValidationR
 
 
 import { useEtlData } from './useEtlData';
-import type { ProcesoEtl, PipelineConnectionConfig, ProbeEndpointResult, TargetEntity } from '../types/etl';
+import type { ProcesoEtl, StoredPipeline, PipelineConnectionConfig, ProbeEndpointResult, TargetEntity } from '../types/etl';
 
 function pipelinePayload(data: Partial<ProcesoEtl>) {
   const { nombre, nombreConjunto, descripcion, entidadDestino, conexion, mapeoEsquema, configuracionProgramacion, pausado } = data;
@@ -57,6 +57,9 @@ export function usePipelineCrud() {
     activeCount: pipelines.value.filter(p => p.estado !== 'pausado').length,
     errorCount: pipelines.value.filter(p => p.estado === 'error').length,
   }));
+  function loadPipeline(id: string, signal: AbortSignal) {
+    return request<StoredPipeline>(`/etl/procesos/${id}`, { signal });
+  }
   async function testEndpoint(conexion: PipelineConnectionConfig) {
     isTestingEndpoint.value = true;
     try {
@@ -75,7 +78,7 @@ export function usePipelineCrud() {
   async function updatePipeline(id: string, patch: Partial<ProcesoEtl>) {
     const current = pipelines.value.find(p => p.id === id);
     if (!current) return false;
-    await request(`/etl/procesos/${id}`, { method: 'PATCH', body: pipelinePayload({ ...current, ...patch }) });
+    await request(`/etl/procesos/${id}`, { method: 'PATCH', body: pipelinePayload(patch) });
     await refresh(); return true;
   }
   async function deletePipeline(id: string) {
@@ -90,5 +93,5 @@ export function usePipelineCrud() {
     if (fuente) await updatePipeline(id, { pausado: !fuente.pausado });
   }
   return { pipelines, filteredServices, serviceStats, selectedEntityFilter, selectedSourceTypeFilter, searchQuery,
-    validatePipeline, isTestingEndpoint, lastProbeResult, testEndpoint, createPipeline, updatePipeline, deletePipeline, duplicatePipeline, togglePipelineStatus };
+    validatePipeline, isTestingEndpoint, lastProbeResult, loadPipeline, testEndpoint, createPipeline, updatePipeline, deletePipeline, duplicatePipeline, togglePipelineStatus };
 }

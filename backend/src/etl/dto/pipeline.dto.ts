@@ -15,6 +15,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Matches,
   Max,
@@ -22,6 +23,12 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+
+export class PipelineIdDto {
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  id!: string;
+}
 
 export const CATALOG_TARGETS = [
   'paises',
