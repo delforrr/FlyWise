@@ -78,6 +78,34 @@ describe('Archivo lógico de catálogos (PostgreSQL)', () => {
           expect(
             await tx.orm.public.OfertaRuta.first({ id: ruta.id }),
           ).toBeDefined();
+
+          const rutas = module.get(RoutesService);
+          const consulta = { busqueda: 'Archivo', pagina: 1, limite: 20 };
+          expect(
+            await rutas.listarAdmin({ ...consulta, estado: 'vigentes' }),
+          ).toMatchObject({ total: 1, datos: [{ id: ruta.rutaId }] });
+          expect(
+            await rutas.listarAdmin({
+              ...consulta,
+              busqueda: '%',
+              estado: 'todos',
+            }),
+          ).toMatchObject({ total: 0, datos: [] });
+
+          await tx.execute(
+            tx.raw
+              .sql`UPDATE rutas SET archivado_en=now() WHERE id=${ruta.rutaId}`
+              .affectedCount()
+              .build(),
+          );
+          expect(
+            await rutas.listarAdmin({ ...consulta, estado: 'vigentes' }),
+          ).toMatchObject({ total: 0, datos: [] });
+          for (const estado of ['archivados', 'todos'] as const) {
+            expect(
+              await rutas.listarAdmin({ ...consulta, estado }),
+            ).toMatchObject({ total: 1, datos: [{ id: ruta.rutaId }] });
+          }
           await expect(
             tx.orm.public.Aeropuerto.where({ id: destino.id }).delete(),
           ).rejects.toThrow(/foreign key/i);
