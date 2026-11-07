@@ -7,6 +7,7 @@ import { type FlightRoute } from "~/types/route";
 const {
   selectedOrigin,
   selectedDestination,
+  routeSearchStatus,
   matchingRoutes,
   selectedRouteData,
   selectedReturnData,
@@ -74,9 +75,8 @@ function handleBackToHub() {
         {{ originAirport?.iata ?? "Origen" }} ➔ {{ destinationAirport?.iata ?? "Destino" }}
       </span>
       <span v-else class="tracking-tight">
-        Hub {{ originAirport?.iata ?? destinationAirport?.iata }} ({{
-          matchingRoutes.length
-        }})
+        Hub {{ originAirport?.iata ?? destinationAirport?.iata }}
+        <template v-if="routeSearchStatus === 'success'">({{ matchingRoutes.length }})</template>
       </span>
     </UButton>
 
@@ -96,10 +96,10 @@ function handleBackToHub() {
         <template #header>
           <RouteHeader
             :selected-origin="selectedOrigin"
-            :selected-destino="selectedDestination"
-            :origen-airport="originAirport"
-            :destino-airport="destinationAirport"
-            :matching-count="matchingRoutes.length"
+            :selected-destination="selectedDestination"
+            :origin-airport="originAirport"
+            :destination-airport="destinationAirport"
+            :matching-count="routeSearchStatus === 'success' ? matchingRoutes.length : undefined"
             :is-collapsed="!isExpanded"
             @toggle-collapse="isExpanded = false"
             @close="clearSelection"
@@ -108,8 +108,15 @@ function handleBackToHub() {
           />
         </template>
 
+        <p v-if="routeSearchStatus === 'pending'" role="status" class="flex items-center gap-2 py-2 text-sm text-text-muted">
+          <UIcon name="i-lucide-loader-circle" class="size-4 motion-safe:animate-spin text-primary" aria-hidden="true" />
+          Cargando rutas…
+        </p>
+        <p v-else-if="routeSearchStatus === 'error'" role="alert" class="text-sm text-error">
+          No se pudieron consultar las rutas.
+        </p>
         <!-- CASO A: Par Origen - Destino seleccionado -->
-        <template v-if="selectedOrigin && selectedDestination">
+        <template v-else-if="selectedOrigin && selectedDestination">
           <!-- Subcaso A.1: Existen rutas directas o conexiones -->
           <template v-if="selectedRouteData || selectedReturnData || connectingRoutes.length > 0">
             <h2 v-if="selectedRouteData" class="text-base font-semibold text-text-main">Ida · {{ selectedRouteData.originIata }} → {{ selectedRouteData.destinationIata }}</h2>

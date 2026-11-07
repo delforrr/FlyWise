@@ -13,8 +13,16 @@ export interface ArcRoute {
   aerolinea: { iata: string | null; nombre: string };
   distanciaKm: number; escalas: number; otp15: number | null;
 }
+interface RouteSearch {
+  origenId?: string;
+  destinoId?: string;
+  status: 'pending' | 'success' | 'error';
+}
+export function useRouteSearch() {
+  return useState<RouteSearch | null>('catalog_route_search', () => null);
+}
 export function mapCatalogAirport(a: CatalogAirport): Aeropuerto {
-  return { id: a.id, iata: a.iata ?? a.icao ?? a.nombre, icao: a.icao ?? undefined,
+  return { id: a.id, codigoIata: a.iata, iata: a.iata ?? a.icao ?? a.nombre, icao: a.icao ?? undefined,
     nombre: a.nombre, ciudad: a.ciudad ?? a.nombre, pais: a.nombrePais,
     coordenadas: [a.longitud, a.latitud], cantidadConexiones: a.cantidadRutas };
 }
@@ -36,7 +44,7 @@ export function useCatalog() {
   const error = useState<string | null>('catalog_error', () => null);
   const loading = useState('catalog_loading', () => false);
   const loaded = useState('catalog_loaded', () => false);
-  const routeQuery = useState<string | null>('catalog_route_query', () => null);
+  const routeSearch = useRouteSearch();
   const routeRequestId = useState('catalog_route_request', () => 0);
   function rememberAirport(airport: Aeropuerto) {
     if (!aeropuertos.value.some(a => a.id === airport.id)) aeropuertos.value.push(airport);
@@ -69,15 +77,22 @@ export function useCatalog() {
     finally { loading.value = false; }
   }
   async function loadRoutes(origenId?: string, destinoId?: string) {
-    const key = `${origenId ?? ''}/${destinoId ?? ''}`;
-    if (routeQuery.value === key) return;
-    routeQuery.value = key;
+    const current = routeSearch.value;
+    if (
+      current && current.origenId === origenId &&
+      current.destinoId === destinoId && current.status !== 'error'
+    ) return;
+    const query = { origenId, destinoId };
+    routeSearch.value = { ...query, status: 'pending' };
+    rutas.value = [];
     const id = ++routeRequestId.value;
     try {
-      const result = await request<ArcRoute[]>('/rutas/explorar', { query: { origenId, destinoId, limit: 100, incluirRegreso: origenId && destinoId ? 'true' : undefined } });
-      if (id === routeRequestId.value) { rutas.value = groupArcRoutes(result); error.value = null; }
-    } catch (err) {
-      if (id === routeRequestId.value) { routeQuery.value = null; rutas.value = []; error.value = err instanceof Error ? err.message : 'No se pudieron consultar las rutas'; }
+      const result = await request<ArcRoute[]>('/rutas/explorar', { query: { ...query, limit: 100, incluirRegreso: origenId && destinoId ? 'true' : undefined } });
+      if (id !== routeRequestId.value) return;
+      rutas.value = groupArcRoutes(result);
+      routeSearch.value = { ...query, status: 'success' };
+    } catch {
+      if (id === routeRequestId.value) routeSearch.value = { ...query, status: 'error' };
     }
   }
   return { aeropuertos, rutas, error, loading, rememberAirport, findAirportByCode, loadAirports, loadRoutes };

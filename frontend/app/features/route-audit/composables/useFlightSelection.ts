@@ -2,6 +2,7 @@ import { computed, watch } from "vue";
 import { type Aeropuerto } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { type MapPickingInfo } from "~/types/map";
+import { useRouteSearch } from "~/shared/composables/useCatalog";
 import { findRouteBetween, queryMatchingRoutes } from "../utils/routeGraph";
 
 let hoverRafId: number | null = null;
@@ -14,6 +15,14 @@ export const useFlightSelection = () => {
     "flight_destination",
     () => undefined,
   );
+  const routeSearch = useRouteSearch();
+  const routeSearchStatus = computed(() => {
+    const search = routeSearch.value;
+    if (search && search.origenId === selectedOrigin.value && search.destinoId === selectedDestination.value) {
+      return search.status;
+    }
+    return "pending";
+  });
   watch([selectedOrigin, selectedDestination], ([origen, destino]) => {
     if (origen && origen === destino) selectedDestination.value = undefined;
   }, { flush: 'sync', immediate: true });
@@ -201,6 +210,7 @@ export const useFlightSelection = () => {
   return {
     selectedOrigin,
     selectedDestination,
+    routeSearchStatus,
     hoveredEntity,
     activeRouteId,
     hasActiveRoute,

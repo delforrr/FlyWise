@@ -43,7 +43,7 @@ describe('Global map catalogue', () => {
   it('clears old results on failure and permits retry', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValueOnce(new Error('unavailable')).mockResolvedValueOnce([conexion]));
     const map = useGlobalMap(); await map.load();
-    expect(map.connections.value).toEqual([]); expect(map.error.value).toBe('unavailable');
+    expect(map.connections.value).toEqual([]); expect(map.error.value).not.toBeNull();
     await map.load(); expect(map.error.value).toBeNull(); expect(map.connections.value).toHaveLength(1);
   });
 

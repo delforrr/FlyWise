@@ -1,6 +1,7 @@
 export interface Aeropuerto {
   id: string
-  iata: string
+  iata: string // Etiqueta visible con respaldo en ICAO o nombre.
+  codigoIata?: string | null
   icao?: string
   nombre: string
   ciudad: string
