@@ -1,3 +1,4 @@
+import { encolarEjecucion } from './encolar-ejecucion.js';
 import {
   escribirCatalogo,
   recalcularCantidadRutas,
@@ -41,35 +42,10 @@ export class EtlService {
     if (!ETL_DATASETS.includes(dataset)) {
       throw new BadRequestException('Dataset no soportado');
     }
-    const jobRecord = await this.prisma.models.EjecucionEtl.create({
+    const job = await encolarEjecucion(this.prisma, this.etlQueue, {
       fuente: dataset,
-      estado: 'pending',
     });
-
-    try {
-      const job = await this.etlQueue.add(
-        'process-dataset',
-        { jobId: jobRecord.id, dataset },
-        {
-          jobId: jobRecord.id,
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 2000 },
-          removeOnComplete: { count: 100 },
-          removeOnFail: { count: 100 },
-        },
-      );
-      return {
-        message: `Job ${dataset} encolado exitosamente`,
-        ejecucionId: jobRecord.id,
-        bullJobId: job.id,
-      };
-    } catch (error) {
-      await this.prisma.models.EjecucionEtl.where({ id: jobRecord.id }).update({
-        estado: 'failed',
-        mensajeError: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
+    return { message: `Job ${dataset} encolado exitosamente`, ...job };
   }
 
   async getStatus() {

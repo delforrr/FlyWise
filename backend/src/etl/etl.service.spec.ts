@@ -348,11 +348,11 @@ describe('EtlService', () => {
     it('marks the job failed if it cannot be queued', async () => {
       queueMock.add.mockRejectedValueOnce(new Error('Queue unavailable'));
       await expect(service.triggerJob('all')).rejects.toThrow(
-        'Queue unavailable',
+        'No fue posible encolar la ejecución',
       );
       expect(prismaMock.models.EjecucionEtl.update).toHaveBeenCalledWith({
         estado: 'failed',
-        mensajeError: 'Queue unavailable',
+        mensajeError: 'No fue posible encolar la ejecución',
       });
     });
     it('should create database record and enqueue BullMQ job', async () => {
@@ -361,6 +361,7 @@ describe('EtlService', () => {
       expect(prismaMock.models.EjecucionEtl.create).toHaveBeenCalledWith({
         fuente: 'aeropuertos',
         estado: 'pending',
+        uriFuente: null,
       });
       expect(queueMock.add).toHaveBeenCalled();
       expect(res.ejecucionId).toBe('job-record-1');
