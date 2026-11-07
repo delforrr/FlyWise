@@ -2,7 +2,7 @@
 
 Fecha: 2026-11-07. Base: `f8fb523ff45c0c70eab34e9ff725361ad88aa534` (develop).
 Rama documental: `feature/spec-localizacion-paises-mapa`.
-Estado: funcionalidad implementada y revisada. Pruebas y QA de controles aprobados; pendiente la validación visual cartográfica con GPU funcional. Ver [evidencia y límites](verificacion.md).
+Estado: funcionalidad implementada y revisada. Pruebas y QA de producción con mapa completo aprobados. Ver [evidencia y límites](verificacion.md).
 Rama de implementación: `feature/traduccion-mapa-catalogo`.
 
 ## Problem Statement
@@ -11,7 +11,7 @@ Los nombres importados de países se muestran en inglés en distintas vistas, au
 
 ## Solution
 
-Ofrecer un selector accesible Español / English, con español por defecto y preferencia persistida en cookie. Usar esa misma preferencia para nombres de países y etiquetas disponibles del mapa base. Mantener el nombre original cuando no se pueda resolver una traducción. El selector debe indicar que en esta etapa afecta países y mapa: no prometer que cambia toda la aplicación.
+Ofrecer un selector accesible Español / English, con español por defecto y preferencia persistida en cookie. Usar esa misma preferencia para nombres de países y etiquetas disponibles del mapa base. Mantener el nombre original cuando no se pueda resolver una traducción. Por ajuste posterior del usuario, el control es UTabs nativo de Nuxt UI, compacto (size sm), con EN / ES y sin label visible. Conserva el nombre accesible que indica su alcance: países y mapa.
 
 ## User Stories
 

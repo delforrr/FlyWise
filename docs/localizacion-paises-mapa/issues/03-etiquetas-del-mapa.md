@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Selector persistente y países localizados en filtros.
 
-**Status:** implemented — pruebas automatizadas y revisión aprobadas; QA visual de mapa pendiente por limitación de GPU del entorno.
+**Status:** done — pruebas, revisión y QA visual del mapa completo en producción aprobados.
 
 **Spec:** [Especificación](../spec.md).
 
@@ -15,4 +15,4 @@
 - [x] Las etiquetas numéricas y el formato del estilo se conservan; arcos, cámara, selección y navegación siguen funcionando.
 - [x] No se inicializa WebGL durante SSR ni se ejecutan traducciones en cada fotograma; no se introduce otro proveedor.
 - [x] Pruebas del ciclo de estilo y respaldo, compilaciones y suites de backend/frontend aprobadas; se verificaron nombres en teselas reales de ambos temas.
-- [ ] Revisión visual real de ambos temas y documentación de topónimos sin traducción en un navegador con GPU funcional. Ver los límites en [verificación](../verificacion.md).
+- [x] Revisión visual real de ambos temas y documentación de topónimos sin traducción en un navegador con GPU funcional. Ver los límites en [verificación](../verificacion.md).

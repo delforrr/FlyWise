@@ -64,7 +64,7 @@ Para verificar filtros sin depender de la GPU se sustituyó únicamente FlightMa
 - Ambas aplicaciones del filtro enviaron el mismo paisOrigenId, mode=domestic y limit=50. No se envían los nombres traducidos como identidad.
 - La ejecución de filtros terminó sin errores de consola.
 
-**Pendiente gráfico:** no se pudo completar de forma fiable la revisión visual de etiquetas, tooltips sobre el mapa ni cambios de tema con render real. SwiftShader inicializó luma.gl, pero demoró minutos entre interacciones. Sin WebGL se observaron errores resize/destroy en el manejo de inicialización ya presente en la base; no se demostró una regresión de localización. Los tests del ciclo de estilo, el parser real y las teselas inspeccionadas verifican la lógica, pero no sustituyen la comprobación visual en GPU funcional.
+**Límite de la primera revisión (superado en la verificación posterior de producción):** no se pudo completar de forma fiable la revisión visual de etiquetas, tooltips sobre el mapa ni cambios de tema con render real. SwiftShader inicializó luma.gl, pero demoró minutos entre interacciones. Sin WebGL se observaron errores resize/destroy en el manejo de inicialización ya presente en la base; no se demostró una regresión de localización. Los tests del ciclo de estilo, el parser real y las teselas inspeccionadas verifican la lógica, pero no sustituyen la comprobación visual en GPU funcional.
 
 No se atribuye a esta QA una cobertura gráfica completa ni una medición de FPS.
 
@@ -73,3 +73,21 @@ No se atribuye a esta QA una cobertura gráfica completa ni una medición de FPS
 Las ciudades y nombres de aeropuertos del catálogo, nombres comerciales de aerolíneas y textos generales no se traducen. Los topónimos del mapa base sí pueden cambiar según sus teselas. El panel administrativo conserva los valores originales editables. No se incorporó Nuxt I18n, una API de traducción ni columnas de traducciones.
 
 Las eliminaciones externas de `.agents/rules/backend.md` y `.agents/rules/frontend.md` se dejaron fuera de los commits de esta funcionalidad. No se hizo push ni merge.
+
+
+## Verificación posterior de la app levantada y toggle nativo
+
+GATE: OFF (no build active). Se trata de un cambio puntual de control en la app existente, no un rediseño de página. El checker de layout de la skill no pudo procesar la página (Cannot read properties of undefined, reading map); no se modificó el kit ni el resto de la página para cambiar ese resultado. Los scripts shoot de la skill generaron capturas reales a 390 y 320 px, revisadas visualmente.
+
+Se levantó el build de producción en 127.0.0.1:3002 además del desarrollo en 127.0.0.1:3000 y backend en 3001. En producción fue posible repetir el flujo con Chromium y SwiftShader sin aislar FlightMap ni ninguna otra parte de la app, superando la limitación de la primera revisión:
+
+- Mapa y arcos reales renderizados; temas claro y oscuro operativos.
+- Etiquetas claras ES/EN visibles: AMÉRICA DEL NORTE / NORTH AMERICA y ÁFRICA / AFRICA.
+- Etiquetas oscuras ES/EN visibles tras filtrar Reino Unido: IRLANDA / IRELAND, DINAMARCA / DENMARK y PAÍSES BAJOS / NETHERLANDS.
+- Búsqueda bilingüe, filtros conservados y mismo ID al aplicar antes/después de alternar idioma.
+- Preferencia conservada al recargar; ejecución sin errores de consola.
+- Tooltip real en español comprobado sobre Inverness. La comprobación de hover en inglés no obtuvo un tooltip visible después de cerrar el menú del selector anterior; no se considera demostración de un defecto. La actualización ES/EN del contenido sigue cubierta por el test de tarjetas/tooltips.
+
+Después, a pedido del usuario, se reemplazó el select por UTabs nativo de Nuxt UI (content false, size sm), sin label visible ni indicador o estilos propios. Se actualizó la prueba de cambio de idioma y restauración desde cookie para el control nativo. Se verificaron nuevamente 208 pruebas frontend, 209 backend y las compilaciones de ambos proyectos. Las tres pruebas HTTP/PostgreSQL también pasaron al repetir la prueba de la aplicación. No se añadieron dependencias.
+
+Las capturas del control compacto muestran la cabecera sin desbordamiento en móvil. El idioma y los datos canónicos se conservan. No se midieron FPS ni se garantiza cobertura mundial de traducciones de las teselas.

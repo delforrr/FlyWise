@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { useCountryLocale } from '../../composables/useCountryLocale';
+import { useCountryLocale } from "../../composables/useCountryLocale";
 
 const { locale } = useCountryLocale();
-const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
+const languages = [
+  { value: "en", label: "EN" },
+  { value: "es", label: "ES" },
+];
 interface Props {
   hasControls?: boolean;
   hasLogin?: boolean;
@@ -60,8 +63,16 @@ const { isOpen: isGlobalFilterOpen } = useGlobalMap();
 
     <!-- Botón de login y controles -->
     <template #right>
-      <UButton v-if="hasControls" icon="i-lucide-list-filter" color="neutral" variant="ghost" class="shrink-0 whitespace-nowrap"
-        aria-label="Filtrar mapa" title="Filtrar mapa" @click="isGlobalFilterOpen = true">
+      <UButton
+        v-if="hasControls"
+        icon="i-lucide-list-filter"
+        color="neutral"
+        variant="ghost"
+        class="shrink-0 whitespace-nowrap"
+        aria-label="Filtrar mapa"
+        title="Filtrar mapa"
+        @click="isGlobalFilterOpen = true"
+      >
         <span class="hidden lg:inline">Filtrar mapa</span>
       </UButton>
       <UButton
@@ -79,11 +90,15 @@ const { isOpen: isGlobalFilterOpen } = useGlobalMap();
           <UKbd value="k" />
         </span>
       </UButton>
-      <div class="flex shrink-0 flex-col gap-0.5">
-        <span class="text-[11px] text-text-muted">Países / mapa</span>
-        <USelect v-model="locale" :items="languages" size="sm" class="w-25"
-          aria-label="Idioma de países y mapa" />
-      </div>
+      <UTabs
+        v-model="locale"
+        :items="languages"
+        :content="false"
+        size="xs"
+        role="group"
+        aria-label="Idioma de países y mapa"
+        class="shrink-0"
+      />
       <ThemeToggle />
       <UButton
         v-if="hasLogin"
