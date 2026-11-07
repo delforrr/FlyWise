@@ -1,3 +1,4 @@
+import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { crearOfertaFixture } from './helpers/oferta-fixture.js';
 import { AirlinesService } from '../src/airlines/airlines.service.js';
 import { UsersService } from '../src/users/users.service.js';
@@ -78,6 +79,7 @@ describe('Data model (PostgreSQL integration)', () => {
         iata: 'QZA',
         latitud: -34.8222,
         longitud: -58.5358,
+        ubicacion: ubicacionAeropuerto(-34.8222, -58.5358),
       });
       const destino = await tx.orm.public.Aeropuerto.create({
         nombre: 'MIA fixture',
@@ -85,6 +87,7 @@ describe('Data model (PostgreSQL integration)', () => {
         iata: 'QZB',
         latitud: 25.7959,
         longitud: -80.2906,
+        ubicacion: ubicacionAeropuerto(25.7959, -80.2906),
       });
       await crearOfertaFixture(tx, {
         origenId: origen.id,
@@ -130,6 +133,7 @@ describe('Data model (PostgreSQL integration)', () => {
               nombrePais,
               latitud: 0,
               longitud: 0,
+              ubicacion: ubicacionAeropuerto(0, 0),
             }),
         ),
       );
@@ -234,7 +238,7 @@ describe('Data model (PostgreSQL integration)', () => {
       ).toBeNull();
     });
   });
-  it('rejects unsafe conexion storage, invalid scheduling and missing snapshots', async () => {
+  it('rejects missing snapshots and unknown snapshot fields', async () => {
     await isolated(async (tx) => {
       const data = {
         nombre: 'Pipeline',
@@ -242,54 +246,6 @@ describe('Data model (PostgreSQL integration)', () => {
         entidadDestino: 'otp_metrics' as const,
         ...configuration,
       };
-      await rejected(
-        tx,
-        () =>
-          tx.orm.public.ProcesoEtl.create({
-            ...data,
-            conexion: {
-              ...configuration.conexion,
-              headers: [{ key: 'Authorization', value: 'secret' }],
-            },
-          }),
-        /etl_pipelines_connection_check/,
-      );
-      await rejected(
-        tx,
-        () =>
-          tx.orm.public.ProcesoEtl.create({
-            ...data,
-            conexion: {
-              ...configuration.conexion,
-              urlEndpoint: 'https://user:password@example.test/file',
-            },
-          }),
-        /etl_pipelines_connection_check/,
-      );
-      await rejected(
-        tx,
-        () =>
-          tx.orm.public.ProcesoEtl.create({
-            ...data,
-            configuracionProgramacion: {
-              ...configuration.configuracionProgramacion,
-              tamanoLote: 999,
-            },
-          }),
-        /etl_pipelines_schedule_check/,
-      );
-      await rejected(
-        tx,
-        () =>
-          tx.orm.public.ProcesoEtl.create({
-            ...data,
-            configuracionProgramacion: {
-              ...configuration.configuracionProgramacion,
-              maximoReintentos: -1,
-            },
-          }),
-        /etl_pipelines_schedule_check/,
-      );
       const proceso = await tx.orm.public.ProcesoEtl.create(data);
       await rejected(
         tx,
@@ -364,9 +320,11 @@ describe('Data model (PostgreSQL integration)', () => {
         nombrePais: 'Argentina',
         latitud: -34.8222,
         longitud: -58.5358,
+        ubicacion: ubicacionAeropuerto(-34.8222, -58.5358),
       });
       await tx.orm.public.Aeropuerto.where({ id: airport.id }).update({
         longitud: -58,
+        ubicacion: ubicacionAeropuerto(airport.latitud, -58),
       });
       const [ubicacion] = await tx.query(
         tx.raw.sql`
@@ -399,12 +357,14 @@ describe('Data model (PostgreSQL integration)', () => {
         nombrePais: 'Test',
         latitud: 0,
         longitud: 0,
+        ubicacion: ubicacionAeropuerto(0, 0),
       });
       const destino = await tx.orm.public.Aeropuerto.create({
         nombre: 'Destination',
         nombrePais: 'Test',
         latitud: 1,
         longitud: 1,
+        ubicacion: ubicacionAeropuerto(1, 1),
       });
       const aerolinea = await tx.orm.public.Aerolinea.create({
         nombre: 'Operator',
@@ -605,6 +565,7 @@ describe('Data model (PostgreSQL integration)', () => {
         iata: `QX${String.fromCharCode(65 + index)}`,
         latitud: index,
         longitud: index,
+        ubicacion: ubicacionAeropuerto(index, index),
       }));
       await tx.orm.public.Aeropuerto.createAndCount(aeropuertos);
       const aerolinea = 'Z1';

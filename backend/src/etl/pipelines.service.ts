@@ -1,3 +1,4 @@
+import { encolarEjecucion } from './encolar-ejecucion.js';
 import {
   BadRequestException,
   ConflictException,
@@ -209,6 +210,14 @@ export class PipelinesService implements OnModuleInit {
   }
 
   async create(dto: CreatePipelineDto) {
+    dto = (await new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }).transform(dto, {
+      type: 'body',
+      metatype: CreatePipelineDto,
+    })) as CreatePipelineDto;
     this.validate(dto);
     const row = await this.prisma.models.ProcesoEtl.create({
       ...dto,
@@ -300,35 +309,13 @@ export class PipelinesService implements OnModuleInit {
     solicitanteId?: string,
   ) {
     configuration = await this.validateConfiguration(fuente, configuration);
-    const record = await this.prisma.models.EjecucionEtl.create({
+    const { ejecucionId } = await encolarEjecucion(this.prisma, this.queue, {
       fuente,
-      estado: 'pending',
-      procesoId: procesoId ?? null,
-      solicitanteId: solicitanteId ?? null,
+      procesoId,
+      solicitanteId,
       instantaneaConfiguracion: configuration,
-      uriFuente: configuration.conexion.urlEndpoint,
     });
-    try {
-      await this.queue.add(
-        'process-dataset',
-        { jobId: record.id, dataset: fuente },
-        {
-          jobId: record.id,
-          attempts:
-            configuration.configuracionProgramacion.maximoReintentos + 1,
-          backoff: { type: 'exponential', delay: 2000 },
-          removeOnComplete: { count: 100 },
-          removeOnFail: { count: 100 },
-        },
-      );
-    } catch {
-      await this.prisma.models.EjecucionEtl.where({ id: record.id }).update({
-        estado: 'failed',
-        mensajeError: 'No fue posible encolar la ejecución',
-      });
-      throw new BadRequestException('No fue posible encolar la ejecución');
-    }
-    return { ejecucionId: record.id };
+    return { ejecucionId };
   }
 
   async job(id: string) {
@@ -368,30 +355,13 @@ export class PipelinesService implements OnModuleInit {
     if (job.estado !== 'failed' && job.estado !== 'completed')
       throw new ConflictException('La ejecución todavía está activa');
     if (!job.instantaneaConfiguracion) {
-      const record = await this.prisma.models.EjecucionEtl.create({
+      const { ejecucionId } = await encolarEjecucion(this.prisma, this.queue, {
         fuente: job.fuente,
-        estado: 'pending',
         solicitanteId,
       });
-      try {
-        await this.queue.add(
-          'process-dataset',
-          { jobId: record.id, dataset: job.fuente },
-          {
-            jobId: record.id,
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 2000 },
-          },
-        );
-      } catch {
-        await this.prisma.models.EjecucionEtl.where({ id: record.id }).update({
-          estado: 'failed',
-          mensajeError: 'No fue posible encolar la ejecución',
-        });
-        throw new BadRequestException('No fue posible encolar la ejecución');
-      }
-      return { ejecucionId: record.id };
+      return { ejecucionId };
     }
+
     return this.enqueue(
       job.fuente,
       job.instantaneaConfiguracion as PipelineConfiguration,

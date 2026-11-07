@@ -1,9 +1,14 @@
+import {
+  includeRouteDetails,
+  seleccionarConexiones,
+  type RouteWithRelations,
+} from './route-queries.js';
 import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
-  bloquearCatalogo,
+  escribirCatalogo,
+  proteccionManual,
   recalcularCantidadRutas,
-} from '../prisma/catalog-state.js';
-import { errorCatalogo } from '../prisma/catalog-error.js';
+} from '../catalogos/catalog-state.js';
 import { escaparLike } from '../prisma/escape-like.js';
 import type { Transaction } from '../prisma/db.js';
 import {
@@ -12,12 +17,7 @@ import {
   CrearOfertaRutaDto,
   EditarOfertaRutaDto,
 } from './dto/administrar-ruta.dto.js';
-import {
-  and,
-  or,
-  type Condition,
-  type CollectionRowOf,
-} from '@prisma/orm-postgres/orm-client';
+import { and, or, type Condition } from '@prisma/orm-postgres/orm-client';
 import {
   BadRequestException,
   ConflictException,
@@ -28,7 +28,6 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { ExploreRoutesDto } from './dto/explore-routes.dto.js';
 import { QueryDirectRouteDto } from './dto/query-direct-route.dto.js';
 import { GlobalRoutesDto } from './dto/global-routes.dto.js';
-import { COUNTRY_CONTINENTS } from '../countries/continents.js';
 
 export interface GlobalConnection {
   id: string;
@@ -69,28 +68,6 @@ export interface DeckGlArcRoute {
   escalas: number;
 }
 
-function includeRouteDetails(prisma: PrismaService) {
-  return prisma.models.OfertaRuta.where((r) =>
-    and(
-      r.archivadoEn.isNull(),
-      r.ruta.some((conexion) =>
-        and(
-          conexion.archivadoEn.isNull(),
-          conexion.origen.some({ archivadoEn: null }),
-          conexion.destino.some({ archivadoEn: null }),
-        ),
-      ),
-      or(r.aerolineaId.isNull(), r.aerolinea.some({ archivadoEn: null })),
-    ),
-  )
-    .include('ruta', (ruta) => ruta.include('origen').include('destino'))
-    .include('aerolinea');
-}
-
-type RouteWithRelations = CollectionRowOf<
-  ReturnType<typeof includeRouteDetails>
->;
-
 @Injectable()
 export class RoutesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -103,67 +80,10 @@ export class RoutesService {
     ) {
       throw new BadRequestException('Selecciona dos lugares diferentes');
     }
-    const entries = Object.entries(COUNTRY_CONTINENTS);
-    const originCodes = JSON.stringify(
-      entries
-        .filter(
-          ([, continent]) =>
-            dto.mode !== 'continents' || continent === dto.continenteOrigen,
-        )
-        .map(([iso]) => iso),
-    );
-    const destinationCodes = JSON.stringify(
-      entries
-        .filter(
-          ([, continent]) =>
-            dto.mode !== 'continents' || continent === dto.continenteDestino,
-        )
-        .map(([iso]) => iso),
-    );
-    const symmetric = dto.mode === 'global' || dto.mode === 'domestic';
-    const selected = await this.prisma.db.query(
-      this.prisma.db.raw.sql`
-      WITH candidates AS (
-        SELECT DISTINCT
-          CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN d.id ELSE o.id END AS "origenId",
-          CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN o.id ELSE d.id END AS "destinoId",
-          o.cantidad_rutas + d.cantidad_rutas AS score
-        FROM ofertas_ruta r JOIN rutas conexion ON conexion.id=r.ruta_id
-        JOIN aeropuertos o ON o.id = conexion.origen_id
-        JOIN aeropuertos d ON d.id = conexion.destino_id
-        LEFT JOIN paises oc ON oc.id = o.pais_id
-        LEFT JOIN paises dc ON dc.id = d.pais_id
-        WHERE r.archivado_en IS NULL AND conexion.archivado_en IS NULL AND o.archivado_en IS NULL AND d.archivado_en IS NULL AND (r.aerolinea_id IS NULL OR EXISTS (SELECT 1 FROM aerolineas a WHERE a.id=r.aerolinea_id AND a.archivado_en IS NULL)) AND r.escalas = 0 AND (
-          ${dto.mode === 'global'} OR (
-            UPPER(TRIM(oc.codigo_iso)) IN (SELECT jsonb_array_elements_text(${originCodes}::jsonb))
-            AND UPPER(TRIM(dc.codigo_iso)) IN (SELECT jsonb_array_elements_text(${destinationCodes}::jsonb))
-            AND (
-              (${dto.mode === 'domestic'} AND oc.id = ${dto.paisOrigenId ?? ''}::text AND dc.id = oc.id)
-              OR (${dto.mode === 'paises'} AND oc.id = ${dto.paisOrigenId ?? ''}::text AND dc.id = ${dto.paisDestinoId ?? ''}::text)
-              OR ${dto.mode === 'continents'}
-            )
-          )
-        )
-      ), pairs AS (
-        SELECT * FROM candidates ORDER BY score DESC, "origenId", "destinoId" LIMIT ${dto.limit ?? 50}
-      )
-      SELECT r.id, p."origenId", p."destinoId"
-      FROM pairs p JOIN ofertas_ruta r ON r.escalas = 0 JOIN rutas conexion ON conexion.id=r.ruta_id AND (
-        (conexion.origen_id = p."origenId" AND conexion.destino_id = p."destinoId") OR
-        (conexion.destino_id = p."origenId" AND conexion.origen_id = p."destinoId")
-      )
-      ORDER BY p.score DESC, p."origenId", p."destinoId", r.id
-    `
-        .returnsRow({
-          id: 'pg/text@1',
-          origenId: 'pg/text@1',
-          destinoId: 'pg/text@1',
-        })
-        .build(),
-    );
+    const selected = await seleccionarConexiones(this.prisma, dto);
     if (!selected.length) return [];
     const rows = await includeRouteDetails(this.prisma)
-      .where((route) => or(...selected.map(({ id }) => route.id.eq(id))))
+      .where((route) => route.id.in(selected.map(({ id }) => id)))
       .all();
     const arcs = new Map(
       (await this.withDistances(rows)).map((row) => [
@@ -207,6 +127,28 @@ export class RoutesService {
     if (dto.incluirRegreso && (!dto.origenId || !dto.destinoId)) {
       throw new BadRequestException('incluirRegreso requiere origen y destino');
     }
+    const { origenId, destinoId } = dto;
+    const routes =
+      origenId && destinoId
+        ? await this.prisma.models.Ruta.where((route) => {
+            const ida = and(
+              route.origenId.eq(origenId),
+              route.destinoId.eq(destinoId),
+            );
+            return dto.incluirRegreso
+              ? or(
+                  ida,
+                  and(
+                    route.origenId.eq(destinoId),
+                    route.destinoId.eq(origenId),
+                  ),
+                )
+              : ida;
+          })
+            .select('id')
+            .all()
+        : undefined;
+    if (routes?.length === 0) return [];
     const query = includeRouteDetails(this.prisma)
       .where((route) => {
         const conditions: Condition[] = [];
@@ -218,31 +160,28 @@ export class RoutesService {
             ),
           );
         }
-        if (dto.incluirRegreso && dto.origenId && dto.destinoId) {
+        if (routes && origenId && destinoId) {
+          const ida = route.ruta.some({ origenId, destinoId });
+          conditions.push(
+            route.rutaId.in(routes.map(({ id }) => id)),
+            route.escalas.eq(0),
+            dto.incluirRegreso
+              ? or(
+                  ida,
+                  route.ruta.some({ origenId: destinoId, destinoId: origenId }),
+                )
+              : ida,
+          );
+        } else if (origenId) {
           conditions.push(
             or(
-              and(
-                route.ruta.some({ origenId: dto.origenId }),
-                route.ruta.some({ destinoId: dto.destinoId }),
-              ),
-              and(
-                route.ruta.some({ origenId: dto.destinoId }),
-                route.ruta.some({ destinoId: dto.origenId }),
-              ),
+              route.ruta.some({ origenId }),
+              route.ruta.some({ destinoId: origenId }),
             ),
           );
-        } else if (dto.origenId)
-          conditions.push(
-            dto.destinoId
-              ? route.ruta.some({ origenId: dto.origenId })
-              : or(
-                  route.ruta.some({ origenId: dto.origenId }),
-                  route.ruta.some({ destinoId: dto.origenId }),
-                ),
-          );
-        if (dto.destinoId && !dto.incluirRegreso)
-          conditions.push(route.ruta.some({ destinoId: dto.destinoId }));
-        if (dto.origenId && dto.destinoId) conditions.push(route.escalas.eq(0));
+        } else if (destinoId) {
+          conditions.push(route.ruta.some({ destinoId }));
+        }
         if (aerolinea)
           conditions.push(
             route.codigoAerolinea.eq(aerolinea.trim().toUpperCase()),
@@ -522,64 +461,57 @@ export class RoutesService {
   }
 
   crearAdmin(datos: CrearRutaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        await this.validarReferencias(tx, datos.origenId, datos.destinoId);
-        const registro = await tx.orm.public.Ruta.create({
-          ...datos,
-          protegidoManualmente: true,
-        });
-        await recalcularCantidadRutas(tx);
-        return registro;
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      await this.validarReferencias(tx, datos.origenId, datos.destinoId);
+      const registro = await tx.orm.public.Ruta.create({
+        ...datos,
+        protegidoManualmente: true,
+      });
+      await recalcularCantidadRutas(tx);
+      return registro;
+    });
   }
 
   editarAdmin(id: string, datos: EditarRutaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        const actual = await tx.orm.public.Ruta.first({ id });
-        if (!actual) throw new NotFoundException('La ruta no existe');
-        if (actual.archivadoEn)
-          throw new ConflictException('La ruta está archivada');
-        const cambiaExtremos =
-          (datos.origenId !== undefined &&
-            datos.origenId !== actual.origenId) ||
-          (datos.destinoId !== undefined &&
-            datos.destinoId !== actual.destinoId);
-        if (
-          cambiaExtremos &&
-          (await tx.orm.public.OfertaRuta.first({ rutaId: id }))
-        ) {
-          throw new ConflictException(
-            'Los aeropuertos de una ruta con ofertas no pueden modificarse',
-          );
-        }
-        const { protegidoManualmente, ...cambios } = datos;
-        const referencia = { ...actual, ...cambios };
-        if (Object.keys(cambios).length)
-          await this.validarReferencias(
-            tx,
-            referencia.origenId,
-            referencia.destinoId,
-          );
-        const registro = await tx.orm.public.Ruta.where({ id }).update({
-          ...cambios,
-          protegidoManualmente: Object.keys(cambios).length
-            ? true
-            : (protegidoManualmente ?? actual.protegidoManualmente),
-        });
-        await recalcularCantidadRutas(tx);
-        return registro;
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      const actual = await tx.orm.public.Ruta.first({ id });
+      if (!actual) throw new NotFoundException('La ruta no existe');
+      if (actual.archivadoEn)
+        throw new ConflictException('La ruta está archivada');
+      const cambiaExtremos =
+        (datos.origenId !== undefined && datos.origenId !== actual.origenId) ||
+        (datos.destinoId !== undefined && datos.destinoId !== actual.destinoId);
+      if (
+        cambiaExtremos &&
+        (await tx.orm.public.OfertaRuta.first({ rutaId: id }))
+      ) {
+        throw new ConflictException(
+          'Los aeropuertos de una ruta con ofertas no pueden modificarse',
+        );
+      }
+      const { protegidoManualmente, ...cambios } = datos;
+      const referencia = { ...actual, ...cambios };
+      if (Object.keys(cambios).length)
+        await this.validarReferencias(
+          tx,
+          referencia.origenId,
+          referencia.destinoId,
+        );
+      const registro = await tx.orm.public.Ruta.where({ id }).update({
+        ...cambios,
+        protegidoManualmente: proteccionManual(
+          cambios,
+          protegidoManualmente,
+          actual.protegidoManualmente,
+        ),
+      });
+      await recalcularCantidadRutas(tx);
+      return registro;
+    });
   }
 
   async archivarAdmin(id: string) {
-    await this.prisma.db.transaction(async (tx) => {
-      await bloquearCatalogo(tx);
+    await escribirCatalogo(this.prisma.db, async (tx) => {
       const actual = await tx.orm.public.Ruta.first({ id });
       if (!actual) throw new NotFoundException('La ruta no existe');
       if (actual.archivadoEn) return;
@@ -602,71 +534,66 @@ export class RoutesService {
   }
 
   crearOferta(rutaId: string, datos: CrearOfertaRutaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        await this.rutaVigente(tx, rutaId);
-        if (
-          datos.aerolineaId &&
-          !(await tx.orm.public.Aerolinea.first({
-            id: datos.aerolineaId,
-            archivadoEn: null,
-          }))
-        )
-          throw new NotFoundException(
-            'La aerolínea debe existir y estar sin archivar',
-          );
-        const oferta = await tx.orm.public.OfertaRuta.create({
-          ...datos,
-          rutaId,
-          fuente: 'Administrativa',
-          protegidoManualmente: true,
-        });
-        await recalcularCantidadRutas(tx);
-        return oferta;
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      await this.rutaVigente(tx, rutaId);
+      if (
+        datos.aerolineaId &&
+        !(await tx.orm.public.Aerolinea.first({
+          id: datos.aerolineaId,
+          archivadoEn: null,
+        }))
+      )
+        throw new NotFoundException(
+          'La aerolínea debe existir y estar sin archivar',
+        );
+      const oferta = await tx.orm.public.OfertaRuta.create({
+        ...datos,
+        rutaId,
+        fuente: 'Administrativa',
+        protegidoManualmente: true,
+      });
+      await recalcularCantidadRutas(tx);
+      return oferta;
+    });
   }
 
   editarOferta(rutaId: string, id: string, datos: EditarOfertaRutaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        await this.rutaVigente(tx, rutaId);
-        const actual = await tx.orm.public.OfertaRuta.first({ id, rutaId });
-        if (!actual)
-          throw new NotFoundException('La oferta no existe en esta ruta');
-        if (actual.archivadoEn)
-          throw new ConflictException('La oferta está archivada');
-        if (
-          datos.aerolineaId &&
-          !(await tx.orm.public.Aerolinea.first({
-            id: datos.aerolineaId,
-            archivadoEn: null,
-          }))
-        )
-          throw new NotFoundException(
-            'La aerolínea debe existir y estar sin archivar',
-          );
-        const { protegidoManualmente, ...cambios } = datos;
-        const oferta = await tx.orm.public.OfertaRuta.where({
-          id,
-          rutaId,
-        }).update({
-          ...cambios,
-          protegidoManualmente: Object.keys(cambios).length
-            ? true
-            : (protegidoManualmente ?? actual.protegidoManualmente),
-        });
-        await recalcularCantidadRutas(tx);
-        return oferta;
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      await this.rutaVigente(tx, rutaId);
+      const actual = await tx.orm.public.OfertaRuta.first({ id, rutaId });
+      if (!actual)
+        throw new NotFoundException('La oferta no existe en esta ruta');
+      if (actual.archivadoEn)
+        throw new ConflictException('La oferta está archivada');
+      if (
+        datos.aerolineaId &&
+        !(await tx.orm.public.Aerolinea.first({
+          id: datos.aerolineaId,
+          archivadoEn: null,
+        }))
+      )
+        throw new NotFoundException(
+          'La aerolínea debe existir y estar sin archivar',
+        );
+      const { protegidoManualmente, ...cambios } = datos;
+      const oferta = await tx.orm.public.OfertaRuta.where({
+        id,
+        rutaId,
+      }).update({
+        ...cambios,
+        protegidoManualmente: proteccionManual(
+          cambios,
+          protegidoManualmente,
+          actual.protegidoManualmente,
+        ),
+      });
+      await recalcularCantidadRutas(tx);
+      return oferta;
+    });
   }
 
   async archivarOferta(rutaId: string, id: string) {
-    await this.prisma.db.transaction(async (tx) => {
-      await bloquearCatalogo(tx);
+    await escribirCatalogo(this.prisma.db, async (tx) => {
       const actual = await tx.orm.public.OfertaRuta.first({ id, rutaId });
       if (!actual)
         throw new NotFoundException('La oferta no existe en esta ruta');

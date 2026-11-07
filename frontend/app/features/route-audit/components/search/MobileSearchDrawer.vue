@@ -8,6 +8,7 @@ import {
 const {
   selectedOrigin,
   selectedDestination,
+  routeSearchStatus,
   matchingRoutes,
   isMobileSearchOpen,
   openMobileSearch,
@@ -223,7 +224,7 @@ function handleSearch() {
       <template #footer>
         <div class="flex items-center gap-2 w-full pt-1">
           <RouteCounterBadge
-            v-if="selectedOrigin || selectedDestination"
+            v-if="routeSearchStatus === 'success' && (selectedOrigin || selectedDestination)"
             :count="matchingRoutes.length"
           />
           <UButton

@@ -1,3 +1,4 @@
+import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { createDatabase } from '../src/prisma/db.js';
 import { linkCatalogCountries } from '../src/prisma/link-catalog-countries.js';
 
@@ -19,6 +20,7 @@ describe('Pais link provenance (PostgreSQL)', () => {
           nombrePais: a.nombre,
           latitud: 0,
           longitud: 0,
+          ubicacion: ubicacionAeropuerto(0, 0),
         });
         const explicit = await tx.orm.public.Aeropuerto.create({
           nombre: 'Explicit fixture',
@@ -26,6 +28,7 @@ describe('Pais link provenance (PostgreSQL)', () => {
           paisId: a.id,
           latitud: 1,
           longitud: 1,
+          ubicacion: ubicacionAeropuerto(1, 1),
         });
         const aerolinea = await tx.orm.public.Aerolinea.create({
           nombre: 'Inferred aerolinea',

@@ -1,3 +1,4 @@
+import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { crearOfertaFixture } from './helpers/oferta-fixture.js';
 import { randomUUID } from 'node:crypto';
 import { createDatabase } from '../src/prisma/db.js';
@@ -43,6 +44,7 @@ describe('Global connections (PostgreSQL)', () => {
             iata,
             latitud: 10,
             longitud: 20,
+            ubicacion: ubicacionAeropuerto(10, 20),
             cantidadRutas,
           });
         }
@@ -155,6 +157,9 @@ describe('Global connections (PostgreSQL)', () => {
           false,
         );
         const global = await service.global({ mode: 'global', limit: 50 });
+        expect(await service.global({ mode: 'global', limit: 3 })).toEqual(
+          global.slice(0, 3),
+        );
         expect(
           global.some(
             (c) =>
@@ -170,6 +175,14 @@ describe('Global connections (PostgreSQL)', () => {
         expect(directed.filter((r) => r.origen.id === origen.id)).toHaveLength(
           2,
         );
+        const outbound = await service.explore({
+          origenId: origen.id,
+          destinoId: destinations[0].id,
+          limit: 1,
+        });
+        expect(outbound).toHaveLength(1);
+        expect(outbound[0].origen.id).toBe(origen.id);
+        expect(outbound[0].destino.id).toBe(destinations[0].id);
         throw rollback;
       });
     } catch (error) {

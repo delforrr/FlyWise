@@ -47,6 +47,36 @@ describe('Pipeline persistence and immutable execution configuration', () => {
             maximoReintentos: 2,
           },
         };
+        for (const changes of [
+          {
+            conexion: {
+              ...dto.conexion,
+              headers: [{ key: 'Authorization', value: 'secret' }],
+            },
+          },
+          {
+            conexion: {
+              ...dto.conexion,
+              urlEndpoint: 'https://user:password@example.test/file',
+            },
+          },
+          {
+            configuracionProgramacion: {
+              ...dto.configuracionProgramacion,
+              tamanoLote: 999,
+            },
+          },
+          {
+            configuracionProgramacion: {
+              ...dto.configuracionProgramacion,
+              maximoReintentos: -1,
+            },
+          },
+        ]) {
+          await expect(
+            service.create({ ...dto, ...changes } as CreatePipelineDto),
+          ).rejects.toThrow();
+        }
         const proceso = await service.create(dto);
         expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
           proceso.id,

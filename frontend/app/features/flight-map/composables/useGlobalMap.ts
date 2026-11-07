@@ -52,8 +52,8 @@ export function useGlobalMap() {
       if (id !== requestId.value) return;
       connections.value = result;
       fitTrigger.value++;
-    } catch (err) {
-      if (id === requestId.value) error.value = err instanceof Error ? err.message : 'No se pudieron cargar las conexiones';
+    } catch {
+      if (id === requestId.value) error.value = 'No se pudieron cargar las conexiones. Intentá de nuevo.';
     } finally {
       if (id === requestId.value) loading.value = false;
     }

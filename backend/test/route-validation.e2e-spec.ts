@@ -1,3 +1,4 @@
+import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { crearOfertaFixture } from './helpers/oferta-fixture.js';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe } from '@nestjs/common';
@@ -23,6 +24,7 @@ describe('Ruta identity validation (HTTP and PostgreSQL)', () => {
           nombrePais: 'Test',
           latitud: 0,
           longitud: 0,
+          ubicacion: ubicacionAeropuerto(0, 0),
         });
         const destino = await tx.orm.public.Aeropuerto.create({
           nombre: 'Identity destino',
@@ -31,6 +33,7 @@ describe('Ruta identity validation (HTTP and PostgreSQL)', () => {
           nombrePais: 'Test',
           latitud: 1,
           longitud: 1,
+          ubicacion: ubicacionAeropuerto(1, 1),
         });
         await crearOfertaFixture(tx, {
           origenId: origen.id,

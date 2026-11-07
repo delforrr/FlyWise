@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<FromToDateProps>(), {
 const {
   selectedOrigin,
   selectedDestination,
+  routeSearchStatus,
   matchingRoutes,
   swapAirports: swapSelection,
   clearSelection,
@@ -95,7 +96,7 @@ function handleSearch() {
     </div>
 
     <USeparator
-      v-if="selectedOrigin || selectedDestination"
+      v-if="routeSearchStatus === 'success' && (selectedOrigin || selectedDestination)"
       orientation="vertical"
       class="h-4 hidden xl:block shrink-0 mx-1 sm:mx-2"
       size="sm"
@@ -103,7 +104,7 @@ function handleSearch() {
 
     <!-- Contador de Rutas Coincidentes (si hay filtro activo) -->
     <RouteCounterBadge
-      v-if="selectedOrigin || selectedDestination"
+      v-if="routeSearchStatus === 'success' && (selectedOrigin || selectedDestination)"
       :count="matchingRoutes.length"
       class="hidden xl:inline-flex shrink-0"
     />

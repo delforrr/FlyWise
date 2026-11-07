@@ -1,10 +1,10 @@
 import { escaparLike } from '../prisma/escape-like.js';
 import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
-  bloquearCatalogo,
+  escribirCatalogo,
+  proteccionManual,
   recalcularCantidadRutas,
-} from '../prisma/catalog-state.js';
-import { errorCatalogo } from '../prisma/catalog-error.js';
+} from '../catalogos/catalog-state.js';
 import {
   CrearAerolineaDto,
   EditarAerolineaDto,
@@ -134,55 +134,50 @@ export class AirlinesService {
   }
 
   crearAdmin(datos: CrearAerolineaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        const pais = datos.paisId
-          ? await tx.orm.public.Pais.first({ id: datos.paisId })
-          : null;
-        if (datos.paisId && !pais)
-          throw new NotFoundException('El país no existe');
-        return tx.orm.public.Aerolinea.create({
-          ...datos,
-          pais: pais?.nombre ?? null,
-          fuente: 'Administrativa',
-          protegidoManualmente: true,
-          vinculoPaisInferido: false,
-        });
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      const pais = datos.paisId
+        ? await tx.orm.public.Pais.first({ id: datos.paisId })
+        : null;
+      if (datos.paisId && !pais)
+        throw new NotFoundException('El país no existe');
+      return tx.orm.public.Aerolinea.create({
+        ...datos,
+        pais: pais?.nombre ?? null,
+        fuente: 'Administrativa',
+        protegidoManualmente: true,
+        vinculoPaisInferido: false,
+      });
+    });
   }
 
   editarAdmin(id: string, datos: EditarAerolineaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        const actual = await tx.orm.public.Aerolinea.first({ id });
-        if (!actual) throw new NotFoundException('La aerolínea no existe');
-        if (actual.archivadoEn)
-          throw new ConflictException('La aerolínea está archivada');
-        const { protegidoManualmente, ...cambios } = datos;
-        const pais = datos.paisId
-          ? await tx.orm.public.Pais.first({ id: datos.paisId })
-          : null;
-        if (datos.paisId && !pais)
-          throw new NotFoundException('El país no existe');
-        return tx.orm.public.Aerolinea.where({ id }).update({
-          ...cambios,
-          ...(datos.paisId !== undefined
-            ? { pais: pais?.nombre ?? null, vinculoPaisInferido: false }
-            : {}),
-          protegidoManualmente: Object.keys(cambios).length
-            ? true
-            : (protegidoManualmente ?? actual.protegidoManualmente),
-        });
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      const actual = await tx.orm.public.Aerolinea.first({ id });
+      if (!actual) throw new NotFoundException('La aerolínea no existe');
+      if (actual.archivadoEn)
+        throw new ConflictException('La aerolínea está archivada');
+      const { protegidoManualmente, ...cambios } = datos;
+      const pais = datos.paisId
+        ? await tx.orm.public.Pais.first({ id: datos.paisId })
+        : null;
+      if (datos.paisId && !pais)
+        throw new NotFoundException('El país no existe');
+      return tx.orm.public.Aerolinea.where({ id }).update({
+        ...cambios,
+        ...(datos.paisId !== undefined
+          ? { pais: pais?.nombre ?? null, vinculoPaisInferido: false }
+          : {}),
+        protegidoManualmente: proteccionManual(
+          cambios,
+          protegidoManualmente,
+          actual.protegidoManualmente,
+        ),
+      });
+    });
   }
 
   async archivarAdmin(id: string) {
-    await this.prisma.db.transaction(async (tx) => {
-      await bloquearCatalogo(tx);
+    await escribirCatalogo(this.prisma.db, async (tx) => {
       const actual = await tx.orm.public.Aerolinea.first({ id });
       if (!actual) throw new NotFoundException('La aerolínea no existe');
       if (actual.archivadoEn) return;

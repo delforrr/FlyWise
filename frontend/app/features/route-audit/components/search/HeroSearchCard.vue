@@ -81,7 +81,7 @@ function swapAirports() {
       <div class="flex flex-col flex-1 gap-5 min-w-0">
         <InputCard
           type="origen"
-          :iata="selectedOrigin"
+          :iata="originAirport?.codigoIata"
           :airport="originAirport"
         >
           <AirportSelectInput
@@ -111,7 +111,7 @@ function swapAirports() {
 
         <InputCard
           type="destino"
-          :iata="selectedDestination"
+          :iata="destinationAirport?.codigoIata"
           :airport="destinationAirport"
         >
           <AirportSelectInput

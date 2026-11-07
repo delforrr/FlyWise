@@ -1,3 +1,4 @@
+import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { crearOfertaFixture } from './helpers/oferta-fixture.js';
 import { Test } from '@nestjs/testing';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
@@ -23,6 +24,7 @@ describe('Archivo lógico de catálogos (PostgreSQL)', () => {
           paisId: pais.id,
           latitud: -34,
           longitud: -58,
+          ubicacion: ubicacionAeropuerto(-34, -58),
         });
         const destino = await tx.orm.public.Aeropuerto.create({
           nombre: 'Archivo destino',
@@ -30,6 +32,7 @@ describe('Archivo lógico de catálogos (PostgreSQL)', () => {
           paisId: pais.id,
           latitud: 25,
           longitud: -80,
+          ubicacion: ubicacionAeropuerto(25, -80),
         });
         const ruta = await crearOfertaFixture(tx, {
           origenId: origen.id,

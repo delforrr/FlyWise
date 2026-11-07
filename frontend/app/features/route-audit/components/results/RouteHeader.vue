@@ -8,7 +8,7 @@ const props = defineProps<{
   selectedDestination?: string | null;
   originAirport: Aeropuerto | null;
   destinationAirport: Aeropuerto | null;
-  matchingCount: number;
+  matchingCount?: number;
   isCollapsed: boolean;
 }>();
 
@@ -195,9 +195,9 @@ function formatCoordinates(coords?: [number, number]): string {
           <span>{{ formatCoordinates(originAirport?.coordenadas) }}</span>
         </div>
 
-        <div class="h-3 w-px bg-border-subtle/60 shrink-0" />
+        <div v-if="matchingCount !== undefined" class="h-3 w-px bg-border-subtle/60 shrink-0" />
 
-        <div class="flex items-center gap-1 shrink-0">
+        <div v-if="matchingCount !== undefined" class="flex items-center gap-1 shrink-0">
           <span
             class="font-mono tabular-nums tracking-tight font-bold text-text-main"
           >
@@ -227,9 +227,9 @@ function formatCoordinates(coords?: [number, number]): string {
           </span>
         </div>
 
-        <div class="h-3 w-px bg-border-subtle/60 shrink-0" />
+        <div v-if="matchingCount !== undefined" class="h-3 w-px bg-border-subtle/60 shrink-0" />
 
-        <div class="flex items-center gap-1 shrink-0">
+        <div v-if="matchingCount !== undefined" class="flex items-center gap-1 shrink-0">
           <span
             class="font-mono tabular-nums tracking-tight font-bold text-text-main"
           >

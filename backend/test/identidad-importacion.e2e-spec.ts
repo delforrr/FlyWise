@@ -1,3 +1,4 @@
+import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
 import { createReadStream } from 'node:fs';
@@ -150,6 +151,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         nombrePais: 'Test',
         latitud: 1,
         longitud: 2,
+        ubicacion: ubicacionAeropuerto(1, 2),
       });
       const celdas = linea.split(',');
       celdas[2] = 'ZZZ';
@@ -489,6 +491,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         nombrePais: 'Test',
         latitud: 1,
         longitud: 2,
+        ubicacion: ubicacionAeropuerto(1, 2),
       });
       await tx.orm.public.Ruta.where({ id: oferta.rutaId }).update({
         destinoId: aeropuerto.id,
