@@ -25,3 +25,6 @@ Thumbs.db
 # Datos de Base de Datos / Docker local
 pgdata/
 redisdata/
+
+# Documentación local de trabajo
+.scratch/

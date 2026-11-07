@@ -13,6 +13,7 @@ describe('RoutesService', () => {
     models: {
       OfertaRuta: ReturnType<typeof mockCollection>;
       Aeropuerto: ReturnType<typeof mockCollection>;
+      Ruta: ReturnType<typeof mockCollection>;
     };
     db: ReturnType<typeof mockDatabase>;
   };
@@ -68,7 +69,11 @@ describe('RoutesService', () => {
 
   beforeEach(async () => {
     prismaService = {
-      models: { OfertaRuta: mockCollection(), Aeropuerto: mockCollection() },
+      models: {
+        OfertaRuta: mockCollection(),
+        Aeropuerto: mockCollection(),
+        Ruta: mockCollection(),
+      },
       db: mockDatabase(),
     };
     prismaService.models.Aeropuerto.all
@@ -115,6 +120,10 @@ describe('RoutesService', () => {
   });
 
   it('returns all operadores in both directions when incluirRegreso is requested', async () => {
+    prismaService.models.Ruta.all.mockResolvedValue([
+      { id: 'route-a-b' },
+      { id: 'route-b-a' },
+    ]);
     const back = {
       ...mockRoute,
       id: 'back',

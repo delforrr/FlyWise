@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { shallowMount } from '@vue/test-utils';
+import { flushPromises, shallowMount } from '@vue/test-utils';
 import { ref, nextTick } from 'vue';
 import Explorar from '../../app/pages/explorar.vue';
-import type { GlobalMapFilter } from '../../app/features/flight-map/composables/useGlobalMap';
+import { useGlobalMap, type GlobalMapFilter } from '../../app/features/flight-map/composables/useGlobalMap';
 
 vi.mock('~/features/flight-map/composables/useShortcuts', () => ({ useShortcuts: vi.fn() }));
 
-function setup(origen?: string) {
+function setup(origen?: string, useMap?: typeof useGlobalMap) {
   const selectedOrigin = ref(origen);
   const selectedDestination = ref<string>();
   const globalMap = {
@@ -18,10 +18,12 @@ function setup(origen?: string) {
   vi.stubGlobal('useSeoMeta', vi.fn());
   vi.stubGlobal('useCatalog', () => ({ aeropuertos: ref([]), rutas: ref([]), error: ref(null), loadAirports: vi.fn(), loadRoutes }));
   vi.stubGlobal('useFlightSelection', () => ({ selectedOrigin, selectedDestination, clearSelection }));
-  vi.stubGlobal('useGlobalMap', () => globalMap);
+  vi.stubGlobal('useGlobalMap', useMap ?? (() => globalMap));
   const wrapper = shallowMount(Explorar, { global: { stubs: {
     GlobalMapFilters: { name: 'GlobalMapFilters', emits: ['apply'], template: '<div />' },
-    UButton: true, ClientOnly: true, AppHeader: true, RouteResults: true, HudWrapper: true, MobileSearchDrawer: true,
+    UButton: { props: ['label'], template: '<button>{{ label }}</button>' },
+    ClientOnly: true, AppHeader: true, RouteResults: true, HudWrapper: true, MobileSearchDrawer: true,
+    UIcon: true, FlightMap: true, MapTooltip: true,
   } } });
   return { wrapper, selectedOrigin, selectedDestination, globalMap, clearSelection, loadRoutes };
 }
@@ -50,5 +52,31 @@ describe('Global map entry', () => {
     expect(state.globalMap.isOpen.value).toBe(false);
     expect(state.globalMap.load).toHaveBeenCalledTimes(1);
     state.wrapper.unmount();
+  });
+  it('shows a readable error after a 502 and retries the same country filters', async () => {
+    const filters: GlobalMapFilter = {
+      mode: 'paises', limit: 50, paisOrigenId: 'pais-a', paisDestinoId: 'pais-b',
+    };
+    const fetch = vi.fn()
+      .mockRejectedValueOnce(new Error('[GET] "/api/rutas/globales?mode=paises": 502 Bad Gateway'))
+      .mockResolvedValueOnce([]);
+    vi.stubGlobal('$fetch', fetch);
+    const { wrapper } = setup('airport-a', useGlobalMap);
+    wrapper.findComponent({ name: 'GlobalMapFilters' }).vm.$emit('apply', filters);
+    await flushPromises();
+
+    const alert = wrapper.get('[role="alert"]');
+    expect(alert.text()).toBe('No se pudieron cargar las conexiones. Intentá de nuevo.');
+    expect(alert.element.closest('.hud-panel')?.classList.contains('hidden')).toBe(false);
+    await wrapper.findAll('button').find(button => button.text() === 'Reintentar')?.trigger('click');
+    await flushPromises();
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    for (const call of fetch.mock.calls) {
+      expect(call).toEqual(['/api/rutas/globales', expect.objectContaining({ query: filters })]);
+    }
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('No hay conexiones para estos filtros.');
+    wrapper.unmount();
   });
 });
