@@ -1,3 +1,6 @@
+import { watch } from 'vue';
+import { useCountryLocale } from '~/shared/composables/useCountryLocale';
+import { localizeMapLabel } from '../utils/mapLabelLanguage';
 import { Map, type IControl } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import mapWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -17,6 +20,7 @@ const isLoaded = ref<boolean>(false);
 const currentPitch = ref<number>(0);
 const currentZoom = ref<number>(0);
 const currentBearing = ref<number>(0);
+let stopLanguageWatch: (() => void) | null = null;
 let resilienceTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
@@ -55,6 +59,7 @@ export const useFlightMap = () => {
 
   const colorMode = useColorMode();
   const globalMap = useGlobalMap();
+  const { locale } = useCountryLocale();
 
   /**
    * Genera las capas activas de WebGL delegando a buildFlightMapLayers (SRP)
@@ -162,6 +167,27 @@ export const useFlightMap = () => {
       });
 
       mapInstance.value = map;
+      const originalLabels = new globalThis.Map<string, unknown>();
+      let labelsPending = false;
+      const updateLabels = () => {
+        if (!map.isStyleLoaded()) {
+          if (!labelsPending) {
+            labelsPending = true;
+            map.once('idle', () => { labelsPending = false; updateLabels(); });
+          }
+          return;
+        }
+        for (const layer of map.getStyle().layers) {
+          if (layer.type !== 'symbol' || layer.layout?.['text-field'] === undefined) continue;
+          if (!originalLabels.has(layer.id)) originalLabels.set(layer.id, layer.layout['text-field']);
+          const original = originalLabels.get(layer.id);
+          const localized = localizeMapLabel(original, locale.value);
+          if (localized !== original) map.setLayoutProperty(layer.id, 'text-field', localized);
+        }
+      };
+      map.on('style.load', () => { originalLabels.clear(); updateLabels(); });
+      stopLanguageWatch = watch(locale, updateLabels);
+
 
       // 2. Acoplar MapboxOverlay de Deck.gl
       const deckOverlay = new MapboxOverlay({
@@ -260,6 +286,8 @@ export const useFlightMap = () => {
   }
 
   function destroyMap(): void {
+    stopLanguageWatch?.();
+    stopLanguageWatch = null;
     if (resilienceTimer) {
       clearTimeout(resilienceTimer);
       resilienceTimer = null;

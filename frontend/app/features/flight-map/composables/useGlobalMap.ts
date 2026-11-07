@@ -21,7 +21,7 @@ export interface GlobalMapConnection {
   ida: ArcRoute[];
   vuelta: ArcRoute[];
 }
-interface MapCountry { id: string; nombre: string; continent: string | null }
+interface MapCountry { id: string; nombre: string; codigoIso?: string | null; continent: string | null }
 
 export function useGlobalMap() {
   const request = useBackendRequest();

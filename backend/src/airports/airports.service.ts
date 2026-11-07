@@ -23,11 +23,19 @@ import { CatalogAirportsDto } from './dto/catalog-airports.dto.js';
 import { SearchAirportsDto } from './dto/search-airports.dto.js';
 import { NearbyAirportsDto } from './dto/nearby-airports.dto.js';
 
+function withCountryCode<
+  T extends { pais?: { codigoIso: string | null } | null },
+>(row: T) {
+  const { pais, ...airport } = row;
+  return { ...airport, codigoIsoPais: pais?.codigoIso ?? null };
+}
+
 export interface NearbyAirportResult {
   id: string;
   nombre: string;
   ciudad: string | null;
   nombrePais: string;
+  codigoIsoPais: string | null;
   iata: string | null;
   icao: string | null;
   latitud: number;
@@ -43,12 +51,15 @@ export class AirportsService {
     private readonly redis: RedisService,
   ) {}
 
-  catalog(dto: CatalogAirportsDto) {
-    return this.prisma.models.Aeropuerto.where({ archivadoEn: null })
-      .orderBy([(a) => a.cantidadRutas.desc(), (a) => a.id.asc()])
-      .offset(dto.offset)
-      .limit(dto.limit)
-      .all();
+  async catalog(dto: CatalogAirportsDto) {
+    return (
+      await this.prisma.models.Aeropuerto.where({ archivadoEn: null })
+        .orderBy([(a) => a.cantidadRutas.desc(), (a) => a.id.asc()])
+        .offset(dto.offset)
+        .limit(dto.limit)
+        .include('pais', (pais) => pais.select('codigoIso'))
+        .all()
+    ).map(withCountryCode);
   }
 
   async search(searchDto: SearchAirportsDto) {
@@ -56,7 +67,7 @@ export class AirportsService {
     const limit = searchDto.limit ?? 20;
     const upperTerm = term.toUpperCase();
     const code = /^[A-Z0-9]{3,4}$/.test(upperTerm) ? upperTerm : null;
-    const key = `airports:search:v1:${limit}:${code ?? ''}:${term.toLowerCase()}`;
+    const key = `airports:search:v2:${limit}:${code ?? ''}:${term.toLowerCase()}`;
     try {
       const cached = await firstValueFrom(
         from(this.redis.get(key)).pipe(timeout(50)),
@@ -79,18 +90,20 @@ export class AirportsService {
   private async findMatches(term: string, limit: number, code: string | null) {
     const active = this.prisma.models.Aeropuerto.where({
       archivadoEn: null,
-    }).orderBy([
-      (airport) => airport.cantidadRutas.desc(),
-      (airport) => airport.nombre.asc(),
-      (airport) => airport.id.asc(),
-    ]);
+    })
+      .include('pais', (pais) => pais.select('codigoIso'))
+      .orderBy([
+        (airport) => airport.cantidadRutas.desc(),
+        (airport) => airport.nombre.asc(),
+        (airport) => airport.id.asc(),
+      ]);
     const exact = code
       ? await active
           .where((airport) => or(airport.iata.eq(code), airport.icao.eq(code)))
           .limit(limit)
           .all()
       : [];
-    if (exact.length === limit) return exact;
+    if (exact.length === limit) return exact.map(withCountryCode);
 
     const pattern = `%${escaparLike(term)}%`;
     const byName = await active
@@ -100,10 +113,9 @@ export class AirportsService {
       .limit(limit)
       .all();
     const exactIds = new Set(exact.map((airport) => airport.id));
-    return [
-      ...exact,
-      ...byName.filter((airport) => !exactIds.has(airport.id)),
-    ].slice(0, limit);
+    return [...exact, ...byName.filter((airport) => !exactIds.has(airport.id))]
+      .slice(0, limit)
+      .map(withCountryCode);
   }
 
   async findNearby(
@@ -118,6 +130,7 @@ export class AirportsService {
         nombre,
         ciudad,
         nombre_pais as "nombrePais",
+        (SELECT codigo_iso FROM paises WHERE paises.id = aeropuertos.pais_id) AS "codigoIsoPais",
         iata,
         icao,
         latitud,
@@ -141,6 +154,7 @@ export class AirportsService {
           nombre: 'pg/text@1',
           ciudad: { codecId: 'pg/text@1', nullable: true },
           nombrePais: 'pg/text@1',
+          codigoIsoPais: { codecId: 'pg/text@1', nullable: true },
           iata: { codecId: 'pg/text@1', nullable: true },
           icao: { codecId: 'pg/text@1', nullable: true },
           latitud: 'pg/float8@1',
@@ -159,6 +173,7 @@ export class AirportsService {
       or(airport.iata.eq(upperCode), airport.icao.eq(upperCode)),
     )
       .where({ archivadoEn: null })
+      .include('pais', (pais) => pais.select('codigoIso'))
       .include('rutasOrigen', (rutas) =>
         rutas
           .where((r) =>
@@ -206,7 +221,7 @@ export class AirportsService {
       );
     }
 
-    return airport;
+    return withCountryCode(airport);
   }
 
   async listarAdmin(consulta: ConsultaCatalogoDto) {

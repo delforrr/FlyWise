@@ -29,6 +29,7 @@ describe('AirportsService', () => {
     nombre: 'Ministro Pistarini International Aeropuerto',
     ciudad: 'Buenos Aires',
     nombrePais: 'Argentina',
+    codigoIsoPais: null,
     iata: 'EZE',
     icao: 'SAEZ',
     latitud: -34.8222,

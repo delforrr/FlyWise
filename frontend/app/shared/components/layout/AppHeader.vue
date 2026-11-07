@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useCountryLocale } from '../../composables/useCountryLocale';
+
+const { locale } = useCountryLocale();
+const languages = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }];
 interface Props {
   hasControls?: boolean;
   hasLogin?: boolean;
@@ -75,6 +79,11 @@ const { isOpen: isGlobalFilterOpen } = useGlobalMap();
           <UKbd value="k" />
         </span>
       </UButton>
+      <div class="flex shrink-0 flex-col gap-0.5">
+        <span class="text-[11px] text-text-muted">Países / mapa</span>
+        <USelect v-model="locale" :items="languages" size="sm" class="w-25"
+          aria-label="Idioma de países y mapa" />
+      </div>
       <ThemeToggle />
       <UButton
         v-if="hasLogin"

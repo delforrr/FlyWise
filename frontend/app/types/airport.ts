@@ -6,6 +6,7 @@ export interface Aeropuerto {
   nombre: string
   ciudad: string
   pais: string
+  codigoIsoPais?: string | null
   coordenadas: [number, number] // [longitud, latitud]
   elevation?: number
   type?: 'large_airport' | 'medium_airport' | 'small_airport'

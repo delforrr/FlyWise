@@ -69,3 +69,30 @@ describe('Global map filter draft', () => {
     wrapper.unmount();
   });
 });
+
+it('muestra países localizados sin cambiar la identidad elegida ni los nombres originales', async () => {
+  const { ref } = await import('vue');
+  const { useCountryLocale } = await import('../../app/shared/composables/useCountryLocale');
+  vi.stubGlobal('useCookie', () => ref('invalid'));
+  const state = useGlobalMap();
+  state.paises.value = [
+    { id: 'gb', nombre: 'United Kingdom', codigoIso: 'GB', continent: 'EU' },
+    { id: 'de', nombre: 'Germany', codigoIso: 'DE', continent: 'EU' },
+    { id: 'unknown', nombre: 'Sin ISO', codigoIso: null, continent: 'EU' },
+  ];
+  state.filter.value = { mode: 'domestic', limit: 20, paisOrigenId: 'gb' };
+  state.isOpen.value = true;
+  const wrapper = render();
+  const picker = wrapper.findComponent(menu);
+  expect(picker.props('items')).toEqual([
+    expect.objectContaining({ id: 'de', nombre: 'Alemania', searchNames: expect.stringContaining('Germany') }),
+    expect.objectContaining({ id: 'gb', nombre: 'Reino Unido', searchNames: expect.stringContaining('United Kingdom') }),
+    expect.objectContaining({ id: 'unknown', nombre: 'Sin ISO' }),
+  ]);
+  useCountryLocale().locale.value = 'en';
+  await nextTick();
+  expect(picker.props('modelValue')).toBe('gb');
+  expect(picker.props('items')).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'gb', nombre: 'United Kingdom', searchNames: expect.stringContaining('Reino Unido') })]));
+  expect(state.paises.value[0]?.nombre).toBe('United Kingdom');
+  wrapper.unmount();
+});

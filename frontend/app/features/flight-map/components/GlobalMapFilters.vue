@@ -1,8 +1,16 @@
 <script setup lang="ts">
+import { useCountryLocale } from '~/shared/composables/useCountryLocale';
+import { countryName } from '~/shared/utils/countryNames';
 import { MAP_CONTINENTS, type GlobalMapFilter } from '../composables/useGlobalMap';
 
 const emit = defineEmits<{ apply: [filter: GlobalMapFilter] }>();
 const { filter, isOpen, paises, countriesLoading, countriesError, loadCountries } = useGlobalMap();
+const { locale } = useCountryLocale();
+const countryOptions = computed(() => paises.value.map(pais => ({
+  ...pais,
+  nombre: countryName(pais.nombre, pais.codigoIso, locale.value),
+  searchNames: [pais.nombre, countryName(pais.nombre, pais.codigoIso, 'es'), countryName(pais.nombre, pais.codigoIso, 'en')].join(' '),
+})).sort((a, b) => a.nombre.localeCompare(b.nombre, locale.value)));
 const draft = ref<GlobalMapFilter>({ ...filter.value });
 const modes = [
   { value: 'global', label: 'Todo el mundo', descripcion: 'Explora la red global.', icon: 'i-lucide-globe-2' },
@@ -61,11 +69,11 @@ function apply() {
       </fieldset>
       <div v-if="draft.mode === 'domestic' || draft.mode === 'paises'" class="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-border-subtle bg-surface-accent/40 p-4">
         <UFormField :label="draft.mode === 'domestic' ? 'País' : 'País de origen'" name="originCountry" required>
-          <USelectMenu v-model="draft.paisOrigenId" :items="paises" value-key="id" label-key="nombre"
+          <USelectMenu v-model="draft.paisOrigenId" :items="countryOptions" :filter-fields="['nombre', 'searchNames']" value-key="id" label-key="nombre"
             :loading="countriesLoading" placeholder="Buscar país" size="lg" icon="i-lucide-map-pin" class="w-full" />
         </UFormField>
         <UFormField v-if="draft.mode === 'paises'" label="País de destino" name="destinationCountry" required>
-          <USelectMenu v-model="draft.paisDestinoId" :items="paises.filter(c => c.id !== draft.paisOrigenId)" value-key="id" label-key="nombre"
+          <USelectMenu v-model="draft.paisDestinoId" :items="countryOptions.filter(c => c.id !== draft.paisOrigenId)" :filter-fields="['nombre', 'searchNames']" value-key="id" label-key="nombre"
             :loading="countriesLoading" placeholder="Buscar país" size="lg" icon="i-lucide-map-pin" class="w-full" />
         </UFormField>
         <div v-if="countriesError" role="alert" class="sm:col-span-2 text-sm text-error">

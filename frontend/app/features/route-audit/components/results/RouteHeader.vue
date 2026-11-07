@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useCountryLocale } from '~/shared/composables/useCountryLocale';
+const { countryName } = useCountryLocale();
 import { computed } from "vue";
 import type { Aeropuerto } from "~/types/airport";
 import AnimatedCounter from "~/shared/components/ui/AnimatedCounter.vue";
@@ -99,7 +101,7 @@ function formatCoordinates(coords?: [number, number]): string {
             </template>
             <template v-else-if="originAirport">
               {{ originAirport.nombre }} · {{ originAirport.ciudad }},
-              {{ originAirport.pais }}
+              {{ countryName(originAirport.pais, originAirport.codigoIsoPais) }}
             </template>
             <template v-else-if="destinationAirport">
               Llegadas a {{ destinationAirport.nombre }} ·

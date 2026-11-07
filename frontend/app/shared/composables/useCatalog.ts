@@ -3,12 +3,12 @@ import type { Aeropuerto } from '~/types/airport';
 import type { FlightRoute } from '~/types/route';
 
 export interface CatalogAirport {
-  id: string; nombre: string; ciudad: string | null; nombrePais: string;
+  id: string; nombre: string; ciudad: string | null; nombrePais: string; codigoIsoPais?: string | null;
   iata: string | null; icao: string | null; latitud: number; longitud: number; cantidadRutas: number;
 }
 export interface ArcRoute {
   id: string;
-  origen: { id: string; iata: string | null; icao: string | null; nombre: string; ciudad: string | null; pais: string; coordenadas: [number, number] };
+  origen: { id: string; iata: string | null; icao: string | null; nombre: string; ciudad: string | null; pais: string; codigoIsoPais?: string | null; coordenadas: [number, number] };
   destino: ArcRoute['origen'];
   aerolinea: { iata: string | null; nombre: string };
   distanciaKm: number; escalas: number; otp15: number | null;
@@ -23,7 +23,7 @@ export function useRouteSearch() {
 }
 export function mapCatalogAirport(a: CatalogAirport): Aeropuerto {
   return { id: a.id, codigoIata: a.iata, iata: a.iata ?? a.icao ?? a.nombre, icao: a.icao ?? undefined,
-    nombre: a.nombre, ciudad: a.ciudad ?? a.nombre, pais: a.nombrePais,
+    nombre: a.nombre, ciudad: a.ciudad ?? a.nombre, pais: a.nombrePais, codigoIsoPais: a.codigoIsoPais ?? null,
     coordenadas: [a.longitud, a.latitud], cantidadConexiones: a.cantidadRutas };
 }
 export function mapArcRoute(r: ArcRoute): FlightRoute {

@@ -1,3 +1,6 @@
+import { nextTick } from 'vue';
+import { createPropertyExpression, latest } from '@maplibre/maplibre-gl-style-spec';
+import { useCountryLocale } from '~/shared/composables/useCountryLocale';
 import { SEED_AIRPORTS } from "../../app/data/seedData";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -14,6 +17,9 @@ const mockRemoveControl = vi.fn();
 const mockSetWorkerUrl = vi.hoisted(() => vi.fn());
 
 const mockMap = {
+  getStyle: vi.fn(),
+  isStyleLoaded: vi.fn(() => true),
+  setLayoutProperty: vi.fn(),
   easeTo: mockEaseTo,
   zoomIn: mockZoomIn,
   zoomOut: mockZoomOut,
@@ -292,4 +298,42 @@ describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáutica
       flightMap.destroyMap();
     });
   });
+  it('localiza etiquetas al cargar y cambiar estilo sin perder formato, respaldo ni etiquetas numéricas', async () => {
+    const map = useFlightMap(); map.destroyMap();
+    const fields = new globalThis.Map<string, unknown>();
+    mockMap.setLayoutProperty.mockImplementation((id: string, _property: string, value: unknown) => fields.set(id, value));
+    const light = { layers: [
+      { id: 'country', type: 'symbol', layout: { 'text-field': '{name_en}' } },
+      { id: 'city', type: 'symbol', layout: { 'text-field': { stops: [[8, '{name_en}'], [13, '{name}']] } } },
+      { id: 'number', type: 'symbol', layout: { 'text-field': '{housenumber}' } },
+    ] };
+    mockMap.getStyle.mockReturnValue(light);
+    map.initMap(document.createElement('div'));
+    const styleLoaded = mockMap.on.mock.calls.find(([event]) => event === 'style.load')?.[1];
+    expect(styleLoaded).toBeTypeOf('function');
+    styleLoaded();
+    function label(id: string, properties: Record<string, string>, zoom = 9) {
+      const compiled = createPropertyExpression(fields.get(id), 'layout.text-field', latest.layout_symbol['text-field']);
+      if (compiled.result === 'error') throw new Error(JSON.stringify(compiled.value));
+      return compiled.value.evaluate({ zoom }, { type: 1, properties }).toString();
+    }
+    expect(label('country', { 'name:es': 'Reino Unido', name_en: 'United Kingdom', name: 'United Kingdom' })).toBe('Reino Unido');
+    expect(label('city', { 'name:es': '', name: 'London', name_en: 'London' })).toBe('London');
+    expect(fields.has('number')).toBe(false);
+    useCountryLocale().locale.value = 'en'; await nextTick();
+    expect(label('country', { 'name:es': 'Reino Unido', name_en: 'United Kingdom' })).toBe('United Kingdom');
+    mockMap.getStyle.mockReturnValue({ layers: [{ id: 'country', type: 'symbol', layout: { 'text-field': ['format', ['coalesce', ['get', 'name:en'], ['get', 'name']], { 'font-scale': 1.2 }] } }] });
+    useCountryLocale().locale.value = 'es'; await nextTick(); styleLoaded();
+    expect(label('country', { 'name:es': 'Reino Unido', 'name:en': 'United Kingdom', name: 'United Kingdom' })).toBe('Reino Unido');
+    const style = fields.get('country') as unknown[];
+    expect(style[0]).toBe('format'); expect(style[2]).toEqual({ 'font-scale': 1.2 });
+    mockMap.isStyleLoaded.mockReturnValue(false);
+    useCountryLocale().locale.value = 'en'; await nextTick();
+    const idle = mockMap.once.mock.calls.find(([event]) => event === 'idle')?.[1];
+    expect(idle).toBeTypeOf('function');
+    mockMap.isStyleLoaded.mockReturnValue(true); idle();
+    expect(label('country', { 'name:es': 'Reino Unido', 'name:en': 'United Kingdom' })).toBe('United Kingdom');
+    map.destroyMap();
+  });
+
 });

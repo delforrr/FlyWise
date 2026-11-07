@@ -4,7 +4,7 @@
 
 **Blocked by:** Ninguno (puede comenzar inmediatamente).
 
-**Status:** draft — desglose propuesto, pendiente de revisión del usuario; no iniciar implementación.
+**Status:** in-review — implementación autorizada; pendiente de QA independiente.
 
 **Spec:** [Especificación](../spec.md).
 

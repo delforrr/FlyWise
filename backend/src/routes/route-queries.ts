@@ -17,7 +17,15 @@ export function includeRouteDetails(prisma: PrismaService) {
       or(r.aerolineaId.isNull(), r.aerolinea.some({ archivadoEn: null })),
     ),
   )
-    .include('ruta', (ruta) => ruta.include('origen').include('destino'))
+    .include('ruta', (ruta) =>
+      ruta
+        .include('origen', (airport) =>
+          airport.include('pais', (pais) => pais.select('codigoIso')),
+        )
+        .include('destino', (airport) =>
+          airport.include('pais', (pais) => pais.select('codigoIso')),
+        ),
+    )
     .include('aerolinea');
 }
 

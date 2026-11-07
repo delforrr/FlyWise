@@ -24,3 +24,26 @@ describe("Logo de la cabecera pública", () => {
     wrapper.unmount();
   });
 });
+
+it('permite cambiar el idioma de países y mapa y conservarlo al volver a montar', async () => {
+  const { mount } = await import('@vue/test-utils');
+  const cookie = ref<string | null>(null);
+  vi.stubGlobal('useCookie', () => cookie);
+  vi.stubGlobal('useGlobalMap', () => ({ isOpen: ref(false) }));
+  const render = () => mount(AppHeader, {
+    global: { stubs: {
+      UHeader: { template: '<header><slot name="right" /></header>' },
+      USelect: { props: ['modelValue', 'items'], emits: ['update:modelValue'], template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :value="item.value">{{ item.label }}</option></select>' },
+      UButton: true, UKbd: true, ThemeToggle: true, CommandPalette: true,
+    } },
+  });
+  const wrapper = render();
+  const selector = wrapper.get('select[aria-label="Idioma de países y mapa"]');
+  expect((selector.element as HTMLSelectElement).value).toBe('es');
+  await selector.setValue('en');
+  expect(cookie.value).toBe('en');
+  wrapper.unmount();
+  const again = render();
+  expect((again.get('select').element as HTMLSelectElement).value).toBe('en');
+  again.unmount();
+});

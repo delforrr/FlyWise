@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Selector persistente y países localizados en filtros.
 
-**Status:** draft — desglose propuesto, pendiente de revisión del usuario; no iniciar implementación.
+**Status:** in-review — implementación autorizada; pendiente de QA independiente.
 
 **Spec:** [Especificación](../spec.md).
 
