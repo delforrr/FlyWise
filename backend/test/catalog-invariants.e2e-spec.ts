@@ -1,3 +1,4 @@
+import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { createDatabase } from '../src/prisma/db.js';
 
 describe('Internal catalog invariants (PostgreSQL)', () => {
@@ -25,6 +26,7 @@ describe('Internal catalog invariants (PostgreSQL)', () => {
               nombrePais: 'Test',
               latitud: 0,
               longitud: 0,
+              ubicacion: ubicacionAeropuerto(0, 0),
               icao: 'bad',
             }),
           () =>

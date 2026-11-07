@@ -209,6 +209,14 @@ export class PipelinesService implements OnModuleInit {
   }
 
   async create(dto: CreatePipelineDto) {
+    dto = (await new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }).transform(dto, {
+      type: 'body',
+      metatype: CreatePipelineDto,
+    })) as CreatePipelineDto;
     this.validate(dto);
     const row = await this.prisma.models.ProcesoEtl.create({
       ...dto,

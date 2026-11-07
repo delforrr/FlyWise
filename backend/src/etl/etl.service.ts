@@ -1,7 +1,7 @@
 import {
-  bloquearCatalogo,
+  escribirCatalogo,
   recalcularCantidadRutas,
-} from '../prisma/catalog-state.js';
+} from '../catalogos/catalog-state.js';
 import { timestampToDate } from '../prisma/timestamp.js';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -196,8 +196,7 @@ export class EtlService {
       sampleCount = Number(count.count);
     }
     const flush = async () => {
-      await this.prisma.db.transaction(async (tx) => {
-        await bloquearCatalogo(tx);
+      await escribirCatalogo(this.prisma.db, async (tx) => {
         let rows = batch.map(({ row }) => row);
         if (dataset === 'rutas' && rows.length) {
           const resolved = await resolveRouteBatch(tx, rows);
@@ -400,8 +399,7 @@ export class EtlService {
   }
 
   async computeRouteCounts() {
-    await this.prisma.db.transaction(async (tx) => {
-      await bloquearCatalogo(tx);
+    await escribirCatalogo(this.prisma.db, async (tx) => {
       await recalcularCantidadRutas(tx);
     });
   }

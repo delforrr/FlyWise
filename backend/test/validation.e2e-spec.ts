@@ -1,3 +1,4 @@
+import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -65,6 +66,7 @@ describe('Data validation regressions (PostgreSQL)', () => {
           nombrePais: 'Test',
           latitud: 0,
           longitud: 0,
+          ubicacion: ubicacionAeropuerto(0, 0),
         },
         {
           nombre: 'Historical two',
@@ -72,6 +74,7 @@ describe('Data validation regressions (PostgreSQL)', () => {
           nombrePais: 'Test',
           latitud: 1,
           longitud: 1,
+          ubicacion: ubicacionAeropuerto(1, 1),
         },
       ]);
       const module = await Test.createTestingModule({

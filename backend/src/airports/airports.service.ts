@@ -1,10 +1,11 @@
+import { ubicacionAeropuerto } from './ubicacion.js';
 import { escaparLike } from '../prisma/escape-like.js';
 import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
-  bloquearCatalogo,
+  escribirCatalogo,
+  proteccionManual,
   recalcularCantidadRutas,
-} from '../prisma/catalog-state.js';
-import { errorCatalogo } from '../prisma/catalog-error.js';
+} from '../catalogos/catalog-state.js';
 import {
   CrearAeropuertoDto,
   EditarAeropuertoDto,
@@ -248,52 +249,52 @@ export class AirportsService {
   }
 
   crearAdmin(datos: CrearAeropuertoDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        const pais = await tx.orm.public.Pais.first({ id: datos.paisId });
-        if (!pais) throw new NotFoundException('El país no existe');
-        return tx.orm.public.Aeropuerto.create({
-          ...datos,
-          nombrePais: pais.nombre,
-          fuente: 'Administrativa',
-          protegidoManualmente: true,
-          vinculoPaisInferido: false,
-        });
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      const pais = await tx.orm.public.Pais.first({ id: datos.paisId });
+      if (!pais) throw new NotFoundException('El país no existe');
+      return tx.orm.public.Aeropuerto.create({
+        ...datos,
+        ubicacion: ubicacionAeropuerto(datos.latitud, datos.longitud),
+        nombrePais: pais.nombre,
+        fuente: 'Administrativa',
+        protegidoManualmente: true,
+        vinculoPaisInferido: false,
+      });
+    });
   }
 
   editarAdmin(id: string, datos: EditarAeropuertoDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        const actual = await tx.orm.public.Aeropuerto.first({ id });
-        if (!actual) throw new NotFoundException('El aeropuerto no existe');
-        if (actual.archivadoEn)
-          throw new ConflictException('El aeropuerto está archivado');
-        const { protegidoManualmente, ...cambios } = datos;
-        const pais = datos.paisId
-          ? await tx.orm.public.Pais.first({ id: datos.paisId })
-          : undefined;
-        if (datos.paisId && !pais)
-          throw new NotFoundException('El país no existe');
-        return tx.orm.public.Aeropuerto.where({ id }).update({
-          ...cambios,
-          ...(pais
-            ? { nombrePais: pais.nombre, vinculoPaisInferido: false }
-            : {}),
-          protegidoManualmente: Object.keys(cambios).length
-            ? true
-            : (protegidoManualmente ?? actual.protegidoManualmente),
-        });
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      const actual = await tx.orm.public.Aeropuerto.first({ id });
+      if (!actual) throw new NotFoundException('El aeropuerto no existe');
+      if (actual.archivadoEn)
+        throw new ConflictException('El aeropuerto está archivado');
+      const { protegidoManualmente, ...cambios } = datos;
+      const pais = datos.paisId
+        ? await tx.orm.public.Pais.first({ id: datos.paisId })
+        : undefined;
+      if (datos.paisId && !pais)
+        throw new NotFoundException('El país no existe');
+      return tx.orm.public.Aeropuerto.where({ id }).update({
+        ...cambios,
+        ubicacion: ubicacionAeropuerto(
+          datos.latitud ?? actual.latitud,
+          datos.longitud ?? actual.longitud,
+        ),
+        ...(pais
+          ? { nombrePais: pais.nombre, vinculoPaisInferido: false }
+          : {}),
+        protegidoManualmente: proteccionManual(
+          cambios,
+          protegidoManualmente,
+          actual.protegidoManualmente,
+        ),
+      });
+    });
   }
 
   async archivarAdmin(id: string) {
-    await this.prisma.db.transaction(async (tx) => {
-      await bloquearCatalogo(tx);
+    await escribirCatalogo(this.prisma.db, async (tx) => {
       const actual = await tx.orm.public.Aeropuerto.first({ id });
       if (!actual) throw new NotFoundException('El aeropuerto no existe');
       if (actual.archivadoEn) return;

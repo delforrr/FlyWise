@@ -57,14 +57,14 @@ export async function upsertCatalogBatch(
       : dataset === 'aeropuertos'
         ? await db.query(
             db.raw.sql`
-    INSERT INTO aeropuertos (id,id_openflights,nombre,ciudad,nombre_pais,iata,icao,latitud,longitud,fuente,cantidad_rutas)
+    INSERT INTO aeropuertos (id,id_openflights,nombre,ciudad,nombre_pais,iata,icao,latitud,longitud,ubicacion,fuente,cantidad_rutas)
     SELECT x.id,x."idOpenflights",x.nombre,x.ciudad,x."nombrePais",
       CASE WHEN x."iataInvalid" THEN previous.iata ELSE x.iata END,
-      CASE WHEN x."icaoInvalid" THEN previous.icao ELSE x.icao END,x.latitud,x.longitud,x.fuente,0
+      CASE WHEN x."icaoInvalid" THEN previous.icao ELSE x.icao END,x.latitud,x.longitud,ST_SetSRID(ST_MakePoint(x.longitud,x.latitud),4326)::geography,x.fuente,0
     FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"idOpenflights" int,nombre text,ciudad text,"nombrePais" text,iata text,icao text,latitud float8,longitud float8,fuente text,"iataInvalid" boolean,"icaoInvalid" boolean)
     LEFT JOIN aeropuertos previous ON previous.id_openflights=x."idOpenflights"
     ON CONFLICT (id_openflights) DO UPDATE SET nombre=EXCLUDED.nombre,ciudad=EXCLUDED.ciudad,nombre_pais=EXCLUDED.nombre_pais,
-      iata=EXCLUDED.iata,icao=EXCLUDED.icao,latitud=EXCLUDED.latitud,longitud=EXCLUDED.longitud,fuente=EXCLUDED.fuente WHERE NOT aeropuertos.protegido_manualmente AND aeropuertos.archivado_en IS NULL
+      iata=EXCLUDED.iata,icao=EXCLUDED.icao,latitud=EXCLUDED.latitud,longitud=EXCLUDED.longitud,ubicacion=EXCLUDED.ubicacion,fuente=EXCLUDED.fuente WHERE NOT aeropuertos.protegido_manualmente AND aeropuertos.archivado_en IS NULL
     RETURNING (xmax=0) AS inserted
   `
               .returnsRow({ inserted: 'pg/bool@1' })

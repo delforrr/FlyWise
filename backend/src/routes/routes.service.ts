@@ -1,9 +1,9 @@
 import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
-  bloquearCatalogo,
+  escribirCatalogo,
+  proteccionManual,
   recalcularCantidadRutas,
-} from '../prisma/catalog-state.js';
-import { errorCatalogo } from '../prisma/catalog-error.js';
+} from '../catalogos/catalog-state.js';
 import { escaparLike } from '../prisma/escape-like.js';
 import type { Transaction } from '../prisma/db.js';
 import {
@@ -522,64 +522,57 @@ export class RoutesService {
   }
 
   crearAdmin(datos: CrearRutaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        await this.validarReferencias(tx, datos.origenId, datos.destinoId);
-        const registro = await tx.orm.public.Ruta.create({
-          ...datos,
-          protegidoManualmente: true,
-        });
-        await recalcularCantidadRutas(tx);
-        return registro;
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      await this.validarReferencias(tx, datos.origenId, datos.destinoId);
+      const registro = await tx.orm.public.Ruta.create({
+        ...datos,
+        protegidoManualmente: true,
+      });
+      await recalcularCantidadRutas(tx);
+      return registro;
+    });
   }
 
   editarAdmin(id: string, datos: EditarRutaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        const actual = await tx.orm.public.Ruta.first({ id });
-        if (!actual) throw new NotFoundException('La ruta no existe');
-        if (actual.archivadoEn)
-          throw new ConflictException('La ruta está archivada');
-        const cambiaExtremos =
-          (datos.origenId !== undefined &&
-            datos.origenId !== actual.origenId) ||
-          (datos.destinoId !== undefined &&
-            datos.destinoId !== actual.destinoId);
-        if (
-          cambiaExtremos &&
-          (await tx.orm.public.OfertaRuta.first({ rutaId: id }))
-        ) {
-          throw new ConflictException(
-            'Los aeropuertos de una ruta con ofertas no pueden modificarse',
-          );
-        }
-        const { protegidoManualmente, ...cambios } = datos;
-        const referencia = { ...actual, ...cambios };
-        if (Object.keys(cambios).length)
-          await this.validarReferencias(
-            tx,
-            referencia.origenId,
-            referencia.destinoId,
-          );
-        const registro = await tx.orm.public.Ruta.where({ id }).update({
-          ...cambios,
-          protegidoManualmente: Object.keys(cambios).length
-            ? true
-            : (protegidoManualmente ?? actual.protegidoManualmente),
-        });
-        await recalcularCantidadRutas(tx);
-        return registro;
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      const actual = await tx.orm.public.Ruta.first({ id });
+      if (!actual) throw new NotFoundException('La ruta no existe');
+      if (actual.archivadoEn)
+        throw new ConflictException('La ruta está archivada');
+      const cambiaExtremos =
+        (datos.origenId !== undefined && datos.origenId !== actual.origenId) ||
+        (datos.destinoId !== undefined && datos.destinoId !== actual.destinoId);
+      if (
+        cambiaExtremos &&
+        (await tx.orm.public.OfertaRuta.first({ rutaId: id }))
+      ) {
+        throw new ConflictException(
+          'Los aeropuertos de una ruta con ofertas no pueden modificarse',
+        );
+      }
+      const { protegidoManualmente, ...cambios } = datos;
+      const referencia = { ...actual, ...cambios };
+      if (Object.keys(cambios).length)
+        await this.validarReferencias(
+          tx,
+          referencia.origenId,
+          referencia.destinoId,
+        );
+      const registro = await tx.orm.public.Ruta.where({ id }).update({
+        ...cambios,
+        protegidoManualmente: proteccionManual(
+          cambios,
+          protegidoManualmente,
+          actual.protegidoManualmente,
+        ),
+      });
+      await recalcularCantidadRutas(tx);
+      return registro;
+    });
   }
 
   async archivarAdmin(id: string) {
-    await this.prisma.db.transaction(async (tx) => {
-      await bloquearCatalogo(tx);
+    await escribirCatalogo(this.prisma.db, async (tx) => {
       const actual = await tx.orm.public.Ruta.first({ id });
       if (!actual) throw new NotFoundException('La ruta no existe');
       if (actual.archivadoEn) return;
@@ -602,71 +595,66 @@ export class RoutesService {
   }
 
   crearOferta(rutaId: string, datos: CrearOfertaRutaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        await this.rutaVigente(tx, rutaId);
-        if (
-          datos.aerolineaId &&
-          !(await tx.orm.public.Aerolinea.first({
-            id: datos.aerolineaId,
-            archivadoEn: null,
-          }))
-        )
-          throw new NotFoundException(
-            'La aerolínea debe existir y estar sin archivar',
-          );
-        const oferta = await tx.orm.public.OfertaRuta.create({
-          ...datos,
-          rutaId,
-          fuente: 'Administrativa',
-          protegidoManualmente: true,
-        });
-        await recalcularCantidadRutas(tx);
-        return oferta;
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      await this.rutaVigente(tx, rutaId);
+      if (
+        datos.aerolineaId &&
+        !(await tx.orm.public.Aerolinea.first({
+          id: datos.aerolineaId,
+          archivadoEn: null,
+        }))
+      )
+        throw new NotFoundException(
+          'La aerolínea debe existir y estar sin archivar',
+        );
+      const oferta = await tx.orm.public.OfertaRuta.create({
+        ...datos,
+        rutaId,
+        fuente: 'Administrativa',
+        protegidoManualmente: true,
+      });
+      await recalcularCantidadRutas(tx);
+      return oferta;
+    });
   }
 
   editarOferta(rutaId: string, id: string, datos: EditarOfertaRutaDto) {
-    return this.prisma.db
-      .transaction(async (tx) => {
-        await bloquearCatalogo(tx);
-        await this.rutaVigente(tx, rutaId);
-        const actual = await tx.orm.public.OfertaRuta.first({ id, rutaId });
-        if (!actual)
-          throw new NotFoundException('La oferta no existe en esta ruta');
-        if (actual.archivadoEn)
-          throw new ConflictException('La oferta está archivada');
-        if (
-          datos.aerolineaId &&
-          !(await tx.orm.public.Aerolinea.first({
-            id: datos.aerolineaId,
-            archivadoEn: null,
-          }))
-        )
-          throw new NotFoundException(
-            'La aerolínea debe existir y estar sin archivar',
-          );
-        const { protegidoManualmente, ...cambios } = datos;
-        const oferta = await tx.orm.public.OfertaRuta.where({
-          id,
-          rutaId,
-        }).update({
-          ...cambios,
-          protegidoManualmente: Object.keys(cambios).length
-            ? true
-            : (protegidoManualmente ?? actual.protegidoManualmente),
-        });
-        await recalcularCantidadRutas(tx);
-        return oferta;
-      })
-      .catch(errorCatalogo);
+    return escribirCatalogo(this.prisma.db, async (tx) => {
+      await this.rutaVigente(tx, rutaId);
+      const actual = await tx.orm.public.OfertaRuta.first({ id, rutaId });
+      if (!actual)
+        throw new NotFoundException('La oferta no existe en esta ruta');
+      if (actual.archivadoEn)
+        throw new ConflictException('La oferta está archivada');
+      if (
+        datos.aerolineaId &&
+        !(await tx.orm.public.Aerolinea.first({
+          id: datos.aerolineaId,
+          archivadoEn: null,
+        }))
+      )
+        throw new NotFoundException(
+          'La aerolínea debe existir y estar sin archivar',
+        );
+      const { protegidoManualmente, ...cambios } = datos;
+      const oferta = await tx.orm.public.OfertaRuta.where({
+        id,
+        rutaId,
+      }).update({
+        ...cambios,
+        protegidoManualmente: proteccionManual(
+          cambios,
+          protegidoManualmente,
+          actual.protegidoManualmente,
+        ),
+      });
+      await recalcularCantidadRutas(tx);
+      return oferta;
+    });
   }
 
   async archivarOferta(rutaId: string, id: string) {
-    await this.prisma.db.transaction(async (tx) => {
-      await bloquearCatalogo(tx);
+    await escribirCatalogo(this.prisma.db, async (tx) => {
       const actual = await tx.orm.public.OfertaRuta.first({ id, rutaId });
       if (!actual)
         throw new NotFoundException('La oferta no existe en esta ruta');

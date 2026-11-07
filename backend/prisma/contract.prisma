@@ -187,7 +187,7 @@ model EjecucionEtl {
   @@check(expression: sql`(estado = ANY (ARRAY['pending'::text, 'running'::text, 'completed'::text, 'failed'::text]))`, map: "etl_jobs_status_check")
   @@check(expression: sql`((uri_fuente IS NULL) OR ((length(btrim(uri_fuente)) > 0) AND (uri_fuente !~ '://[^/]*@|[?#]'::text)))`, map: "etl_jobs_source_uri_check")
   @@check(expression: sql`((checksum_fuente IS NULL) OR (checksum_fuente ~ '^[0-9a-fA-F]{64}$'::text))`, map: "etl_jobs_checksum_check")
-  @@check(expression: sql`(((instantanea_configuracion IS NULL) AND (proceso_id IS NULL)) OR (((jsonb_typeof(instantanea_configuracion) = 'object'::text) AND ((instantanea_configuracion - ARRAY['conexion'::text, 'mapeoEsquema'::text, 'configuracionProgramacion'::text]) = '{}'::jsonb) AND etl_valid_connection((instantanea_configuracion -> 'conexion'::text)) AND etl_valid_mapping((instantanea_configuracion -> 'mapeoEsquema'::text)) AND etl_valid_schedule((instantanea_configuracion -> 'configuracionProgramacion'::text))) IS TRUE))`, map: "etl_jobs_snapshot_check")
+  @@check(expression: sql`((((instantanea_configuracion IS NULL) AND (proceso_id IS NULL)) OR ((jsonb_typeof(instantanea_configuracion) = 'object'::text) AND (instantanea_configuracion ?& ARRAY['conexion'::text, 'mapeoEsquema'::text, 'configuracionProgramacion'::text]) AND ((instantanea_configuracion - ARRAY['conexion'::text, 'mapeoEsquema'::text, 'configuracionProgramacion'::text]) = '{}'::jsonb))) IS TRUE)`, map: "etl_jobs_snapshot_check")
   @@map("ejecuciones_etl")
   @@check(expression: sql`(intento >= 0)`, map: "etl_jobs_attempt_check")
 }
@@ -209,9 +209,6 @@ model ProcesoEtl {
   ejecuciones           EjecucionEtl[]
 
   @@index([archivadoEn, pausado], map: "etl_pipelines_archived_at_paused_idx")
-  @@check(expression: sql`(etl_valid_mapping(mapeo_esquema) IS TRUE)`, map: "etl_pipelines_mapping_check")
-  @@check(expression: sql`(etl_valid_schedule(configuracion_programacion) IS TRUE)`, map: "etl_pipelines_schedule_check")
-  @@check(expression: sql`(etl_valid_connection(conexion) IS TRUE)`, map: "etl_pipelines_connection_check")
   @@check(expression: sql`((length(btrim(nombre)) > 0) AND (length(btrim(nombre_conjunto)) > 0))`, map: "etl_pipelines_identity_check")
   @@map("procesos_etl")
 }

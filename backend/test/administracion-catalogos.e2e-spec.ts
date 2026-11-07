@@ -1,3 +1,4 @@
+import { RedisModule } from '../src/redis/redis.module.js';
 import type { Server } from 'node:http';
 import type { AirportsService } from '../src/airports/airports.service.js';
 import type { AirlinesService } from '../src/airlines/airlines.service.js';
@@ -31,7 +32,13 @@ describe('Administración de catálogos (PostgreSQL y HTTP)', () => {
     try {
       await db.transaction(async (tx) => {
         const module = await Test.createTestingModule({
-          imports: [PrismaModule, AirportsModule, AirlinesModule, RoutesModule],
+          imports: [
+            RedisModule,
+            PrismaModule,
+            AirportsModule,
+            AirlinesModule,
+            RoutesModule,
+          ],
         })
           .overrideProvider(PrismaService)
           .useValue({
@@ -141,6 +148,36 @@ describe('Administración de catálogos (PostgreSQL y HTTP)', () => {
         fuente: 'Administrativa',
         protegidoManualmente: true,
       });
+      await api
+        .patch(`/administracion/aeropuertos/${origen.id}`)
+        .send({ latitud: -34, longitud: -58 })
+        .expect(200);
+      // A partial coordinate edit must preserve latitude and update the spatial point.
+      await api
+        .patch(`/administracion/aeropuertos/${origen.id}`)
+        .send({ longitud: -57 })
+        .expect(200);
+      const cercanos = await api
+        .get('/aeropuertos/cercanos')
+        .query({ lat: -34, lng: -57, radiusKm: 1 })
+        .expect(200);
+      expect(cercanos.body).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: origen.id,
+            latitud: -34,
+            longitud: -57,
+            distanciaKm: 0,
+          }),
+        ]),
+      );
+      const anteriores = await api
+        .get('/aeropuertos/cercanos')
+        .query({ lat: -34, lng: -58, radiusKm: 1 })
+        .expect(200);
+      expect(anteriores.body).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: origen.id })]),
+      );
       const listado: Awaited<ReturnType<AirportsService['listarAdmin']>> = (
         await api
           .get('/administracion/aeropuertos')

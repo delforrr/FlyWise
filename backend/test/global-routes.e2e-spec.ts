@@ -1,3 +1,4 @@
+import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { crearOfertaFixture } from './helpers/oferta-fixture.js';
 import { randomUUID } from 'node:crypto';
 import { createDatabase } from '../src/prisma/db.js';
@@ -43,6 +44,7 @@ describe('Global connections (PostgreSQL)', () => {
             iata,
             latitud: 10,
             longitud: 20,
+            ubicacion: ubicacionAeropuerto(10, 20),
             cantidadRutas,
           });
         }
