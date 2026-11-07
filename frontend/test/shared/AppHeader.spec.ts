@@ -43,6 +43,7 @@ it('permite cambiar el idioma de países y mapa y conservarlo al volver a montar
   await selector.setValue('en');
   expect(cookie.value).toBe('en');
   wrapper.unmount();
+  (globalThis as unknown as { __clearStateStore: () => void }).__clearStateStore();
   const again = render();
   expect((again.get('select').element as HTMLSelectElement).value).toBe('en');
   again.unmount();

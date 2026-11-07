@@ -2,7 +2,7 @@
 
 Fecha: 2026-11-07. Base: `f8fb523ff45c0c70eab34e9ff725361ad88aa534` (develop).
 Rama documental: `feature/spec-localizacion-paises-mapa`.
-Estado: implementación autorizada por el usuario, incluidos los tres tickets y sus superficies de prueba. Implementación en revisión independiente.
+Estado: funcionalidad implementada y revisada. Pruebas y QA de controles aprobados; pendiente la validación visual cartográfica con GPU funcional. Ver [evidencia y límites](verificacion.md).
 Rama de implementación: `feature/traduccion-mapa-catalogo`.
 
 ## Problem Statement
@@ -69,7 +69,7 @@ Ofrecer un selector accesible Español / English, con español por defecto y pre
 
 ## Further Notes
 
-- La cobertura mundial de ISO de la base y de nombres localizados en teselas no se ha verificado. Se inspeccionaron metadatos CARTO v1 y una tesela real con name:es, name:en y name_en; el estilo oscuro actual utiliza CARTO v2. El respaldo al original forma parte del resultado aceptado; cualquier cambio de proveedor requiere otra decisión.
+- La cobertura mundial de ISO de la base y de nombres localizados en teselas no se ha verificado. Se inspeccionaron metadatos CARTO v1 y una tesela real con name:es, name:en y name_en; el estilo oscuro actual utiliza CARTO v2 y se confirmó name:es/name:en en una tesela real. El respaldo al original forma parte del resultado aceptado; cualquier cambio de proveedor requiere otra decisión.
 - Los tickets son cortes demostrables, no tareas separadas por frontend/backend. El primero habilita la preferencia; los otros dos pueden avanzar en paralelo después.
 - No hay tracker externo configurado para este trabajo. Por pedido explícito del usuario se conservan spec y tickets versionables dentro del repositorio, fuera de la carpeta de trabajo ignorada.
 - Fuentes técnicas consultadas: [Intl.DisplayNames](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DisplayNames) y [selector de Nuxt I18n para la etapa futura](https://i18n.nuxtjs.org/docs/guide/lang-switcher).

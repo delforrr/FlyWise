@@ -4,14 +4,14 @@
 
 **Blocked by:** Ninguno (puede comenzar inmediatamente).
 
-**Status:** in-review — implementación autorizada; pendiente de QA independiente.
+**Status:** done — pruebas automatizadas, revisión independiente y QA de controles aprobados.
 
 **Spec:** [Especificación](../spec.md).
 
-- [ ] El selector accesible indica su alcance actual: países y mapa; es operable con teclado y expone el valor activo.
-- [ ] Español es el valor inicial; English cambia las etiquetas y la elección persiste tras navegación y recarga mediante cookie compatible con SSR.
-- [ ] Una cookie inválida vuelve a español sin errores de hidratación ni estado compartido entre solicitudes.
-- [ ] La localización usa ISO e Intl.DisplayNames; Germany/Alemania se resuelve, y códigos ausentes o no resolubles conservan el original.
-- [ ] Las listas de países se buscan y ordenan según el idioma activo, conservando IDs y filtros seleccionados al alternar.
-- [ ] No se modifican nombres persistidos, valores editables administrativos ni reglas de ingesta; no se instala I18n.
-- [ ] Las pruebas de interacción, persistencia y respaldo pasan, junto con las compilaciones y suites de ambos proyectos.
+- [x] El selector accesible indica su alcance actual: países y mapa; es operable con teclado y expone el valor activo.
+- [x] Español es el valor inicial; English cambia las etiquetas y la elección persiste tras navegación y recarga mediante cookie compatible con SSR.
+- [x] Una cookie inválida vuelve a español sin errores de hidratación ni estado compartido entre solicitudes.
+- [x] La localización usa ISO e Intl.DisplayNames; Germany/Alemania se resuelve, y códigos ausentes o no resolubles conservan el original.
+- [x] Las listas de países se buscan y ordenan según el idioma activo, conservando IDs y filtros seleccionados al alternar.
+- [x] No se modifican nombres persistidos, valores editables administrativos ni reglas de ingesta; no se instala I18n.
+- [x] Las pruebas de interacción, persistencia y respaldo pasan, junto con las compilaciones y suites de ambos proyectos.
