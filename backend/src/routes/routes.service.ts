@@ -47,6 +47,7 @@ export interface DeckGlArcRoute {
     nombre: string;
     ciudad: string | null;
     pais: string;
+    codigoIsoPais: string | null;
     coordenadas: [number, number]; // [longitud, latitud] estándar Deck.gl
   };
   destino: {
@@ -56,6 +57,7 @@ export interface DeckGlArcRoute {
     nombre: string;
     ciudad: string | null;
     pais: string;
+    codigoIsoPais: string | null;
     coordenadas: [number, number]; // [longitud, latitud] estándar Deck.gl
   };
   aerolinea: {
@@ -257,6 +259,7 @@ export class RoutesService {
         nombre: first.origen.nombre,
         ciudad: first.origen.ciudad,
         pais: first.origen.nombrePais,
+        codigoIsoPais: first.origen.pais?.codigoIso ?? null,
         coordenadas: [first.origen.longitud, first.origen.latitud],
       },
       destino: {
@@ -264,6 +267,7 @@ export class RoutesService {
         nombre: first.destino.nombre,
         ciudad: first.destino.ciudad,
         pais: first.destino.nombrePais,
+        codigoIsoPais: first.destino.pais?.codigoIso ?? null,
         coordenadas: [first.destino.longitud, first.destino.latitud],
       },
       distanciaKm: Math.round(distanciaKm * 10) / 10,
@@ -280,7 +284,7 @@ export class RoutesService {
 
   private async withDistances(ofertas: RouteWithRelations[]) {
     const rows = ofertas.map((oferta) => {
-      if (!oferta.ruta)
+      if (!oferta.ruta || !oferta.ruta.origen || !oferta.ruta.destino)
         throw new NotFoundException('La ruta ya no está disponible');
       return {
         ...oferta,
@@ -330,6 +334,7 @@ export class RoutesService {
         nombre: route.origen.nombre,
         ciudad: route.origen.ciudad,
         pais: route.origen.nombrePais,
+        codigoIsoPais: route.origen.pais?.codigoIso ?? null,
         coordenadas: [route.origen.longitud, route.origen.latitud],
       },
       destino: {
@@ -339,6 +344,7 @@ export class RoutesService {
         nombre: route.destino.nombre,
         ciudad: route.destino.ciudad,
         pais: route.destino.nombrePais,
+        codigoIsoPais: route.destino.pais?.codigoIso ?? null,
         coordenadas: [route.destino.longitud, route.destino.latitud],
       },
       aerolinea: {

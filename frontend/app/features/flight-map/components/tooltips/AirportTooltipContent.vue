@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useCountryLocale } from '~/shared/composables/useCountryLocale';
+const { countryName } = useCountryLocale();
 import { computed } from "vue";
 import type { Aeropuerto } from "~/types/airport";
 
@@ -65,7 +67,7 @@ const formattedCoordinates = computed<string>(() => {
       </p>
       <p class="text-[11px] text-text-muted flex items-center gap-1">
         <UIcon name="i-lucide-map-pin" class="w-3 h-3 text-text-dim shrink-0" />
-        <span class="truncate">{{ airport.ciudad }}, {{ airport.pais }}</span>
+        <span class="truncate">{{ airport.ciudad }}, {{ countryName(airport.pais, airport.codigoIsoPais) }}</span>
       </p>
     </div>
 

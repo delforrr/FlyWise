@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useCountryLocale } from '~/shared/composables/useCountryLocale';
+const { countryName } = useCountryLocale();
 import { computed, ref } from "vue";
 import { useAirportSearch } from "../../composables/useAirportSearch";
 import type { Aeropuerto } from "~/types/airport";
@@ -87,7 +89,7 @@ function airportOption(a: Aeropuerto): AirportOption {
     iata: a.iata,
     nombre: a.nombre,
     ciudad: a.ciudad,
-    pais: a.pais,
+    pais: countryName(a.pais, a.codigoIsoPais),
     label: props.mode === "hero" ? `${a.nombre} [${a.iata}]` : `${a.iata} — ${a.ciudad}`,
   };
 }

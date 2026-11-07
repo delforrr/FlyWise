@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useCountryLocale } from '~/shared/composables/useCountryLocale';
+const { countryName } = useCountryLocale();
 import { computed } from "vue";
 import type { InputCardType } from "~/types/hud";
 
@@ -8,6 +10,7 @@ export interface InputCardAirportInfo {
   nombre?: string;
   ciudad?: string;
   pais?: string;
+  codigoIsoPais?: string | null;
   iata?: string;
 }
 
@@ -69,7 +72,7 @@ const resolvedIcon = computed(() => {
 
 const subtitleText = computed(() => {
   if (!props.airport) return "";
-  const parts = [props.airport.ciudad, props.airport.pais].filter(Boolean);
+  const parts = [props.airport.ciudad, countryName(props.airport.pais ?? '', props.airport.codigoIsoPais)].filter(Boolean);
   return parts.join(", ");
 });
 </script>
