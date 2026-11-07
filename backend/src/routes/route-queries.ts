@@ -49,19 +49,26 @@ export async function seleccionarConexiones(
       .map(([iso]) => iso),
   );
   const symmetric = dto.mode === 'global' || dto.mode === 'domestic';
+  const limit = dto.limit ?? 50;
   return await prisma.db.query(
     prisma.db.raw.sql`
       WITH candidates AS (
-        SELECT DISTINCT
+        SELECT
           CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN d.id ELSE o.id END AS "origenId",
           CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN o.id ELSE d.id END AS "destinoId",
           o.cantidad_rutas + d.cantidad_rutas AS score
-        FROM ofertas_ruta r JOIN rutas conexion ON conexion.id=r.ruta_id
+        FROM rutas conexion
         JOIN aeropuertos o ON o.id = conexion.origen_id
         JOIN aeropuertos d ON d.id = conexion.destino_id
         LEFT JOIN paises oc ON oc.id = o.pais_id
         LEFT JOIN paises dc ON dc.id = d.pais_id
-        WHERE r.archivado_en IS NULL AND conexion.archivado_en IS NULL AND o.archivado_en IS NULL AND d.archivado_en IS NULL AND (r.aerolinea_id IS NULL OR EXISTS (SELECT 1 FROM aerolineas a WHERE a.id=r.aerolinea_id AND a.archivado_en IS NULL)) AND r.escalas = 0 AND (
+        WHERE conexion.archivado_en IS NULL AND o.archivado_en IS NULL AND d.archivado_en IS NULL
+          AND EXISTS (
+            SELECT 1 FROM ofertas_ruta r
+            LEFT JOIN aerolineas a ON a.id = r.aerolinea_id
+            WHERE r.ruta_id = conexion.id AND r.archivado_en IS NULL AND r.escalas = 0
+              AND (r.aerolinea_id IS NULL OR (a.id IS NOT NULL AND a.archivado_en IS NULL))
+          ) AND (
           ${dto.mode === 'global'} OR (
             UPPER(TRIM(oc.codigo_iso)) IN (SELECT jsonb_array_elements_text(${originCodes}::jsonb))
             AND UPPER(TRIM(dc.codigo_iso)) IN (SELECT jsonb_array_elements_text(${destinationCodes}::jsonb))
@@ -72,14 +79,19 @@ export async function seleccionarConexiones(
             )
           )
         )
+        -- Each pair has at most two directed routes, so this bound preserves the top unique pairs.
+        ORDER BY score DESC, "origenId", "destinoId" LIMIT ${symmetric ? 2 * limit : limit}
       ), pairs AS (
-        SELECT * FROM candidates ORDER BY score DESC, "origenId", "destinoId" LIMIT ${dto.limit ?? 50}
+        SELECT DISTINCT * FROM candidates ORDER BY score DESC, "origenId", "destinoId" LIMIT ${limit}
+      ), directions AS (
+        SELECT p.*, p."origenId" AS origin, p."destinoId" AS destination FROM pairs p
+        UNION ALL
+        SELECT p.*, p."destinoId" AS origin, p."origenId" AS destination FROM pairs p
       )
       SELECT r.id, p."origenId", p."destinoId"
-      FROM pairs p JOIN ofertas_ruta r ON r.escalas = 0 JOIN rutas conexion ON conexion.id=r.ruta_id AND (
-        (conexion.origen_id = p."origenId" AND conexion.destino_id = p."destinoId") OR
-        (conexion.destino_id = p."origenId" AND conexion.origen_id = p."destinoId")
-      )
+      FROM directions p
+      JOIN rutas conexion ON conexion.origen_id = p.origin AND conexion.destino_id = p.destination
+      JOIN ofertas_ruta r ON r.ruta_id = conexion.id AND r.escalas = 0
       ORDER BY p.score DESC, p."origenId", p."destinoId", r.id
     `
       .returnsRow({

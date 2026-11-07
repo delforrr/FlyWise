@@ -83,7 +83,7 @@ export class RoutesService {
     const selected = await seleccionarConexiones(this.prisma, dto);
     if (!selected.length) return [];
     const rows = await includeRouteDetails(this.prisma)
-      .where((route) => or(...selected.map(({ id }) => route.id.eq(id))))
+      .where((route) => route.id.in(selected.map(({ id }) => id)))
       .all();
     const arcs = new Map(
       (await this.withDistances(rows)).map((row) => [
@@ -127,6 +127,28 @@ export class RoutesService {
     if (dto.incluirRegreso && (!dto.origenId || !dto.destinoId)) {
       throw new BadRequestException('incluirRegreso requiere origen y destino');
     }
+    const { origenId, destinoId } = dto;
+    const routes =
+      origenId && destinoId
+        ? await this.prisma.models.Ruta.where((route) => {
+            const ida = and(
+              route.origenId.eq(origenId),
+              route.destinoId.eq(destinoId),
+            );
+            return dto.incluirRegreso
+              ? or(
+                  ida,
+                  and(
+                    route.origenId.eq(destinoId),
+                    route.destinoId.eq(origenId),
+                  ),
+                )
+              : ida;
+          })
+            .select('id')
+            .all()
+        : undefined;
+    if (routes?.length === 0) return [];
     const query = includeRouteDetails(this.prisma)
       .where((route) => {
         const conditions: Condition[] = [];
@@ -138,31 +160,28 @@ export class RoutesService {
             ),
           );
         }
-        if (dto.incluirRegreso && dto.origenId && dto.destinoId) {
+        if (routes && origenId && destinoId) {
+          const ida = route.ruta.some({ origenId, destinoId });
+          conditions.push(
+            route.rutaId.in(routes.map(({ id }) => id)),
+            route.escalas.eq(0),
+            dto.incluirRegreso
+              ? or(
+                  ida,
+                  route.ruta.some({ origenId: destinoId, destinoId: origenId }),
+                )
+              : ida,
+          );
+        } else if (origenId) {
           conditions.push(
             or(
-              and(
-                route.ruta.some({ origenId: dto.origenId }),
-                route.ruta.some({ destinoId: dto.destinoId }),
-              ),
-              and(
-                route.ruta.some({ origenId: dto.destinoId }),
-                route.ruta.some({ destinoId: dto.origenId }),
-              ),
+              route.ruta.some({ origenId }),
+              route.ruta.some({ destinoId: origenId }),
             ),
           );
-        } else if (dto.origenId)
-          conditions.push(
-            dto.destinoId
-              ? route.ruta.some({ origenId: dto.origenId })
-              : or(
-                  route.ruta.some({ origenId: dto.origenId }),
-                  route.ruta.some({ destinoId: dto.origenId }),
-                ),
-          );
-        if (dto.destinoId && !dto.incluirRegreso)
-          conditions.push(route.ruta.some({ destinoId: dto.destinoId }));
-        if (dto.origenId && dto.destinoId) conditions.push(route.escalas.eq(0));
+        } else if (destinoId) {
+          conditions.push(route.ruta.some({ destinoId }));
+        }
         if (aerolinea)
           conditions.push(
             route.codigoAerolinea.eq(aerolinea.trim().toUpperCase()),
