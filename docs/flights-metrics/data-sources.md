@@ -2,6 +2,8 @@
 
 Revisión de documentación pública: 24 de octubre de 2026. Las fuentes alternativas de este informe no están integradas automáticamente. La v1 ejecuta catálogos OpenFlights y muestra métricas operativas desconocidas como `NULL` / «Sin datos».
 
+**Prueba práctica del 8 de noviembre de 2026:** ver [smoke test y guía de integración](smoke-flight-sources.md), con respuestas HTTP, muestras CSV y limitaciones verificadas. Incluye una muestra real de BTS y ANAC; los proveedores comerciales no se validaron con credenciales.
+
 ## Recomendación para completar OTP
 
 Empezar por **BTS Reporting Carrier On-Time Performance**, con un mes y un conjunto pequeño de rutas domésticas de Estados Unidos. Después incorporar cobertura argentina/internacional con una fuente que publique llegada programada y llegada real, además de cancelaciones y desvíos. No extrapolar puntualidad de Estados Unidos a otras rutas ni a aerolíneas sin muestra.
