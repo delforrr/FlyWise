@@ -1,109 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from "vue";
-import { MAP_STYLES } from "../utils/mapUtils";
-import { useMapPerformance } from "../composables/useMapPerformance";
+import { ref, onMounted, onUnmounted, nextTick } from "vue";
 import { useFlightMap } from "../composables/useFlightMap";
-import { useFlightSelection } from "~/features/route-audit/composables/useFlightSelection";
 
 const mapContainer = ref<HTMLDivElement | null>(null);
 
-const {
-  initMap,
-  destroyMap,
-  mapInstance,
-  isLoaded,
-  updateLayers,
-  fitRoute,
-  fitHub,
-  setBaseMapStyle,
-} = useFlightMap();
-
-const {
-  selectedOrigin,
-  selectedDestination,
-  selectedRouteData,
-  activeRouteId,
-  mapFitTrigger,
-} = useFlightSelection();
-
-const colorMode = useColorMode();
-const performance = useMapPerformance();
+const { initMap, destroyMap, mapInstance, isLoaded } = useFlightMap();
 
 let resizeObserver: ResizeObserver | null = null;
 let resizeRafId: number | null = null;
 let initRafId: number | null = null;
-
-// Suscripciones reactivas centralizadas en el ciclo de vida del mapa
-watch(selectedOrigin, (newOrigin) => {
-  updateLayers();
-  if (newOrigin && !selectedDestination.value) {
-    fitHub(newOrigin);
-  } else if (newOrigin && selectedDestination.value) {
-    fitRoute();
-  }
-});
-
-watch(selectedDestination, (newDest) => {
-  updateLayers();
-  if (newDest && !selectedOrigin.value) {
-    fitHub(newDest);
-  } else if (newDest && selectedOrigin.value) {
-    fitRoute();
-  }
-});
-
-watch(activeRouteId, () => {
-  updateLayers();
-});
-
-watch(selectedRouteData, (route) => {
-  updateLayers();
-  if (route) {
-    fitRoute(route.originCoordinates, route.destinationCoordinates);
-  }
-});
-
-watch(mapFitTrigger, () => {
-  if (selectedOrigin.value && selectedDestination.value) {
-    fitRoute();
-  } else if (selectedOrigin.value) {
-    fitHub(selectedOrigin.value);
-  } else if (selectedDestination.value) {
-    fitHub(selectedDestination.value);
-  } else if (mapInstance.value) {
-    mapInstance.value.flyTo({
-      center: [-30, 20],
-      zoom: 2.5,
-      pitch: performance.allow3D.value ? 30 : 0,
-      bearing: 0,
-      duration: 1200,
-    });
-  }
-});
-
-watch(
-  () => [selectedOrigin.value, selectedDestination.value],
-  ([orig, dest]) => {
-    if (!orig && !dest && mapInstance.value) {
-      mapInstance.value.flyTo({
-        center: [-30, 20],
-        zoom: 2.5,
-        pitch: performance.allow3D.value ? 30 : 0,
-        bearing: 0,
-        duration: 1200,
-      });
-    }
-  },
-);
-
-watch(
-  () => colorMode.value,
-  (mode) => {
-    const targetStyle = mode === "light" ? MAP_STYLES.light : MAP_STYLES.dark;
-    setBaseMapStyle(targetStyle);
-    updateLayers();
-  },
-);
 
 onMounted(async () => {
   // Esperar a que el DOM esté disponible tras el ciclo de hidratación en el cliente
@@ -120,13 +25,7 @@ onMounted(async () => {
     return;
   }
 
-  // Inicializar MapLibre GL + Deck.gl con perspectiva aeronáutica inicial (2D estricto en móviles)
-  initMap(containerElement, {
-    center: [-30, 20],
-    zoom: 2.5,
-    pitch: performance.allow3D.value ? 30 : 0,
-    bearing: 0,
-  });
+  initMap(containerElement);
 
   // Redimensionar el canvas inmediatamente para asegurar ajuste a las dimensiones reales
   mapInstance.value?.resize();

@@ -1,12 +1,13 @@
-import { Map, type IControl } from "maplibre-gl";
+import { type Map, type IControl } from "maplibre-gl";
+import { computed, effectScope, ref, shallowRef, watch, type EffectScope } from "vue";
 import * as maplibregl from "maplibre-gl";
-import { MapboxOverlay } from "@deck.gl/mapbox";
-import type { Airport } from "~/types/airport";
-import type { FlightRoute } from "~/types/route";
+import type { MapboxOverlay } from "@deck.gl/mapbox";
 import { SEED_AIRPORTS } from "~/data/seedData";
-import { MAP_STYLES } from "../utils/mapUtils";
+import { DEFAULT_MAP_CAMERA, getBaseMapStyle } from "../utils/mapUtils";
+import { createBaseMap, applyMapRenderProfile } from "../utils/maplibreRuntime";
+import { createFlightOverlay, getOverlayRenderProps } from "../utils/flightOverlay";
 import { buildFlightMapLayers } from "../utils/mapLayers";
-import { useMapPerformance } from "./useMapPerformance";
+import { useMapPerformance, observeMapPerformance } from "./useMapPerformance";
 
 // Estado del mapa compartido a nivel módulo (Singleton para sincronizar componentes HUD)
 const mapInstance = shallowRef<Map | null>(null);
@@ -16,6 +17,8 @@ const isLoaded = ref<boolean>(false);
 const currentPitch = ref<number>(0);
 const currentZoom = ref<number>(0);
 const currentBearing = ref<number>(0);
+let mapScope: EffectScope | null = null;
+let stopPerformanceTracking: (() => void) | null = null;
 let resilienceTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
@@ -39,17 +42,14 @@ function getAdaptivePadding(): {
 }
 
 export const useFlightMap = () => {
+  const selection = useFlightSelection();
   const {
-    setHoveredEntity,
-    clearHoveredEntity,
-    setRoute,
-    setOrigin,
-    setDestination,
     selectedRouteData,
     selectedOrigin,
     selectedDestination,
     matchingRoutes,
-  } = useFlightSelection();
+    mapFitTrigger,
+  } = selection;
 
   const colorMode = useColorMode();
   const performance = useMapPerformance();
@@ -141,82 +141,14 @@ export const useFlightMap = () => {
     if (!container || mapInstance.value) return;
 
     try {
-      const isMobile = performance.isMobileOrTouch.value;
-      const center: [number, number] = options?.center ?? [-30, 20];
-      const zoom: number = options?.zoom ?? 2.5;
-      // En dispositivos móviles y táctiles, forzar perspectiva 2D plana estricta (pitch: 0)
-      const pitch: number = isMobile ? 0 : (options?.pitch ?? 30);
-      const bearing: number = options?.bearing ?? 0;
-
-      const activeStyle =
-        colorMode.value === "light" ? MAP_STYLES.light : MAP_STYLES.dark;
-
-      // 1. Instanciación de MapLibre GL con optimizaciones de hardware
-      const map = new maplibregl.Map({
-        container,
-        style: activeStyle,
-        center,
-        zoom,
-        pitch,
-        bearing,
-        minZoom: 1.5,
-        maxZoom: 7.5, // Máximo zoom aeronáutico: evita renderizar calles y edificios
-        maxPitch: isMobile ? 0 : 60, // En móviles el pitch queda bloqueado en 0°
-        dragRotate: !isMobile, // Desactiva rotación accidental en móviles
-        touchPitch: !isMobile, // Desactiva inclinación con dos dedos en móviles
-        pitchWithRotate: !isMobile,
-        pixelRatio: performance.dpr.value, // Clamping dinámico de DPR (1.25 en móvil/low-end)
-        maxTileCacheSize: performance.maxTileCache.value, // Control conservador de memoria VRAM/RAM
-        attributionControl: { compact: true },
-        renderWorldCopies: false,
-      });
-
+      stopPerformanceTracking = observeMapPerformance();
+      const map = createBaseMap(container, colorMode.value, {
+        allow3D: performance.allow3D.value,
+        dpr: performance.dpr.value,
+      }, options);
       mapInstance.value = map;
-
-      // 2. Acoplar MapboxOverlay de Deck.gl
-      const deckOverlay = new MapboxOverlay({
-        interleaved: false,
-        pickingRadius: isMobile ? 12 : 6,
-        layers: buildLayers(),
-        getCursor: ({ isHovering }) => (isHovering ? "pointer" : "default"),
-        onHover: (info) => {
-          // En móviles/touch se elimina completamente el listener de picking en hover
-          // evitando bloqueos de pipeline en GPU (gl.readPixels) durante el paneo táctil
-          if (!performance.enableHoverPicking.value) return;
-
-          if (info?.object) {
-            const isRoute = "originIata" in (info.object as object);
-            setHoveredEntity({
-              type: isRoute ? "route" : "airport",
-              data: info.object as FlightRoute | Airport,
-              x: Math.round(info.x),
-              y: Math.round(info.y),
-            });
-          } else {
-            clearHoveredEntity();
-          }
-        },
-        onClick: (info) => {
-          if (info?.object) {
-            if ("originIata" in (info.object as object)) {
-              const route = info.object as FlightRoute;
-              setRoute(route.originIata, route.destinationIata);
-            } else if ("iata" in (info.object as object)) {
-              const airport = info.object as Airport;
-              if (!selectedOrigin.value) {
-                setOrigin(airport.iata);
-              } else if (selectedOrigin.value === airport.iata) {
-                setOrigin();
-              } else if (!selectedDestination.value) {
-                setDestination(airport.iata);
-              } else {
-                setOrigin(airport.iata);
-              }
-            }
-          }
-        },
-      });
-
+      currentZoom.value = map.getZoom();
+      const deckOverlay = createFlightOverlay(buildLayers(), selection, performance);
       overlayInstance.value = deckOverlay;
       map.addControl(deckOverlay as unknown as IControl);
 
@@ -258,24 +190,56 @@ export const useFlightMap = () => {
         currentPitch.value = map.getPitch();
       });
 
-      let lastZoomCategory = map.getZoom() < 4.0;
       map.on("zoom", () => {
-        const z = map.getZoom();
-        currentZoom.value = z;
-        // Solo refresca capas si cruza el umbral de LOD 4.0 entre vista de mega-hubs y todos los aeropuertos
-        if (performance.enableLODLabels.value) {
-          const isLowZoom = z < 4.0;
-          if (isLowZoom !== lastZoomCategory) {
-            lastZoomCategory = isLowZoom;
-            updateLayers();
-          }
-        }
+        currentZoom.value = map.getZoom();
       });
 
       map.on("rotate", () => {
         currentBearing.value = map.getBearing();
       });
+      // Subscribe once per map, regardless of the number of HUD/shortcut callers.
+      mapScope = effectScope(true);
+      mapScope.run(() => {
+        const lowZoomLabels = computed(
+          () => performance.enableLODLabels.value && currentZoom.value < 4,
+        );
+        watch(
+          () => ({
+            origin: selectedOrigin.value,
+            destination: selectedDestination.value,
+            route: selectedRouteData.value,
+            routes: matchingRoutes.value,
+            fit: mapFitTrigger.value,
+            mode: colorMode.value,
+            allow3D: performance.allow3D.value,
+            dpr: performance.dpr.value,
+            rings: performance.enableRadarRings.value,
+            lowZoomLabels: lowZoomLabels.value,
+          }),
+          (next, previous) => {
+            if (next.mode !== previous.mode) {
+              setBaseMapStyle(getBaseMapStyle(next.mode));
+            }
+            if (next.allow3D !== previous.allow3D || next.dpr !== previous.dpr) {
+              applyMapRenderProfile(map, { allow3D: next.allow3D, dpr: next.dpr });
+              deckOverlay.setProps(getOverlayRenderProps(performance));
+              selection.clearHoveredEntity();
+            }
+            updateLayers();
+            if (
+              next.origin !== previous.origin ||
+              next.destination !== previous.destination ||
+              next.route !== previous.route ||
+              next.fit !== previous.fit
+            ) {
+              frameSelection();
+            }
+          },
+        );
+      });
+      if (selectedOrigin.value || selectedDestination.value) frameSelection();
     } catch (err) {
+      destroyMap();
       console.error(
         "[FlyWise useFlightMap] Error al inicializar MapLibre / Deck.gl:",
         err,
@@ -284,6 +248,10 @@ export const useFlightMap = () => {
   }
 
   function destroyMap(): void {
+    mapScope?.stop();
+    mapScope = null;
+    stopPerformanceTracking?.();
+    stopPerformanceTracking = null;
     if (resilienceTimer) {
       clearTimeout(resilienceTimer);
       resilienceTimer = null;
@@ -370,10 +338,24 @@ export const useFlightMap = () => {
 
     mapInstance.value.fitBounds(bounds, {
       padding: options?.padding ?? getAdaptivePadding(),
-      pitch: options?.pitch ?? defaultPitch,
+      pitch: performance.allow3D.value ? (options?.pitch ?? defaultPitch) : 0,
       duration: options?.duration ?? 1600,
       essential: true,
     });
+  }
+
+  function frameSelection(): void {
+    if (selectedOrigin.value || selectedDestination.value) {
+      fitRoute();
+    } else {
+      mapInstance.value?.flyTo({
+        center: DEFAULT_MAP_CAMERA.center,
+        zoom: DEFAULT_MAP_CAMERA.zoom,
+        pitch: performance.allow3D.value ? DEFAULT_MAP_CAMERA.pitch : 0,
+        bearing: 0,
+        duration: 1200,
+      });
+    }
   }
 
   function toggle3D(): void {

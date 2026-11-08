@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, onUnmounted } from "vue";
+import { computed } from "vue";
 
 export type actionType =
   | "zoomIn"
@@ -64,37 +64,8 @@ const {
   fitRoute,
   resetNorth,
   currentPitch,
-  mapInstance,
+  currentBearing,
 } = useFlightMap();
-
-// Estado dinámico del rumbo / bearing del mapa para el indicador de brújula
-const currentBearing = ref<number>(0);
-
-function handleRotate() {
-  if (mapInstance.value) {
-    currentBearing.value = Math.round(mapInstance.value.getBearing() * 10) / 10;
-  }
-}
-
-watch(
-  mapInstance,
-  (newMap, oldMap) => {
-    if (oldMap) {
-      oldMap.off("rotate", handleRotate);
-    }
-    if (newMap) {
-      handleRotate();
-      newMap.on("rotate", handleRotate);
-    }
-  },
-  { immediate: true },
-);
-
-onUnmounted(() => {
-  if (mapInstance.value) {
-    mapInstance.value.off("rotate", handleRotate);
-  }
-});
 
 // Estado de 3D activo cuando el pitch supera el umbral cenital (> 5 grados)
 const is3DActive = computed(() => {

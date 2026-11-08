@@ -5,6 +5,10 @@ export const MAP_STYLES = {
   light: "/map-styles/aero-daylight.json",
 } as const;
 
+export function getBaseMapStyle(colorMode: string): string {
+  return colorMode === "light" ? MAP_STYLES.light : MAP_STYLES.dark;
+}
+
 export const DEFAULT_MAP_CAMERA = {
   center: [-30, 20] as [number, number],
   zoom: 2.5,

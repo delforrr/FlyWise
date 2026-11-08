@@ -1,4 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { ref, nextTick } from "vue";
+import { Map as MapLibreMap } from "maplibre-gl";
+import { MapboxOverlay } from "@deck.gl/mapbox";
+import type { FlightRoute } from "../../app/types/route";
+import { SEED_ROUTES, SEED_AIRPORTS } from "../../app/data/seedData";
 
 // Mock de maplibre-gl y @deck.gl/mapbox
 const mockEaseTo = vi.fn();
@@ -28,11 +33,19 @@ const mockMap = {
   resize: vi.fn(),
   on: vi.fn(),
   once: vi.fn(),
+  setPixelRatio: vi.fn(),
+  setMaxPitch: vi.fn(),
+  setPitch: vi.fn(),
+  dragRotate: { enable: vi.fn(), disable: vi.fn() },
+  touchPitch: { enable: vi.fn(), disable: vi.fn() },
+  touchZoomRotate: { enableRotation: vi.fn(), disableRotation: vi.fn() },
+  keyboard: { enableRotation: vi.fn(), disableRotation: vi.fn() },
 };
 
 const mockOverlay = {
   setProps: vi.fn(),
   finalize: vi.fn(),
+  pickObject: vi.fn(),
 };
 
 vi.mock("maplibre-gl", () => {
@@ -73,10 +86,11 @@ const mockFlightSelection = {
   setRoute: vi.fn(),
   setOrigin: vi.fn(),
   setDestination: vi.fn(),
-  selectedRouteData: { value: null },
-  selectedOrigin: { value: undefined },
-  selectedDestination: { value: undefined },
-  matchingRoutes: { value: [] },
+  selectedRouteData: ref<FlightRoute | null>(null),
+  selectedOrigin: ref<string | undefined>(),
+  selectedDestination: ref<string | undefined>(),
+  matchingRoutes: ref<FlightRoute[]>([]),
+  mapFitTrigger: ref(0),
 };
 (globalThis as any).useFlightSelection = () => mockFlightSelection;
 
@@ -84,13 +98,24 @@ import { useFlightMap } from "../../app/features/flight-map/composables/useFligh
 import { useMapPerformance } from "../../app/features/flight-map/composables/useMapPerformance";
 
 describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáuticas", () => {
+  const colorMode = ref("dark");
   beforeEach(() => {
+    useFlightMap().destroyMap();
+    mockFlightSelection.selectedOrigin.value = undefined;
+    mockFlightSelection.selectedDestination.value = undefined;
+    mockFlightSelection.selectedRouteData.value = null;
+    mockFlightSelection.matchingRoutes.value = [];
+    mockFlightSelection.mapFitTrigger.value = 0;
+    colorMode.value = "dark";
+    vi.stubGlobal("useColorMode", () => colorMode);
     vi.clearAllMocks();
     useMapPerformance().setPerformanceOverride({
       isMobileOrTouch: false,
       isLowEnd: false,
     });
   });
+
+  afterEach(() => useFlightMap().destroyMap());
 
   describe("Operaciones de cámara sin mapa inicializado (Resiliencia SSR)", () => {
     it("no lanza errores al invocar métodos de navegación cuando mapInstance es null", () => {
@@ -353,4 +378,90 @@ describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáutica
       );
     });
   });
+  describe("Sincronización por instancia", () => {
+    function start() {
+      const map = useFlightMap();
+      map.initMap(document.createElement("div"));
+      vi.clearAllMocks();
+      return map;
+    }
+
+    it("una selección conjunta produce una actualización y un encuadre con varios callers", async () => {
+      start();
+      useFlightMap();
+      useFlightMap();
+      mockFlightSelection.selectedOrigin.value = "EZE";
+      mockFlightSelection.selectedDestination.value = "MIA";
+      mockFlightSelection.selectedRouteData.value = SEED_ROUTES[0]!;
+      await nextTick();
+      expect(mockOverlay.setProps).toHaveBeenCalledTimes(1);
+      expect(mockFitBounds).toHaveBeenCalledTimes(1);
+    });
+
+    it("tema y perfil actualizan render sin mover la cámara", async () => {
+      start();
+      colorMode.value = "light";
+      useMapPerformance().setPerformanceOverride({ isMobileOrTouch: true });
+      await nextTick();
+      expect(mockSetStyle).toHaveBeenCalledWith("/map-styles/aero-daylight.json");
+      expect(mockMap.setMaxPitch).toHaveBeenCalledWith(0);
+      expect(mockMap.dragRotate.disable).toHaveBeenCalledOnce();
+      expect(mockMap.touchZoomRotate.disableRotation).toHaveBeenCalledOnce();
+      expect(mockOverlay.setProps).toHaveBeenCalledWith(expect.objectContaining({ _pickable: false }));
+      expect(mockFitBounds).not.toHaveBeenCalled();
+      expect(mockFlyTo).not.toHaveBeenCalled();
+      useMapPerformance().setPerformanceOverride({ isMobileOrTouch: false });
+      await nextTick();
+      expect(mockMap.setMaxPitch).toHaveBeenLastCalledWith(60);
+      expect(mockMap.dragRotate.enable).toHaveBeenCalledOnce();
+      expect(mockMap.touchZoomRotate.enableRotation).toHaveBeenCalledOnce();
+    });
+
+    it("no regenera overlays por cada paso de zoom dentro de la categoría LOD", async () => {
+      useMapPerformance().setPerformanceOverride({ isLowEnd: true });
+      const map = start();
+      map.currentZoom.value = 3;
+      await nextTick();
+      expect(mockOverlay.setProps).not.toHaveBeenCalled();
+      map.currentZoom.value = 4.2;
+      await nextTick();
+      expect(mockOverlay.setProps).toHaveBeenCalledTimes(1);
+    });
+
+    it("destruir detiene suscripciones y remontar crea una sola", async () => {
+      const map = start();
+      map.destroyMap();
+      vi.clearAllMocks();
+      mockFlightSelection.selectedOrigin.value = "EZE";
+      await nextTick();
+      expect(mockOverlay.setProps).not.toHaveBeenCalled();
+      map.initMap(document.createElement("div"));
+      vi.clearAllMocks();
+      mockFlightSelection.selectedDestination.value = "MIA";
+      await nextTick();
+      expect(mockOverlay.setProps).toHaveBeenCalledTimes(1);
+      expect(mockFitBounds.mock.calls.length + mockFlyTo.mock.calls.length).toBe(1);
+    });
+
+    it("aplica selección existente al iniciar", () => {
+      mockFlightSelection.selectedOrigin.value = "EZE";
+      useFlightMap().initMap(document.createElement("div"));
+      expect(mockFlyTo).toHaveBeenCalledOnce();
+    });
+
+    it("limita ambos canvas y omite picking automático móvil conservando selección", () => {
+      useMapPerformance().setPerformanceOverride({ isMobileOrTouch: true });
+      useFlightMap().initMap(document.createElement("div"));
+      const mapProps = vi.mocked(MapLibreMap).mock.calls[0]![0];
+      const overlayProps = vi.mocked(MapboxOverlay).mock.calls[0]![0];
+      expect(overlayProps.useDevicePixels).toBe(mapProps.pixelRatio);
+      expect(overlayProps._pickable).toBe(false);
+      mockOverlay.pickObject.mockReturnValue({ object: SEED_AIRPORTS[0] });
+      overlayProps.onClick?.({ x: 10, y: 20 } as Parameters<NonNullable<typeof overlayProps.onClick>>[0], {} as never);
+      expect(mockOverlay.pickObject).toHaveBeenCalledWith({ x: 10, y: 20, radius: 12 });
+      expect(mockFlightSelection.setOrigin).toHaveBeenCalledWith(SEED_AIRPORTS[0]!.iata);
+      expect(mockOverlay.setProps).toHaveBeenLastCalledWith({ _pickable: false });
+    });
+  });
+
 });

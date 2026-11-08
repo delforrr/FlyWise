@@ -3,6 +3,7 @@ import {
   useMapPerformance,
   detectMobileOrTouch,
   detectLowEndHardware,
+  observeMapPerformance,
 } from "../../app/features/flight-map/composables/useMapPerformance";
 
 describe("useMapPerformance — Detección y Adaptación de Rendimiento de Hardware", () => {
@@ -15,12 +16,32 @@ describe("useMapPerformance — Detección y Adaptación de Rendimiento de Hardw
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     Object.defineProperty(window, "innerWidth", {
       writable: true,
       configurable: true,
       value: originalInnerWidth,
     });
     vi.restoreAllMocks();
+  });
+
+  it("sincroniza viewport y DPR y cancela la observación al destruir el mapa", () => {
+    vi.useFakeTimers();
+    const perf = useMapPerformance();
+    perf.setPerformanceOverride({ isMobileOrTouch: false, isLowEnd: false });
+    const stop = observeMapPerformance();
+    vi.stubGlobal("innerWidth", 412);
+    vi.stubGlobal("devicePixelRatio", 3);
+    window.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(150);
+    expect(perf.isMobileOrTouch.value).toBe(true);
+    expect(perf.dpr.value).toBe(1.25);
+    stop();
+    vi.stubGlobal("innerWidth", 1280);
+    window.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(150);
+    expect(perf.isMobileOrTouch.value).toBe(true);
+    vi.unstubAllGlobals();
   });
 
   describe("detectMobileOrTouch() — Detección de Viewport y Pantallas Táctiles", () => {
@@ -128,7 +149,6 @@ describe("useMapPerformance — Detección y Adaptación de Rendimiento de Hardw
       expect(perf.enableTooltips.value).toBe(false); // Sin tooltips en móviles
       expect(perf.enableRadarRings.value).toBe(false); // Poda de anillos decorativos
       expect(perf.enableLODLabels.value).toBe(true); // LOD activo para mega-hubs
-      expect(perf.maxTileCache.value).toBe(40); // Caché conservadora
       expect(perf.dpr.value).toBeLessThanOrEqual(1.25); // Clamping de DPR
     });
 
@@ -141,7 +161,6 @@ describe("useMapPerformance — Detección y Adaptación de Rendimiento de Hardw
       expect(perf.enableTooltips.value).toBe(true);
       expect(perf.enableRadarRings.value).toBe(true);
       expect(perf.enableLODLabels.value).toBe(false);
-      expect(perf.maxTileCache.value).toBe(100);
       expect(perf.dpr.value).toBeLessThanOrEqual(2.0);
     });
 
@@ -154,7 +173,6 @@ describe("useMapPerformance — Detección y Adaptación de Rendimiento de Hardw
       expect(perf.enableRadarRings.value).toBe(false); // Desactiva anillos secundarios
       expect(perf.enableLODLabels.value).toBe(true); // Activa LOD para mega-hubs
       expect(perf.dpr.value).toBeLessThanOrEqual(1.25); // Reduce resolución de render
-      expect(perf.maxTileCache.value).toBe(40);
     });
   });
 });

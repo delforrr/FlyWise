@@ -4,6 +4,7 @@ import { ref, computed } from "vue";
 const isMobileOrTouch = ref<boolean>(false);
 const isLowEnd = ref<boolean>(false);
 const isInitialized = ref<boolean>(false);
+const nativeDpr = ref(1);
 
 /**
  * Detecta si el hardware del cliente es de gama baja o tiene recursos restringidos
@@ -75,28 +76,34 @@ export function detectMobileOrTouch(): boolean {
   return isSmallScreen || (hasTouchPoints && isCoarsePointer);
 }
 
-/**
- * Composable para la adaptación automática y transparente del rendimiento del mapa.
- */
+/** Observación ligada al ciclo de vida del mapa; devuelve su limpieza. */
+export function observeMapPerformance(): () => void {
+  if (typeof window === "undefined") return () => {};
+  let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+  const refresh = () => {
+    isMobileOrTouch.value = detectMobileOrTouch();
+    nativeDpr.value = window.devicePixelRatio || 1;
+  };
+  const onResize = () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(refresh, 150);
+  };
+  window.addEventListener("resize", onResize, { passive: true });
+  onResize();
+  return () => {
+    clearTimeout(resizeTimer);
+    window.removeEventListener("resize", onResize);
+  };
+}
+
+/** Capacidades compartidas entre el motor del mapa y el HUD. */
 export const useMapPerformance = () => {
   // Inicialización pasiva en el cliente una sola vez
   if (typeof window !== "undefined" && !isInitialized.value) {
     isMobileOrTouch.value = detectMobileOrTouch();
     isLowEnd.value = detectLowEndHardware();
+    nativeDpr.value = window.devicePixelRatio || 1;
     isInitialized.value = true;
-
-    // Escuchar redimensionamiento de ventana para sincronizar cambios de viewport
-    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-    window.addEventListener(
-      "resize",
-      () => {
-        if (resizeTimer) clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-          isMobileOrTouch.value = detectMobileOrTouch();
-        }, 150);
-      },
-      { passive: true },
-    );
   }
 
   // Reglas de optimización computadas
@@ -112,17 +119,12 @@ export const useMapPerformance = () => {
 
   const dpr = computed<number>(() => {
     if (typeof window === "undefined") return 1;
-    const nativeDpr = window.devicePixelRatio || 1;
     if (isMobileOrTouch.value || isLowEnd.value) {
       // Clamping estricto en móvil / low-end para evitar saturar el GPU fill-rate
-      return Math.min(nativeDpr, 1.25);
+      return Math.min(nativeDpr.value, 1.25);
     }
     // Límite en desktop estándar para pantallas retina de alta resolución
-    return Math.min(nativeDpr, 2.0);
-  });
-
-  const maxTileCache = computed<number>(() => {
-    return isMobileOrTouch.value || isLowEnd.value ? 40 : 100;
+    return Math.min(nativeDpr.value, 2.0);
   });
 
   /**
@@ -146,6 +148,7 @@ export const useMapPerformance = () => {
     if (typeof window !== "undefined") {
       isMobileOrTouch.value = detectMobileOrTouch();
       isLowEnd.value = detectLowEndHardware();
+      nativeDpr.value = window.devicePixelRatio || 1;
       isInitialized.value = true;
     } else {
       isMobileOrTouch.value = false;
@@ -162,7 +165,6 @@ export const useMapPerformance = () => {
     enableRadarRings,
     enableLODLabels,
     dpr,
-    maxTileCache,
     setPerformanceOverride,
     resetPerformanceState,
   };
