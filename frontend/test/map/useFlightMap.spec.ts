@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ref, nextTick } from "vue";
-import { Map as MapLibreMap } from "maplibre-gl";
+import { Map as MapLibreMap, setWorkerUrl } from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import type { FlightRoute } from "../../app/types/route";
 import { SEED_ROUTES, SEED_AIRPORTS } from "../../app/data/seedData";
@@ -64,12 +64,17 @@ vi.mock("maplibre-gl", () => {
   return {
     Map: vi.fn().mockImplementation(MapMock),
     LngLatBounds,
+    setWorkerUrl: vi.fn(),
     default: {
       Map: vi.fn().mockImplementation(MapMock),
       LngLatBounds,
     },
   };
 });
+
+vi.mock("maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url", () => ({
+  default: "/map-worker.js",
+}));
 
 vi.mock("@deck.gl/mapbox", () => {
   function OverlayMock() {
@@ -306,6 +311,7 @@ describe("useFlightMap — Composable de Control de Cámara y Capas Aeronáutica
       expect(flightMap.mapInstance.value).toBeDefined();
       expect(flightMap.overlayInstance.value).toBeDefined();
       expect(mockMap.addControl).toHaveBeenCalled();
+      expect(setWorkerUrl).toHaveBeenCalledWith("/map-worker.js");
       expect(mockMap.on).toHaveBeenCalledWith("pitch", expect.any(Function));
       expect(mockMap.on).toHaveBeenCalledWith("zoom", expect.any(Function));
       expect(mockMap.on).toHaveBeenCalledWith("rotate", expect.any(Function));

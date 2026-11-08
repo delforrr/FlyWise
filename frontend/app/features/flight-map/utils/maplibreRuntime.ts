@@ -1,4 +1,5 @@
-import { Map, type MapOptions } from "maplibre-gl";
+import { Map, setWorkerUrl, type MapOptions } from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { DEFAULT_MAP_CAMERA, getBaseMapStyle } from "./mapUtils";
 
 export interface MapRenderProfile {
@@ -12,6 +13,7 @@ export function createBaseMap(
   profile: MapRenderProfile,
   camera: Partial<Pick<MapOptions, "center" | "zoom" | "pitch" | "bearing">> = {},
 ): Map {
+  setWorkerUrl(workerUrl);
   const map = new Map({
     container,
     style: getBaseMapStyle(colorMode),
