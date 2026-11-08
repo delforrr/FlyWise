@@ -1,4 +1,5 @@
 import { ArcLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
+import type { Layer } from "@deck.gl/core";
 import type { Airport } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { SEED_AIRPORTS } from "~/data/seedData";
@@ -16,7 +17,7 @@ export interface BuildLayersOptions {
 
 /**
  * Catálogo de los 25 Mega-Hubs aeronáuticos más estratégicos a nivel global.
- * Usado para Level-Of-Detail (LOD) en vista planetaria/general sin saturar el atlas de fuentes en dispositivos de bajos recursos.
+ * Usado para reducir instancias de texto en vista general.
  */
 export const MEGA_HUBS_IATA = new Set<string>([
   "ATL", "LHR", "JFK", "DXB", "HND", "CDG", "FRA", "SIN", "AMS",
@@ -74,7 +75,7 @@ export function getLabelAirports(
   }
 
   // Si el perfil de bajo rendimiento o LOD está activo y estamos en zoom general (< 4.0),
-  // limitamos las etiquetas de texto a los mega-hubs para no saturar el font atlas
+  // limitamos las instancias de texto a los mega-hubs.
   if (enableLODLabels && currentZoom < 4.0) {
     return airports.filter((a) => MEGA_HUBS_IATA.has(a.iata));
   }
@@ -123,7 +124,7 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
     enableLODLabels,
   });
 
-  const layers = [
+  const layers: Layer[] = [
     // Capa de Arcos Geodésicos 3D (Rutas y puntualidad OTP-15)
     new ArcLayer<FlightRoute>({
       id: "flight-routes-arc",
