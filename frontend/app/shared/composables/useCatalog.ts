@@ -49,6 +49,15 @@ export function useCatalog() {
   function rememberAirport(airport: Aeropuerto) {
     if (!aeropuertos.value.some(a => a.id === airport.id)) aeropuertos.value.push(airport);
   }
+  function rememberRouteAirports(rows: ArcRoute[]) {
+    for (const row of rows) {
+      for (const airport of [row.origen, row.destino]) {
+        rememberAirport({ ...airport, codigoIata: airport.iata,
+          iata: airport.iata ?? airport.icao ?? airport.nombre,
+          icao: airport.icao ?? undefined, ciudad: airport.ciudad ?? airport.nombre });
+      }
+    }
+  }
   async function findAirportByCode(code: string, signal: AbortSignal) {
     const known = aeropuertos.value.find(a => a.iata === code);
     if (known) return known;
@@ -89,13 +98,14 @@ export function useCatalog() {
     try {
       const result = await request<ArcRoute[]>('/rutas/explorar', { query: { ...query, limit: 100, incluirRegreso: origenId && destinoId ? 'true' : undefined } });
       if (id !== routeRequestId.value) return;
+      rememberRouteAirports(result);
       rutas.value = groupArcRoutes(result);
       routeSearch.value = { ...query, status: 'success' };
     } catch {
       if (id === routeRequestId.value) routeSearch.value = { ...query, status: 'error' };
     }
   }
-  return { aeropuertos, rutas, error, loading, rememberAirport, findAirportByCode, loadAirports, loadRoutes };
+  return { aeropuertos, rutas, error, loading, rememberAirport, rememberRouteAirports, findAirportByCode, loadAirports, loadRoutes };
 }
 
 export function groupArcRoutes(rows: ArcRoute[]): FlightRoute[] {

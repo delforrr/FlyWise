@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   getVisibleAirports as getVisibleFromCatalog,
   buildFlightMapLayers,
@@ -6,9 +6,15 @@ import {
 } from "../../app/features/flight-map/utils/mapLayers";
 import { SEED_AIRPORTS as AIRPORT_FIXTURES, SEED_ROUTES } from "../../app/data/seedData";
 import type { FlightRoute } from "../../app/types/route";
+import type { Aeropuerto } from "../../app/types/airport";
+import { useCatalog, type ArcRoute } from "../../app/shared/composables/useCatalog";
+import { useGlobalMap } from "../../app/features/flight-map/composables/useGlobalMap";
 
 const SEED_AIRPORTS = AIRPORT_FIXTURES.map(a => ({ ...a, id: a.iata }));
 const getVisibleAirports = (hasSelection: boolean, origen?: string | null, destino?: string | null, rutas: FlightRoute[] = []) => getVisibleFromCatalog(hasSelection, origen, destino, rutas, SEED_AIRPORTS);
+const origen = { id: 'airport-a', iata: 'EZE', icao: 'SAEZ', nombre: 'Ministro Pistarini', ciudad: 'Buenos Aires', pais: 'Argentina', codigoIsoPais: 'AR', coordenadas: [-58.5358, -34.8222] as [number, number] };
+const destino = { id: 'airport-b', iata: null, icao: 'LEMD', nombre: 'Barajas', ciudad: 'Madrid', pais: 'España', coordenadas: [-3.5676, 40.4983] as [number, number] };
+const waypointArc: ArcRoute = { id: 'route-a', origen, destino, aerolinea: { iata: 'AR', nombre: 'Aerolíneas Argentinas' }, distanciaKm: 10000, escalas: 0, otp15: null };
 
 describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", () => {
   describe("getVisibleAirports() — Filtrado reactivo de nodos aeroportuarios", () => {
@@ -119,6 +125,38 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
   });
 
   describe("buildFlightMapLayers() — Construcción de Capas Deck.gl WebGL", () => {
+    it("muestra nodos y etiquetas en ambos extremos sin esperar al catálogo completo", async () => {
+      vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([waypointArc, waypointArc]));
+      const catalog = useCatalog();
+      await catalog.loadRoutes('airport-a');
+      const layers = buildFlightMapLayers({ isLight: false, matchingRoutes: catalog.rutas.value, aeropuertos: catalog.aeropuertos.value });
+
+      for (const id of ['aeropuertos-nodes', 'aeropuertos-labels']) {
+        const data = layers.find(layer => layer.id === id)?.props.data as Aeropuerto[];
+        expect(data).toEqual([
+          expect.objectContaining({ id: 'airport-a', iata: 'EZE', nombre: 'Ministro Pistarini', coordenadas: [-58.5358, -34.8222] }),
+          expect.objectContaining({ id: 'airport-b', iata: 'LEMD', nombre: 'Barajas', coordenadas: [-3.5676, 40.4983] }),
+        ]);
+      }
+    });
+
+    it.each(['global', 'rutas'] as const)("mantiene el waypoint seleccionado desde %s mientras carga sus rutas sin esperar al catálogo completo", async source => {
+      vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(source === 'global' ? [
+        { id: 'airport-a/airport-b', origenId: 'airport-a', destinoId: 'airport-b', ida: [waypointArc], vuelta: [] },
+      ] : [waypointArc]));
+      if (source === 'global') await useGlobalMap().load();
+      else await useCatalog().loadRoutes('airport-a');
+      const layers = buildFlightMapLayers({
+        isLight: false, selectedOrigin: 'airport-a', matchingRoutes: [],
+        aeropuertos: useCatalog().aeropuertos.value,
+      });
+      for (const id of ['aeropuertos-nodes', 'aeropuertos-labels', 'aeropuertos-radar-halo']) {
+        expect(layers.find(layer => layer.id === id)?.props.data).toEqual([
+          expect.objectContaining({ id: 'airport-a', iata: 'EZE', pais: 'Argentina', codigoIsoPais: 'AR' }),
+        ]);
+      }
+    });
+
     it("INVARIANTE RNF-02: Sin selección activa muestra las rutas recibidas del backend", () => {
       const options: BuildLayersOptions = {
         isLight: false,

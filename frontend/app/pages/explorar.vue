@@ -8,14 +8,13 @@ useSeoMeta({
     "Exploración de rutas del catálogo histórico; la puntualidad se muestra solo cuando hay datos operativos.",
 });
 
-const { aeropuertos, rutas, error, loadAirports, loadRoutes } = useCatalog();
+const { error, loadAirports, loadRoutes } = useCatalog();
 const { selectedOrigin, selectedDestination, clearSelection } = useFlightSelection();
 const globalMap = useGlobalMap();
 const hasSelection = computed(() => Boolean(selectedOrigin.value || selectedDestination.value));
-const globalAirportsCount = computed(() => {
-  const ids = new Set(globalMap.visibleRoutes.value.flatMap(r => [r.origenId, r.destinoId]));
-  return aeropuertos.value.filter(a => ids.has(a.id)).length;
-});
+const globalAirportsCount = computed(() =>
+  new Set(globalMap.visibleRoutes.value.flatMap(r => [r.origenId, r.destinoId])).size,
+);
 let applying = false;
 onMounted(() => {
   void loadAirports();

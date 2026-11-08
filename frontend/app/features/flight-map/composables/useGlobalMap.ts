@@ -1,4 +1,4 @@
-import { groupArcRoutes, mapArcRoute, type ArcRoute } from '~/shared/composables/useCatalog';
+import { groupArcRoutes, mapArcRoute, useCatalog, type ArcRoute } from '~/shared/composables/useCatalog';
 import { useBackendRequest } from '~/shared/composables/useBackendRequest';
 
 export const MAP_CONTINENTS = [
@@ -25,6 +25,7 @@ interface MapCountry { id: string; nombre: string; codigoIso?: string | null; co
 
 export function useGlobalMap() {
   const request = useBackendRequest();
+  const { rememberRouteAirports } = useCatalog();
   const filter = useState<GlobalMapFilter>('global_map_filter', () => ({ mode: 'global', limit: 50 }));
   const isOpen = useState('global_map_modal', () => false);
   const connections = useState<GlobalMapConnection[]>('global_map_connections', () => []);
@@ -50,6 +51,7 @@ export function useGlobalMap() {
     try {
       const result = await request<GlobalMapConnection[]>('/rutas/globales', { query: { ...filter.value } });
       if (id !== requestId.value) return;
+      rememberRouteAirports(result.flatMap(connection => [...connection.ida, ...connection.vuelta]));
       connections.value = result;
       fitTrigger.value++;
     } catch {
