@@ -1,4 +1,5 @@
 import { encolarEjecucion } from './encolar-ejecucion.js';
+import { readOpenFlightsRow } from './adapters/openflights.js';
 import {
   escribirCatalogo,
   recalcularCantidadRutas,
@@ -17,7 +18,6 @@ import {
   catalogValue,
   claveRutaFuente,
   normalizeCatalogRow,
-  OPENFLIGHTS_COLUMNS,
   type CatalogDataset,
   type CatalogRecord,
 } from './catalog.js';
@@ -297,12 +297,7 @@ export class EtlService {
                 mapped[rule.campoDestino] = value;
               }
             } else {
-              const columns = OPENFLIGHTS_COLUMNS[dataset];
-              if (Object.keys(raw).length !== columns.length)
-                throw new Error('columns: cantidad incorrecta');
-              mapped = Object.fromEntries(
-                columns.map((campo, index) => [campo, raw[String(index)]]),
-              );
+              mapped = readOpenFlightsRow(dataset, raw);
             }
             const normalized = normalizeCatalogRow(dataset, mapped);
             if (dataset === 'rutas')
