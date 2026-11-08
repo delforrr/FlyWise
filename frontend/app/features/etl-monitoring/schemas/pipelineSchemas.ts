@@ -27,6 +27,7 @@ export type PipelineIdentityForm = z.infer<typeof pipelineIdentitySchema>;
 export const pipelineConnectionSchema = z
   .object({
     tipoFuente: z.literal('http_stream'),
+    proveedor: z.enum(['openflights', 'ourairports']).optional(),
     metodoHttp: z.literal('GET'),
     formatoDatos: z.literal('csv'),
     urlEndpoint: z
@@ -199,7 +200,9 @@ export const pipelineSchema = z.unknown().superRefine((val, ctx) => {
   const requiredDefs = targetDefs.filter((d) => d.required);
   const mappings = Array.isArray(data.mapeoEsquema) ? data.mapeoEsquema : [];
 
-  if (!data.mapeoEsquema || mappings.length === 0) {
+  if (data.conexion?.proveedor === 'ourairports') {
+    if (mappings.length) ctx.addIssue({ code: 'custom', message: 'OurAirports utiliza su mapeo publicado.', path: ['mapeoEsquema'] });
+  } else if (!data.mapeoEsquema || mappings.length === 0) {
     ctx.addIssue({
       code: 'custom',
       message: 'Debe configurar las reglas de mapeo de campos requeridos.',

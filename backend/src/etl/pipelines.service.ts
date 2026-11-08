@@ -79,6 +79,34 @@ export class PipelinesService implements OnModuleInit {
     await this.prisma.models.ProcesoEtl.createAndCount(defaults, {
       onConflict: 'skip',
     });
+    await this.prisma.models.ProcesoEtl.createAndCount(
+      (['paises', 'aeropuertos'] as const).map((dataset, index) => ({
+        id: `00000000-0000-4000-8000-00000000001${index}`,
+        nombre: `OurAirports: ${dataset}`,
+        nombreConjunto: dataset,
+        descripcion:
+          'Catálogo geográfico OurAirports; importar países primero.',
+        entidadDestino: dataset,
+        esSistema: true,
+        pausado: false,
+        conexion: {
+          tipoFuente: 'http_stream',
+          proveedor: 'ourairports',
+          metodoHttp: 'GET',
+          formatoDatos: 'csv',
+          csvConCabecera: true,
+          urlEndpoint: `https://davidmegginson.github.io/ourairports-data/${dataset === 'paises' ? 'countries' : 'airports'}.csv`,
+        },
+        mapeoEsquema: [],
+        configuracionProgramacion: {
+          expresionCron: index === 0 ? '0 3 * * *' : '30 3 * * *',
+          tamanoLote: 2000,
+          tiempoLimiteSegundos: 300,
+          maximoReintentos: 2,
+        },
+      })),
+      { onConflict: 'skip' },
+    );
     // Reconcile schedulers after a crash between the database write and Redis update.
     for await (const row of this.prisma.models.ProcesoEtl.limit(1000).all()) {
       try {
@@ -135,6 +163,26 @@ export class PipelinesService implements OnModuleInit {
   private validate(dto: PipelineExecutionDto) {
     validateSourceUrl(dto.conexion.urlEndpoint);
     sourceHeaders(dto.conexion);
+    if (dto.conexion.proveedor === 'ourairports') {
+      if (
+        !['paises', 'aeropuertos'].includes(dto.entidadDestino) ||
+        !dto.conexion.csvConCabecera ||
+        dto.mapeoEsquema.length
+      )
+        throw new BadRequestException(
+          'OurAirports requiere países o aeropuertos, cabecera y mapeo propio',
+        );
+      if (dto.configuracionProgramacion.expresionCron) {
+        try {
+          defaultRepeatStrategy(Date.now(), {
+            pattern: dto.configuracionProgramacion.expresionCron,
+          });
+        } catch {
+          throw new BadRequestException('Expresión cron inválida');
+        }
+      }
+      return;
+    }
     const fields = dto.mapeoEsquema.map((rule) => rule.campoDestino);
     if (
       new Set(fields).size !== fields.length ||

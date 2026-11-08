@@ -17,6 +17,7 @@ import EtlPipelineWizardModal from "~/features/etl-monitoring/components/EtlPipe
 import EtlDeleteConfirmModal from "~/features/etl-monitoring/components/EtlDeleteConfirmModal.vue";
 import EtlPauseConfirmModal from "~/features/etl-monitoring/components/EtlPauseConfirmModal.vue";
 import EtlTriggerModal from "~/features/etl-monitoring/components/EtlTriggerModal.vue";
+import SourceIdentities from "~/features/etl-monitoring/components/SourceIdentities.vue";
 
 definePageMeta({
   layout: "admin",
@@ -231,6 +232,7 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
     </UEmpty>
 
     <!-- Modales Operativos -->
+    <SourceIdentities />
     <EtlPipelineWizardModal
       :is-open="isWizardModalOpen"
       :pipeline-to-edit="pipelineToEdit"

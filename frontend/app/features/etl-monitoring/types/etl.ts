@@ -67,6 +67,7 @@ export interface PipelineHeader {
 }
 
 export interface PipelineConnectionConfig {
+  proveedor?: 'openflights' | 'ourairports';
   tipoFuente: IngestionSourceType;
   urlEndpoint: string;
   metodoHttp: 'GET';

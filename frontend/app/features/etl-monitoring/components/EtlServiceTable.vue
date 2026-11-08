@@ -137,7 +137,7 @@ const columns: TableColumn<ProcesoEtl>[] = [
             class="gap-1 font-mono text-[10px]"
           >
             <UIcon name="i-lucide-timer" class="w-3 h-3" />
-            OTP-15
+            {{ row.original.entidadDestino === 'paises' ? 'Países' : row.original.entidadDestino === 'aerolineas' ? 'Aerolíneas' : 'OTP-15' }}
           </UBadge>
         </div>
       </template>
@@ -274,6 +274,7 @@ const columns: TableColumn<ProcesoEtl>[] = [
               icon="i-lucide-play"
               class="cursor-pointer"
               @click="emit('trigger-sync', row.original)"
+              :aria-label="`Iniciar ingesta ${row.original.nombre}`"
             />
           </UTooltip>
 
@@ -285,6 +286,7 @@ const columns: TableColumn<ProcesoEtl>[] = [
               icon="i-lucide-pencil"
               class="cursor-pointer"
               @click="emit('edit', row.original)"
+              :aria-label="`Editar ${row.original.nombre}`"
             />
           </UTooltip>
 
@@ -296,6 +298,7 @@ const columns: TableColumn<ProcesoEtl>[] = [
               icon="i-lucide-copy"
               class="cursor-pointer"
               @click="emit('duplicate', row.original.id)"
+              :aria-label="`Duplicar ${row.original.nombre}`"
             />
           </UTooltip>
 
@@ -317,6 +320,7 @@ const columns: TableColumn<ProcesoEtl>[] = [
               "
               class="cursor-pointer"
               @click="emit('toggle-estado', row.original)"
+              :aria-label="`${row.original.estado === 'pausado' ? 'Reanudar' : 'Pausar'} ${row.original.nombre}`"
             />
           </UTooltip>
 
@@ -335,6 +339,7 @@ const columns: TableColumn<ProcesoEtl>[] = [
               :disabled="row.original.esSistema"
               class="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
               @click="emit('delete', row.original)"
+              :aria-label="`Archivar ${row.original.nombre}`"
             />
           </UTooltip>
         </div>

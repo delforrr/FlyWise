@@ -67,6 +67,20 @@ it('muestra el error de detalle y bloquea el formulario', async () => {
   wrapper.unmount();
 });
 
+it('permite guardar OurAirports sin exigir campos OpenFlights', async () => {
+  const detail = pipeline('a', 'OurAirports');
+  detail.conexion!.proveedor = 'ourairports';
+  detail.conexion!.csvConCabecera = true;
+  detail.mapeoEsquema = [];
+  request.mockResolvedValueOnce(detail);
+  const wrapper = openWizard();
+  await flushPromises();
+  await wrapper.findAll('button').find(b => b.text().includes('Paso 4'))!.trigger('click');
+  await wrapper.findAll('button').find(b => b.text() === 'Guardar Cambios')!.trigger('click');
+  expect(wrapper.emitted('save')).toEqual([[expect.objectContaining({ conexion: expect.objectContaining({ proveedor: 'ourairports' }), mapeoEsquema: [] })]]);
+  wrapper.unmount();
+});
+
 it.each([false, true])('guarda la configuración y referencias sin cambios (previa: %s)', async legacy => {
   const detail = pipeline('a', legacy ? 'A' : 'Detalle A');
   if (legacy) {

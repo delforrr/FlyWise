@@ -1,5 +1,7 @@
 import { encolarEjecucion } from './encolar-ejecucion.js';
 import { readOpenFlightsRow } from './adapters/openflights.js';
+import { readOurAirportsRow } from './adapters/ourairports.js';
+import { storeOurAirportsBatch } from './adapters/ourairports-store.js';
 import {
   escribirCatalogo,
   recalcularCantidadRutas,
@@ -210,7 +212,10 @@ export class EtlService {
           });
         }
         if (rows.length) {
-          const resultado = await upsertCatalogBatch(tx, dataset, rows);
+          const resultado =
+            configuration?.conexion.proveedor === 'ourairports'
+              ? await storeOurAirportsBatch(tx, dataset, rows)
+              : await upsertCatalogBatch(tx, dataset, rows);
           inserted += resultado.insertadas;
           omitidas += resultado.omitidas;
         }
@@ -260,7 +265,9 @@ export class EtlService {
           const sample = JSON.stringify(safe).slice(0, 4096);
           try {
             let mapped: Record<string, unknown> = {};
-            if (configuration) {
+            if (configuration?.conexion.proveedor === 'ourairports') {
+              mapped = readOurAirportsRow(dataset, raw);
+            } else if (configuration) {
               for (const rule of configuration.mapeoEsquema) {
                 let value: string | number | boolean | null | undefined =
                   raw[rule.columnaOrigen];
@@ -299,7 +306,10 @@ export class EtlService {
             } else {
               mapped = readOpenFlightsRow(dataset, raw);
             }
-            const normalized = normalizeCatalogRow(dataset, mapped);
+            const normalized =
+              configuration?.conexion.proveedor === 'ourairports'
+                ? (mapped as CatalogRecord)
+                : normalizeCatalogRow(dataset, mapped);
             if (dataset === 'rutas')
               normalized.claveImportacion = claveRutaFuente(normalized);
             for (const rule of configuration?.mapeoEsquema ?? []) {

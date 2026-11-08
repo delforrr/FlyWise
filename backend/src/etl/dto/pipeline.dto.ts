@@ -68,6 +68,10 @@ export class PipelineHeaderDto {
   description: 'Parámetros de lectura del archivo.',
 })
 export class PipelineConnectionDto {
+  @ApiPropertyOptional({ enum: ['openflights', 'ourairports'] })
+  @IsOptional()
+  @IsIn(['openflights', 'ourairports'])
+  proveedor?: 'openflights' | 'ourairports';
   @ApiProperty({ description: 'Tipo de conexión', enum: ['http_stream'] })
   @IsIn(['http_stream'])
   tipoFuente!: 'http_stream';

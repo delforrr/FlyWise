@@ -13,8 +13,10 @@ flowchart TD
     E --> F{Fuente configurada}
     F -->|OpenFlights sin cabecera| G[Adapter: posiciones a campos]
     F -->|CSV configurado| H[Aplicar correspondencias de columnas]
+    F -->|OurAirports con cabecera| Q[Adapter: formato oficial de países o aeropuertos]
     G --> I[Normalizar y validar catálogo]
     H --> I
+    Q --> I
     I --> J{Fila válida}
     J -->|Sí| K[Lote transaccional: conservar protección y archivo]
     J -->|No| L[Contabilizar descarte y muestra acotada]
@@ -26,6 +28,34 @@ flowchart TD
     D -. Fallo .-> P[Registrar error y reintentar según política]
     P --> D
 ```
+
+## Correspondencias entre catálogos
+
+```mermaid
+flowchart TD
+    A[Fila de aeropuerto normalizada] --> B{Identidad externa ya conocida}
+    B -->|Sí| C[Conservar su vinculación o su estado pendiente]
+    B -->|No| D[Buscar candidatos por códigos]
+    D --> E{Coincidencia única y compatible}
+    E -->|ICAO y país compatibles, sin otra identidad automática| F[Vincular al aeropuerto existente]
+    E -->|Ambigua o contradictoria| G[Guardar observación pendiente]
+    D -->|Sin candidatos ni conflicto de códigos en el lote| H[Crear aeropuerto con identidad propia]
+    C --> I{Vinculación resuelta}
+    F --> I
+    H --> I
+    I -->|Sí| J{Archivado o protegido manualmente}
+    J -->|Sí| K[Conservar los valores administrativos]
+    J -->|No| L[Aplicar geografía OurAirports con WGS84]
+    I -->|No| G
+    G --> M[Admin: buscar aeropuerto y revisar correspondencia]
+    M --> N[Vinculación explícita y transaccional]
+    N --> J
+    L --> O[OpenFlights posterior conserva esa geografía]
+```
+
+Los identificadores se interpretan dentro de su fuente. Una coincidencia de IATA con ICAO o país contradictorios requiere revisión. El administrador puede vincular explícitamente alias que no se aceptan automáticamente.
+
+Los flujos de edición de vuelos y publicación de OTP aún no están implementados: corresponden a tickets 03–07 y no se presentan como comportamiento actual.
 
 ## Consulta de rutas y mapa
 

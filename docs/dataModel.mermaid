@@ -2,6 +2,7 @@ classDiagram
     %% Vista del modelo implementado. PK y restricciones completas en contract.prisma.
     Pais "0..1" -- "0..*" Aeropuerto : agrupa
     Pais "0..1" -- "0..*" Aerolinea : agrupa
+    Aeropuerto "0..1" -- "0..*" IdentidadAeropuertoFuente : corresponde
     Usuario "0..1" -- "0..*" EjecucionEtl : solicita
     ProcesoEtl "0..1" -- "0..*" EjecucionEtl : genera
     EjecucionEtl "1" -- "0..*" MuestraDescartadaEtl : contiene
@@ -23,6 +24,13 @@ classDiagram
         +string id
         +string correo
         +Role rol
+    }
+    class IdentidadAeropuertoFuente {
+        %% PK compuesta: fuente e identificador. aeropuertoId nulo significa pendiente.
+        +string fuente
+        +string identificador
+        +string aeropuertoId
+        +json observacion
     }
     class Pais {
         +string id

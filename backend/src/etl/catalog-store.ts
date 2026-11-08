@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Database, Transaction } from '../prisma/db.js';
 import type { CatalogDataset, CatalogRecord } from './catalog.js';
+import { reconcileOpenFlightsAirports } from './adapters/openflights-identities.js';
 
 type StoreDatabase = Database | Transaction;
 
@@ -40,6 +41,7 @@ export async function upsertCatalogBatch(
     ]),
   );
   const data = JSON.stringify([...unique.values()]);
+  if (dataset === 'aeropuertos') await reconcileOpenFlightsAirports(db, data);
   const result =
     dataset === 'paises'
       ? await db.query(
@@ -63,8 +65,9 @@ export async function upsertCatalogBatch(
       CASE WHEN x."icaoInvalid" THEN previous.icao ELSE x.icao END,x.latitud,x.longitud,ST_SetSRID(ST_MakePoint(x.longitud,x.latitud),4326)::geography,x.fuente,0
     FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"idOpenflights" int,nombre text,ciudad text,"nombrePais" text,iata text,icao text,latitud float8,longitud float8,fuente text,"iataInvalid" boolean,"icaoInvalid" boolean)
     LEFT JOIN aeropuertos previous ON previous.id_openflights=x."idOpenflights"
+    WHERE NOT EXISTS (SELECT 1 FROM identidades_aeropuerto_fuente pending WHERE pending.fuente='OpenFlights' AND pending.identificador=x."idOpenflights"::text AND pending.aeropuerto_id IS NULL)
     ON CONFLICT (id_openflights) DO UPDATE SET nombre=EXCLUDED.nombre,ciudad=EXCLUDED.ciudad,nombre_pais=EXCLUDED.nombre_pais,
-      iata=EXCLUDED.iata,icao=EXCLUDED.icao,latitud=EXCLUDED.latitud,longitud=EXCLUDED.longitud,ubicacion=EXCLUDED.ubicacion,fuente=EXCLUDED.fuente WHERE NOT aeropuertos.protegido_manualmente AND aeropuertos.archivado_en IS NULL
+      iata=EXCLUDED.iata,icao=EXCLUDED.icao,latitud=EXCLUDED.latitud,longitud=EXCLUDED.longitud,ubicacion=EXCLUDED.ubicacion,fuente=EXCLUDED.fuente WHERE NOT aeropuertos.protegido_manualmente AND aeropuertos.archivado_en IS NULL AND aeropuertos.fuente IS DISTINCT FROM 'OurAirports'
     RETURNING (xmax=0) AS inserted
   `
               .returnsRow({ inserted: 'pg/bool@1' })

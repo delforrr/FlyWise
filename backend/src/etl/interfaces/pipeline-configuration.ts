@@ -1,5 +1,6 @@
 // Persist references, never literal credentials from the UI's conexion form.
 export type PipelineConnectionConfig = {
+  proveedor?: 'openflights' | 'ourairports';
   tipoFuente: 'http_stream';
   urlEndpoint: string;
   metodoHttp: 'GET';

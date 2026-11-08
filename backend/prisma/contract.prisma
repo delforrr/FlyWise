@@ -78,6 +78,7 @@ model Aeropuerto {
   vuelosLlegada    Vuelo[]      @relation("FlightDestination")
   metricasOrigen      MetricaRuta[] @relation("MetricOrigin")
   metricasDestino MetricaRuta[] @relation("MetricDestination")
+  identidadesFuente IdentidadAeropuertoFuente[]
 
   @@index([ubicacion], type: "gist", map: "airports_location_idx")
   @@index([iata], map: "airports_iata_idx")
@@ -90,6 +91,17 @@ model Aeropuerto {
   @@check(expression: sql`((nombre ~ '[^[:space:]]'::text) AND (nombre_pais ~ '[^[:space:]]'::text))`, map: "airports_name_check")
   @@check(expression: sql`(((iata IS NULL) OR (iata ~ '^[A-Z]{3}$'::text)) AND ((icao IS NULL) OR (icao ~ '^[A-Z0-9]{4}$'::text)))`, map: "airports_codes_check")
   @@map("aeropuertos")
+}
+
+model IdentidadAeropuertoFuente {
+  fuente String
+  identificador String
+  aeropuertoId String? @map("aeropuerto_id")
+  aeropuerto Aeropuerto? @relation(fields: [aeropuertoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  observacion Json
+  @@id([fuente, identificador])
+  @@index([aeropuertoId])
+  @@map("identidades_aeropuerto_fuente")
 }
 
 model Aerolinea {

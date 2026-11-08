@@ -55,6 +55,7 @@ const entidadDestino = ref<TargetEntity>("aeropuertos");
 
 // 2. Datos de Conexión & Endpoint
 const tipoFuente = ref<IngestionSourceType>("http_stream");
+const proveedor = ref<'openflights' | 'ourairports' | undefined>();
 const urlEndpoint = ref("");
 const metodoHttp = ref<"GET">("GET");
 const formatoDatos = ref<IngestionDataFormat>("csv");
@@ -132,6 +133,7 @@ const csvDelimiterError = computed(() => {
 
 // Validación Paso 3 (Mapeo Semántico)
 const requiredTargetFields = computed(() => {
+  if (proveedor.value === 'ourairports') return [];
   return (TARGET_FIELDS_CATALOG[entidadDestino.value] || []).filter(
     (f) => f.required,
   );
@@ -215,6 +217,7 @@ const cronPresetsOptions = [
 ];
 
 const connectionConfig = computed<PipelineConnectionConfig>(() => ({
+  proveedor: proveedor.value,
   tipoFuente: tipoFuente.value,
   urlEndpoint: urlEndpoint.value,
   metodoHttp: metodoHttp.value,
@@ -266,6 +269,7 @@ watch(
 
         const { conexion, mapeoEsquema: rules, configuracionProgramacion: schedule } = detail;
         tipoFuente.value = conexion.tipoFuente;
+        proveedor.value = conexion.proveedor;
         urlEndpoint.value = conexion.urlEndpoint;
         metodoHttp.value = conexion.metodoHttp;
         formatoDatos.value = conexion.formatoDatos;
@@ -294,6 +298,7 @@ watch(
         csvConCabecera.value = true;
         headersList.value = [];
         mapeoEsquema.value = [];
+        proveedor.value = undefined;
         cronPreset.value = "daily";
         customCron.value = "0 4 * * *";
         tamanoLote.value = 2000;
@@ -781,6 +786,7 @@ function handleSave() {
         <!-- PASO 3: Mapeo Semántico                         -->
         <!-- ============================================== -->
         <div v-show="currentStep === 3" class="space-y-4">
+          <p v-if="proveedor === 'ourairports'" class="text-sm text-text-muted">OurAirports utiliza las columnas de su formato oficial. No requiere correspondencias manuales de campos.</p>
           <!-- Alerta de validación de mapeo requerido -->
           <div
             v-if="hasAttemptedStep3 && !isStep3Valid"
@@ -801,6 +807,7 @@ function handleSave() {
           </div>
 
           <EtlSchemaMapper
+            v-if="proveedor !== 'ourairports'"
             v-model="mapeoEsquema"
             :entidad-destino="entidadDestino"
             :detected-columns="detectedColumns"
