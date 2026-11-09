@@ -42,6 +42,9 @@ const producto = ref("network"),
   entidad = ref(""),
   instantaneaId = ref(""),
   pagina = ref(1);
+const paginaInstantaneas = ref(1),
+  totalInstantaneas = ref(0),
+  cargandoInstantaneas = ref(false);
 const datos = ref<Indicador[]>([]),
   total = ref(0),
   fuentes = ref<Fuente[]>([]),
@@ -82,12 +85,9 @@ async function load(reset = false) {
 }
 async function refresh() {
   try {
-    [fuentes.value, instantaneas.value] = await Promise.all([
+    [fuentes.value] = await Promise.all([
       request<Fuente[]>("/administracion/indicadores/eurocontrol/fuentes"),
-      request<Instantanea[]>(
-        "/administracion/indicadores/eurocontrol/instantaneas",
-        { query: { producto: producto.value } },
-      ),
+      loadSnapshots(paginaInstantaneas.value),
     ]);
     await load();
   } catch (cause) {
@@ -97,10 +97,38 @@ async function refresh() {
         : "No se pudo consultar la programación";
   }
 }
+async function loadSnapshots(page: number) {
+  cargandoInstantaneas.value = true;
+  try {
+    const result = await request<{ datos: Instantanea[]; total: number }>(
+      "/administracion/indicadores/eurocontrol/instantaneas",
+      { query: { producto: producto.value, pagina: page, limite: 20 } },
+    );
+    instantaneas.value = result.datos;
+    totalInstantaneas.value = result.total;
+    paginaInstantaneas.value = page;
+  } finally {
+    cargandoInstantaneas.value = false;
+  }
+}
+async function navigateSnapshots(page: number) {
+  try {
+    await loadSnapshots(page);
+  } catch (cause) {
+    error.value =
+      cause instanceof Error
+        ? cause.message
+        : "No se pudieron consultar las instantáneas";
+  }
+}
 async function changeProduct() {
   ambito.value = "";
+  entidad.value = "";
   instantaneaId.value = "";
   pagina.value = 1;
+  paginaInstantaneas.value = 1;
+  if (producto.value === "network" && granularidad.value === "Y2D")
+    granularidad.value = "DY";
   await refresh();
 }
 async function action(source: Fuente, kind: "run" | "pause" | "retry") {
@@ -291,6 +319,15 @@ onMounted(refresh);
         >
           <option value="">Última completa</option>
           <option
+            v-if="
+              instantaneaId &&
+              !instantaneas.some((snapshot) => snapshot.id === instantaneaId)
+            "
+            :value="instantaneaId"
+          >
+            Instantánea seleccionada
+          </option>
+          <option
             v-for="snapshot in instantaneas"
             :key="snapshot.id"
             :value="snapshot.id"
@@ -299,6 +336,29 @@ onMounted(refresh);
           </option>
         </select></label
       >
+      <div
+        v-if="totalInstantaneas > 20"
+        class="flex items-center gap-2 text-xs"
+      >
+        <button
+          type="button"
+          class="underline"
+          :disabled="cargandoInstantaneas || paginaInstantaneas <= 1"
+          @click="navigateSnapshots(paginaInstantaneas - 1)"
+        >
+          Más recientes
+        </button>
+        <button
+          type="button"
+          class="underline"
+          :disabled="
+            cargandoInstantaneas || paginaInstantaneas * 20 >= totalInstantaneas
+          "
+          @click="navigateSnapshots(paginaInstantaneas + 1)"
+        >
+          Más antiguas
+        </button>
+      </div>
       <button
         type="submit"
         class="border border-border-subtle rounded px-3 py-2 text-sm"

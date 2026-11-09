@@ -1,11 +1,12 @@
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type ExecutionContext } from '@nestjs/common';
 import type { Server } from 'node:http';
-import { mkdtemp, rm, copyFile } from 'node:fs/promises';
+import { mkdtemp, rm, copyFile, readFile, writeFile } from 'node:fs/promises';
+import { crc32 } from 'node:zlib';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
-import { Queue } from 'bullmq';
+import { Queue, Worker } from 'bullmq';
 import { getQueueToken } from '@nestjs/bullmq';
 import { createDatabase } from '../src/prisma/db.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
@@ -26,15 +27,43 @@ type ConsultaResultado = {
 
 async function fixture(
   path: string,
-  product: 'network' | 'stakeholder',
-  invalid = false,
+  name:
+    | 'network'
+    | 'stakeholder'
+    | 'invalid'
+    | 'network-gap'
+    | 'stakeholder-incomplete',
 ) {
   await copyFile(
-    new URL(
-      `./fixtures/eurocontrol/${invalid ? 'invalid' : product}.xlsx`,
-      import.meta.url,
-    ),
+    new URL(`./fixtures/eurocontrol/${name}.xlsx`, import.meta.url),
     path,
+  );
+}
+
+async function insertUnlistedWorksheet(path: string) {
+  const xlsx = await readFile(path);
+  const end = xlsx.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  const directory = xlsx.readUInt32LE(end + 16);
+  const filename = Buffer.from('xl/worksheets/sheet3.xml');
+  const payload = Buffer.from(
+    '<worksheet><sheetData><row r="1"><c r="A1"><v>7</v></c></row></sheetData></worksheet>',
+  );
+  const header = Buffer.alloc(30);
+  header.writeUInt32LE(0x04034b50);
+  header.writeUInt16LE(20, 4);
+  header.writeUInt32LE(crc32(payload), 14);
+  header.writeUInt32LE(payload.length, 18);
+  header.writeUInt32LE(payload.length, 22);
+  header.writeUInt16LE(filename.length, 26);
+  const unlisted = Buffer.concat([header, filename, payload]);
+  xlsx.writeUInt32LE(directory + unlisted.length, end + 16);
+  await writeFile(
+    path,
+    Buffer.concat([
+      xlsx.subarray(0, directory),
+      unlisted,
+      xlsx.subarray(directory),
+    ]),
   );
 }
 describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
@@ -59,6 +88,35 @@ describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
     const queued: string[] = [];
     try {
       await db.transaction(async (tx) => {
+        const orphan = await tx.orm.public.EjecucionEtl.create({
+          fuente: 'EUROCONTROL:network',
+          estado: 'pending',
+        });
+        const stranded = await tx.orm.public.EjecucionEtl.create({
+          fuente: 'EUROCONTROL:network',
+          estado: 'running',
+          iniciadoEn,
+        });
+        queued.push(orphan.id, stranded.id);
+        await queue.add(
+          'import-eurocontrol',
+          { producto: 'network', ejecucionId: stranded.id },
+          { jobId: stranded.id },
+        );
+        const worker = new Worker(queue.name, null, {
+          autorun: false,
+          connection: { host: 'localhost', port: 6379 },
+        });
+        try {
+          const job = await worker.getNextJob('fixture-lock', { block: false });
+          await job.moveToFailed(
+            new Error('worker previo interrumpido'),
+            'fixture-lock',
+            false,
+          );
+        } finally {
+          await worker.close();
+        }
         const module = await Test.createTestingModule({
           controllers: [IndicadoresController],
           providers: [
@@ -103,8 +161,18 @@ describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
         await app.init();
         const api = request(app.getHttpServer() as Server);
         try {
+          expect(await (await queue.getJob(orphan.id))?.getState()).toBe(
+            'waiting',
+          );
+          expect(await (await queue.getJob(stranded.id))?.getState()).toBe(
+            'waiting',
+          );
           const service = module.get(EurocontrolService);
           const path = join(directory, 'fixture.xlsx');
+          const historyBefore = await api
+            .get('/administracion/indicadores/eurocontrol/instantaneas')
+            .query({ producto: 'network', limite: 1 })
+            .expect(200);
           const job = await tx.orm.public.EjecucionEtl.create({
             fuente: 'EUROCONTROL:stakeholder',
             estado: 'running',
@@ -173,6 +241,7 @@ describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
             intento: 1,
           });
           await fixture(path, 'network');
+          await insertUnlistedWorksheet(path);
           await service.importWorkbook('network', path, networkJob.id);
           const network = await api
             .get('/administracion/indicadores/eurocontrol')
@@ -190,7 +259,22 @@ describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
               }),
             ],
           });
-          await fixture(path, 'network', true);
+          for (const [product, name, reason] of [
+            ['network', 'network-gap', 'Fecha no consecutiva'],
+            ['stakeholder', 'stakeholder-incomplete', 'Bloque incompleto'],
+          ] as const) {
+            const job = await tx.orm.public.EjecucionEtl.create({
+              fuente: `EUROCONTROL:${product}`,
+              estado: 'running',
+              iniciadoEn,
+              intento: 1,
+            });
+            await fixture(path, name);
+            await expect(
+              service.importWorkbook(product, path, job.id),
+            ).rejects.toThrow(reason);
+          }
+          await fixture(path, 'invalid');
           const failed = await tx.orm.public.EjecucionEtl.create({
             fuente: 'EUROCONTROL:network',
             estado: 'running',
@@ -277,6 +361,15 @@ describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
             })
             .expect(200);
           expect((oldSnapshot.body as ConsultaResultado).total).toBe(2);
+          const history = await api
+            .get('/administracion/indicadores/eurocontrol/instantaneas')
+            .query({ producto: 'network', pagina: 2, limite: 1 })
+            .expect(200);
+          const previousTotal = (historyBefore.body as { total: number }).total;
+          expect(history.body).toMatchObject({ total: previousTotal + 1 });
+          expect(
+            (history.body as { datos: { id: string }[] }).datos,
+          ).toHaveLength(previousTotal ? 1 : 0);
         } finally {
           await app.close();
         }

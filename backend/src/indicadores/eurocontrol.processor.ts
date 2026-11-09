@@ -32,7 +32,10 @@ export class EurocontrolProcessor extends WorkerHost {
     if (!existing || existing.fuente !== `EUROCONTROL:${producto}`)
       throw new Error('Ejecución incompatible');
     if (existing.estado === 'completed') return { completed: true };
-    const intento = job.attemptsStarted || job.attemptsMade + 1;
+    const intento = Math.max(
+      existing.intento + 1,
+      job.attemptsStarted || job.attemptsMade + 1,
+    );
     const now = () =>
       new Date().toISOString().replace('T', ' ').replace('Z', '');
     await this.prisma.models.EjecucionEtl.where({ id: ejecucionId }).update({

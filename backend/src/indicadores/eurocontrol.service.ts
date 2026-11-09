@@ -47,11 +47,60 @@ export class EurocontrolService implements OnModuleInit {
           },
         },
       );
+    await this.recoverJobs();
+  }
+  private async recoverJobs() {
+    for (const producto of EUROCONTROL_PRODUCTS) {
+      let cursor = '';
+      for (;;) {
+        const executions = await this.prisma.db.query(
+          this.prisma.db.raw.sql`SELECT id FROM ejecuciones_etl
+            WHERE fuente=${`EUROCONTROL:${producto}`} AND estado IN ('pending','running') AND id>${cursor}
+            ORDER BY id LIMIT 100`
+            .returnsRow({ id: 'pg/text@1' })
+            .build(),
+        );
+        for (const { id } of executions) {
+          const job = await this.queue.getJob(id);
+          const state = await job?.getState();
+          if (job && (state === 'completed' || state === 'failed')) {
+            try {
+              await job.retry(state, {
+                resetAttemptsMade: true,
+                resetAttemptsStarted: true,
+              });
+            } catch (error) {
+              if ((await job.getState()) === state) throw error;
+            }
+          } else if (state === undefined || state === 'unknown') {
+            await this.addJob(producto, id);
+          }
+        }
+        if (executions.length < 100) break;
+        cursor = executions[executions.length - 1].id;
+      }
+    }
+  }
+  private addJob(producto: EurocontrolProduct, ejecucionId: string) {
+    return this.queue.add(
+      'import-eurocontrol',
+      { producto, ejecucionId },
+      {
+        jobId: ejecucionId,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: { count: 100 },
+        removeOnFail: { count: 100 },
+      },
+    );
   }
   async sources() {
     const rows = await this.prisma.db.query(
       this.prisma.db.raw
-        .sql`SELECT jsonb_build_object('producto',p.producto,'pausado',p.pausado,'programacionUtc','0 4 1 * *','ultimaEjecucion',(SELECT to_jsonb(e) FROM ejecuciones_etl e WHERE e.fuente='EUROCONTROL:'||p.producto ORDER BY iniciado_en DESC NULLS FIRST LIMIT 1)) AS dato FROM eurocontrol_programacion p ORDER BY producto`
+        .sql`SELECT jsonb_build_object('producto',p.producto,'pausado',p.pausado,'programacionUtc','0 4 1 * *','ultimaEjecucion',(
+          SELECT to_jsonb(e) FROM ejecuciones_etl e WHERE e.fuente='EUROCONTROL:'||p.producto
+          ORDER BY COALESCE((SELECT min(ev.creado_en) FROM eventos_ejecucion_etl ev WHERE ev.ejecucion_id=e.id AND ev.intento=0),e.iniciado_en) DESC NULLS LAST,e.id DESC LIMIT 1
+        )) AS dato FROM eurocontrol_programacion p ORDER BY producto`
         .returnsRow({ dato: 'pg/jsonb@1' })
         .build(),
     );
@@ -80,24 +129,24 @@ export class EurocontrolService implements OnModuleInit {
       );
       if (!state || state.pausado) return { pausado: true };
     }
-    const job = await this.prisma.models.EjecucionEtl.create({
-      fuente: `EUROCONTROL:${producto}`,
-      estado: 'pending',
-      solicitanteId,
-      uriFuente: URLS[producto],
+    const job = await this.prisma.db.transaction(async (tx) => {
+      const job = await tx.orm.public.EjecucionEtl.create({
+        fuente: `EUROCONTROL:${producto}`,
+        estado: 'pending',
+        solicitanteId,
+        uriFuente: URLS[producto],
+      });
+      await tx.orm.public.EventoEjecucionEtl.create({
+        ejecucionId: job.id,
+        intento: 0,
+        nivel: 'info',
+        mensaje: 'Ejecución EUROCONTROL solicitada',
+        creadoEn: new Date().toISOString().replace('T', ' ').replace('Z', ''),
+      });
+      return job;
     });
     try {
-      await this.queue.add(
-        'import-eurocontrol',
-        { producto, ejecucionId: job.id },
-        {
-          jobId: job.id,
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 2000 },
-          removeOnComplete: { count: 100 },
-          removeOnFail: { count: 100 },
-        },
-      );
+      await this.addJob(producto, job.id);
     } catch {
       await this.prisma.models.EjecucionEtl.where({ id: job.id }).update({
         estado: 'failed',
@@ -271,12 +320,21 @@ export class EurocontrolService implements OnModuleInit {
     return row.resultado;
   }
   async snapshots(query: ConsultaIndicadoresDto) {
-    const rows = await this.prisma.db.query(
-      this.prisma.db.raw
-        .sql`SELECT jsonb_build_object('id',id,'producto',producto,'actualizadoEn',creado_en,'checksum',checksum,'ejecucionId',ejecucion_id) AS dato FROM eurocontrol_instantaneas WHERE publicada=true AND (${query.producto ?? ''}='' OR producto=${query.producto ?? ''}) ORDER BY creado_en DESC,id DESC LIMIT ${query.limite} OFFSET ${(query.pagina - 1) * query.limite}`
-        .returnsRow({ dato: 'pg/jsonb@1' })
+    const [row] = await this.prisma.db.query(
+      this.prisma.db.raw.sql`
+        WITH publicadas AS (
+          SELECT id,producto,creado_en,checksum,ejecucion_id FROM eurocontrol_instantaneas
+          WHERE publicada=true AND (${query.producto ?? ''}='' OR producto=${query.producto ?? ''})
+        ), pagina AS (
+          SELECT * FROM publicadas ORDER BY creado_en DESC,id DESC LIMIT ${query.limite} OFFSET ${(query.pagina - 1) * query.limite}
+        ) SELECT jsonb_build_object('total',(SELECT count(*) FROM publicadas),'datos',COALESCE((
+          SELECT jsonb_agg(jsonb_build_object('id',id,'producto',producto,'actualizadoEn',creado_en,'checksum',checksum,'ejecucionId',ejecucion_id)
+            ORDER BY creado_en DESC,id DESC) FROM pagina
+        ),'[]'::jsonb)) AS resultado
+      `
+        .returnsRow({ resultado: 'pg/jsonb@1' })
         .build(),
     );
-    return rows.map((row) => row.dato);
+    return row.resultado;
   }
 }

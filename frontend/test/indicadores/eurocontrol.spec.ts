@@ -11,7 +11,7 @@ describe("Indicadores EUROCONTROL en Admin", () => {
       path.endsWith("/fuentes")
         ? []
         : path.endsWith("/instantaneas")
-          ? []
+          ? { total: 0, datos: [] }
           : {
               total: 1,
               datos: [
@@ -52,6 +52,49 @@ describe("Indicadores EUROCONTROL en Admin", () => {
       "/administracion/indicadores/eurocontrol",
       expect.objectContaining({
         query: expect.objectContaining({ granularidad: "WK" }),
+      }),
+    );
+  });
+  it("restablece la granularidad de red y permite consultar revisiones anteriores a las primeras veinte", async () => {
+    fetcher.mockImplementation(
+      async (path: string, options?: { query?: { pagina?: number } }) => {
+        if (path.endsWith("/fuentes")) return [];
+        if (path.endsWith("/instantaneas"))
+          return {
+            total: 21,
+            datos:
+              options?.query?.pagina === 2
+                ? [{ id: "older", actualizadoEn: "2024-04-01" }]
+                : [],
+          };
+        return { total: 0, datos: [] };
+      },
+    );
+    const wrapper = mount(EurocontrolPanel);
+    await flushPromises();
+    await wrapper.get('select[aria-label="Producto"]').setValue("stakeholder");
+    await flushPromises();
+    await wrapper.get('select[aria-label="Granularidad"]').setValue("Y2D");
+    await wrapper.get('select[aria-label="Producto"]').setValue("network");
+    await flushPromises();
+    expect(fetcher).toHaveBeenLastCalledWith(
+      "/administracion/indicadores/eurocontrol",
+      expect.objectContaining({
+        query: expect.objectContaining({ granularidad: "DY" }),
+      }),
+    );
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text() === "Más antiguas")!
+      .trigger("click");
+    await flushPromises();
+    await wrapper.get('select[aria-label="Instantánea"]').setValue("older");
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+    expect(fetcher).toHaveBeenLastCalledWith(
+      "/administracion/indicadores/eurocontrol",
+      expect.objectContaining({
+        query: expect.objectContaining({ instantaneaId: "older" }),
       }),
     );
   });
