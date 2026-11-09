@@ -14,4 +14,6 @@ La revisión independiente señaló que faltaba validar los días del mes, retir
 
 Dirección visual Achromatic Ledger, semilla `1291416549`, con la paleta y la tipografía existentes de FlyWise. La cobertura publicada y la lista de correspondencias DOT responden si el mes puede consultarse en el mapa y qué falta para publicarlo.
 
-Quality Gate verde. Backend `tsc --noEmit`, ESLint y 209 tests. Frontend build de Nuxt y 214 tests. PostgreSQL/PostGIS y Redis reales para las cuatro suites E2E seleccionadas, cinco casos en total. El build aisló la caché de Nuxt y Vitest habilitó temporalmente la ruta real de las dependencias del worktree. La configuración versionada se restauró. La comprobación visual queda para la rama de integración.
+Quality Gate verde. Backend `tsc --noEmit`, ESLint y 209 tests. Frontend build de Nuxt y 214 tests. PostgreSQL/PostGIS y Redis reales para las cuatro suites E2E seleccionadas, cinco casos en total. El build aisló la caché de Nuxt y Vitest habilitó temporalmente la ruta real de las dependencias del worktree. La configuración versionada se restauró.
+
+La comprobación en navegador detectó una referencia de middleware que impedía abrir el panel. Se reemplazó por el guard administrativo de Nuxt que usa el resto de Admin. Se verificó la carga del panel por navegación autenticada, sus estados de cobertura vacía y las acciones disponibles en escritorio y a 390 px. La navegación de escritorio quedó en una fila propia para mantener visibles los accesos.

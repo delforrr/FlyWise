@@ -85,6 +85,30 @@ beforeEach(() => {
   );
 });
 describe("Administración de operaciones", () => {
+  it("permite quitar el filtro de resultado y volver a consultar todas las operaciones", async () => {
+    const wrapper = montar();
+    await flushPromises();
+    const selector = wrapper.get('select[aria-label="Filtrar resultado"]');
+    const todos = selector.get("option").attributes("value");
+    expect(todos).toBeTruthy();
+    await selector.setValue("CANCELLED");
+    await wrapper.get("form").trigger("submit");
+    expect(request).toHaveBeenLastCalledWith(
+      "/administracion/vuelos",
+      expect.objectContaining({
+        query: expect.objectContaining({ resultado: "CANCELLED" }),
+      }),
+    );
+    await selector.setValue(todos!);
+    await wrapper.get("form").trigger("submit");
+    expect(request).toHaveBeenLastCalledWith(
+      "/administracion/vuelos",
+      expect.objectContaining({
+        query: expect.objectContaining({ resultado: undefined }),
+      }),
+    );
+    wrapper.unmount();
+  });
   it("deja en blanco la demora hasta que el administrador la indique", async () => {
     const wrapper = montar();
     await flushPromises();

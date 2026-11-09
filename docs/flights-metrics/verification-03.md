@@ -12,4 +12,4 @@ La revisión independiente señaló que el cálculo por lotes podía publicar do
 
 El Quality Gate aprobó `npm run build` en backend y frontend, y `tsc --noEmit` para el último ajuste de validación. `npm test` pasó 209 casos de backend y 212 de frontend. Las suites E2E `vuelos-metricas`, `data-model`, `app` y `startup` pasaron 14 casos en total. ESLint y `git diff --check` pasaron. Para Vitest en el worktree se habilitó temporalmente el acceso al directorio real de dependencias que contiene el worker MapLibre. La configuración se restauró al terminar.
 
-La revisión visual del flujo de Admin se hará sobre la rama de integración. La pantalla se verificó con Vitest y el inspector estático de la skill de diseño.
+En navegador, sobre la rama de integración, se corrigió el selector de resultado que Reka rechazaba al hidratar por usar un valor vacío. Se comprobó que «Cancelado» y «Todos los resultados» se pueden elegir y consultar, y que se puede navegar de Operaciones a BTS. La regresión de Vitest verifica que «Todos» no se envía como estado al backend.

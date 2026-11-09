@@ -20,7 +20,7 @@ const filtros = reactive({
   origenId: null as string | null,
   destinoId: null as string | null,
   aerolineaId: null as string | null,
-  resultado: "",
+  resultado: "todos",
   fuente: "",
 });
 const error = ref(""),
@@ -66,7 +66,7 @@ async function cargar() {
         origenId: filtros.origenId ?? undefined,
         destinoId: filtros.destinoId ?? undefined,
         aerolineaId: filtros.aerolineaId ?? undefined,
-        resultado: filtros.resultado || undefined,
+        resultado: filtros.resultado === "todos" ? undefined : filtros.resultado,
         fuente: filtros.fuente || undefined,
         pagina: pagina.value,
         limite: 20,
@@ -273,7 +273,7 @@ onMounted(cargar);
           <USelect
             v-model="filtros.resultado"
             aria-label="Filtrar resultado"
-            :items="[{ label: 'Todos los resultados', value: '' }, ...estados]"
+            :items="[{ label: 'Todos los resultados', value: 'todos' }, ...estados]"
           />
           <UInput
             v-model="filtros.fuente"

@@ -73,60 +73,6 @@ const {
           >
             Administración
           </UBadge>
-
-          <!-- Enlaces de Navegación de la Consola -->
-          <nav
-            class="hidden lg:flex items-center gap-1.5 ml-3 pl-3 border-l border-border-subtle"
-            aria-label="Navegación administrativa"
-          >
-            <UButton
-              to="/admin"
-              size="xs"
-              :variant="$route.path === '/admin' ? 'subtle' : 'ghost'"
-              :color="$route.path === '/admin' ? 'primary' : 'neutral'"
-              icon="i-lucide-activity"
-              class="text-xs font-semibold cursor-pointer"
-            >
-              Monitoreo
-            </UButton>
-            <UButton
-              to="/admin/servicios"
-              size="xs"
-              :variant="
-                $route.path.startsWith('/admin/servicios') ? 'subtle' : 'ghost'
-              "
-              :color="
-                $route.path.startsWith('/admin/servicios')
-                  ? 'primary'
-                  : 'neutral'
-              "
-              icon="i-lucide-database"
-              class="text-xs font-semibold cursor-pointer"
-            >
-              Servicios & Pipelines
-            </UButton>
-            <UButton
-              to="/admin/usuarios"
-              size="xs"
-              :variant="isUsersPage ? 'subtle' : 'ghost'"
-              color="neutral"
-              icon="i-lucide-users"
-              :aria-current="isUsersPage ? 'page' : undefined"
-              >Usuarios</UButton
-            >
-            <UButton
-              v-for="item in catalogos"
-              v-show="user?.rol === 'ADMIN'"
-              :key="item.recurso"
-              :to="`/admin/${item.recurso}`"
-              size="xs"
-              :variant="
-                $route.path === `/admin/${item.recurso}` ? 'subtle' : 'ghost'
-              "
-              color="neutral"
-              >{{ item.nombre }}</UButton
-            >
-          </nav>
         </div>
 
         <!-- Navegación y Controles de Cabecera -->
@@ -177,6 +123,57 @@ const {
           </div>
         </div>
       </div>
+      <!-- Enlaces de Navegación de la Consola -->
+      <nav
+        class="hidden lg:flex max-w-7xl mx-auto items-center gap-2 overflow-x-auto px-8 pb-2 *:shrink-0 *:whitespace-nowrap"
+        aria-label="Navegación administrativa"
+      >
+        <UButton
+          to="/admin"
+          size="xs"
+          :variant="$route.path === '/admin' ? 'subtle' : 'ghost'"
+          :color="$route.path === '/admin' ? 'primary' : 'neutral'"
+          icon="i-lucide-activity"
+          class="text-xs font-semibold cursor-pointer"
+        >
+          Monitoreo
+        </UButton>
+        <UButton
+          to="/admin/servicios"
+          size="xs"
+          :variant="
+            $route.path.startsWith('/admin/servicios') ? 'subtle' : 'ghost'
+          "
+          :color="
+            $route.path.startsWith('/admin/servicios') ? 'primary' : 'neutral'
+          "
+          icon="i-lucide-database"
+          class="text-xs font-semibold cursor-pointer"
+        >
+          Servicios & Pipelines
+        </UButton>
+        <UButton
+          to="/admin/usuarios"
+          size="xs"
+          :variant="isUsersPage ? 'subtle' : 'ghost'"
+          color="neutral"
+          icon="i-lucide-users"
+          :aria-current="isUsersPage ? 'page' : undefined"
+          >Usuarios</UButton
+        >
+        <UButton
+          v-for="item in catalogos"
+          v-show="user?.rol === 'ADMIN'"
+          :key="item.recurso"
+          :to="`/admin/${item.recurso}`"
+          size="xs"
+          :variant="
+            $route.path === `/admin/${item.recurso}` ? 'subtle' : 'ghost'
+          "
+          color="neutral"
+          >{{ item.nombre }}</UButton
+        >
+      </nav>
       <nav
         class="lg:hidden max-w-7xl mx-auto flex items-center gap-4 overflow-x-auto px-4 sm:px-6 lg:px-8 pb-3 text-sm"
         aria-label="Navegación administrativa móvil"
