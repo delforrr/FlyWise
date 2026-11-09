@@ -438,16 +438,12 @@ describe('Data model (PostgreSQL integration)', () => {
         () => tx.orm.public.EjecucionEtl.where({ id: ejecucion.id }).delete(),
         /foreign key/i,
       );
-      await rejected(
-        tx,
-        () =>
-          tx.execute(
-            tx.raw
-              .sql`UPDATE vuelos SET ejecucion_etl_id=NULL WHERE origen_id=${origen.id}`
-              .affectedCount()
-              .build(),
-          ),
-        /not-null|null value/i,
+      // Manual operations have explicit provenance without an invented ETL execution.
+      await tx.execute(
+        tx.raw
+          .sql`UPDATE vuelos SET ejecucion_etl_id=NULL WHERE origen_id=${origen.id}`
+          .affectedCount()
+          .build(),
       );
       const [result] = await tx.query(
         tx.raw.sql`
@@ -510,16 +506,12 @@ describe('Data model (PostgreSQL integration)', () => {
         vuelosPuntuales: 100,
       });
       expect(metric.ejecucionEtlId).toBe(ejecucion.id);
-      await rejected(
-        tx,
-        () =>
-          tx.execute(
-            tx.raw
-              .sql`UPDATE metricas_ruta SET ejecucion_etl_id=NULL WHERE origen_id=${origen.id}`
-              .affectedCount()
-              .build(),
-          ),
-        /not-null|null value/i,
+      // A monthly aggregate may contain manual operations and several imported sources.
+      await tx.execute(
+        tx.raw
+          .sql`UPDATE metricas_ruta SET ejecucion_etl_id=NULL WHERE origen_id=${origen.id}`
+          .affectedCount()
+          .build(),
       );
       const [combined] = await tx.query(
         tx.raw.sql`

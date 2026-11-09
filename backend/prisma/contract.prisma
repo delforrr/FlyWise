@@ -260,6 +260,11 @@ model EventoEjecucionEtl {
 
 // One fuente record per flight operation; idRegistroFuente must survive retries.
 model Vuelo {
+  version Int @default(1)
+  protegidoManualmente Boolean @default(false) @map("protegido_manualmente")
+  archivadoEn TimestampString(3)? @map("archivado_en")
+  ultimaObservacion Jsonb? @map("ultima_observacion")
+  historial HistorialVuelo[]
   id                  String       @id @onCreate(uuid())
   fuente              String
   idRegistroFuente      String       @map("id_registro_fuente")
@@ -270,12 +275,12 @@ model Vuelo {
   aerolineaId           String       @map("aerolinea_id")
   estado              FlightStatus
   demoraLlegadaMinutos Int?         @map("demora_llegada_minutos")
-  ejecucionEtlId            String      @map("ejecucion_etl_id")
+  ejecucionEtlId            String?      @map("ejecucion_etl_id")
 
   origen      Aeropuerto @relation("FlightOrigin", fields: [origenId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: "flights_origin_id_destination_id_airline_id_flight_date_idx")
   destino Aeropuerto @relation("FlightDestination", fields: [destinoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   aerolinea     Aerolinea @relation(fields: [aerolineaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  ejecucionEtl      EjecucionEtl @relation(fields: [ejecucionEtlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ejecucionEtl      EjecucionEtl? @relation(fields: [ejecucionEtlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([fuente, idRegistroFuente])
   @@index([origenId, destinoId, aerolineaId, fechaVuelo], map: "flights_origin_id_destination_id_airline_id_flight_date_idx")
@@ -291,8 +296,11 @@ model Vuelo {
 
 // Monthly counters: percentages are derived, never averaged across months.
 model MetricaRuta {
-  ejecucionEtlId String @map("ejecucion_etl_id")
-  ejecucionEtl EjecucionEtl @relation(fields: [ejecucionEtlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  pendiente Boolean @default(false)
+  errorActualizacion String? @map("error_actualizacion")
+  fuentes Jsonb @default(sql`'[]'::jsonb`)
+  ejecucionEtlId String? @map("ejecucion_etl_id")
+  ejecucionEtl EjecucionEtl? @relation(fields: [ejecucionEtlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   @@index([ejecucionEtlId], map: "metricas_ruta_ejecucion_etl_idx")
   origenId                 String   @map("origen_id")
   destinoId            String   @map("destino_id")
@@ -303,7 +311,7 @@ model MetricaRuta {
   vuelosDesviados          Int      @default(0) @map("vuelos_desviados")
   vuelosPuntuales            Int      @default(0) @map("vuelos_puntuales")
   demoraLlegadaTotalMinutos BigInt   @default(0) @map("demora_llegada_total_minutos")
-  actualizadoEn                TimestampString(3) @onCreate(now()) @onUpdate(now()) @map("actualizado_en")
+  actualizadoEn                TimestampString(3)? @map("actualizado_en")
 
   origen      Aeropuerto @relation("MetricOrigin", fields: [origenId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: false)
   destino Aeropuerto @relation("MetricDestination", fields: [destinoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -318,4 +326,17 @@ model MetricaRuta {
   @@check(expression: sql`(EXTRACT(day FROM periodo) = (1)::numeric)`, map: "route_metrics_period_check")
   @@check(expression: sql`(origen_id <> destino_id)`, map: "route_metrics_endpoints_check")
   @@map("metricas_ruta")
+}
+
+model HistorialVuelo {
+  id String @id @onCreate(uuid())
+  vueloId String @map("vuelo_id")
+  vuelo Vuelo @relation(fields: [vueloId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  version Int
+  accion String
+  actorId String? @map("actor_id")
+  instantanea Jsonb
+  creadoEn TimestampString(3) @default(now()) @map("creado_en")
+  @@unique([vueloId, version])
+  @@map("historial_vuelos")
 }

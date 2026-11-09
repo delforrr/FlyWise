@@ -18,6 +18,7 @@ async function signOut() {
 }
 
 const catalogos = [
+  { recurso: "vuelos", nombre: "Operaciones" },
   { recurso: "aeropuertos", nombre: "Aeropuertos" },
   { recurso: "aerolineas", nombre: "Aerolíneas" },
   { recurso: "rutas", nombre: "Rutas" },
