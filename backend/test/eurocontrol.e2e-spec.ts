@@ -32,6 +32,7 @@ async function fixture(
     | 'stakeholder'
     | 'invalid'
     | 'network-gap'
+    | 'network-warmup-only'
     | 'stakeholder-incomplete',
 ) {
   await copyFile(
@@ -261,6 +262,11 @@ describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
           });
           for (const [product, name, reason] of [
             ['network', 'network-gap', 'Fecha no consecutiva'],
+            [
+              'network',
+              'network-warmup-only',
+              'Cobertura semanal EUROCONTROL ausente',
+            ],
             ['stakeholder', 'stakeholder-incomplete', 'Bloque incompleto'],
           ] as const) {
             const job = await tx.orm.public.EjecucionEtl.create({

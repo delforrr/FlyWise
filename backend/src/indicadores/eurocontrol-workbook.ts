@@ -135,6 +135,7 @@ async function readVerifiedWorkbook(
   const periods: Period[] = network ? ['DY', 'WK'] : ['DY', 'WK', 'Y2D'];
   const required = periods.map((period) => requiredMetrics(network, period));
   let stakeholderDay: number | undefined;
+  let hasWeeklyCoverage = false;
   let batch: IndicadorNativo[] = [],
     total = 0;
   const append = async (row: IndicadorNativo) => {
@@ -253,6 +254,7 @@ async function readVerifiedWorkbook(
         if (
           network &&
           period === 'WK' &&
+          !hasWeeklyCoverage &&
           rows <= 6 &&
           block.every((value) => value === null)
         )
@@ -278,10 +280,13 @@ async function readVerifiedWorkbook(
             values,
           ),
         );
+        if (network && period === 'WK') hasWeeklyCoverage = true;
         seen.add(name);
       }
     }
   }
+  if (network && !hasWeeklyCoverage)
+    throw new Error('Cobertura semanal EUROCONTROL ausente');
   if (batch.length) await onBatch(batch);
   if (
     !total ||
