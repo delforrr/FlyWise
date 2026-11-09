@@ -7,8 +7,7 @@ import { Readable } from 'node:stream';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { createDatabase } from '../src/prisma/db.js';
 
-const fixture =
-  'Fecha UTC;Hora UTC;Clase de Vuelo (todos los vuelos);Clasificación Vuelo;Tipo de Movimiento;Aeropuerto;Origen / Destino;Aerolinea Nombre;Aeronave;Matrícula;Pasajeros;PAX;Calidad dato\n01/08/2026;0:01;Regular;Doméstico;Despegue;AER;CBA;Operador ANAC;B738;LV-AAA;120;120;PROVISORIO\n31/08/2026;0:01;Regular;Doméstico;Aterrizaje;CBA;AER;Operador ANAC;B738;LV-AAA;120;0;PROVISORIO\n';
+import { fixture } from './helpers/actividad-anac-fixture.js';
 let attempts = 0;
 jest.unstable_mockModule('../src/etl/http-source.js', () => ({
   validateSourceUrl: (input: string) => new URL(input),
@@ -87,7 +86,7 @@ describe('ANAC: jobs y recuperación real', () => {
               id: result!.ejecucionId,
               estado: 'completed',
               intento: 2,
-              filasProcesadas: 2,
+              filasProcesadas: 31,
               filasDescartadas: 0,
             }),
           ]),
@@ -98,10 +97,10 @@ describe('ANAC: jobs y recuperación real', () => {
             pagina: 1,
             limite: 20,
           }),
-        ).toMatchObject({ total: 2, cobertura: { filasProcesadas: 2 } });
+        ).toMatchObject({ total: 31, cobertura: { filasProcesadas: 31 } });
         const rejected = await service.muestras(result!.ejecucionId, 1);
         expect(rejected).toMatchObject([
-          { numeroFila: 1, motivo: 'Pasajeros inválido' },
+          { numeroFila: 2, motivo: 'Pasajeros inválido' },
         ]);
         await job!.remove();
         throw rollback;

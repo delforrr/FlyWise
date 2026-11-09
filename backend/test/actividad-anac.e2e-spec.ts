@@ -12,9 +12,7 @@ import { JwtAuthGuard } from '../src/auth/auth.guard.js';
 import { ActividadController } from '../src/actividad/actividad.controller.js';
 import { ActividadService } from '../src/actividad/actividad.service.js';
 
-const header =
-  'Fecha UTC;Hora UTC;Clase de Vuelo (todos los vuelos);Clasificación Vuelo;Tipo de Movimiento;Aeropuerto;Origen / Destino;Aerolinea Nombre;Aeronave;Matrícula;Pasajeros;PAX;Calidad dato';
-const fixture = `${header}\n01/08/2026;0:01;Regular;Doméstico;Despegue;AER;CBA;Operador ANAC;B738;LV-AAA;120;120;PROVISORIO\n31/08/2026;1:20;Regular;Doméstico;Aterrizaje;CBA;AER;Operador ANAC;B738;LV-AAA;120;0;PROVISORIO\n01/09/2026;1:20;Regular;Doméstico;Despegue;AER;CBA;Operador ANAC;B738;LV-AAA;90;90;DEFINITIVO\n`;
+import { fixture } from './helpers/actividad-anac-fixture.js';
 
 describe('ANAC: movimientos y revisiones por HTTP', () => {
   const db = createDatabase();
@@ -95,20 +93,20 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
               .expect(200)
           ).body as { datos: unknown[] };
           expect(result).toMatchObject({
-            total: 2,
+            total: 31,
             resumen: [
               {
                 clasificacion: 'Doméstico',
-                movimientos: 2,
+                movimientos: 31,
                 despegues: 1,
-                aterrizajes: 1,
+                aterrizajes: 30,
                 pasajeros: 240,
                 pax: 120,
               },
             ],
             cobertura: {
               estado: 'publicada',
-              filasProcesadas: 2,
+              filasProcesadas: 31,
               filasDescartadas: 0,
             },
           });
@@ -169,7 +167,7 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
               .expect(200)
           ).body;
           expect(unchanged).toMatchObject({
-            total: 2,
+            total: 31,
             cobertura: { revisionId: job.id },
           });
           const revisions = (
@@ -211,7 +209,7 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
               .expect(200)
           ).body;
           expect(revised).toMatchObject({
-            total: 2,
+            total: 31,
             resumen: [{ pasajeros: 250, pax: 125 }],
             cobertura: { revisionId: revision.id },
           });
@@ -221,7 +219,10 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
             intento: 1,
             iniciadoEn: '2020-01-01 00:00:00',
           });
-          const truncatedCsv = `${fixture.split('\n').slice(0, 2).join('\n')}\n`;
+          const truncatedCsv = fixture
+            .split('\n')
+            .filter((row) => !row.startsWith('15/08/2026;'))
+            .join('\n');
           await expect(
             service.importar(
               Readable.from([truncatedCsv]),
@@ -243,7 +244,10 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
                 .query({ periodo: '2026-08' })
                 .expect(200)
             ).body,
-          ).toMatchObject({ cobertura: { revisionId: revision.id }, total: 2 });
+          ).toMatchObject({
+            cobertura: { revisionId: revision.id },
+            total: 31,
+          });
           expect(
             (
               await api
@@ -257,7 +261,7 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
                 id: job.id,
                 estado: 'publicada',
                 vigente: false,
-                filasProcesadas: 2,
+                filasProcesadas: 31,
                 uri: 'https://datos.transporte.gob.ar/fixture.csv',
               }),
               expect.objectContaining({
@@ -272,7 +276,7 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
               expect.objectContaining({
                 id: revision.id,
                 estado: 'completed',
-                filasProcesadas: 2,
+                filasProcesadas: 31,
                 finalizadoEn: expect.any(String),
               }),
             ]),

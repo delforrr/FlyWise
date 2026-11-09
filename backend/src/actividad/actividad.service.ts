@@ -239,8 +239,7 @@ export class ActividadService implements OnModuleInit {
       processed = 0,
       discarded = 0,
       headersValid = false;
-    let primeraFecha: string | undefined;
-    let ultimaFecha: string | undefined;
+    const diasObservados = new Set<string>();
     let batch: MovimientoAnac[] = [];
     const flush = async () => {
       if (!batch.length) return;
@@ -283,14 +282,11 @@ export class ActividadService implements OnModuleInit {
           numeroFila++;
           const row = input as Record<string, string>;
           const date = fechaUtcAnac(row['Fecha UTC'] ?? '');
-          if (date) {
-            if (!primeraFecha || date < primeraFecha) primeraFecha = date;
-            if (!ultimaFecha || date > ultimaFecha) ultimaFecha = date;
-            if (date.slice(0, 7) !== periodo) continue;
-          }
+          if (date && date.slice(0, 7) !== periodo) continue;
           try {
             if (!date) throw new Error('Fecha UTC inválida');
             batch.push(normalizarMovimiento(row, numeroFila, date));
+            diasObservados.add(date);
           } catch (error) {
             discarded++;
             if (discarded <= 100)
@@ -316,16 +312,9 @@ export class ActividadService implements OnModuleInit {
             : 'El CSV ANAC no contiene movimientos para el mes seleccionado',
         );
       const [year, month] = periodo.split('-').map(Number);
-      const finMes = new Date(Date.UTC(year, month, 0))
-        .toISOString()
-        .slice(0, 10);
-      // shortcut: the source exposes date bounds, not an independent total per day; validate a published manifest if ANAC provides one.
-      if (
-        !primeraFecha ||
-        !ultimaFecha ||
-        primeraFecha > `${periodo}-01` ||
-        ultimaFecha < finMes
-      )
+      const diasMes = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      // shortcut: coverage requires a record each day; verify counts against a manifest if ANAC publishes one.
+      if (diasObservados.size !== diasMes)
         throw new Error('El CSV ANAC no abarca todo el mes seleccionado');
       const checksum = hash.digest('hex');
       await db.transaction(async (tx) => {
