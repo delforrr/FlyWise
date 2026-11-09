@@ -77,6 +77,14 @@ const {
             aria-label="Navegación administrativa"
           >
             <UButton
+              v-if="user?.rol === 'ADMIN'"
+              to="/admin/indicadores"
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              >Indicadores</UButton
+            >
+            <UButton
               to="/admin"
               size="xs"
               :variant="$route.path === '/admin' ? 'subtle' : 'ghost'"
@@ -178,6 +186,12 @@ const {
         class="lg:hidden max-w-7xl mx-auto flex items-center gap-4 overflow-x-auto px-4 sm:px-6 lg:px-8 pb-3 text-sm"
         aria-label="Navegación administrativa móvil"
       >
+        <NuxtLink
+          v-if="user?.rol === 'ADMIN'"
+          to="/admin/indicadores"
+          class="whitespace-nowrap"
+          >Indicadores</NuxtLink
+        >
         <NuxtLink to="/admin" class="whitespace-nowrap">Monitoreo</NuxtLink>
         <NuxtLink to="/admin/servicios" class="whitespace-nowrap"
           >Servicios</NuxtLink

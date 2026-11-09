@@ -1,0 +1,18 @@
+# Verificación del ticket 06 — EUROCONTROL
+
+Desde **Admin → Indicadores**, un administrador puede importar los dos productos oficiales, programar su descarga mensual en UTC, pausar futuras descargas y reintentar una ejecución fallida. La tabla de fuentes muestra los contadores y el resultado de la última ejecución. La consulta permite elegir producto, ámbito, entidad, mes de cierre, granularidad e instantánea histórica. Junto al valor se conservan el período, los contadores publicados, la metodología y el aviso de copyright del archivo.
+
+El archivo de red trae valores diarios y semanales. El archivo de países y aeropuertos trae rankings separados en los bloques DY, WK y Y2D. El parser toma la identidad de cada bloque y respeta su ventana temporal. En las tres granularidades se conservan los valores nativos y el cero explícito. `MISSING_SCHED_FLIGHTS` conserva el significado de programaciones no operadas. Los datos viven en indicadores externos, fuera de las operaciones de vuelo y de las métricas de ruta.
+
+La migración incremental es `backend/prisma/changes/20261108_eurocontrol.sql`. Ambas fuentes empiezan pausadas. La programación usa el primer día del mes a las 04:00 UTC. La cola acota el número de reintentos y guarda ejecuciones y eventos ETL. Un XLSX incompleto o inválido no publica su instantánea. La carga posterior queda disponible por defecto sólo al finalizar el procesamiento completo.
+
+## Comprobaciones
+
+- Backend. Compilación Nest y contrato Prisma, TypeScript estricto, lint de los archivos afectados, 34 suites unitarias con 209 pruebas y 4 suites E2E con 5 casos aprobados. `npm audit --omit=dev` informó cero alertas con `uuid` 11.1.1 como override acotado de ExcelJS.
+- Frontend. Compilación de producción Nuxt y 33 archivos con 210 pruebas aprobadas. En el worktree, Vite requirió autorizar temporalmente la ruta real del junction de dependencias. La configuración quedó restaurada.
+
+- TDD. El caso inicial del job falló al no existir la importación. El caso de pantalla falló antes de existir el componente. Los fixtures XLSX sintetizan las columnas nativas y mantienen el orden del ZIP observado en ambas fuentes oficiales.
+- E2E con PostgreSQL y Redis. Se comprobaron ambos formatos, identidades independientes DY/WK/Y2D, contadores nativos, cero, filtros, roles, pausado, encolado, reintento y conservación de la instantánea válida ante una importación que falla después de escribir un lote de 1.000 indicadores. Se usó una transacción con rollback y una cola Redis de prueba.
+- Smoke del 9 de noviembre de 2026. La descarga HTTPS del servicio y la lectura completa de red devolvieron 6.462 indicadores, 17 filas de metodología y un aviso de 652 caracteres. El archivo de países y aeropuertos devolvió 459 indicadores, 34 filas de metodología y un aviso de 652 caracteres. Esta verificación no persistió datos en la base. [Archivo de red](https://www.eurocontrol.int/Economics/Download/Network_Punctuality.xlsx) · [Archivo de países y aeropuertos](https://www.eurocontrol.int/Economics/Download/Stakeholder_Punctuality.xlsx)
+
+El lector está acotado a los formatos oficiales inspeccionados. ExcelJS lee por streaming, yauzl verifica el ZIP y los límites de expansión antes de procesar, y se escriben lotes de hasta 1.000 indicadores. Un cambio del productor en la disposición del XLSX puede exigir adaptar el lector. La validación visual del panel con la aplicación integrada se hará en el gate de integración.
