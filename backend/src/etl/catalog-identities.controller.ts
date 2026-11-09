@@ -38,7 +38,7 @@ export class CatalogIdentitiesController {
   async pending(@Query() query: ConsultaCatalogoDto) {
     let rows = this.prisma.models.IdentidadAeropuertoFuente.where({
       aeropuertoId: null,
-    });
+    }).where((identity) => identity.fuente.in(['OurAirports', 'OpenFlights']));
     if (query.busqueda)
       rows = rows.where((i) =>
         i.identificador.ilike(`%${escaparLike(query.busqueda!)}%`),

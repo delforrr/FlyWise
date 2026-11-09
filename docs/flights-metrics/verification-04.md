@@ -1,0 +1,17 @@
+# Ticket 04 · BTS mensual
+
+Admin elige un mes observado, guarda la programación mensual UTC y puede pausar, importar o reintentar desde `/admin/bts`. Los reintentos conservan el mes original. Las correspondencias de aeropuertos y operadores se vinculan explícitamente con el catálogo de FlyWise; los códigos visibles ayudan a buscar candidatos. Un identificador DOT nunca se usa como ID OpenFlights.
+
+El worker abre un único CSV de la descarga mensual oficial, limita el tamaño comprimido a 128 MiB y el descomprimido a 1 GiB, verifica integridad y procesa lotes de 1.000. La preparación se guarda en PostgreSQL. Una sola transacción publica las operaciones, marca sus agregados pendientes, actualiza la cobertura y cierra la ejecución. Una fila inválida, una identidad sin correspondencia o una colisión impide publicar ese intento. Los descartes y las correspondencias quedan consultables desde Admin.
+
+La identidad de operación usa fecha, certificado DOT, número, extremos DOT y hora de salida programada. `ArrDelay` conserva los anticipos y el límite inclusivo de 15 minutos se aplica en el cálculo FlyWise. Cancelación y desvío conservan demora nula. Fuente y campos verificados en el [diccionario BTS](https://www.transtats.bts.gov/Fields.asp?gnoyr_VQ=FGJ).
+
+Smoke de lectura completa, sin escritura de vuelos. [Archivo oficial de agosto de 2026](https://www.transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2026_8.zip), 32.030.583 bytes comprimidos y 608.389 filas. Hubo 594.207 arribos, 11.313 cancelaciones, 2.869 desvíos, 337.349 anticipos y 4.152 arribos con exactamente 15 minutos de demora. El lector de producción validó CRC y normalizó todas las filas; un índice temporal en disco confirmó cero identidades duplicadas. SHA-256 del CSV `a5e1f6db4d53d5c924edc4e75d0b5615e101bf7b8dfc64ba832e4901968bd2e6`.
+
+Pruebas TDD por HTTP y BullMQ con Redis y PostgreSQL reales, con rollback de los fixtures. Los ZIP cubren los 31 días e incluyen 15 minutos exactos, un anticipo, un arribo tardío, cancelaciones y un desvío. La publicación da 50% con cuatro operaciones en el denominador. El E2E comprueba publicación, reintento idempotente, descarte de un mes parcial y reemplazo de una operación retirada. La pantalla se prueba mediante Vitest con respuestas HTTP de fixture.
+
+La revisión independiente señaló que faltaba validar los días del mes, retirar operaciones ausentes, evitar que dos identidades colapsaran en un aeropuerto y recuperar trabajos huérfanos o terminales en Redis. También pidió mes e intento en Admin, acceso a descartes anteriores y conservar la navegación de pendientes. El seguimiento no dejó hallazgos abiertos. Una revisión completa archiva operaciones retiradas con historial, preserva correcciones protegidas y publica todo en una sola transacción.
+
+Dirección visual Achromatic Ledger, semilla `1291416549`, con la paleta y la tipografía existentes de FlyWise. La cobertura publicada y la lista de correspondencias DOT responden si el mes puede consultarse en el mapa y qué falta para publicarlo.
+
+Quality Gate verde. Backend `tsc --noEmit`, ESLint y 209 tests. Frontend build de Nuxt y 214 tests. PostgreSQL/PostGIS y Redis reales para las cuatro suites E2E seleccionadas, cinco casos en total. El build aisló la caché de Nuxt y Vitest habilitó temporalmente la ruta real de las dependencias del worktree. La configuración versionada se restauró. La comprobación visual queda para la rama de integración.
