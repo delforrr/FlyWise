@@ -14,6 +14,7 @@ import { AirlinesModule } from './airlines/airlines.module.js';
 import { RoutesModule } from './routes/routes.module.js';
 import { EtlModule } from './etl/etl.module.js';
 import { VuelosModule } from './vuelos/vuelos.module.js';
+import { ActividadModule } from './actividad/actividad.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { VuelosModule } from './vuelos/vuelos.module.js';
     RoutesModule,
     EtlModule,
     VuelosModule,
+    ActividadModule,
   ],
   controllers: [AppController],
   providers: [AppService],
