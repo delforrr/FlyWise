@@ -12,17 +12,22 @@ function envList(nombre: string, fallback = ''): string[] {
     .filter(Boolean);
 }
 
-export function validateSourceUrl(input: string): URL {
+export function validateSourceUrl(
+  input: string,
+  allowedHosts?: readonly string[],
+): URL {
   let url: URL;
   try {
     url = new URL(input);
   } catch {
     throw new BadRequestException('URL de catálogo inválida');
   }
-  const hosts = envList(
-    'ETL_ALLOWED_HOSTS',
-    'raw.githubusercontent.com,davidmegginson.github.io',
-  );
+  const hosts =
+    allowedHosts ??
+    envList(
+      'ETL_ALLOWED_HOSTS',
+      'raw.githubusercontent.com,davidmegginson.github.io',
+    );
   if (
     url.protocol !== 'https:' ||
     url.username ||
@@ -86,8 +91,9 @@ function publicAddress(address: string): boolean {
 export async function openCsvSource(
   conexion: PipelineConnectionConfig,
   tiempoLimiteSegundos = 300,
+  allowedHosts?: readonly string[],
 ): Promise<IncomingMessage> {
-  const url = validateSourceUrl(conexion.urlEndpoint);
+  const url = validateSourceUrl(conexion.urlEndpoint, allowedHosts);
   const headers = sourceHeaders(conexion);
   const signal = AbortSignal.timeout(tiempoLimiteSegundos * 1000);
   let records: Awaited<ReturnType<typeof lookup>>[];

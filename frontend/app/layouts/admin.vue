@@ -21,6 +21,7 @@ const catalogos = [
   { recurso: "aeropuertos", nombre: "Aeropuertos" },
   { recurso: "aerolineas", nombre: "Aerolíneas" },
   { recurso: "rutas", nombre: "Rutas" },
+  { recurso: "actividad", nombre: "Actividad ANAC" },
 ];
 const route = useRoute();
 const isUsersPage = computed(() => route.path.startsWith("/admin/usuarios"));

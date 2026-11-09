@@ -167,6 +167,7 @@ model OfertaRuta {
 }
 
 model EjecucionEtl {
+  revisionesAnac ActividadAnacRevision[]
   intento               Int                  @default(0)
   id                    String               @id @onCreate(uuid())
   fuente                String               @map("fuente")
@@ -202,6 +203,65 @@ model EjecucionEtl {
   @@check(expression: sql`((((instantanea_configuracion IS NULL) AND (proceso_id IS NULL)) OR ((jsonb_typeof(instantanea_configuracion) = 'object'::text) AND (instantanea_configuracion ?& ARRAY['conexion'::text, 'mapeoEsquema'::text, 'configuracionProgramacion'::text]) AND ((instantanea_configuracion - ARRAY['conexion'::text, 'mapeoEsquema'::text, 'configuracionProgramacion'::text]) = '{}'::jsonb))) IS TRUE)`, map: "etl_jobs_snapshot_check")
   @@map("ejecuciones_etl")
   @@check(expression: sql`(intento >= 0)`, map: "etl_jobs_attempt_check")
+}
+
+model ActividadAnacConfiguracion {
+  id String @id
+  fichaUrl String @map("ficha_url")
+  expresionCron String @default("0 5 20 * *") @map("expresion_cron")
+  pausado Boolean @default(true)
+  @@check(expression: sql`(id = 'ANAC'::text)`, map: "actividad_anac_config_id_check")
+  @@map("actividad_anac_config")
+}
+
+model ActividadAnacRevision {
+  id String @id
+  periodo DateString
+  uri String
+  checksum String?
+  estado String @default("procesando")
+  filasProcesadas Int @default(0) @map("filas_procesadas")
+  filasDescartadas Int @default(0) @map("filas_descartadas")
+  actualizadoEn TimestampString(3) @default(now()) @map("actualizado_en")
+  ejecucion EjecucionEtl @relation(fields: [id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  publicaciones ActividadAnacPublicacion[]
+  movimientos ActividadAnacMovimiento[]
+  @@index([periodo, actualizadoEn], map: "actividad_anac_revisiones_periodo_idx")
+  @@check(expression: sql`(EXTRACT(day FROM periodo) = (1)::numeric)`, map: "actividad_anac_revisiones_periodo_check")
+  @@check(expression: sql`(estado = ANY (ARRAY['procesando'::text, 'publicada'::text, 'rechazada'::text]))`, map: "actividad_anac_revisiones_estado_check")
+  @@map("actividad_anac_revisiones")
+}
+
+model ActividadAnacPublicacion {
+  periodo DateString @id
+  revisionId String @map("revision_id")
+  revision ActividadAnacRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@map("actividad_anac_publicaciones")
+}
+
+model ActividadAnacMovimiento {
+  revisionId String @map("revision_id")
+  numeroFila Int @map("numero_fila")
+  fechaUtc TimestampString(6) @map("fecha_utc")
+  movimiento String
+  aeropuerto String
+  origen String
+  destino String
+  operador String
+  clase String
+  clasificacion String
+  aeronave String
+  matricula String
+  pasajeros Int?
+  pax Int?
+  calidad String
+  revision ActividadAnacRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction, index: false)
+  @@id([revisionId, numeroFila])
+  @@index([revisionId, aeropuerto, operador, clasificacion], map: "actividad_anac_movimientos_filtros_idx")
+  @@check(expression: sql`(movimiento = ANY (ARRAY['DESPEGUE'::text, 'ATERRIZAJE'::text]))`, map: "actividad_anac_movimientos_movimiento_check")
+  @@check(expression: sql`(pasajeros >= 0)`, map: "actividad_anac_movimientos_pasajeros_check")
+  @@check(expression: sql`(pax >= 0)`, map: "actividad_anac_movimientos_pax_check")
+  @@map("actividad_anac_movimientos")
 }
 
 model ProcesoEtl {
