@@ -33,6 +33,7 @@ export async function guardarObservaciones(
         aerolinea_id=CASE WHEN vuelos.protegido_manualmente THEN vuelos.aerolinea_id ELSE EXCLUDED.aerolinea_id END,
         estado=CASE WHEN vuelos.protegido_manualmente THEN vuelos.estado ELSE EXCLUDED.estado END,
         demora_llegada_minutos=CASE WHEN vuelos.protegido_manualmente THEN vuelos.demora_llegada_minutos ELSE EXCLUDED.demora_llegada_minutos END,
+        archivado_en=CASE WHEN vuelos.protegido_manualmente THEN vuelos.archivado_en ELSE NULL END,
         ejecucion_etl_id=EXCLUDED.ejecucion_etl_id,ultima_observacion=EXCLUDED.ultima_observacion,version=vuelos.version+1
       RETURNING *, (xmax=0) AS insertada
     ), auditoria AS (
