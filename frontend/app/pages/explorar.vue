@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useShortcuts } from "~/features/flight-map/composables/useShortcuts";
 import type { GlobalMapFilter } from '~/features/flight-map/composables/useGlobalMap';
+import { useRouteMetrics } from '~/features/flight-map/composables/useRouteMetrics';
 
 useSeoMeta({
   title: "FlyWise — Explorador Global de Rutas y Puntualidad",
@@ -11,7 +12,11 @@ useSeoMeta({
 const { aeropuertos, rutas, error, loadAirports, loadRoutes } = useCatalog();
 const { selectedOrigin, selectedDestination, clearSelection } = useFlightSelection();
 const globalMap = useGlobalMap();
+const metricas = useRouteMetrics();
 const hasSelection = computed(() => Boolean(selectedOrigin.value || selectedDestination.value));
+const rutasParaMetricas = computed(() => hasSelection.value ? rutas.value : globalMap.rutasCatalogo.value);
+watch([rutasParaMetricas, () => metricas.filtro.value.periodo, () => metricas.filtro.value.aerolineaId, metricas.reconsulta],
+  ([visibles]) => { void metricas.cargar(visibles); });
 const globalAirportsCount = computed(() => {
   const ids = new Set(globalMap.visibleRoutes.value.flatMap(r => [r.origenId, r.destinoId]));
   return aeropuertos.value.filter(a => ids.has(a.id)).length;
@@ -19,6 +24,7 @@ const globalAirportsCount = computed(() => {
 let applying = false;
 onMounted(() => {
   void loadAirports();
+  void metricas.cargar(rutasParaMetricas.value);
   if (hasSelection.value) void loadRoutes(selectedOrigin.value, selectedDestination.value);
   else { globalMap.isOpen.value = true; void globalMap.load(); }
 });

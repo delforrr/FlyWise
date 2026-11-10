@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { FlightRoute } from "~/types/route";
+import RouteMetricDetails from "~/features/route-audit/components/results/RouteMetricDetails.vue";
 
 const props = defineProps<{
   route: FlightRoute;
@@ -39,7 +40,7 @@ const distanciaNm = computed<number>(() => {
     <div class="text-xs text-text-muted flex justify-between items-center pt-1 border-t border-border-subtle/40">
       <span class="text-text-muted flex items-center gap-1">
         <UIcon name="i-lucide-plane-takeoff" class="w-3.5 h-3.5 text-text-dim shrink-0" />
-        <span>Aerolínea principal:</span>
+        <span>Catálogo:</span>
       </span>
       <span class="font-medium text-text-main truncate max-w-32.5 text-right" :title="route.primaryAirline">
         {{ route.primaryAirline }}
@@ -51,5 +52,6 @@ const distanciaNm = computed<number>(() => {
       <span class="text-[11px] uppercase tracking-wider text-text-dim font-mono font-medium">Puntualidad:</span>
       <OtpBadge :value="route.averageOtp15" />
     </div>
+    <RouteMetricDetails v-if="route.metricas" :metricas="route.metricas" />
   </div>
 </template>

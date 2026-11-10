@@ -3,12 +3,15 @@ import { type Aeropuerto } from "~/types/airport";
 import type { FlightRoute } from "~/types/route";
 import { type MapPickingInfo } from "~/types/map";
 import { useRouteSearch } from "~/shared/composables/useCatalog";
+import { useRouteMetricOverlay } from "~/features/flight-map/composables/useRouteMetrics";
 import { findRouteBetween, queryMatchingRoutes } from "../utils/routeGraph";
 
 let hoverRafId: number | null = null;
 
 export const useFlightSelection = () => {
-  const rutas = useState<FlightRoute[]>("catalog_routes", () => []);
+  const catalogo = useState<FlightRoute[]>("catalog_routes", () => []);
+  const { conMetricas } = useRouteMetricOverlay();
+  const rutas = computed(() => catalogo.value.map(conMetricas));
   // Estado base (usar undefined en lugar de null para compatibilidad estricta con UInputMenu de Nuxt UI)
   const selectedOrigin = useState<string | undefined>("flight_origin", () => undefined);
   const selectedDestination = useState<string | undefined>(

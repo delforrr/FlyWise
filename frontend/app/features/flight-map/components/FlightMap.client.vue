@@ -20,16 +20,17 @@ const {
   selectedOrigin,
   selectedDestination,
   selectedRouteData,
+  matchingRoutes,
   activeRouteId,
   mapFitTrigger,
   clearHoveredEntity,
 } = useFlightSelection();
 
-const { aeropuertos, rutas } = useCatalog();
+const { aeropuertos } = useCatalog();
 const globalMap = useGlobalMap();
-watch([globalMap.visibleRoutes, globalMap.fitTrigger], () => { clearHoveredEntity(); updateLayers(); fitGlobal(); });
+watch([aeropuertos, matchingRoutes, globalMap.visibleRoutes], () => { clearHoveredEntity(); updateLayers(); });
+watch(globalMap.fitTrigger, () => { fitGlobal(); });
 watch(isLoaded, loaded => { if (loaded) fitGlobal(); });
-watch([aeropuertos, rutas], () => { updateLayers(); });
 
 const colorMode = useColorMode();
 
@@ -60,11 +61,8 @@ watch(activeRouteId, () => {
   updateLayers();
 });
 
-watch(selectedRouteData, (route) => {
-  updateLayers();
-  if (route) {
-    fitRoute(route.originCoordinates, route.destinationCoordinates);
-  }
+watch([() => selectedRouteData.value?.originCoordinates, () => selectedRouteData.value?.destinationCoordinates], ([origen, destino]) => {
+  if (origen && destino) fitRoute(origen, destino);
 });
 
 watch(mapFitTrigger, () => {

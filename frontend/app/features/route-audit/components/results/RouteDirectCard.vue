@@ -1,18 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { FlightRoute } from "~/types/route";
+import RouteMetricDetails from "./RouteMetricDetails.vue";
 
 const props = defineProps<{
   route: FlightRoute;
 }>();
-
-// Volumen total de vuelos comerciales muestreados y auditados
-const sampleFlightsCount = computed(() => {
-  return props.route.aerolineas.reduce(
-    (total, a) => total + (a.sampleFlightsCount || 0),
-    0,
-  );
-});
 
 // Estilo y color del indicador de confiabilidad según OTP-15
 const otpColorClass = computed(() => {
@@ -71,8 +64,8 @@ const bannerAccentClass = computed(() => {
       <OtpBadge :value="route.averageOtp15" class="shrink-0" />
     </div>
 
-    <!-- 2. Telemetría de Ruta (Distancia Real y Muestra de Vuelos) -->
-    <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+    <!-- 2. Distancia de ruta -->
+    <div class="text-[11px] font-mono">
       <div
         class="flex items-center justify-between p-2 rounded-lg bg-surface-base/50 border border-border-subtle/40"
       >
@@ -85,21 +78,6 @@ const bannerAccentClass = computed(() => {
         </span>
       </div>
 
-      <div
-        class="flex items-center justify-between p-2 rounded-lg bg-surface-base/50 border border-border-subtle/40"
-        title="Volumen total de vuelos auditados para esta ruta"
-      >
-        <span class="text-text-dim flex items-center gap-1">
-          <UIcon name="i-lucide-database" class="w-3.5 h-3.5" />
-          <span>Muestra:</span>
-        </span>
-        <span
-          class="font-mono tabular-nums font-bold text-text-main inline-flex items-center gap-0.5"
-        >
-          {{ sampleFlightsCount.toLocaleString() }}
-          <span class="text-[9px] font-normal text-text-dim">v</span>
-        </span>
-      </div>
     </div>
 
     <!-- 3. Mini Reliability Summary Bar & Volume Indicator -->
@@ -109,19 +87,9 @@ const bannerAccentClass = computed(() => {
       <div class="flex items-center justify-between text-[11px] font-mono">
         <div class="flex items-center gap-1.5 text-text-muted">
           <UIcon name="i-lucide-gauge" class="w-3.5 h-3.5 text-text-dim" />
-          <span>Puntualidad Global OTP-15</span>
+          <span>Puntualidad OTP-15</span>
         </div>
         <div class="flex items-center gap-2">
-          <!-- Sample flight volume badge -->
-          <span
-            v-if="sampleFlightsCount > 0"
-            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono tabular-nums font-semibold bg-surface-accent border border-border-subtle text-text-muted shadow-xs"
-            title="Vuelos auditados en la muestra de esta ruta"
-          >
-            <UIcon name="i-lucide-layers" class="w-3 h-3 text-text-dim" />
-            <span class="text-text-main">{{ sampleFlightsCount.toLocaleString() }}</span>
-            <span class="text-[9px] font-normal text-text-dim">vuelos</span>
-          </span>
           <span
             :class="['font-mono tabular-nums font-bold text-xs', otpColorClass]"
           >
@@ -138,16 +106,14 @@ const bannerAccentClass = computed(() => {
         :color="otpColor"
         class="w-full"
       />
+      <RouteMetricDetails v-if="route.metricas" :metricas="route.metricas" />
     </div>
 
     <!-- 4. Desglose de Aerolíneas Operadoras -->
     <div class="flex flex-col gap-1.5 border-t border-border-subtle/60 pt-2.5">
       <div class="flex items-center justify-between">
         <span class="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-dim">
-          Desempeño por Aerolínea ({{ route.aerolineas.length }}):
-        </span>
-        <span class="text-[10px] font-mono text-text-dim">
-          Sin historial operativo
+          Ofertas del catálogo ({{ route.aerolineas.length }})
         </span>
       </div>
 

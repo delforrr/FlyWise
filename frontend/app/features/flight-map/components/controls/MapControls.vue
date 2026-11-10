@@ -5,6 +5,8 @@
     :interactive="false"
     class="flex flex-col items-center w-fit p-1 sm:p-1.5 shadow-2xl border border-border-subtle/80 border-t-white/30 dark:border-t-white/15 bg-surface-card/90 dark:bg-surface-base/85 backdrop-blur-xl"
   >
+    <RouteMetricsFilters />
+
     <!-- Botón Info Leyenda OTP (Visible en móviles: despliega hacia la izquierda por fuera del panel de controles) -->
     <div class="md:hidden flex flex-col items-center w-full">
       <UPopover
@@ -48,6 +50,7 @@
               <OtpBadge message="Alta" />
               <OtpBadge message="Media" />
               <OtpBadge message="Baja" />
+              <OtpBadge :value="null" />
             </div>
           </div>
         </template>

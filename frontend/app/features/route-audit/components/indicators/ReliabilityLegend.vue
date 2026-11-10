@@ -65,6 +65,9 @@
               Baja puntualidad / alta demora
             </span>
           </li>
+          <li class="p-1">
+            <OtpBadge :value="null" />
+          </li>
         </ul>
 
         <!-- Referencia técnica OTP-15 -->

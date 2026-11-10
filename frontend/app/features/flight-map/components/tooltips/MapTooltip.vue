@@ -68,12 +68,13 @@ const tooltipStyle = computed(() => {
   targetX = Math.min(Math.max(targetX, minX), maxX);
 
   // Eje Y: ubicar debajo; si colisiona con el borde inferior, invertir hacia arriba
+  const tooltipHeight = routeData.value?.metricas ? 280 : TOOLTIP_HEIGHT;
   let targetY = y + CURSOR_OFFSET;
-  if (targetY + TOOLTIP_HEIGHT > winHeight - SCREEN_MARGIN) {
-    targetY = y - TOOLTIP_HEIGHT - CURSOR_OFFSET;
+  if (targetY + tooltipHeight > winHeight - SCREEN_MARGIN) {
+    targetY = y - tooltipHeight - CURSOR_OFFSET;
   }
   const minY = SCREEN_MARGIN;
-  const maxY = Math.max(minY, winHeight - TOOLTIP_HEIGHT - SCREEN_MARGIN);
+  const maxY = Math.max(minY, winHeight - tooltipHeight - SCREEN_MARGIN);
   targetY = Math.min(Math.max(targetY, minY), maxY);
 
   return {

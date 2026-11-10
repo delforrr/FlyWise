@@ -41,6 +41,12 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
   const { isLight, selectedOrigin: orig, selectedDestination: dest, matchingRoutes } = options;
   const hasSelection = Boolean(orig || dest);
   const hasBoth = Boolean(orig && dest);
+  const isDirectActive = (route: FlightRoute) => hasBoth &&
+    ((route.origenId === orig && route.destinoId === dest) ||
+      (route.origenId === dest && route.destinoId === orig));
+  const colorRuta = (route: FlightRoute) => getOtpColor(
+    route.averageOtp15, isDirectActive(route) ? 255 : hasBoth ? 140 : hasSelection ? 240 : 220,
+  );
 
   // La consulta global ya contiene un arco por par de aeropuertos.
   const visibleRoutes = matchingRoutes;
@@ -70,64 +76,8 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       greatCircle: true,
       getSourcePosition: (d: FlightRoute) => d.originCoordinates,
       getTargetPosition: (d: FlightRoute) => d.destinationCoordinates,
-      getSourceColor: (d: FlightRoute) => {
-        const isDirectActive = Boolean(
-          hasBoth &&
-          ((d.origenId === orig && d.destinoId === dest) ||
-            (d.origenId === dest && d.destinoId === orig)),
-        );
-
-        if (isDirectActive) {
-          // Gradiente de alto contraste para la ruta activa seleccionada:
-          // El origen emite en Aero Cyan de alta saturación
-          return d.origenId === orig
-            ? isLight
-              ? [2, 132, 199, 255]
-              : [56, 189, 248, 255]
-            : getOtpColor(d.averageOtp15, 255);
-        }
-
-        if (hasBoth) {
-          // Rutas de escala / conexión secundarias: contraste atenuado
-          const baseColor = getOtpColor(d.averageOtp15, 140);
-          return [baseColor[0], baseColor[1], baseColor[2], 140];
-        }
-
-        if (orig && d.origenId === orig) {
-          return isLight ? [2, 132, 199, 240] : [56, 189, 248, 240];
-        }
-
-        const baseColor = getOtpColor(d.averageOtp15, 220);
-        return [baseColor[0], baseColor[1], baseColor[2], 220];
-      },
-      getTargetColor: (d: FlightRoute) => {
-        const isDirectActive = Boolean(
-          hasBoth &&
-          ((d.origenId === orig && d.destinoId === dest) ||
-            (d.origenId === dest && d.destinoId === orig)),
-        );
-
-        if (isDirectActive) {
-          // El destino recibe en el color de performance OTP-15 (Esmeralda / Ámbar / Carmesí)
-          return d.destinoId === dest
-            ? getOtpColor(d.averageOtp15, 255)
-            : isLight
-              ? [2, 132, 199, 255]
-              : [56, 189, 248, 255];
-        }
-
-        if (hasBoth) {
-          const baseColor = getOtpColor(d.averageOtp15, 140);
-          return [baseColor[0], baseColor[1], baseColor[2], 140];
-        }
-
-        if (dest && d.destinoId === dest) {
-          return isLight ? [5, 150, 105, 240] : [16, 185, 129, 240];
-        }
-
-        const baseColor = getOtpColor(d.averageOtp15, 220);
-        return [baseColor[0], baseColor[1], baseColor[2], 220];
-      },
+      getSourceColor: colorRuta,
+      getTargetColor: colorRuta,
       getWidth: (d: FlightRoute) => {
         if (!hasSelection) return 2.5;
         if (hasBoth) {
@@ -144,8 +94,8 @@ export function buildFlightMapLayers(options: BuildLayersOptions) {
       widthMinPixels: 2.0,
       updateTriggers: {
         getWidth: [orig, dest],
-        getSourceColor: [orig, dest, isLight],
-        getTargetColor: [orig, dest, isLight],
+        getSourceColor: [orig, dest],
+        getTargetColor: [orig, dest],
       },
     }),
 

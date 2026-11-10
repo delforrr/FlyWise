@@ -39,8 +39,16 @@ Evidencia local: `C:\Users\delfo\.codex\visualizations\2026\11\08\01a1b92c-26f5-
 
 Se eliminó exclusivamente la cuenta administrativa temporal creada para esta validación. Las cuentas originales se conservaron.
 
-## Continuación
+## Cierre de v1
 
-El usuario pidió cerrar el ticket 02 y continuar después. Los tickets 03–07 no están implementados. Se conserva la base cargada para retomar; la limpieza de datos aeronáuticos e historial de ingesta, conservando usuarios, queda para el cierre del plan completo. La [guía de Admin](admin-validation.md) explica cómo repetir las cargas.
+La evidencia de los tickets integrados se conserva por separado.
+
+- [Operaciones y métricas](verification-03.md)
+- [Ingesta mensual BTS](verification-04.md)
+- [Actividad ANAC](verification-05.md)
+- [Indicadores EUROCONTROL](verification-06.md)
+- [OTP en el mapa](verification-07.md)
+
+La [guía de Admin](admin-validation.md) describe la validación desde la aplicación.
 
 Los [flujos](flows.md) y el [modelo de datos](../dataModel.mermaid) representan el código implementado; el [spec](spec.md) describe el alcance objetivo.

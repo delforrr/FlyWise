@@ -17,10 +17,10 @@ describe('Global map catalogue', () => {
     expect(map.visibleRoutes.value[0]?.averageOtp15).toBeNull();
   });
 
-  it('keeps canonical orientation for pairs that only have return offers', async () => {
+  it('keeps the real direction for pairs that only have return offers', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{ ...conexion, ida: [], vuelta: [{ ...arc, origen: arc.destino, destino: arc.origen }] }]));
     const map = useGlobalMap(); await map.load();
-    expect(map.visibleRoutes.value[0]).toMatchObject({ origenId: 'a', destinoId: 'b' });
+    expect(map.visibleRoutes.value[0]).toMatchObject({ origenId: 'b', destinoId: 'a' });
   });
 
   it('ignores stale successes and failures without replacing selection results', async () => {
