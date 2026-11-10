@@ -18,6 +18,10 @@ En **Servicios → Correspondencias pendientes**, cada fila muestra fuente y nom
 
 Los identificadores OurAirports y OpenFlights pertenecen a espacios distintos. Vincular no reemplaza una edición manual protegida. Las coincidencias automáticas requieren códigos compatibles y país consistente; compartir un código no prueba por sí solo que sean el mismo aeropuerto.
 
-## Estado al cerrar el ticket 02
+## Validar métricas y operaciones v1
 
-La base real queda cargada para continuar el desarrollo. La eliminación de datos aeronáuticos e historial de ingesta, conservando las cuentas existentes, se realizará al finalizar el plan completo. Esta guía permite recargar los catálogos después de esa limpieza. Vuelos, BTS, ANAC, EUROCONTROL y OTP siguen pendientes de sus tickets.
+Usar **Operaciones** para consultar resultados y revisiones, **BTS mensual** para gestionar coberturas completas, **Actividad ANAC** para consultar movimientos, e **Indicadores** para consultar instantáneas de EUROCONTROL.
+
+En **Ver Mapa Global**, abrir **Filtrar puntualidad** para elegir mes y aerolínea. El detalle de la ruta indica cuántas operaciones forman la muestra, sus fuentes y la fecha del cálculo. El mapa toma como punto de partida el último mes BTS completo publicado.
+
+Consultar las [verificaciones por ticket](verification.md#cierre-de-v1) para ver qué se probó con datos oficiales, fixtures y la aplicación local.

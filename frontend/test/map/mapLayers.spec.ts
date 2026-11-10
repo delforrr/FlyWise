@@ -247,13 +247,18 @@ describe("mapLayers — Generación de Capas WebGL Deck.gl y Lógica Espacial", 
       expect(typeof getSourceColor).toBe("function");
       expect(typeof getTargetColor).toBe("function");
 
-      const sourceColor = getSourceColor(directRoute);
-      const targetColor = getTargetColor(directRoute);
-
-      // Origen activo seleccionado en modo oscuro es Aero Cyan [56, 189, 248, 255]
-      expect(sourceColor).toEqual([56, 189, 248, 255]);
-      // Destino activo con OTP 90 >= 85 es Emerald [16, 185, 129, 255]
-      expect(targetColor).toEqual([16, 185, 129, 255]);
+      const colores = [
+        [90, [16, 185, 129, 255]],
+        [85, [245, 158, 11, 255]],
+        [60, [245, 158, 11, 255]],
+        [0, [239, 68, 68, 255]],
+        [null, [148, 163, 184, 255]],
+      ] as const;
+      for (const [averageOtp15, color] of colores) {
+        const ruta = { ...directRoute, averageOtp15 };
+        expect(getSourceColor(ruta)).toEqual(color);
+        expect(getTargetColor(ruta)).toEqual(color);
+      }
     });
 
     it("soporta rutas con coordenadas en el antimeridiano (-180° / +180°) y polos sin distorsión", () => {

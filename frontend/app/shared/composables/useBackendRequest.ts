@@ -1,5 +1,5 @@
 import { useAuth } from '../../features/auth/composables/useAuth';
-export function useBackendRequest() {
+export function useBackendRequest({ notificarError = true } = {}) {
   const auth = useAuth();
   const toast = useToast();
   return async <T>(path: string, options: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown; signal?: AbortSignal; query?: Record<string, string | number | undefined> } = {}): Promise<T> => {
@@ -10,7 +10,7 @@ export function useBackendRequest() {
       });
       return (path.startsWith('/etl/') || path.startsWith('/administracion/')) ? await auth.authenticatedRequest(perform) : await perform(auth.token.value);
     } catch (error) {
-      if (options.method && options.method !== 'GET') toast.add({ title: 'No se pudo completar la operación', description: error instanceof Error ? error.message : 'Error del servidor', color: 'error' });
+      if (notificarError && options.method && options.method !== 'GET') toast.add({ title: 'No se pudo completar la operación', description: error instanceof Error ? error.message : 'Error del servidor', color: 'error' });
       throw error;
     }
   };

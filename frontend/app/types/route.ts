@@ -7,6 +7,20 @@ export interface RouteAirlinePerformance {
   sampleFlightsCount: number
 }
 
+export interface RouteMetric {
+  origenId: string
+  destinoId: string
+  periodo: string
+  aerolineaId: string | null
+  otp15: number | null
+  vuelosTotales: number
+  vuelosOperados: number
+  fuentes: string[]
+  actualizadoEn: string | null
+  pendiente: boolean
+  errorActualizacion: string | null
+}
+
 export interface FlightRoute {
   id: string // "EZE-MAD"
   origenId: string
@@ -23,6 +37,7 @@ export interface FlightRoute {
   
   distanciaKm: number
   averageOtp15: number | null
+  metricas?: RouteMetric
   aerolineas: RouteAirlinePerformance[]
   primaryAirline: string
   flightType?: "direct" | "connecting"

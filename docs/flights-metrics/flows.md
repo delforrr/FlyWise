@@ -55,7 +55,7 @@ flowchart TD
 
 Los identificadores se interpretan dentro de su fuente. Una coincidencia de IATA con ICAO o país contradictorios requiere revisión. El administrador puede vincular explícitamente alias que no se aceptan automáticamente.
 
-Los flujos de edición de vuelos y publicación de OTP aún no están implementados: corresponden a tickets 03–07 y no se presentan como comportamiento actual.
+Las correcciones, retiros y restauraciones de operaciones conservan el historial y encolan el recálculo de las combinaciones afectadas. El mapa conserva el último valor válido mientras la combinación está pendiente. Ver la [verificación de operaciones y métricas](verification-03.md) y la [verificación del mapa](verification-07.md).
 
 ## Consulta de rutas y mapa
 
@@ -64,13 +64,19 @@ sequenceDiagram
     actor Usuario
     participant UI as Explorador Nuxt
     participant API as API de rutas
+    participant OTP as API de métricas
     participant DB as PostgreSQL y PostGIS
     participant Mapa as Deck.gl y MapLibre
     Usuario->>UI: Seleccionar extremos y filtros
     UI->>API: Consultar conexiones
     API->>DB: Resolver rutas y ofertas visibles
     DB-->>API: Extremos, operador y distancia geográfica
-    API-->>UI: Conexiones con OTP desconocido
-    UI->>Mapa: Actualizar arcos en el cliente
-    Mapa-->>Usuario: Rutas grises cuando no hay métricas
+    API-->>UI: Conexiones del catálogo histórico
+    UI->>OTP: Consultar mes inicial y opciones
+    OTP-->>UI: Último mes BTS completo, períodos y aerolíneas
+    UI->>OTP: Consultar hasta 100 pares dirigidos por mes y aerolínea
+    OTP->>DB: Agregar contadores de operaciones
+    OTP-->>UI: Puntualidad, muestra, fuentes y estado del cálculo
+    UI->>Mapa: Colorear los arcos con el OTP del sentido correspondiente
+    Mapa-->>Usuario: Rojo para 0 % y gris para datos ausentes
 ```

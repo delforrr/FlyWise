@@ -1,5 +1,6 @@
-import { groupArcRoutes, mapArcRoute, type ArcRoute } from '~/shared/composables/useCatalog';
+import { groupArcRoutes, type ArcRoute } from '~/shared/composables/useCatalog';
 import { useBackendRequest } from '~/shared/composables/useBackendRequest';
+import { useRouteMetricOverlay } from './useRouteMetrics';
 
 export const MAP_CONTINENTS = [
   { value: 'AF', label: 'África' }, { value: 'NA', label: 'América del Norte' },
@@ -35,12 +36,11 @@ export function useGlobalMap() {
   const countriesLoading = useState('global_map_countries_loading', () => false);
   const countriesError = useState<string | null>('global_map_countries_error', () => null);
   const fitTrigger = useState('global_map_fit', () => 0);
-  const visibleRoutes = computed(() => connections.value.flatMap((conexion) => {
-    const ida = groupArcRoutes(conexion.ida)[0];
-    if (ida) return [ida];
-    const vuelta = conexion.vuelta[0];
-    return vuelta ? [mapArcRoute({ ...vuelta, origen: vuelta.destino, destino: vuelta.origen })] : [];
+  const { conMetricas } = useRouteMetricOverlay();
+  const rutasCatalogo = computed(() => connections.value.flatMap((conexion) => {
+    return groupArcRoutes(conexion.ida.length ? conexion.ida : conexion.vuelta).slice(0, 1);
   }));
+  const visibleRoutes = computed(() => rutasCatalogo.value.map(conMetricas));
 
   async function load() {
     const id = ++requestId.value;
@@ -71,5 +71,5 @@ export function useGlobalMap() {
     } finally { countriesLoading.value = false; }
   }
 
-  return { filter, isOpen, connections, visibleRoutes, loading, error, paises, countriesLoading, countriesError, fitTrigger, load, loadCountries };
+  return { filter, isOpen, connections, rutasCatalogo, visibleRoutes, loading, error, paises, countriesLoading, countriesError, fitTrigger, load, loadCountries };
 }

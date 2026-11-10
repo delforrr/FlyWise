@@ -3,6 +3,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { Transaction } from '../prisma/db.js';
 import type { Operacion } from '../vuelos/operacion.js';
 import type { ConsultaMetricasDto } from './dto/consulta-metricas.dto.js';
+import {
+  MAX_PARES_MAPA,
+  type ConsultaMapaDto,
+  type ParRutaDto,
+} from './dto/consulta-mapa.dto.js';
 
 @Injectable()
 export class MetricsService {
@@ -69,9 +74,59 @@ export class MetricsService {
     );
   }
 
-  async consultar(consulta: ConsultaMetricasDto) {
+  async consultarMapa({ pares, ...filtros }: ConsultaMapaDto) {
+    const { datos } = await this.consultar(
+      { ...filtros, pagina: 1, limite: MAX_PARES_MAPA },
+      pares,
+    );
+    return datos;
+  }
+
+  async opcionesMapa() {
+    const { db } = this.prisma;
+    const [meses, aerolineas] = await Promise.all([
+      db.query(
+        db.raw.sql`
+        WITH meses AS (
+          SELECT to_char(periodo, 'YYYY-MM') AS periodo
+          FROM metricas_ruta WHERE vuelos_totales > 0 OR pendiente
+          UNION SELECT periodo FROM cobertura_bts
+        )
+        SELECT meses.periodo, b.periodo IS NOT NULL AS "completoBts"
+        FROM meses LEFT JOIN cobertura_bts b USING (periodo)
+        ORDER BY meses.periodo DESC
+      `
+          .returnsRow({ periodo: 'pg/text@1', completoBts: 'pg/bool@1' })
+          .build(),
+      ),
+      db.query(
+        db.raw.sql`
+        SELECT a.id, a.nombre, a.iata FROM aerolineas a
+        WHERE EXISTS (
+          SELECT 1 FROM metricas_ruta m WHERE m.aerolinea_id=a.id
+            AND (m.vuelos_totales > 0 OR m.pendiente)
+        )
+        ORDER BY a.nombre, a.id
+      `
+          .returnsRow({
+            id: 'pg/text@1',
+            nombre: 'pg/text@1',
+            iata: { codecId: 'pg/text@1', nullable: true },
+          })
+          .build(),
+      ),
+    ]);
+    return {
+      periodoInicial: meses.find((mes) => mes.completoBts)?.periodo ?? null,
+      periodos: meses.map((mes) => mes.periodo),
+      aerolineas,
+    };
+  }
+
+  async consultar(consulta: ConsultaMetricasDto, pares?: ParRutaDto[]) {
     const { periodo, origenId, destinoId, aerolineaId, pagina, limite } =
       consulta;
+    const lote = JSON.stringify(pares ?? []);
     const rows = await this.prisma.db.query(
       this.prisma.db.raw.sql`
       SELECT origen_id AS "origenId",destino_id AS "destinoId",
@@ -84,6 +139,9 @@ export class MetricsService {
         AND (${origenId ?? ''}::text = '' OR origen_id=${origenId ?? ''})
         AND (${destinoId ?? ''}::text = '' OR destino_id=${destinoId ?? ''})
         AND (${aerolineaId ?? ''}::text = '' OR aerolinea_id=${aerolineaId ?? ''})
+        AND (NOT ${pares !== undefined} OR (origen_id, destino_id) IN (
+          SELECT p."origenId", p."destinoId" FROM jsonb_to_recordset(${lote}::jsonb) p("origenId" text, "destinoId" text)
+        ))
       GROUP BY origen_id,destino_id ORDER BY origen_id,destino_id LIMIT ${limite} OFFSET ${(pagina - 1) * limite}
     `
         .returnsRow({
