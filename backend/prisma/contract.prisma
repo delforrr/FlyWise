@@ -181,6 +181,7 @@ model EjecucionEtl {
   mensajeError          String?              @map("mensaje_error")
   vuelos               Vuelo[]
   metricas             MetricaRuta[]
+  instantaneasEurocontrol EurocontrolInstantanea[]
   procesoId            String?              @map("proceso_id")
   solicitanteId         String?              @map("solicitante_id")
   instantaneaConfiguracion Jsonb?                @map("instantanea_configuracion")
@@ -399,4 +400,48 @@ model HistorialVuelo {
   creadoEn TimestampString(3) @default(now()) @map("creado_en")
   @@unique([vueloId, version])
   @@map("historial_vuelos")
+}
+
+// Native external indicators remain separate from flight operations and route OTP.
+model EurocontrolProgramacion {
+  producto String @id
+  pausado Boolean @default(true)
+  actualizadoEn TimestampString(3) @default(now()) @map("actualizado_en")
+  @@check(expression: sql`(producto = ANY (ARRAY['network'::text, 'stakeholder'::text]))`, map: "eurocontrol_programacion_producto_check")
+  @@map("eurocontrol_programacion")
+}
+model EurocontrolInstantanea {
+  id String @id
+  producto String
+  ejecucionId String @unique @map("ejecucion_id")
+  checksum String
+  uri String
+  atribucion String @default("EUROCONTROL")
+  aviso String @default("")
+  metodologia Jsonb @default(json`[]`)
+  publicada Boolean @default(false)
+  creadoEn TimestampString(3) @default(now()) @map("creado_en")
+  ejecucion EjecucionEtl @relation(fields:[ejecucionId],references:[id],onDelete:Restrict)
+  indicadores IndicadorExterno[]
+  @@index([producto,publicada,creadoEn],map:"eurocontrol_instantaneas_producto_idx")
+  @@check(expression: sql`(producto = ANY (ARRAY['network'::text, 'stakeholder'::text]))`, map: "eurocontrol_instantaneas_producto_check")
+  @@check(expression: sql`(checksum ~ '^[0-9a-f]{64}$'::text)`, map: "eurocontrol_instantaneas_checksum_check")
+  @@map("eurocontrol_instantaneas")
+}
+model IndicadorExterno {
+  instantaneaId String @map("instantanea_id")
+  ambito String
+  entidad String
+  nombre String
+  granularidad String
+  desde DateString
+  hasta DateString
+  valores Jsonb
+  instantanea EurocontrolInstantanea @relation(fields:[instantaneaId],references:[id],onDelete:Restrict)
+  @@id([instantaneaId,ambito,entidad,granularidad,hasta])
+  @@index([ambito,entidad,granularidad,hasta],map:"indicadores_externos_consulta_idx")
+  @@map("indicadores_externos")
+  @@check(expression: sql`(ambito = ANY (ARRAY['NETWORK'::text, 'COUNTRY'::text, 'AIRPORT'::text]))`, map:"indicadores_externos_ambito_check")
+  @@check(expression: sql`(granularidad = ANY (ARRAY['DY'::text, 'WK'::text, 'Y2D'::text]))`, map:"indicadores_externos_granularidad_check")
+  @@check(expression: sql`(desde <= hasta)`, map:"indicadores_externos_check")
 }

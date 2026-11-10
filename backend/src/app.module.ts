@@ -16,6 +16,7 @@ import { EtlModule } from './etl/etl.module.js';
 import { VuelosModule } from './vuelos/vuelos.module.js';
 import { ActividadModule } from './actividad/actividad.module.js';
 import { BtsModule } from './bts/bts.module.js';
+import { IndicadoresModule } from './indicadores/indicadores.module.js';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { BtsModule } from './bts/bts.module.js';
     VuelosModule,
     ActividadModule,
     BtsModule,
+    IndicadoresModule,
   ],
   controllers: [AppController],
   providers: [AppService],

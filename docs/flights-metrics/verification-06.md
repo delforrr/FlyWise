@@ -1,0 +1,24 @@
+# Verificación del ticket 06 — EUROCONTROL
+
+Desde **Admin → Indicadores**, un administrador puede importar los dos productos oficiales, programar su descarga mensual en UTC, pausar futuras descargas y reintentar una ejecución fallida. La tabla de fuentes muestra los contadores y el resultado de la última ejecución. La consulta permite elegir producto, ámbito, entidad, mes de cierre, granularidad e instantánea histórica. Junto al valor se conservan el período, los contadores publicados, la metodología y el aviso de copyright del archivo.
+
+El archivo de red trae valores diarios y semanales. El archivo de países y aeropuertos trae rankings separados en los bloques DY, WK y Y2D. El parser toma la identidad de cada bloque y respeta su ventana temporal. En las tres granularidades se conservan los valores nativos y el cero explícito. `MISSING_SCHED_FLIGHTS` conserva el significado de programaciones no operadas. Los datos viven en indicadores externos, fuera de las operaciones de vuelo y de las métricas de ruta.
+
+La migración incremental es `backend/prisma/changes/20261108_eurocontrol.sql`. Ambas fuentes empiezan pausadas. La programación usa el primer día del mes a las 04:00 UTC. La cola acota el número de reintentos y guarda ejecuciones y eventos ETL. Un XLSX incompleto o inválido no publica su instantánea. La carga posterior queda disponible por defecto sólo al finalizar el procesamiento completo.
+
+## Comprobaciones
+
+- Backend. Compilación Nest y contrato Prisma, TypeScript estricto, lint de los archivos afectados, 34 suites unitarias con 209 pruebas y 4 suites E2E con 5 casos aprobados. `npm audit --omit=dev` informó cero alertas con `uuid` 11.1.1 como override acotado de ExcelJS.
+- Frontend. Compilación de producción Nuxt y 33 archivos con 211 pruebas aprobadas. En el worktree, Vite requirió autorizar temporalmente la ruta real del junction de dependencias. La configuración quedó restaurada.
+- TDD. El caso inicial del job falló al no existir la importación. El caso de pantalla falló antes de existir el componente. La prueba adversarial reprodujo el fallo provocado por una hoja ZIP ausente del directorio central. El lector reconstruido la excluye y conserva el resultado válido.
+- E2E con PostgreSQL y Redis. Se comprobaron ambos formatos, identidades independientes DY/WK/Y2D, contadores nativos, cero, filtros, roles, pausado, encolado, reintento y conservación de la instantánea válida ante una importación que falla después de escribir un lote de 1.000 indicadores. Se usó una transacción con rollback y una cola Redis de prueba.
+- Smoke del 9 de noviembre de 2026. La descarga HTTPS del servicio y la lectura completa de red devolvieron 6.462 indicadores, 17 filas de metodología y un aviso de 652 caracteres. El archivo de países y aeropuertos devolvió 459 indicadores, 34 filas de metodología y un aviso de 652 caracteres. Esta verificación no persistió datos en la base. [Archivo de red](https://www.eurocontrol.int/Economics/Download/Network_Punctuality.xlsx) · [Archivo de países y aeropuertos](https://www.eurocontrol.int/Economics/Download/Stakeholder_Punctuality.xlsx)
+
+El lector reconstruye por streaming el ZIP que recibe ExcelJS a partir de las entradas verificadas por yauzl. Verifica que la red tenga días consecutivos y al menos un bloque semanal completo. Sólo admite días iniciales sin datos semanales antes del primer bloque semanal y hasta el sexto día. El E2E comprueba que un archivo limitado a esos seis días no sustituya la instantánea válida. Países y aeropuertos requieren los tres bloques nativos y una fecha de cierre común. La prueba E2E también comprueba la recuperación al arrancar de ejecuciones sin job o con un job fallido y la paginación de instantáneas.
+
+## Integración local
+
+- La composición conserva las relaciones de historial y actividad ANAC, los módulos de Operaciones y BTS, y la navegación administrativa en su propia fila. Mantiene las dependencias de EUROCONTROL y el override de ExcelJS.
+- La revisión independiente detectó que una respuesta tardía podía reemplazar filas e instantáneas después de cambiar de producto. La prueba de pantalla falló con respuestas en orden inverso y pasó al descartar las obsoletas. La segunda revisión aprobó la corrección.
+- El gate de composición pasó ambos builds, 209 pruebas de backend, 219 de frontend y 7 E2E en 6 suites, con PostgreSQL/PostGIS y Redis.
+- En Edge, a 1440, 768 y 390 px, se abrió Indicadores con una sesión administrativa y se cambió de Red europea a Países y aeropuertos. Se verificaron la programación, el filtro Y2D, la consulta vacía y el ancho de la pantalla. La cuenta temporal se retiró y se verificó su ausencia. Los valores nativos y las instantáneas publicadas se comprobaron con fixtures E2E.
