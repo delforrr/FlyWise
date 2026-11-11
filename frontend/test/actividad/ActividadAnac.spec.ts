@@ -87,6 +87,15 @@ describe("Actividad ANAC", () => {
     const wrapper = mount(ActividadAnac, {
       global: {
         stubs: {
+          UFormField: { template: "<div><slot /></div>" },
+          UCollapsible: { template: '<div><slot /><slot name="content" /></div>' },
+          USelect: {
+            props: ["modelValue", "items"],
+            emits: ["update:modelValue"],
+            template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', Number($event.target.value))"><option v-for="item in items" :value="item.value ?? item">{{ item.label ?? item }}</option></select>',
+          },
+          UCheckbox: true,
+          USwitch: true,
           UButton: { template: "<button><slot/></button>" },
           UInput: {
             props: ["modelValue"],

@@ -54,4 +54,12 @@ describe('Real ETL monitoring', () => {
     await monitor.refresh(); expect(monitor.error.value).toBeNull();
     monitor.setRefreshInterval(0); expect(monitor.refreshInterval.value).toBe(0);
   });
+  it('keeps failures in the history after a successful retry without flagging the source', async () => {
+    fetcher.mockImplementation(async (url: string) => url === '/api/etl/procesos' ? [proceso] :
+      url === '/api/etl/historial' ? [job, { ...job, id: 'previous', estado: 'failed' }] : []);
+    const monitor = useEtlMonitoring();
+    await monitor.refresh();
+    expect(monitor.globalMetrics.value.systemHealth).toBe('optimal');
+    expect(monitor.ejecuciones.value).toHaveLength(2);
+  });
 });

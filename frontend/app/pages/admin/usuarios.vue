@@ -100,9 +100,6 @@ function formatDate(date?: string) {
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 class="text-2xl font-semibold tracking-tight">Usuarios</h1>
-        <p class="mt-2 text-sm text-text-muted">
-          Cuentas y roles del equipo de operaciones de FlyWise.
-        </p>
       </div>
       <UButton
         color="neutral"

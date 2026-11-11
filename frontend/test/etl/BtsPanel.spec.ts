@@ -2,6 +2,22 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { vi, it, expect } from 'vitest';
 import BtsPanel from '../../app/features/bts/components/BtsPanel.vue';
 
+const stubs = {
+  UFormField: { template: '<div><slot /></div>' },
+  UButton: { template: '<button><slot /></button>' },
+  USwitch: true,
+  UInput: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+  },
+  USelect: {
+    props: ['modelValue', 'items'],
+    emits: ['update:modelValue'],
+    template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', Number($event.target.value))"><option v-for="item in items" :value="item">{{ item }}</option></select>',
+  },
+};
+
 it('muestra cobertura publicada y envía el mes explícito sin inventar puntualidad', async () => {
   const request=vi.fn().mockImplementation(async (path:string) => {
     if(path.endsWith('/configuracion'))return {periodo:'2026-08',pausado:true,expresionCron:''};
@@ -10,7 +26,7 @@ it('muestra cobertura publicada y envía el mes explícito sin inventar puntuali
     return [];
   });
   vi.stubGlobal('useBackendRequest',()=>request);
-  const wrapper=mount(BtsPanel);
+  const wrapper=mount(BtsPanel, { global: { stubs } });
   await flushPromises();
   expect(wrapper.text()).toContain('2026-07');
   expect(wrapper.text()).toContain('1.234');
@@ -32,7 +48,7 @@ it('permite consultar descartes de un intento anterior después de una recuperac
     return [];
   });
   vi.stubGlobal('useBackendRequest', () => request);
-  const wrapper=mount(BtsPanel);
+  const wrapper=mount(BtsPanel, { global: { stubs } });
   try {
     await flushPromises();
     await wrapper.findAll('button').find(button => button.text()==='Ver descartes')!.trigger('click');

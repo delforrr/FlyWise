@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Logger, type BeforeApplicationShutdown } from '@nestjs/common';
 import { resolve } from 'node:path';
 import { EtlService } from './etl.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -9,7 +9,7 @@ import { ETL_DATASETS } from './dto/trigger-etl.dto.js';
 import { OPENFLIGHTS_FILES, type CatalogDataset } from './catalog.js';
 
 @Processor('etl-queue', { concurrency: 1 })
-export class EtlProcessor extends WorkerHost {
+export class EtlProcessor extends WorkerHost implements BeforeApplicationShutdown {
   private readonly logger = new Logger(EtlProcessor.name);
   constructor(
     private readonly etlService: EtlService,
@@ -17,6 +17,10 @@ export class EtlProcessor extends WorkerHost {
     private readonly pipelines: PipelinesService,
   ) {
     super();
+  }
+
+  async beforeApplicationShutdown() {
+    await this.worker.close();
   }
 
   async process(

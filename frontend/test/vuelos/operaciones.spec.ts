@@ -28,6 +28,8 @@ function montar() {
   return mount(OperacionesAdmin, {
     global: {
       stubs: {
+        UFormField: { template: "<div><slot /></div>" },
+        UCollapsible: { template: '<div><slot /><slot name="content" /></div>' },
         UButton: { template: "<button><slot /></button>" },
         UInput: {
           props: ["modelValue"],

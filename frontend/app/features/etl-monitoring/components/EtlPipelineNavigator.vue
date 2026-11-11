@@ -19,17 +19,6 @@ const normalizedItems = computed<NavigatorItem[]>(() =>
   ),
 );
 
-const ui = {
-  root: "w-fit",
-  list: "p-1 rounded-lg border border-border-subtle bg-surface-card text-xs font-semibold inline-flex w-fit",
-  indicator: "bg-primary rounded-md shadow-xs",
-  trigger: [
-    "px-3 py-1.5 rounded-md cursor-pointer text-xs font-semibold transition-colors gap-1",
-    "text-text-muted hover:text-text-main",
-    "data-[state=activa]:text-on-primary data-[state=activa]:font-bold",
-    "in-[[data-slot=list]:not(:has([data-slot=indicator]))]:data-[state=activa]:before:bg-primary",
-  ],
-};
 </script>
 
 <template>
@@ -38,9 +27,11 @@ const ui = {
     :items="normalizedItems"
     :default-value="props.defaultValue"
     color="primary"
-    variant="pill"
+    variant="link"
+    :content="false"
     size="sm"
-    :ui="ui"
+    class="max-w-full overflow-x-auto"
+    :ui="{ trigger: 'whitespace-nowrap px-2' }"
   >
     <template #trailing="{ item }">
       <span v-if="item.count !== undefined || item.badge !== undefined">

@@ -216,72 +216,33 @@ onMounted(cargar);
 <template>
   <section class="space-y-5" aria-labelledby="operaciones-titulo">
     <header class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 id="operaciones-titulo" class="text-2xl font-semibold">
-          Operaciones de vuelo
-        </h1>
-        <p class="text-sm text-text-muted">
-          Resultados finalizados, correcciones protegidas y OTP mensual.
-        </p>
-      </div>
-      <UButton color="neutral" :disabled="guardando" @click="abrir(null)"
+      <h1 id="operaciones-titulo" class="text-2xl font-semibold">Operaciones de vuelo</h1>
+      <UButton icon="i-lucide-plus" color="neutral" :disabled="guardando" @click="abrir(null)"
         >Crear operación</UButton
       >
     </header>
-    <form class="flex flex-wrap items-end gap-3" @submit.prevent="buscar">
-      <label class="text-sm"
-        >Mes UTC<UInput
-          v-model="filtros.periodo"
-          type="month"
-          aria-label="Filtrar por mes UTC"
-      /></label>
-      <label class="text-sm"
-        >Archivo<USelect
-          v-model="filtros.archivo"
-          aria-label="Estado de archivo"
-          :items="[
-            { label: 'Vigentes', value: 'vigentes' },
-            { label: 'Archivadas', value: 'archivados' },
-            { label: 'Todas', value: 'todos' },
-          ]"
-      /></label>
-      <UButton
-        type="submit"
-        color="neutral"
-        variant="outline"
-        :loading="cargando"
-        >Buscar</UButton
-      >
-      <details class="w-full">
-        <summary class="cursor-pointer text-sm">Más filtros</summary>
-        <div class="grid gap-3 mt-3 sm:grid-cols-3">
-          <SelectorCatalogo
-            v-model="filtros.origenId"
-            recurso="aeropuertos"
-            label="Filtrar origen"
-          />
-          <SelectorCatalogo
-            v-model="filtros.destinoId"
-            recurso="aeropuertos"
-            label="Filtrar destino"
-          />
-          <SelectorCatalogo
-            v-model="filtros.aerolineaId"
-            recurso="aerolineas"
-            label="Filtrar aerolínea"
-          />
-          <USelect
-            v-model="filtros.resultado"
-            aria-label="Filtrar resultado"
-            :items="[{ label: 'Todos los resultados', value: 'todos' }, ...estados]"
-          />
-          <UInput
-            v-model="filtros.fuente"
-            aria-label="Filtrar fuente"
-            placeholder="Fuente, p. ej. BTS"
-          />
-        </div>
-      </details>
+    <form aria-label="Filtrar operaciones" class="rounded-lg bg-surface-card p-4 sm:p-5 space-y-4" @submit.prevent="buscar">
+      <div class="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <UFormField label="Mes UTC"><UInput class="w-full" v-model="filtros.periodo" type="month" aria-label="Filtrar por mes UTC" /></UFormField>
+        <UFormField label="Archivo"><USelect class="w-full" v-model="filtros.archivo" aria-label="Estado de archivo"
+          :items="[{ label: 'Vigentes', value: 'vigentes' }, { label: 'Archivadas', value: 'archivados' }, { label: 'Todas', value: 'todos' }]" /></UFormField>
+        <UButton type="submit" color="neutral" icon="i-lucide-search" :loading="cargando" class="justify-center">Buscar</UButton>
+      </div>
+      <UCollapsible class="border-t border-border-subtle pt-3">
+        <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-sliders-horizontal"
+          trailing-icon="i-lucide-chevron-down" class="group"
+          :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180' }">Más filtros</UButton>
+        <template #content>
+          <div class="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <UFormField label="Origen"><SelectorCatalogo v-model="filtros.origenId" recurso="aeropuertos" label="Filtrar origen"  /></UFormField>
+            <UFormField label="Destino"><SelectorCatalogo v-model="filtros.destinoId" recurso="aeropuertos" label="Filtrar destino"  /></UFormField>
+            <UFormField label="Aerolínea"><SelectorCatalogo v-model="filtros.aerolineaId" recurso="aerolineas" label="Filtrar aerolínea"  /></UFormField>
+            <UFormField label="Resultado"><USelect class="w-full" v-model="filtros.resultado" aria-label="Filtrar resultado"
+              :items="[{ label: 'Todos los resultados', value: 'todos' }, ...estados]" /></UFormField>
+            <UFormField label="Fuente"><UInput class="w-full" v-model="filtros.fuente" aria-label="Filtrar fuente" placeholder="Todas" /></UFormField>
+          </div>
+        </template>
+      </UCollapsible>
     </form>
     <p v-if="error" role="alert" class="text-error">
       {{ error }}
@@ -289,106 +250,6 @@ onMounted(cargar);
         >Reintentar</UButton
       >
     </p>
-    <div
-      class="overflow-x-auto border border-border-subtle rounded-lg"
-      :aria-busy="cargando"
-    >
-      <table class="w-full text-sm text-left">
-        <caption class="text-left p-3 text-text-muted">
-          {{
-            total
-          }}
-          operaciones ·
-          {{
-            cargando ? "Actualizando…" : "Resultados de la consulta"
-          }}
-        </caption>
-        <thead class="text-text-muted">
-          <tr>
-            <th class="p-3 font-medium">Operación</th>
-            <th class="p-3 font-medium">Ruta y operador</th>
-            <th class="p-3 font-medium">Resultado</th>
-            <th class="p-3 font-medium text-right">Demora</th>
-            <th class="p-3 font-medium">Procedencia</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="vuelo in registros"
-            :key="vuelo.id"
-            class="border-t border-border-subtle"
-          >
-            <td class="p-3">
-              <UButton
-                color="neutral"
-                variant="link"
-                :aria-label="`Ver operación ${vuelo.numeroVuelo}`"
-                :disabled="guardando"
-                @click="abrir(vuelo)"
-                >{{ vuelo.numeroVuelo }}</UButton
-              >
-              <p>{{ vuelo.fechaVuelo }}</p>
-            </td>
-            <td class="p-3">
-              {{ vuelo.origen.iata ?? vuelo.origen.nombre }} →
-              {{ vuelo.destino.iata ?? vuelo.destino.nombre }}
-              <p class="text-text-muted">{{ vuelo.aerolinea.nombre }}</p>
-            </td>
-            <td class="p-3">
-              {{ estados.find((e) => e.value === vuelo.estado)?.label }}
-              <p v-if="vuelo.archivadoEn" class="text-text-muted">Archivada</p>
-            </td>
-            <td class="p-3 text-right tabular-nums">
-              {{
-                vuelo.demoraLlegadaMinutos === null
-                  ? "—"
-                  : `${vuelo.demoraLlegadaMinutos} min`
-              }}
-            </td>
-            <td class="p-3">
-              {{ vuelo.fuente }}
-              <p v-if="vuelo.protegidoManualmente" class="text-text-muted">
-                Protegida
-              </p>
-            </td>
-          </tr>
-          <tr v-if="!registros.length">
-            <td colspan="5" class="p-6 text-text-muted">
-              {{
-                cargando
-                  ? "Cargando operaciones…"
-                  : "No hay operaciones para estos filtros."
-              }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <nav
-      class="flex justify-between items-center"
-      aria-label="Páginas de operaciones"
-    >
-      <UButton
-        color="neutral"
-        variant="outline"
-        :disabled="pagina === 1 || cargando"
-        @click="
-          pagina--;
-          cargar();
-        "
-        >Anterior</UButton
-      ><span class="text-sm">Página {{ pagina }}</span
-      ><UButton
-        color="neutral"
-        variant="outline"
-        :disabled="pagina * 20 >= total || cargando"
-        @click="
-          pagina++;
-          cargar();
-        "
-        >Siguiente</UButton
-      >
-    </nav>
     <section
       v-if="editor"
       class="border border-border-subtle bg-surface-card rounded-lg p-4 sm:p-6 space-y-4"
@@ -426,70 +287,27 @@ onMounted(cargar);
       </p>
       <p v-if="cargandoDetalle" role="status">Cargando operación…</p>
       <form v-else class="space-y-4" @submit.prevent="guardar">
-        <fieldset
-          :disabled="guardando || !!seleccion?.archivadoEn"
-          class="grid gap-4 sm:grid-cols-3"
-        >
-          <label class="text-sm"
-            >Fecha UTC<UInput
-              v-model="datos.fechaVuelo"
-              type="date"
-              aria-label="Fecha de vuelo UTC"
-              required
-          /></label>
-          <label class="text-sm"
-            >Número de vuelo<UInput
-              v-model="datos.numeroVuelo"
-              aria-label="Número de vuelo"
-              maxlength="30"
-              required
-          /></label>
-          <label class="text-sm"
-            >Resultado<USelect
-              v-model="datos.estado"
-              :items="estados"
-              aria-label="Resultado final"
-          /></label>
-          <label class="text-sm"
-            >Origen<SelectorCatalogo
-              v-model="datos.origenId"
-              recurso="aeropuertos"
-              :referencia="seleccion?.origen"
-              label="Aeropuerto de origen"
-              :disabled="guardando || !!seleccion?.archivadoEn"
-          /></label>
-          <label class="text-sm"
-            >Destino<SelectorCatalogo
-              v-model="datos.destinoId"
-              recurso="aeropuertos"
-              :referencia="seleccion?.destino"
-              label="Aeropuerto de destino"
-              :disabled="guardando || !!seleccion?.archivadoEn"
-          /></label>
-          <label class="text-sm"
-            >Aerolínea<SelectorCatalogo
-              v-model="datos.aerolineaId"
-              recurso="aerolineas"
-              :referencia="seleccion?.aerolinea"
-              label="Aerolínea operadora"
-              :disabled="guardando || !!seleccion?.archivadoEn"
-          /></label>
-          <label v-if="datos.estado === 'ARRIVED'" class="text-sm"
-            >Demora de llegada (min)<UInput
-              v-model.number="datos.demoraLlegadaMinutos"
-              type="number"
-              step="1"
-              aria-label="Demora de llegada en minutos"
-              required
-            /><span class="text-text-muted"
-              >Los anticipos son negativos.</span
-            ></label
-          >
+        <fieldset :disabled="guardando || !!seleccion?.archivadoEn" class="space-y-5">
+          <legend class="mb-3 text-sm font-semibold">Vuelo</legend>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Fecha UTC"><UInput class="w-full" v-model="datos.fechaVuelo" type="date" aria-label="Fecha de vuelo UTC" required /></UFormField>
+            <UFormField label="Número de vuelo"><UInput class="w-full" v-model="datos.numeroVuelo" aria-label="Número de vuelo" maxlength="30" required /></UFormField>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-3">
+            <UFormField label="Origen"><SelectorCatalogo v-model="datos.origenId" recurso="aeropuertos" label="Aeropuerto de origen" :referencia="seleccion?.origen" :disabled="guardando || !!seleccion?.archivadoEn" /></UFormField>
+            <UFormField label="Destino"><SelectorCatalogo v-model="datos.destinoId" recurso="aeropuertos" label="Aeropuerto de destino" :referencia="seleccion?.destino" :disabled="guardando || !!seleccion?.archivadoEn" /></UFormField>
+            <UFormField label="Aerolínea"><SelectorCatalogo v-model="datos.aerolineaId" recurso="aerolineas" label="Aerolínea operadora" :referencia="seleccion?.aerolinea" :disabled="guardando || !!seleccion?.archivadoEn" /></UFormField>
+          </div>
         </fieldset>
-        <p class="text-sm text-text-muted">
-          Las correcciones manuales se conservan frente a futuras importaciones.
+        <fieldset :disabled="guardando || !!seleccion?.archivadoEn" class="grid gap-4 sm:grid-cols-2 border-t border-border-subtle pt-4">
+          <legend class="pr-3 text-sm font-semibold">Resultado</legend>
+          <UFormField label="Estado final"><USelect class="w-full" v-model="datos.estado" :items="estados" aria-label="Resultado final" /></UFormField>
+          <UFormField label="Demora de llegada (min)" v-if="datos.estado === 'ARRIVED'" help="Usá un valor negativo para un anticipo."><UInput class="w-full" v-model.number="datos.demoraLlegadaMinutos" type="number" step="1" aria-label="Demora de llegada en minutos" required /></UFormField>
+        </fieldset>
+        <p v-if="seleccion && !seleccion.archivadoEn" class="text-sm text-text-muted">
+          Guardar protege la corrección frente a futuras importaciones.
         </p>
-        <div class="flex flex-wrap gap-3">
+        <div class="flex flex-wrap gap-3 border-t border-border-subtle pt-4">
           <UButton
             v-if="!seleccion?.archivadoEn"
             type="submit"
@@ -608,5 +426,99 @@ onMounted(cargar);
         </div>
       </section>
     </section>
+    <div
+      class="overflow-x-auto border border-border-subtle rounded-lg"
+      :aria-busy="cargando"
+    >
+      <table class="w-full text-sm text-left">
+        <caption class="text-left p-3 text-text-muted">
+          {{ cargando ? "Actualizando…" : `${total} operaciones` }}
+        </caption>
+        <thead class="text-text-muted">
+          <tr>
+            <th class="p-3 font-medium">Operación</th>
+            <th class="p-3 font-medium">Ruta y operador</th>
+            <th class="p-3 font-medium">Resultado</th>
+            <th class="p-3 font-medium text-right">Demora</th>
+            <th class="p-3 font-medium">Procedencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="vuelo in registros"
+            :key="vuelo.id"
+            class="border-t border-border-subtle"
+          >
+            <td class="p-3">
+              <UButton
+                color="neutral"
+                variant="link"
+                :aria-label="`Ver operación ${vuelo.numeroVuelo}`"
+                :disabled="guardando"
+                @click="abrir(vuelo)"
+                >{{ vuelo.numeroVuelo }}</UButton
+              >
+              <p>{{ vuelo.fechaVuelo }}</p>
+            </td>
+            <td class="p-3">
+              {{ vuelo.origen.iata ?? vuelo.origen.nombre }} →
+              {{ vuelo.destino.iata ?? vuelo.destino.nombre }}
+              <p class="text-text-muted">{{ vuelo.aerolinea.nombre }}</p>
+            </td>
+            <td class="p-3">
+              {{ estados.find((e) => e.value === vuelo.estado)?.label }}
+              <p v-if="vuelo.archivadoEn" class="text-text-muted">Archivada</p>
+            </td>
+            <td class="p-3 text-right tabular-nums">
+              {{
+                vuelo.demoraLlegadaMinutos === null
+                  ? "—"
+                  : `${vuelo.demoraLlegadaMinutos} min`
+              }}
+            </td>
+            <td class="p-3">
+              {{ vuelo.fuente }}
+              <p v-if="vuelo.protegidoManualmente" class="text-text-muted">
+                Protegida
+              </p>
+            </td>
+          </tr>
+          <tr v-if="!registros.length">
+            <td colspan="5" class="p-6 text-text-muted">
+              {{
+                cargando
+                  ? "Cargando operaciones…"
+                  : "No hay operaciones para estos filtros."
+              }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <nav
+      class="flex justify-between items-center"
+      aria-label="Páginas de operaciones"
+    >
+      <UButton
+        color="neutral"
+        variant="outline"
+        :disabled="pagina === 1 || cargando"
+        @click="
+          pagina--;
+          cargar();
+        "
+        >Anterior</UButton
+      ><span class="text-sm">Página {{ pagina }}</span
+      ><UButton
+        color="neutral"
+        variant="outline"
+        :disabled="pagina * 20 >= total || cargando"
+        @click="
+          pagina++;
+          cargar();
+        "
+        >Siguiente</UButton
+      >
+    </nav>
   </section>
 </template>

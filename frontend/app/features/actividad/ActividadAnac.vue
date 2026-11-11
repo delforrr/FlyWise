@@ -81,7 +81,7 @@ const aeropuerto = ref(""),
   operador = ref(""),
   clasificacion = ref(""),
   calidad = ref(""),
-  movimiento = ref("");
+  movimiento = ref("todos");
 const vistaConectividad = ref(false),
   periodoConsultado = ref(periodo.value);
 const conectividad = ref(false),
@@ -130,7 +130,7 @@ async function cargar() {
           operador: operador.value || undefined,
           clasificacion: clasificacion.value || undefined,
           calidad: calidad.value || undefined,
-          movimiento: movimiento.value || undefined,
+          movimiento: movimiento.value === "todos" ? undefined : movimiento.value,
           pagina: pagina.value,
           limite: 20,
         },
@@ -287,7 +287,7 @@ onMounted(async () => {
       <div>
         <h1 class="text-2xl font-semibold">Actividad ANAC</h1>
         <p class="text-sm text-text-muted mt-1">
-          Movimientos argentinos observados en UTC · ANAC — CC BY 4.0
+          ANAC — CC BY 4.0
         </p>
       </div>
       <div class="flex gap-2">
@@ -307,73 +307,29 @@ onMounted(async () => {
     </div>
     <p v-if="error" role="alert" class="text-error">{{ error }}</p>
     <p v-if="notice" role="status" class="text-sm">{{ notice }}</p>
-    <form
-      aria-label="Consultar actividad"
-      class="flex flex-wrap gap-3 items-end"
-      @submit.prevent="consultar"
-    >
-      <label class="text-sm"
-        >Mes UTC<input
-          v-model="periodo"
-          type="month"
-          required
-          min="1900-01"
-          max="2099-12"
-          class="block mt-1 rounded border border-border-subtle bg-surface-card p-2"
-      /></label>
-      <label class="text-sm"
-        >Aeropuerto (código ANAC)<UInput
-          v-model="aeropuerto"
-          placeholder="AER"
-          class="block mt-1"
-      /></label>
-      <label class="text-sm"
-        >Operador (nombre de fuente)<UInput
-          v-model="operador"
-          class="block mt-1"
-      /></label>
-      <label class="text-sm"
-        >Clasificación<UInput
-          v-model="clasificacion"
-          placeholder="Doméstico"
-          class="block mt-1"
-      /></label>
-      <label class="text-sm"
-        >Calidad<UInput
-          v-model="calidad"
-          placeholder="PROVISORIO"
-          class="block mt-1"
-      /></label>
-      <label class="text-sm"
-        >Movimiento<select
-          v-model="movimiento"
-          class="block mt-1 rounded border border-border-subtle bg-surface-card p-2"
-        >
-          <option value="">Todos</option>
-          <option value="DESPEGUE">Despegue</option>
-          <option value="ATERRIZAJE">Aterrizaje</option>
-        </select></label
-      >
-      <label class="flex items-center gap-2 text-sm pb-2"
-        ><input v-model="conectividad" type="checkbox" /> Conectividad (sólo
-        despegues)</label
-      >
-      <UButton type="submit" color="neutral" :disabled="loading"
-        >Consultar</UButton
-      >
+    <form aria-label="Consultar actividad" class="rounded-lg bg-surface-card p-4 sm:p-5 space-y-4" @submit.prevent="consultar">
+      <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <UFormField label="Mes UTC" class="col-span-2 sm:col-span-1"><UInput class="w-full" v-model="periodo" type="month" required min="1900-01" max="2099-12" /></UFormField>
+        <UFormField label="Aeropuerto ANAC"><UInput class="w-full" v-model="aeropuerto" placeholder="Código, p. ej. AER" /></UFormField>
+        <UFormField label="Operador"><UInput class="w-full" v-model="operador" placeholder="Nombre en la fuente" /></UFormField>
+        <UFormField label="Clasificación"><UInput class="w-full" v-model="clasificacion" placeholder="Doméstico" /></UFormField>
+        <UFormField label="Calidad"><UInput class="w-full" v-model="calidad" placeholder="PROVISORIO" /></UFormField>
+        <UFormField label="Movimiento" class="col-span-2 sm:col-span-1"><USelect class="w-full" v-model="movimiento" :items="[{ label: 'Todos', value: 'todos' }, { label: 'Despegue', value: 'DESPEGUE' }, { label: 'Aterrizaje', value: 'ATERRIZAJE' }]" /></UFormField>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4">
+        <UCheckbox v-model="conectividad" label="Conectividad · solo despegues" />
+        <UButton type="submit" icon="i-lucide-search" color="neutral" :loading="loading">Consultar</UButton>
+      </div>
     </form>
-    <p class="text-sm text-text-muted">
-      Un despegue y un aterrizaje son dos movimientos, no dos vuelos. Pasajeros
-      cuenta personas por movimiento/aeropuerto; PAX representa tarjetas de
-      embarque y sirve para el agregado nacional de cabotaje. No sumar ambas
-      columnas. Los últimos dos meses pueden revisarse.
-    </p>
     <div v-if="loading" role="status" class="py-6">
       Consultando movimientos…
     </div>
     <template v-else-if="resultado">
-      <div class="text-sm border-y border-border-subtle py-3">
-        <p v-if="resultado.cobertura">
+      <p v-if="resultado.cobertura" class="text-sm text-text-muted">
+        Pasajeros por movimiento y tarjetas de embarque (PAX) se leen por separado.
+      </p>
+      <div v-if="resultado.cobertura" class="text-sm border-y border-border-subtle py-3">
+        <p>
           Mes publicado ·
           {{ quantity(resultado.cobertura.filasProcesadas) }} movimientos ·
           Actualización: {{ resultado.cobertura.actualizadoEn }} ·
@@ -385,15 +341,14 @@ onMounted(async () => {
             >CSV de origen</a
           >
         </p>
-        <p v-else>
-          Sin publicación completa para {{ periodoConsultado }}. Importá ese mes
-          para consultar sus movimientos.
-        </p>
       </div>
-      <div class="overflow-x-auto">
+      <UEmpty v-else variant="subtle" icon="i-lucide-calendar"
+        :title="`Sin publicación para ${periodoConsultado}`"
+        description="Importá el mes para consultar sus movimientos." />
+      <div v-if="resultado.resumen.length" class="overflow-x-auto">
         <table class="w-full text-sm">
           <caption class="text-left font-semibold mb-3">
-            Resumen por clasificación · valores conocidos
+            Resumen por clasificación
           </caption>
           <thead>
             <tr class="border-b border-border-subtle">
@@ -431,7 +386,7 @@ onMounted(async () => {
           </tbody>
         </table>
       </div>
-      <div class="overflow-x-auto">
+      <div v-if="resultado.datos.length" class="overflow-x-auto">
         <table class="w-full text-sm">
           <caption class="text-left font-semibold mb-3">
             {{
@@ -485,18 +440,11 @@ onMounted(async () => {
               </td>
               <td v-if="!vistaConectividad" class="p-2">{{ row.calidad }}</td>
             </tr>
-            <tr v-if="!resultado.datos.length">
-              <td
-                :colspan="vistaConectividad ? 4 : 6"
-                class="p-4 text-text-muted"
-              >
-                Sin movimientos para estos filtros.
-              </td>
-            </tr>
           </tbody>
         </table>
       </div>
-      <div class="flex justify-end items-center gap-3 text-sm">
+      <UEmpty v-else-if="resultado.cobertura" variant="subtle" title="Sin movimientos para estos filtros" />
+      <div v-if="totalPaginas > 1" class="flex justify-end items-center gap-3 text-sm">
         <UButton
           color="neutral"
           variant="ghost"
@@ -513,40 +461,30 @@ onMounted(async () => {
         >
       </div>
     </template>
-    <details class="border-t border-border-subtle pt-4">
-      <summary class="font-semibold cursor-pointer">
-        Programación mensual y ficha de origen
-      </summary>
-      <form v-if="config" class="space-y-3 mt-4" @submit.prevent="guardar">
-        <label class="block text-sm"
-          >Ficha oficial del recurso anual<UInput
-            v-model="config.fichaUrl"
-            type="url"
-            class="block mt-1 w-full"
-            required /></label
-        ><label class="block text-sm"
-          >Cron mensual UTC (minuto hora día * *)<UInput
-            v-model="config.expresionCron"
-            class="block mt-1 max-w-xs"
-            required /></label
-        ><label class="flex items-center gap-2 text-sm"
-          ><input v-model="config.pausado" type="checkbox" /> Programación
-          pausada</label
-        >
-        <p class="text-sm text-text-muted">
-          La carga programada consulta el mes anterior. La carga manual permite
-          revisar un mes concreto. Al cambiar de año, seleccioná la ficha anual
-          correspondiente; el enlace CSV se resuelve de nuevo en cada carga.
-        </p>
-        <UButton type="submit" color="neutral" :loading="saving"
-          >Guardar configuración</UButton
-        >
+    <UCollapsible class="border-t border-border-subtle pt-3">
+      <UButton variant="ghost" color="neutral" trailing-icon="i-lucide-chevron-down" class="group"
+        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180' }">Programación mensual y ficha de origen</UButton>
+      <template #content>
+      <form v-if="config" class="mt-3 space-y-4 rounded-lg bg-surface-card p-4 sm:p-5" @submit.prevent="guardar">
+        <div class="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <UFormField label="Ficha anual de ANAC" help="Elegí la ficha del año que vas a importar.">
+            <UInput v-model="config.fichaUrl" type="url" required class="w-full" />
+          </UFormField>
+          <UFormField label="Programación mensual UTC" help="La carga programada consulta el mes anterior.">
+            <UInput v-model="config.expresionCron" placeholder="0 4 1 * *" required class="w-full" />
+          </UFormField>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4">
+          <USwitch v-model="config.pausado" label="Pausada" />
+          <UButton type="submit" color="neutral" :loading="saving">Guardar configuración</UButton>
+        </div>
       </form>
-    </details>
-    <details class="border-t border-border-subtle pt-4" open>
-      <summary class="font-semibold cursor-pointer">
-        Ejecuciones, descartes y revisiones
-      </summary>
+      </template>
+    </UCollapsible>
+    <UCollapsible class="border-t border-border-subtle pt-3" :default-open="true">
+      <UButton variant="ghost" color="neutral" trailing-icon="i-lucide-chevron-down" class="group"
+        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180' }">Ejecuciones, descartes y revisiones</UButton>
+      <template #content>
       <div
         v-for="job in ejecuciones"
         :key="job.id"
@@ -578,28 +516,11 @@ onMounted(async () => {
       <p v-if="!ejecuciones.length" class="py-3 text-sm text-text-muted">
         Todavía no hay ejecuciones ANAC.
       </p>
-      <label
-        v-if="ejecucionMuestras"
-        class="flex items-center gap-2 py-3 text-sm"
-      >
-        Descartes de
-        {{ ejecucionMuestras.instantaneaConfiguracion?.conexion.periodo }} ·
-        Intento
-        <select
-          v-model.number="intentoMuestras"
-          aria-label="Intento de descartes"
-          class="rounded border border-border-subtle bg-surface-card p-2"
-          @change="verMuestras()"
-        >
-          <option
-            v-for="intento in ejecucionMuestras.intento"
-            :key="intento"
-            :value="intento"
-          >
-            {{ intento }}
-          </option>
-        </select>
-      </label>
+      <UFormField v-if="ejecucionMuestras" label="Intento de descartes" class="py-3">
+        <USelect v-model="intentoMuestras" aria-label="Intento de descartes"
+          :items="Array.from({ length: ejecucionMuestras.intento }, (_, index) => index + 1)"
+          @update:model-value="verMuestras()" />
+      </UFormField>
       <ul v-if="muestras.length" class="text-sm space-y-2 py-3">
         <li v-for="sample in muestras" :key="sample.numeroFila">
           Fila {{ sample.numeroFila }}: {{ sample.motivo }}
@@ -622,11 +543,12 @@ onMounted(async () => {
         Una carga fallida o con descartes conserva la última publicación
         completa. Las revisiones no se acumulan como movimientos nuevos.
       </p>
-    </details>
-    <details class="border-t border-border-subtle pt-4">
-      <summary class="font-semibold cursor-pointer">
-        Correspondencias de aeropuertos ANAC
-      </summary>
+      </template>
+    </UCollapsible>
+    <UCollapsible class="border-t border-border-subtle pt-3">
+      <UButton variant="ghost" color="neutral" trailing-icon="i-lucide-chevron-down" class="group"
+        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180' }">Correspondencias de aeropuertos ANAC</UButton>
+      <template #content>
       <p class="text-sm text-text-muted my-3">
         Los códigos FAA/OACI se conservan como los publica ANAC. La vinculación
         es explícita; no se equiparan a códigos IATA.
@@ -669,6 +591,7 @@ onMounted(async () => {
           >Siguientes</UButton
         >
       </div>
-    </details>
+      </template>
+    </UCollapsible>
   </section>
 </template>

@@ -114,7 +114,7 @@ watch(
 
 <template>
   <div
-    class="rounded-xl border border-border-subtle bg-surface-card overflow-hidden shadow-xs"
+    class="rounded-lg border border-border-subtle bg-surface-card overflow-hidden"
   >
     <!-- Barra superior del visor de eventos -->
     <div
@@ -124,19 +124,14 @@ watch(
         class="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
       >
         <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-terminal" class="w-4 h-4 text-text-muted" />
-          <h3
-            class="text-sm font-bold font-mono tracking-tight text-text-main uppercase"
-          >
-            Registro de Eventos y Auditoría en Vivo
-          </h3>
+          <h2 class="text-base font-semibold">Actividad reciente</h2>
           <span class="text-xs text-text-muted font-mono tabular-nums">
-            ({{ filteredLogs.length }} eventos)
+            {{ filteredLogs.length }} eventos
           </span>
         </div>
 
         <div
-          class="flex items-center gap-2 self-start sm:self-auto font-mono text-xs"
+          class="flex flex-wrap items-center gap-2"
         >
           <UButton
             size="xs"
@@ -154,7 +149,7 @@ watch(
                 "
               />
             </template>
-            Autoscroll
+            Seguir eventos
           </UButton>
 
           <!-- Exportar JSON -->
@@ -189,14 +184,15 @@ watch(
       <div
         class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1 text-xs"
       >
-        <div class="flex items-center gap-2 flex-wrap font-mono">
+        <div class="flex items-center gap-2 flex-wrap">
           <!-- Filtro de nivel mediante UTabs -->
           <UTabs
             v-model="levelFilter"
             :items="levelTabs"
             :content="false"
+            variant="link"
             size="xs"
-            class="w-fit font-mono"
+            class="w-fit"
           />
 
           <!-- Selector de Fuente de Datos -->
@@ -204,7 +200,7 @@ watch(
             v-model="selectedSource"
             :items="sourceOptions"
             size="xs"
-            class="w-44 font-mono text-[11px]"
+            class="w-44"
           />
         </div>
 
@@ -334,7 +330,6 @@ watch(
         <UEmpty
           icon="i-lucide-inbox"
           title="Sin eventos registrados"
-          description="No hay eventos que coincidan con los criterios de búsqueda o filtro seleccionados."
           variant="subtle"
         />
       </div>

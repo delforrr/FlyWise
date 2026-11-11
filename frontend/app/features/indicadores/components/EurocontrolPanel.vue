@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useBackendRequest } from "~/shared/composables/useBackendRequest";
 interface Indicador {
   instantaneaId: string;
@@ -52,6 +52,24 @@ const datos = ref<Indicador[]>([]),
   loading = ref(false),
   error = ref(""),
   message = ref("");
+const ambitos = computed(() => [
+  { label: "Todos", value: "todos" },
+  ...(producto.value === "network"
+    ? [{ label: "Red", value: "NETWORK" }]
+    : [{ label: "País", value: "COUNTRY" }, { label: "Aeropuerto", value: "AIRPORT" }]),
+]);
+const granularidades = computed(() => [
+  { label: "Todos", value: "todos" },
+  { label: "Diario (DY)", value: "DY" },
+  { label: "Semana móvil (WK)", value: "WK" },
+  ...(producto.value === "stakeholder" ? [{ label: "Acumulado anual (Y2D)", value: "Y2D" }] : []),
+]);
+const opcionesInstantaneas = computed(() => [
+  { label: "Última completa", value: "ultima" },
+  ...(instantaneaId.value && !instantaneas.value.some(row => row.id === instantaneaId.value)
+    ? [{ label: "Instantánea seleccionada", value: instantaneaId.value }] : []),
+  ...instantaneas.value.map(row => ({ label: row.actualizadoEn, value: row.id })),
+]);
 let consulta = 0;
 let consultaInstantaneas = 0;
 let consultaFuentes = 0;
@@ -182,18 +200,17 @@ onMounted(refresh);
           Indicadores EUROCONTROL
         </h1>
         <p class="text-sm text-text-muted">
-          Puntualidad europea publicada por red, país y aeropuerto. Son
-          indicadores nativos; no colorean rutas FlyWise.
+          Puntualidad publicada por red, país y aeropuerto.
         </p>
       </div>
-      <button
+      <UButton color="neutral" variant="ghost"
         type="button"
         class="border border-border-subtle rounded px-3 py-2 text-sm"
         :disabled="loading"
         @click="refresh"
       >
         Actualizar
-      </button>
+      </UButton>
     </div>
     <p v-if="error" role="alert" class="text-error">{{ error }}</p>
     <p v-if="message" role="status" class="text-sm">{{ message }}</p>
@@ -241,147 +258,87 @@ onMounted(refresh);
             </td>
             <td class="p-2">
               <div class="flex flex-wrap gap-2">
-                <button
+                <UButton color="neutral" variant="ghost"
                   type="button"
                   class="underline"
                   @click="action(source, 'run')"
                 >
-                  Importar ahora</button
-                ><button
+                  Importar ahora</UButton
+                ><UButton color="neutral" variant="ghost"
                   type="button"
                   class="underline"
                   @click="action(source, 'pause')"
                 >
-                  {{ source.pausado ? "Programar" : "Pausar" }}</button
-                ><button
+                  {{ source.pausado ? "Programar" : "Pausar" }}</UButton
+                ><UButton color="neutral" variant="ghost"
                   v-if="source.ultimaEjecucion?.estado === 'failed'"
                   type="button"
                   class="underline"
                   @click="action(source, 'retry')"
                 >
                   Reintentar
-                </button>
+                </UButton>
               </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-    <form
-      class="grid grid-cols-2 items-end gap-3 max-sm:[&_label]:min-w-0 max-sm:[&_label>*]:w-full sm:flex sm:flex-wrap"
-      @submit.prevent="load(true)"
-    >
-      <label class="text-sm"
-        >Producto<select
-          v-model="producto"
-          aria-label="Producto"
-          class="block border border-border-subtle rounded bg-surface-card p-2"
-          @change="changeProduct"
-        >
-          <option value="network">Red europea</option>
-          <option value="stakeholder">Países y aeropuertos</option>
-        </select></label
-      >
-      <label class="text-sm"
-        >Ámbito<select
-          v-model="ambito"
-          aria-label="Ámbito"
-          class="block border border-border-subtle rounded bg-surface-card p-2"
-        >
-          <option value="">Todos</option>
-          <option v-if="producto === 'network'" value="NETWORK">Red</option>
-          <template v-else
-            ><option value="COUNTRY">País</option>
-            <option value="AIRPORT">Aeropuerto</option></template
-          >
-        </select></label
-      >
-      <label class="text-sm"
-        >Período<select
-          v-model="granularidad"
-          aria-label="Granularidad"
-          class="block border border-border-subtle rounded bg-surface-card p-2"
-        >
-          <option value="">Todos</option>
-          <option value="DY">Diario (DY)</option>
-          <option value="WK">Semana móvil (WK)</option>
-          <option v-if="producto === 'stakeholder'" value="Y2D">
-            Acumulado anual (Y2D)
-          </option>
-        </select></label
-      >
-      <label class="text-sm"
-        >Mes de cierre<input
-          v-model="mes"
-          type="month"
-          aria-label="Mes de cierre"
-          class="block border border-border-subtle rounded bg-surface-card p-2"
-      /></label>
-      <label class="text-sm"
-        >Entidad nativa<input
-          v-model="entidad"
-          aria-label="Entidad nativa"
-          placeholder="Código ICAO o país exacto"
-          class="block border border-border-subtle rounded bg-surface-card p-2"
-      /></label>
-      <label class="text-sm"
-        >Instantánea<select
-          v-model="instantaneaId"
-          aria-label="Instantánea"
-          class="block border border-border-subtle rounded bg-surface-card p-2 max-w-64"
-        >
-          <option value="">Última completa</option>
-          <option
-            v-if="
-              instantaneaId &&
-              !instantaneas.some((snapshot) => snapshot.id === instantaneaId)
-            "
-            :value="instantaneaId"
-          >
-            Instantánea seleccionada
-          </option>
-          <option
-            v-for="snapshot in instantaneas"
-            :key="snapshot.id"
-            :value="snapshot.id"
-          >
-            {{ snapshot.actualizadoEn }}
-          </option>
-        </select></label
-      >
+    <form class="rounded-lg bg-surface-card p-4 sm:p-5 space-y-4" @submit.prevent="load(true)">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <UFormField label="Producto">
+          <USelect v-model="producto" aria-label="Producto" class="w-full"
+            :items="[{ label: 'Red europea', value: 'network' }, { label: 'Países y aeropuertos', value: 'stakeholder' }]"
+            @update:model-value="changeProduct" />
+        </UFormField>
+        <UFormField label="Ámbito">
+          <USelect :model-value="ambito || 'todos'" :items="ambitos" class="w-full"
+            @update:model-value="ambito = $event === 'todos' ? '' : $event" />
+        </UFormField>
+        <UFormField label="Granularidad">
+          <USelect :model-value="granularidad || 'todos'" :items="granularidades" aria-label="Granularidad" class="w-full"
+            @update:model-value="granularidad = $event === 'todos' ? '' : $event" />
+        </UFormField>
+        <UFormField label="Mes de cierre">
+          <UInput v-model="mes" type="month" class="w-full" />
+        </UFormField>
+        <UFormField label="Entidad">
+          <UInput v-model="entidad" placeholder="Código ICAO o país exacto" class="w-full" />
+        </UFormField>
+        <UFormField label="Instantánea">
+          <USelect :model-value="instantaneaId || 'ultima'" :items="opcionesInstantaneas" aria-label="Instantánea" class="w-full"
+            @update:model-value="instantaneaId = $event === 'ultima' ? '' : $event" />
+        </UFormField>
+      </div>
       <div
         v-if="totalInstantaneas > 20"
         class="flex items-center gap-2 text-xs"
       >
-        <button
+        <UButton color="neutral" variant="ghost"
           type="button"
-          class="underline"
           :disabled="cargandoInstantaneas || paginaInstantaneas <= 1"
           @click="loadSnapshots(paginaInstantaneas - 1)"
         >
           Más recientes
-        </button>
-        <button
+        </UButton>
+        <UButton color="neutral" variant="ghost"
           type="button"
-          class="underline"
           :disabled="
             cargandoInstantaneas || paginaInstantaneas * 20 >= totalInstantaneas
           "
           @click="loadSnapshots(paginaInstantaneas + 1)"
         >
           Más antiguas
-        </button>
+        </UButton>
       </div>
-      <button
+      <UButton color="neutral" icon="i-lucide-search"
         type="submit"
-        class="border border-border-subtle rounded px-3 py-2 text-sm"
         :disabled="loading"
       >
         Consultar
-      </button>
+      </UButton>
     </form>
     <p class="text-sm text-text-muted">
-      Cada bloque DY/WK/Y2D conserva su propia entidad y período.
       «Programaciones no operadas» es el contador nativo MISSING_SCHED_FLIGHTS.
       No son cancelaciones.
     </p>
@@ -444,7 +401,7 @@ onMounted(refresh);
     <div class="flex justify-between text-sm items-center">
       <p>{{ total }} indicadores · Página {{ pagina }}</p>
       <div class="flex gap-3">
-        <button
+        <UButton color="neutral" variant="ghost"
           type="button"
           :disabled="pagina <= 1 || loading"
           @click="
@@ -452,8 +409,8 @@ onMounted(refresh);
             load();
           "
         >
-          Anterior</button
-        ><button
+          Anterior</UButton
+        ><UButton color="neutral" variant="ghost"
           type="button"
           :disabled="pagina * 20 >= total || loading"
           @click="
@@ -462,7 +419,7 @@ onMounted(refresh);
           "
         >
           Siguiente
-        </button>
+        </UButton>
       </div>
     </div>
     <details v-if="datos[0]" class="border-t border-border-subtle pt-3 text-sm">

@@ -19,6 +19,7 @@ describe('Pipeline persistence and immutable execution configuration', () => {
           upsertJobScheduler: jest.fn(),
           removeJobScheduler: jest.fn(),
           setGlobalConcurrency: jest.fn(),
+          getJob: jest.fn(),
         };
         const service = new PipelinesService(
           { models: tx.orm.public, db: tx } as unknown as PrismaService,
@@ -118,7 +119,20 @@ describe('Pipeline persistence and immutable execution configuration', () => {
           mapeoEsquema: [null],
         });
         await expect(service.run(another.id)).rejects.toThrow(/Bad Request/);
+        await tx.orm.public.EjecucionEtl.where({ id: job.id }).update({
+          estado: 'running',
+          iniciadoEn: '2026-11-09 14:44:05',
+        });
+        queue.getJob.mockImplementation(async (id: string) =>
+          id === job.id
+            ? { getState: async () => 'failed', failedReason: 'Postgres client is closed' }
+            : { getState: async () => 'active' },
+        );
         await expect(service.onModuleInit()).resolves.toBeUndefined();
+        expect(await service.job(job.id)).toMatchObject({
+          estado: 'failed',
+          mensajeError: 'La conexión con PostgreSQL se cerró durante la ingesta. Podés reintentar.',
+        });
         expect(queue.removeJobScheduler).toHaveBeenCalledWith(another.id);
         throw rollback;
       });

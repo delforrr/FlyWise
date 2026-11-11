@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { useEtlMonitoring } from "~/features/etl-monitoring/composables/useEtlMonitoring";
-
 const { user, logout } = useAuth();
 const username = computed(() => user.value?.correo.split("@")[0] ?? "");
 const signingOut = ref(false);
@@ -17,46 +15,38 @@ async function signOut() {
   }
 }
 
-const catalogos = [
-  { recurso: "vuelos", nombre: "Operaciones" },
-  { recurso: "bts", nombre: "BTS mensual" },
-  { recurso: "aeropuertos", nombre: "Aeropuertos" },
-  { recurso: "aerolineas", nombre: "Aerolíneas" },
-  { recurso: "rutas", nombre: "Rutas" },
-  { recurso: "actividad", nombre: "Actividad ANAC" },
-  { recurso: "indicadores", nombre: "Indicadores" },
-];
+const menuOpen = ref(false);
 const route = useRoute();
 const isUsersPage = computed(() => route.path.startsWith("/admin/usuarios"));
-
-const {
-  globalMetrics,
-  error,
-  refreshInterval,
-  isRefreshing,
-  latencyMs,
-  setRefreshInterval,
-  triggerManualRefresh,
-} = useEtlMonitoring();
+const sections = [
+  { label: "Monitoreo", to: "/admin", icon: "i-lucide-activity" },
+  { label: "Servicios", to: "/admin/servicios", icon: "i-lucide-server" },
+  { label: "Usuarios", to: "/admin/usuarios", icon: "i-lucide-users" },
+  { label: "Operaciones", to: "/admin/vuelos", icon: "i-lucide-plane-takeoff" },
+  { label: "BTS mensual", to: "/admin/bts", icon: "i-lucide-calendar-days" },
+  { label: "Aeropuertos", to: "/admin/aeropuertos", icon: "i-lucide-map-pin" },
+  { label: "Aerolíneas", to: "/admin/aerolineas", icon: "i-lucide-plane" },
+  { label: "Rutas", to: "/admin/rutas", icon: "i-lucide-route" },
+  { label: "Actividad ANAC", to: "/admin/actividad", icon: "i-lucide-chart-column" },
+  { label: "Indicadores", to: "/admin/indicadores", icon: "i-lucide-chart-line" },
+];
+const navigation = computed(() =>
+  (user.value?.rol === "ADMIN" ? sections : sections.slice(0, 3)).map(item => ({
+    ...item,
+    exact: true,
+    onSelect: () => { menuOpen.value = false; },
+  })),
+);
 </script>
 
 <template>
   <div
     class="min-h-screen bg-background text-text-main flex flex-col font-sans"
   >
-    <p v-if="error" role="alert" class="p-3 text-error">{{ error }}</p>
-    <!-- Cabecera Administrativa Minimalista (Sólida, borde nítido de 1px con sutil specular highlight) -->
-    <header
-      :class="
-        isUsersPage
-          ? 'bg-surface-card border-b border-border-subtle/50'
-          : 'sticky top-0 z-40 bg-surface-card/95 backdrop-blur-md border-b border-border-subtle shadow-xs'
-      "
-    >
+    <header class="sticky top-0 z-40 border-b border-border-subtle bg-surface-card">
       <div
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4"
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2"
       >
-        <!-- Logo y Badge Operativo -->
         <div class="flex items-center gap-3">
           <NuxtLink to="/" class="flex items-center gap-2 group cursor-pointer">
             <span
@@ -65,32 +55,21 @@ const {
               FlyWise
             </span>
           </NuxtLink>
-          <USeparator orientation="vertical" class="h-4" />
-          <UBadge
-            color="neutral"
-            variant="subtle"
-            size="sm"
-            class="text-xs font-medium"
-          >
-            Administración
-          </UBadge>
+          <span class="hidden sm:inline text-sm text-text-muted">Administración</span>
         </div>
 
-        <!-- Navegación y Controles de Cabecera -->
-        <div class="flex items-center gap-2.5 sm:gap-3">
-          <!-- Acceso al Explorador Público -->
+        <div class="flex items-center gap-1.5 sm:gap-3">
           <UButton
             to="/explorar"
             variant="outline"
             color="neutral"
             size="xs"
             icon="i-lucide-globe"
-            class="hidden lg:inline-flex rounded-lg text-xs font-medium"
+            class="hidden xl:inline-flex"
           >
-            Ver Mapa Global
+            Ver mapa
           </UButton>
 
-          <!-- Conmutador de Tema Claro/Oscuro -->
           <ThemeToggle />
           <UButton
             icon="i-lucide-log-out"
@@ -100,12 +79,11 @@ const {
             :loading="signingOut"
             aria-label="Cerrar sesión"
             @click="signOut"
-            >Salir</UButton
+            ><span class="hidden sm:inline">Salir</span></UButton
           >
 
           <USeparator v-if="!isUsersPage" orientation="vertical" class="h-4" />
 
-          <!-- Identificador del usuario de la sesión -->
           <div
             v-if="!isUsersPage && user"
             class="flex items-center gap-2"
@@ -114,92 +92,54 @@ const {
             <UAvatar
               :alt="username"
               size="xs"
-              class="font-mono text-xs font-bold"
+              class="text-xs font-semibold"
             />
             <span
-              class="hidden lg:inline max-w-40 truncate text-xs font-semibold text-text-main font-mono"
+              class="sr-only xl:not-sr-only xl:max-w-28 xl:truncate text-xs text-text-muted"
             >
               {{ username }}
             </span>
           </div>
+          <UDrawer
+            v-model:open="menuOpen"
+            direction="right"
+            title="Administración"
+            :handle="false"
+            :close="{ 'aria-label': 'Cerrar menú' }"
+            :ui="{ content: 'w-[min(22rem,calc(100vw-2rem))]', body: 'overflow-y-auto' }"
+          >
+            <UButton
+              class="min-h-11 xl:hidden"
+              icon="i-lucide-menu"
+              variant="ghost"
+              color="neutral"
+              aria-label="Abrir menú administrativo"
+            />
+            <template #body>
+              <UNavigationMenu
+                :items="navigation"
+                orientation="vertical"
+                color="neutral"
+                aria-label="Navegación administrativa"
+                :ui="{ link: 'min-h-11' }"
+              />
+            </template>
+            <template #footer>
+              <UButton to="/explorar" icon="i-lucide-globe" color="neutral" variant="ghost" @click="menuOpen = false">
+                Ver mapa
+              </UButton>
+            </template>
+          </UDrawer>
         </div>
       </div>
-      <!-- Enlaces de Navegación de la Consola -->
-      <nav
-        class="hidden lg:flex max-w-7xl mx-auto items-center gap-2 overflow-x-auto px-8 pb-2 *:shrink-0 *:whitespace-nowrap"
+      <UNavigationMenu
+        :items="navigation"
+        color="neutral"
+        variant="link"
         aria-label="Navegación administrativa"
-      >
-        <UButton
-          to="/admin"
-          size="xs"
-          :variant="$route.path === '/admin' ? 'subtle' : 'ghost'"
-          :color="$route.path === '/admin' ? 'primary' : 'neutral'"
-          icon="i-lucide-activity"
-          class="text-xs font-semibold cursor-pointer"
-        >
-          Monitoreo
-        </UButton>
-        <UButton
-          to="/admin/servicios"
-          size="xs"
-          :variant="
-            $route.path.startsWith('/admin/servicios') ? 'subtle' : 'ghost'
-          "
-          :color="
-            $route.path.startsWith('/admin/servicios') ? 'primary' : 'neutral'
-          "
-          icon="i-lucide-database"
-          class="text-xs font-semibold cursor-pointer"
-        >
-          Servicios & Pipelines
-        </UButton>
-        <UButton
-          to="/admin/usuarios"
-          size="xs"
-          :variant="isUsersPage ? 'subtle' : 'ghost'"
-          color="neutral"
-          icon="i-lucide-users"
-          :aria-current="isUsersPage ? 'page' : undefined"
-          >Usuarios</UButton
-        >
-        <UButton
-          v-for="item in catalogos"
-          v-show="user?.rol === 'ADMIN'"
-          :key="item.recurso"
-          :to="`/admin/${item.recurso}`"
-          size="xs"
-          :variant="
-            $route.path === `/admin/${item.recurso}` ? 'subtle' : 'ghost'
-          "
-          color="neutral"
-          >{{ item.nombre }}</UButton
-        >
-      </nav>
-      <nav
-        class="lg:hidden max-w-7xl mx-auto flex items-center gap-4 overflow-x-auto px-4 sm:px-6 lg:px-8 pb-3 text-sm"
-        aria-label="Navegación administrativa móvil"
-      >
-        <NuxtLink to="/admin" class="whitespace-nowrap">Monitoreo</NuxtLink>
-        <NuxtLink to="/admin/servicios" class="whitespace-nowrap"
-          >Servicios</NuxtLink
-        >
-        <NuxtLink
-          to="/admin/usuarios"
-          :aria-current="isUsersPage ? 'page' : undefined"
-          :class="
-            isUsersPage ? 'font-semibold text-text-main' : 'text-text-muted'
-          "
-          >Usuarios</NuxtLink
-        >
-        <NuxtLink
-          v-for="item in catalogos"
-          v-show="user?.rol === 'ADMIN'"
-          :key="item.recurso"
-          :to="`/admin/${item.recurso}`"
-          class="whitespace-nowrap"
-          >{{ item.nombre }}</NuxtLink
-        >
-      </nav>
+        class="hidden max-w-7xl mx-auto px-8 pb-2 xl:flex"
+        :ui="{ link: 'whitespace-nowrap', linkLabel: 'overflow-visible' }"
+      />
     </header>
 
     <!-- Contenedor Principal -->
@@ -210,20 +150,5 @@ const {
       <slot />
     </main>
 
-    <!-- Pie de Página Minimalista -->
-    <footer class="border-t border-border-subtle bg-surface-card py-4 mt-auto">
-      <div
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-text-muted"
-      >
-        <div>FlyWise - 2026</div>
-        <div
-          class="text-xs text-text-muted"
-          :class="{ 'font-mono': !isUsersPage }"
-        >
-          Sistema de Información de vuelos comerciales y Exploración de Rutas
-          Aéreas
-        </div>
-      </div>
-    </footer>
   </div>
 </template>

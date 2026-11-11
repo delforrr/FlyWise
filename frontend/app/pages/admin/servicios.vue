@@ -136,60 +136,23 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
       @create-service="handleOpenCreate"
     />
 
-    <!-- 2. Barra de Filtros y Herramientas -->
-    <div
-      class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 rounded-xl border border-border-subtle bg-surface-card"
-    >
-      <!-- Filtros por Entidad y Tipo -->
-      <div class="flex flex-wrap items-center gap-2">
-        <!-- Filtro por Entidad -->
-        <div class="flex items-center gap-1 text-xs">
-          <label for="etl-entity-filter" class="text-[11px] text-text-muted font-semibold sr-only sm:not-sr-only">
-            Entidad:
-          </label>
-          <select
-            id="etl-entity-filter"
-            v-model="selectedEntityFilter"
-            class="rounded-lg border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main font-medium focus:border-primary focus:outline-none"
-          >
-            <option value="all">Todas las Entidades</option>
-            <option value="aeropuertos">Aeropuertos</option>
-            <option value="rutas">Rutas</option>
-            <option value="paises">Países</option>
-            <option value="aerolineas">Aerolíneas</option>
-            <option value="otp_metrics">Telemetría OTP</option>
-          </select>
-        </div>
-
-        <USeparator orientation="vertical" class="h-5 hidden sm:block" />
-
-        <!-- Filtro por Tipo de Origen -->
-        <div class="flex items-center gap-1 text-xs">
-          <label for="etl-origin-filter" class="text-[11px] text-text-muted font-semibold sr-only sm:not-sr-only">
-            Origen:
-          </label>
-          <select
-            id="etl-origin-filter"
-            v-model="selectedSourceTypeFilter"
-            class="rounded-lg border border-border-subtle bg-surface-accent px-2.5 py-1.5 text-xs text-text-main font-medium focus:border-primary focus:outline-none"
-          >
-            <option value="all">Todos los Orígenes</option>
-            <option value="system">Fuentes del Sistema</option>
-            <option value="custom">Personalizados</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Buscador por Texto -->
-      <div class="w-full lg:w-72">
-        <UInput
-          v-model="searchQuery"
-          icon="i-lucide-search"
-          placeholder="Buscar por nombre o endpoint..."
-          size="sm"
-          class="w-full text-xs"
-        />
-      </div>
+    <div class="grid gap-4 rounded-lg bg-surface-card p-4 sm:grid-cols-3 sm:p-5">
+      <UFormField label="Entidad">
+        <USelect v-model="selectedEntityFilter" class="w-full" :items="[
+          { label: 'Todas', value: 'all' }, { label: 'Aeropuertos', value: 'aeropuertos' },
+          { label: 'Rutas', value: 'rutas' }, { label: 'Países', value: 'paises' },
+          { label: 'Aerolíneas', value: 'aerolineas' }, { label: 'OTP', value: 'otp_metrics' },
+        ]" />
+      </UFormField>
+      <UFormField label="Origen">
+        <USelect v-model="selectedSourceTypeFilter" class="w-full" :items="[
+          { label: 'Todos', value: 'all' }, { label: 'Del sistema', value: 'system' },
+          { label: 'Personalizados', value: 'custom' },
+        ]" />
+      </UFormField>
+      <UFormField label="Buscar">
+        <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="Nombre o URL" class="w-full" />
+      </UFormField>
     </div>
 
     <!-- 3. Tabla CRUD de Servicios -->

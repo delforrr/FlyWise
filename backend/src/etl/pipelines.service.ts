@@ -119,6 +119,40 @@ export class PipelinesService implements OnModuleInit {
         );
       }
     }
+    await this.reconcileFailedExecutions();
+  }
+
+  private async reconcileFailedExecutions() {
+    let cursor = '';
+    for (;;) {
+      const rows = await this.prisma.db.query(
+        this.prisma.db.raw.sql`
+          SELECT id, intento FROM ejecuciones_etl
+          WHERE estado = 'running' AND id > ${cursor}
+            AND fuente IN ('paises', 'aeropuertos', 'aerolineas', 'rutas', 'all')
+          ORDER BY id LIMIT 100
+        `
+          .returnsRow({ id: 'pg/text@1', intento: 'pg/int4@1' })
+          .build(),
+      );
+      for (const { id, intento } of rows) {
+        const job = await this.queue.getJob(id);
+        if (!job || (await job.getState()) !== 'failed') continue;
+        const mensaje = job.failedReason === 'Postgres client is closed'
+          ? 'La conexión con PostgreSQL se cerró durante la ingesta. Podés reintentar.'
+          : 'La cola agotó los intentos de ingesta. Podés reintentar.';
+        const execution = await this.prisma.models.EjecucionEtl.where({
+          id, intento, estado: 'running',
+        }).update({ estado: 'failed', finalizadoEn: now(), mensajeError: mensaje });
+        if (execution) {
+          await this.prisma.models.EventoEjecucionEtl.create({
+            ejecucionId: id, intento, nivel: 'error', mensaje,
+          });
+        }
+      }
+      if (rows.length < 100) return;
+      cursor = rows[rows.length - 1].id;
+    }
   }
 
   list() {

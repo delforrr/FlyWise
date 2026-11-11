@@ -5,6 +5,22 @@ const fetcher = vi.hoisted(() => vi.fn());
 vi.mock("../../app/shared/composables/useBackendRequest", () => ({
   useBackendRequest: () => fetcher,
 }));
+function mountPanel() {
+  return mount(EurocontrolPanel, {
+    global: {
+      stubs: {
+        UFormField: { template: "<div><slot /></div>" },
+        UButton: { template: "<button><slot /></button>" },
+        UInput: true,
+        USelect: {
+          props: ["modelValue", "items"],
+          emits: ["update:modelValue"],
+          template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :value="item.value">{{ item.label }}</option></select>',
+        },
+      },
+    },
+  });
+}
 describe("Indicadores EUROCONTROL en Admin", () => {
   it("conserva los indicadores y las instantáneas del producto seleccionado ante respuestas tardías", async () => {
     const fila = {
@@ -26,7 +42,7 @@ describe("Indicadores EUROCONTROL en Admin", () => {
         datos: esInstantanea ? [{ id: "instantanea-aeropuerto", actualizadoEn: "2026-08-31" }] : [fila],
       });
     });
-    const wrapper = mount(EurocontrolPanel);
+    const wrapper = mountPanel();
     try {
       await wrapper.get("form").trigger("submit");
       await wrapper.get('select[aria-label="Producto"]').setValue("stakeholder");
@@ -77,7 +93,7 @@ describe("Indicadores EUROCONTROL en Admin", () => {
               ],
             },
     );
-    const wrapper = mount(EurocontrolPanel);
+    const wrapper = mountPanel();
     await flushPromises();
     expect(wrapper.text()).toContain("0,0 %");
     expect(wrapper.text()).toContain("EUROCONTROL");
@@ -108,7 +124,7 @@ describe("Indicadores EUROCONTROL en Admin", () => {
         return { total: 0, datos: [] };
       },
     );
-    const wrapper = mount(EurocontrolPanel);
+    const wrapper = mountPanel();
     await flushPromises();
     await wrapper.get('select[aria-label="Producto"]').setValue("stakeholder");
     await flushPromises();

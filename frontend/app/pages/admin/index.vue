@@ -16,6 +16,7 @@ useSeoMeta({
 
 const {
   pipelines,
+  error,
   logs,
   globalMetrics,
   triggerSync,
@@ -27,6 +28,8 @@ const {
   clearLogs,
   loadSamples,
 } = useEtlMonitoring();
+
+const fallidas = computed(() => pipelines.value.filter(pipeline => pipeline.estado === "error"));
 
 // Estado de modales
 const isTriggerModalOpen = ref(false);
@@ -79,23 +82,27 @@ function handleRetryDiscarded() {
 
 <template>
   <div class="space-y-8">
-    <!-- 1. KPIs Globales de Salud y Controles Maestros -->
+    <UAlert v-if="error" color="error" variant="subtle" title="No se pudo actualizar el monitoreo" :description="error" />
     <EtlHeaderMetrics
       :metricas="globalMetrics"
       @sync-all="syncAll"
       @pause-all="pauseAll"
     />
 
-    <!-- 2. Sección Principal: Pipelines por Fuente -->
+    <UAlert
+      v-for="pipeline in fallidas"
+      :key="pipeline.id"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-circle-alert"
+      :title="pipeline.nombre + ' · Ingesta fallida'"
+      :description="pipeline.currentStepMessage"
+      :actions="[{ label: 'Reintentar', color: 'neutral', variant: 'outline', onClick: () => retryFailed(pipeline.id) }]"
+    />
+
     <section class="space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h2 class="text-base font-bold text-text-main">Fuentes de Datos</h2>
-          <p class="text-xs text-text-muted mt-0.5">
-            Control individual de sincronización, frecuencias programadas y
-            auditoría de integridad.
-          </p>
-        </div>
+        <h2 class="text-lg font-semibold">Fuentes</h2>
         <UButton
           to="/admin/servicios"
           variant="outline"
@@ -104,7 +111,7 @@ function handleRetryDiscarded() {
           icon="i-lucide-settings"
           class="cursor-pointer font-bold shrink-0 self-start sm:self-auto"
         >
-          Gestionar Servicios & Endpoints
+          Gestionar fuentes
         </UButton>
       </div>
 
@@ -119,17 +126,7 @@ function handleRetryDiscarded() {
       />
     </section>
 
-    <!-- 3. Registro y Consola de Auditoría en Vivo -->
-    <section class="space-y-4 pt-2 border-t border-border-subtle">
-      <div>
-        <h2 class="text-base font-bold text-text-main">
-          Auditoría de Eventos en Tiempo Real
-        </h2>
-        <p class="text-xs text-text-muted mt-0.5">
-          Trazabilidad de lotes procesados, descartes detectados y actividades
-          de los workers.
-        </p>
-      </div>
+    <section aria-label="Actividad reciente">
 
       <EtlLiveLogFeed :logs="logs" @clear-logs="clearLogs" />
     </section>

@@ -142,10 +142,6 @@ async function confirmarArchivoOferta(id: string) {
     <header class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 class="text-2xl font-semibold">{{ titulo }}</h1>
-        <p class="mt-2 text-sm text-text-muted">
-          Administrá el catálogo y conservá sus relaciones al archivar
-          registros.
-        </p>
       </div>
       <UButton icon="i-lucide-plus" :disabled="guardando" @click="editar(null)"
         >Crear registro</UButton

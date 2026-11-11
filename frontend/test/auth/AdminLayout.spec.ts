@@ -4,10 +4,6 @@ import { nextTick, ref } from 'vue';
 import AdminLayout from '~/layouts/admin.vue';
 import type { Usuario } from '~/services/authService';
 
-vi.mock('~/features/etl-monitoring/composables/useEtlMonitoring', () => ({
-  useEtlMonitoring: () => ({}),
-}));
-
 describe('Identidad en la cabecera administrativa', () => {
   const user = ref<Usuario | null>(null);
 
@@ -23,7 +19,7 @@ describe('Identidad en la cabecera administrativa', () => {
         mocks: { $route: { path: '/admin' } },
         stubs: {
           NuxtLink: true, USeparator: true, UBadge: true,
-          UButton: true, ThemeToggle: true,
+          UButton: true, ThemeToggle: true, UDrawer: true, UNavigationMenu: true,
           UAvatar: { props: ['alt'], template: '<span role="img" :aria-label="alt" />' },
         },
       },

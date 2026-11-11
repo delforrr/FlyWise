@@ -93,17 +93,21 @@ onUnmounted(()=>clearInterval(timer));
 <template>
   <section class="space-y-6" :aria-busy="busy || loading">
     <header class="flex flex-wrap items-start justify-between gap-4">
-      <div><h1 class="text-2xl font-semibold">BTS mensual</h1><p class="text-sm text-text-muted mt-1">Operaciones reportadas de Estados Unidos. Se publica únicamente un mes completo con identidades resueltas.</p></div>
-      <button class="bts-primary" :disabled="busy || config.pausado || !config.periodo" @click="run()">Importar mes guardado</button>
+      <h1 class="text-2xl font-semibold">BTS mensual</h1>
+      <UButton color="neutral" icon="i-lucide-download" :disabled="busy || config.pausado || !config.periodo" @click="run()">Importar mes guardado</UButton>
     </header>
     <p v-if="error" role="alert" class="text-error">{{ error }}</p>
     <p v-if="notice" role="status" class="text-sm">{{ notice }}</p>
     <p v-if="loading" role="status">Cargando BTS…</p>
-    <form class="flex flex-wrap items-end gap-4 border-b border-border-subtle pb-6" @submit.prevent="save">
-      <label>Mes observado<input v-model="config.periodo" type="month" required :disabled="busy" class="bts-input" /></label>
-      <label>Programación mensual UTC<input v-model="config.expresionCron" placeholder="0 4 15 * *" :disabled="busy" class="bts-input" /><span class="text-xs text-text-muted">Vacío: ejecución manual</span></label>
-      <label class="flex items-center gap-2 min-h-11"><input v-model="config.pausado" type="checkbox" :disabled="busy" />Pausado</label>
-      <button class="bts-secondary" :disabled="busy">Guardar configuración</button>
+    <form aria-label="Configurar BTS" class="rounded-lg bg-surface-card p-4 sm:p-5 space-y-4" @submit.prevent="save">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <UFormField label="Mes observado"><UInput class="w-full" v-model="config.periodo" type="month" required :disabled="busy" /></UFormField>
+        <UFormField label="Programación mensual UTC" hint="Opcional" help="Dejalo vacío para ejecutar manualmente."><UInput class="w-full" v-model="config.expresionCron" placeholder="0 4 15 * *" :disabled="busy" /></UFormField>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4">
+        <USwitch v-model="config.pausado" label="Pausado" :disabled="busy" />
+        <UButton type="submit" color="neutral" variant="outline" :disabled="busy">Guardar configuración</UButton>
+      </div>
     </form>
     <section aria-labelledby="bts-coverage">
       <h2 id="bts-coverage" class="text-lg font-semibold">Cobertura publicada</h2>
@@ -113,41 +117,37 @@ onUnmounted(()=>clearInterval(timer));
       </ul>
     </section>
     <section aria-labelledby="bts-jobs">
-      <div class="flex justify-between gap-4"><h2 id="bts-jobs" class="text-lg font-semibold">Últimas ejecuciones</h2><button class="bts-secondary" :disabled="busy" @click="perform(refresh)">Actualizar</button></div>
+      <div class="flex justify-between gap-4"><h2 id="bts-jobs" class="text-lg font-semibold">Últimas ejecuciones</h2><UButton color="neutral" variant="outline" :disabled="busy" @click="perform(refresh)">Actualizar</UButton></div>
       <p v-if="!jobs.length" class="text-sm text-text-muted py-4">Aún no se ejecutó ninguna carga.</p>
       <ul class="divide-y divide-border-subtle">
         <li v-for="job in jobs" :key="job.id" class="py-3 space-y-1">
-          <div class="flex flex-wrap justify-between gap-2"><div><p><strong>{{ job.periodo ?? 'Mes sin registrar' }}</strong> · {{ estados[job.estado] ?? job.estado }}<span v-if="job.intento"> · Intento {{ job.intento }}</span></p><p class="text-sm text-text-muted"><span class="tabular-nums">{{ number(job.filasProcesadas) }} / {{ number(job.filasTotales) }}</span> procesadas · {{ number(job.filasDescartadas) }} descartadas<span v-if="job.iniciadoEn"> · {{ job.iniciadoEn.replace('T',' ').replace('Z','') }} UTC</span></p></div><div class="flex gap-3"><button v-if="job.intento" class="underline min-h-11" :disabled="busy" @click="details(job)">Ver descartes</button><button v-if="job.estado==='failed' && job.periodo" class="underline min-h-11" :disabled="busy || config.pausado" @click="run(job.id)">Reintentar</button></div></div>
+          <div class="flex flex-wrap justify-between gap-2"><div><p><strong>{{ job.periodo ?? 'Mes sin registrar' }}</strong> · {{ estados[job.estado] ?? job.estado }}<span v-if="job.intento"> · Intento {{ job.intento }}</span></p><p class="text-sm text-text-muted"><span class="tabular-nums">{{ number(job.filasProcesadas) }} / {{ number(job.filasTotales) }}</span> procesadas · {{ number(job.filasDescartadas) }} descartadas<span v-if="job.iniciadoEn"> · {{ job.iniciadoEn.replace('T',' ').replace('Z','') }} UTC</span></p></div><div class="flex gap-3"><UButton v-if="job.intento" color="neutral" variant="ghost" :disabled="busy" @click="details(job)">Ver descartes</UButton><UButton v-if="job.estado==='failed' && job.periodo" color="neutral" variant="ghost" :disabled="busy || config.pausado" @click="run(job.id)">Reintentar</UButton></div></div>
           <p v-if="job.mensajeError" class="text-sm text-error">{{ job.mensajeError }}</p>
         </li>
       </ul>
       <div v-if="detalleJob" class="space-y-2 border-t border-border-subtle pt-3">
         <h3 class="font-semibold">Descartes · {{ detalleJob.periodo }}</h3>
-        <label>Intento de ingesta<select v-model.number="intentoDetalle" aria-label="Intento de ingesta" class="bts-input" :disabled="busy" @change="loadSamples"><option v-for="intento in detalleJob.intento" :key="intento" :value="intento">{{ intento }}</option></select></label>
+        <UFormField label="Intento de ingesta">
+          <USelect v-model="intentoDetalle" aria-label="Intento de ingesta" :items="Array.from({ length: detalleJob.intento }, (_, index) => index + 1)" :disabled="busy" @update:model-value="loadSamples" />
+        </UFormField>
         <p v-if="!samples.length && !busy" class="text-sm text-text-muted">Sin muestras de descarte para este intento.</p>
         <ul v-else aria-label="Descartes de la ejecución" class="space-y-2 text-sm"><li v-for="sample in samples" :key="sample.numeroFila"><strong>Fila {{ sample.numeroFila }}: {{ sample.motivo }}</strong><pre class="whitespace-pre-wrap break-all text-xs text-text-muted">{{ sample.muestraOriginal }}</pre></li></ul>
       </div>
     </section>
     <section aria-labelledby="bts-identities" class="space-y-3">
       <h2 id="bts-identities" class="text-lg font-semibold">Correspondencias pendientes <span class="text-text-muted tabular-nums">({{ total }})</span></h2>
-      <label>Tipo<select v-model="tipo" class="bts-input" :disabled="busy"><option value="aeropuertos">Aeropuertos BTS</option><option value="operadores">Operadores DOT</option></select></label>
+      <UFormField label="Tipo" class="max-w-sm">
+        <USelect v-model="tipo" class="w-full" :items="[{label:'Aeropuertos BTS',value:'aeropuertos'},{label:'Operadores DOT',value:'operadores'}]" :disabled="busy" />
+      </UFormField>
       <p v-if="!pending.length" class="text-sm text-text-muted">No hay correspondencias pendientes.</p>
-      <ul class="divide-y divide-border-subtle"><li v-for="row in pending" :key="row.identificador" class="flex items-center justify-between gap-4 py-2"><span>{{ row.codigo || 'Sin código' }} · ID BTS {{ row.identificador }}</span><button class="underline min-h-11" :disabled="busy" @click="selected=row;candidates=[];busqueda=row.codigo;entidadId=''">Vincular</button></li></ul>
-      <div v-if="total>20" class="flex gap-4 items-center"><button class="bts-secondary" :disabled="busy || pagina===1" @click="pagina--;perform(loadPending)">Anterior</button><span>Página {{ pagina }}</span><button class="bts-secondary" :disabled="busy || pagina*20>=total" @click="pagina++;perform(loadPending)">Siguiente</button></div>
+      <ul class="divide-y divide-border-subtle"><li v-for="row in pending" :key="row.identificador" class="flex items-center justify-between gap-4 py-2"><span>{{ row.codigo || 'Sin código' }} · ID BTS {{ row.identificador }}</span><UButton color="neutral" variant="ghost" :disabled="busy" @click="selected=row;candidates=[];busqueda=row.codigo;entidadId=''">Vincular</UButton></li></ul>
+      <div v-if="total>20" class="flex gap-4 items-center"><UButton color="neutral" variant="outline" :disabled="busy || pagina===1" @click="pagina--;perform(loadPending)">Anterior</UButton><span>Página {{ pagina }}</span><UButton color="neutral" variant="outline" :disabled="busy || pagina*20>=total" @click="pagina++;perform(loadPending)">Siguiente</UButton></div>
       <form v-if="selected" class="border border-border-subtle p-4 rounded-md space-y-3" @submit.prevent="resolve">
         <h3>Vincular ID BTS {{ selected.identificador }} ({{ selected.codigo }})</h3>
-        <div class="flex flex-wrap gap-3 items-end"><label>Buscar entidad FlyWise<input v-model="busqueda" class="bts-input" /></label><button type="button" class="bts-secondary" :disabled="busy || !busqueda.trim()" @click="search">Buscar</button></div>
-        <label>Entidad<select v-model="entidadId" class="bts-input"><option value="">Seleccioná una entidad</option><option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">{{ candidate.nombre }}</option></select></label>
-        <div class="flex gap-3"><button class="bts-secondary" :disabled="busy || !entidadId">Confirmar correspondencia</button><button type="button" class="bts-secondary" @click="selected=null">Cancelar</button></div>
+        <div class="flex flex-wrap gap-3 items-end"><UFormField label="Buscar entidad FlyWise"><UInput v-model="busqueda" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" :disabled="busy || !busqueda.trim()" @click="search">Buscar</UButton></div>
+        <UFormField label="Entidad"><USelect v-model="entidadId" :items="candidates" label-key="nombre" value-key="id" placeholder="Seleccioná una entidad" class="w-full" /></UFormField>
+        <div class="flex gap-3"><UButton type="submit" color="neutral" :disabled="busy || !entidadId">Confirmar correspondencia</UButton><UButton type="button" color="neutral" variant="outline" @click="selected=null">Cancelar</UButton></div>
       </form>
     </section>
   </section>
 </template>
-
-<style scoped>
-@reference "../../../app.css";
-label { @apply text-sm; }
-.bts-input { @apply block mt-1 rounded-md border border-border-subtle bg-surface-card text-text-main px-3 py-2 min-h-11 w-full; }
-.bts-primary { @apply rounded-md bg-text-main text-background px-4 py-2 min-h-11 disabled:opacity-50; }
-.bts-secondary { @apply rounded-md border border-border-subtle px-3 py-2 min-h-11 disabled:opacity-50; }
-</style>

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { EtlGlobalMetrics } from "../types/etl";
-import AnimatedCounter from "~/shared/components/ui/AnimatedCounter.vue";
 
 interface Props {
   metricas: EtlGlobalMetrics;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const emit = defineEmits<{
   (e: "sync-all"): void;
@@ -21,234 +20,42 @@ function confirmSyncAll() {
   isConfirmSyncAllOpen.value = false;
 }
 
-const kpiCardUi = {
-  root: "rounded-xl border border-border-subtle border-t-white/30 dark:border-t-white/10 bg-surface-card shadow-xs flex flex-col justify-between",
-  body: "p-4 flex flex-col justify-between h-full",
-};
 </script>
 
 <template>
-  <div class="space-y-4">
-    <!-- Barra superior de título y acciones globales -->
-    <div
-      class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-border-subtle"
-    >
-      <div>
-        <div class="flex items-center gap-2.5">
-          <span
-            class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 border border-primary/25 text-primary shadow-xs"
-          >
-            <UIcon name="i-lucide-database-zap" class="w-5 h-5" />
-          </span>
-          <div>
-            <div class="flex items-center gap-2">
-              <h1
-                class="text-xl sm:text-2xl font-bold font-mono tracking-tight text-text-main uppercase"
-              >
-                Panel de Administración
-              </h1>
-            </div>
-            <p class="text-xs text-text-muted mt-0.5">
-              Supervisión y Gestión de Información Aeronáutica de fuentes
-              externas
-            </p>
-          </div>
-        </div>
+  <div class="space-y-5">
+    <header class="flex flex-wrap items-center justify-between gap-3">
+      <h1 class="text-2xl font-semibold">Monitoreo de ingestas</h1>
+      <div class="flex flex-wrap gap-2">
+        <UButton icon="i-lucide-pause" color="neutral" variant="outline" @click="emit('pause-all')">Pausar todo</UButton>
+        <UButton icon="i-lucide-play" color="neutral" @click="isConfirmSyncAllOpen = true">Sincronizar todo</UButton>
       </div>
-
-      <!-- Acciones de control global -->
-      <div class="flex items-center gap-2.5 self-start sm:self-auto font-mono">
-        <UButton
-          icon="i-lucide-pause"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          class="rounded-lg text-xs font-semibold px-3 py-1.5 cursor-pointer hover:bg-surface-accent border-border-subtle"
-          @click="emit('pause-all')"
-        >
-          Pausar Todo
-        </UButton>
-        <UButton
-          icon="i-lucide-play"
-          color="primary"
-          size="sm"
-          class="rounded-lg text-xs font-bold px-3.5 py-1.5 cursor-pointer text-white shadow-xs"
-          @click="isConfirmSyncAllOpen = true"
-        >
-          Sincronizar Todo
-        </UButton>
-      </div>
-    </div>
-
-    <!-- Grilla de 4 KPIs Sólidos con UCard -->
-    <div
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 font-feature-tech"
-    >
-      <!-- 1. Estado General -->
-      <UCard :ui="kpiCardUi">
-        <div class="flex items-center justify-between">
-          <span
-            class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
-          >
-            Estado del Sistema
-          </span>
-          <UIcon
-            :name="
-              metricas.systemHealth === 'optimal'
-                ? 'i-lucide-shield-check'
-                : metricas.systemHealth === 'syncing'
-                  ? 'i-lucide-refresh-cw'
-                  : 'i-lucide-alert-triangle'
-            "
-            class="w-4 h-4"
-            :class="{
-              'text-emerald-500': metricas.systemHealth === 'optimal',
-              'text-sky-500 animate-spin': metricas.systemHealth === 'syncing',
-              'text-rose-500': metricas.systemHealth === 'attention_needed',
-            }"
-          />
+    </header>
+    <UCard variant="subtle" :ui="{ body: 'p-0 sm:p-0' }">
+      <dl class="grid grid-cols-2 lg:grid-cols-4">
+        <div class="p-4 border-b border-r border-border-subtle lg:border-b-0">
+          <dt class="text-sm text-text-muted">Estado de ingestas</dt>
+          <dd class="mt-1 font-semibold">{{ metricas.systemHealth === "optimal" ? "Al día" : metricas.systemHealth === "syncing" ? "En ejecución" : "Requiere atención" }}</dd>
         </div>
-        <div class="mt-2.5 flex items-center gap-2">
-          <span
-            class="w-2.5 h-2.5 rounded-full shrink-0"
-            :class="{
-              'bg-emerald-500': metricas.systemHealth === 'optimal',
-              'bg-sky-500 animate-pulse': metricas.systemHealth === 'syncing',
-              'bg-rose-500': metricas.systemHealth === 'attention_needed',
-            }"
-          />
-          <span class="text-base font-bold text-text-main truncate">
-            {{
-              metricas.systemHealth === "optimal"
-                ? "Operativo y al día"
-                : metricas.systemHealth === "syncing"
-                  ? "Sincronizando lotes"
-                  : "Requiere atención"
-            }}
-          </span>
+        <div class="p-4 border-b border-border-subtle lg:border-b-0 lg:border-r">
+          <dt class="text-sm text-text-muted">Ejecuciones activas</dt>
+          <dd class="mt-1 text-xl font-semibold tabular-nums">{{ metricas.activeJobsCount }}</dd>
         </div>
-        <p class="text-[11px] text-text-dim mt-2 font-mono tabular-nums">
-          Último chequeo: {{ metricas.lastGlobalSync }}
-        </p>
-      </UCard>
-
-      <!-- 2. Registros Aeronáuticos -->
-      <UCard :ui="kpiCardUi">
-        <div class="flex items-center justify-between">
-          <span
-            class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
-          >
-            Filas procesadas (historial)
-          </span>
-          <UIcon name="i-lucide-database" class="w-4 h-4 text-text-muted" />
+        <div class="p-4 border-r border-border-subtle">
+          <dt class="text-sm text-text-muted">Filas procesadas</dt>
+          <dd class="mt-1 text-xl font-semibold tabular-nums">{{ metricas.totalAeroRecords.toLocaleString("es-AR") }}</dd>
         </div>
-        <div class="mt-2.5">
-          <AnimatedCounter
-            :value="metricas.totalAeroRecords"
-            format-locale
-            class="text-2xl font-bold font-mono tabular-nums text-text-main tracking-tight"
-          />
+        <div class="p-4">
+          <dt class="text-sm text-text-muted">Filas descartadas</dt>
+          <dd class="mt-1 text-xl font-semibold tabular-nums">{{ metricas.totalDiscardedCount.toLocaleString("es-AR") }}</dd>
         </div>
-        <p class="text-[11px] text-text-dim mt-2 font-mono truncate">
-          Aeropuertos, rutas y telemetría
-        </p>
-      </UCard>
-
-      <!-- 3. Tareas en Curso -->
-      <UCard :ui="kpiCardUi">
-        <div class="flex items-center justify-between">
-          <span
-            class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
-          >
-            Procesos Activos
-          </span>
-          <UIcon name="i-lucide-cpu" class="w-4 h-4 text-text-muted" />
-        </div>
-        <div class="mt-2.5 flex items-baseline gap-2">
-          <AnimatedCounter
-            :value="metricas.activeJobsCount"
-            class="text-2xl font-bold font-mono tabular-nums text-text-main tracking-tight"
-          />
-          <span class="text-xs text-text-muted font-mono"
-            >/ 4 workers asignados</span
-          >
-        </div>
-        <div class="mt-2">
-          <UProgress
-            :model-value="(metricas.activeJobsCount / 4) * 100"
-            size="xs"
-            color="primary"
-            class="h-1.5 rounded-full"
-          />
-        </div>
-      </UCard>
-
-      <!-- 4. Calidad y Descartes -->
-      <UCard :ui="kpiCardUi">
-        <div class="flex items-center justify-between">
-          <span
-            class="text-xs font-medium text-text-muted uppercase tracking-wider font-mono"
-          >
-            Tasa de Confiabilidad
-          </span>
-          <UIcon
-            name="i-lucide-check-circle-2"
-            class="w-4 h-4 text-emerald-500"
-          />
-        </div>
-        <div class="mt-2.5 flex items-baseline gap-2">
-          <AnimatedCounter
-            :value="metricas.successRatePercent"
-            :decimals="2"
-            suffix="%"
-            class="text-2xl font-bold font-mono tabular-nums text-emerald-600 dark:text-emerald-400 tracking-tight"
-          />
-          <span class="text-xs text-text-muted font-mono">éxito global</span>
-        </div>
-        <p class="text-[11px] text-text-dim mt-2 font-mono tabular-nums">
-          {{ metricas.totalDiscardedCount.toLocaleString() }} filas descartadas
-        </p>
-      </UCard>
-    </div>
-
-    <!-- Modal de Confirmación para Sincronización Global -->
-    <UModal
-      v-model:open="isConfirmSyncAllOpen"
-      title="Confirmar Sincronización Global de Fuentes"
-      description="Se encolarán los pipelines habilitados; los catálogos de referencia se procesan antes que las rutas."
-      :ui="{
-        content:
-          'sm:max-w-md bg-surface-card border border-border-subtle rounded-2xl shadow-2xl',
-      }"
-    >
-      <template #body>
-        <div class="space-y-3 text-xs text-text-muted">
-          <p>Se sincronizarán las fuentes habilitadas del catálogo. Las ejecuciones activas terminarán antes de procesar las siguientes.</p>
-          <p>Esta entrega importa catálogos. La puntualidad requiere integrar una fuente operativa.</p>
-        </div>
-      </template>
-
+      </dl>
+    </UCard>
+    <UModal v-model:open="isConfirmSyncAllOpen" title="Sincronizar fuentes"
+      description="Se encolarán los catálogos habilitados. Las ejecuciones activas terminarán primero.">
       <template #footer>
-        <div
-          class="flex items-center justify-end gap-2 w-full font-mono text-xs"
-        >
-          <UButton
-            variant="ghost"
-            color="neutral"
-            size="sm"
-            @click="isConfirmSyncAllOpen = false"
-          >
-            Cancelar
-          </UButton>
-          <UButton
-            color="primary"
-            size="sm"
-            class="text-white font-bold"
-            @click="confirmSyncAll"
-          >
-            Iniciar Sincronización
-          </UButton>
-        </div>
+        <UButton variant="ghost" color="neutral" @click="isConfirmSyncAllOpen = false">Cancelar</UButton>
+        <UButton color="neutral" @click="confirmSyncAll">Iniciar sincronización</UButton>
       </template>
     </UModal>
   </div>

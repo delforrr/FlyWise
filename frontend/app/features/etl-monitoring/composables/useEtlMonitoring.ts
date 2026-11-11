@@ -19,7 +19,7 @@ export function useEtlMonitoring() {
     const healthyStatus = activa ? 'syncing' : 'optimal';
     return { totalAeroRecords: totalRecords, totalDiscardedCount: totalDiscarded, activeJobsCount: activa,
       successRatePercent: totalRecords + totalDiscarded ? 100 * totalRecords / (totalRecords + totalDiscarded) : 0,
-      systemHealth: data.error.value || ejecuciones.value.some(j => j.estado === 'failed') ? 'attention_needed' : healthyStatus,
+      systemHealth: data.error.value || pipelines.value.some(p => p.estado === 'error') ? 'attention_needed' : healthyStatus,
       lastGlobalSync: ejecuciones.value.find(j => j.finalizadoEn)?.finalizadoEn ?? 'Sin ejecuciones',
     };
   });

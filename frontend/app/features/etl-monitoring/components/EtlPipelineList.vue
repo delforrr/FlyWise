@@ -66,7 +66,7 @@ const filterTabs = computed(() => [
   { label: "En ejecución", value: "running", count: counts.value.running },
   { label: "Al día", value: "success", count: counts.value.success },
   {
-    label: "Con descartes",
+    label: "Incidencias",
     value: "has_issues",
     count: counts.value.has_issues,
   },
@@ -95,7 +95,7 @@ const filterTabs = computed(() => [
         </div>
 
         <!-- Conmutador de Vista con UFieldGroup -->
-        <UFieldGroup class="shrink-0">
+        <UFieldGroup class="hidden shrink-0 md:flex">
           <UTooltip text="Vista en Lista / Tabla">
             <UButton
               size="xs"
@@ -138,7 +138,7 @@ const filterTabs = computed(() => [
       />
 
       <!-- Vista 2: Tarjetas -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4" :class="{ 'md:hidden': viewMode === 'table' }">
         <EtlPipelineCard
           v-for="p in filteredPipelines"
           :key="p.id"
@@ -158,7 +158,6 @@ const filterTabs = computed(() => [
       v-else
       icon="i-lucide-inbox"
       title="No se encontraron pipelines"
-      description="Ningún dataset coincide con los criterios de búsqueda o filtro seleccionados."
       variant="naked"
       class="p-8 text-center rounded-xl border border-border-subtle bg-surface-card"
     />
