@@ -129,7 +129,7 @@ describe('BTS mensual por HTTP y jobs', () => {
             estado: 'pending',
           });
           const csv =
-            'FlightDate,DOT_ID_Reporting_Airline,Flight_Number_Reporting_Airline,OriginAirportID,DestAirportID,CRSDepTime,ArrDelay,Cancelled,Diverted,Origin,Dest,IATA_CODE_Reporting_Airline\n2026-08-01,19393,101,10397,12892,0800,-5,0,0,ATL,LAX,WN\n';
+            'FlightDate,DOT_ID_Reporting_Airline,Flight_Number_Reporting_Airline,OriginAirportID,DestAirportID,CRSDepTime,ArrDelay,Cancelled,Diverted,Origin,Dest,IATA_CODE_Reporting_Airline\n2026-08-01,19393,101,10397,12892,0800,-5,0,0,ZZQ,ZZR,0Z\n';
           await expect(
             module
               .get(BtsService)
@@ -168,7 +168,7 @@ describe('BTS mensual por HTTP y jobs', () => {
           ).toMatchObject({
             total: 1,
             datos: [
-              expect.objectContaining({ identificador: '19393', codigo: 'WN' }),
+              expect.objectContaining({ identificador: '19393', codigo: '0Z' }),
             ],
           });
           expect(
@@ -400,6 +400,72 @@ describe('BTS mensual por HTTP y jobs', () => {
               }),
             ],
           });
+          await tx.orm.public.Aeropuerto.where({ id: origin.id }).update({
+            iata: 'QZX',
+          });
+          await tx.orm.public.Aeropuerto.where({ id: destination.id }).update({
+            iata: 'QZY',
+          });
+          await tx.orm.public.Aerolinea.where({ id: airline.id }).update({
+            iata: 'QZ',
+          });
+          const countryAirport = await tx.orm.public.Aeropuerto.create({
+            nombre: 'Aeropuerto adicional BTS',
+            nombrePais: country.nombre,
+            paisId: country.id,
+            iata: 'QZZ',
+            latitud: 2,
+            longitud: 2,
+            ubicacion: ubicacionAeropuerto(2, 2),
+          });
+          await api
+            .patch('/administracion/bts/configuracion')
+            .send({ periodo: '2026-08', pausado: true, expresionCron: '' })
+            .expect(200);
+          const { ejecucionId: partialId } = (
+            await api
+              .post('/administracion/bts/ejecutar')
+              .send({ periodo: '2026-07' })
+              .expect(201)
+          ).body as { ejecucionId: string };
+          const [header] = csv.split('\n');
+          const days = Array.from(
+            { length: 31 },
+            (_, day) =>
+              `2026-07-${String(day + 1).padStart(2, '0')},19393,101,10397,99991,0800,-5,0,0,QZX,QZZ,WN`,
+          );
+          const unmapped =
+            '2026-07-01,19393,102,10397,99992,0800,-5,0,0,QZX,ZZQ,WN';
+          await expect(
+            module
+              .get(BtsService)
+              .procesar(
+                partialId,
+                '2026-07',
+                Readable.from([[header, ...days, unmapped].join('\n')]),
+              ),
+          ).resolves.toEqual({
+            procesadas: 31,
+            insertadas: 31,
+            descartadas: 1,
+          });
+          expect(
+            await tx.orm.public.IdentidadAeropuertoFuente.first({
+              fuente: 'BTS',
+              identificador: '99991',
+            }),
+          ).toMatchObject({ aeropuertoId: countryAirport.id });
+          expect(
+            (await api.get('/administracion/bts/cobertura').expect(200)).body,
+          ).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                periodo: '2026-07',
+                filas: 31,
+                descartadas: 1,
+              }),
+            ]),
+          );
           rol = 'USER';
           await api.get('/administracion/bts/configuracion').expect(403);
         } finally {

@@ -19,23 +19,31 @@ const menuOpen = ref(false);
 const route = useRoute();
 const isUsersPage = computed(() => route.path.startsWith("/admin/usuarios"));
 const sections = [
-  { label: "Monitoreo", to: "/admin", icon: "i-lucide-activity" },
-  { label: "Servicios", to: "/admin/servicios", icon: "i-lucide-server" },
-  { label: "Usuarios", to: "/admin/usuarios", icon: "i-lucide-users" },
-  { label: "Operaciones", to: "/admin/vuelos", icon: "i-lucide-plane-takeoff" },
-  { label: "BTS mensual", to: "/admin/bts", icon: "i-lucide-calendar-days" },
-  { label: "Aeropuertos", to: "/admin/aeropuertos", icon: "i-lucide-map-pin" },
-  { label: "Aerolíneas", to: "/admin/aerolineas", icon: "i-lucide-plane" },
-  { label: "Rutas", to: "/admin/rutas", icon: "i-lucide-route" },
-  { label: "Actividad ANAC", to: "/admin/actividad", icon: "i-lucide-chart-column" },
-  { label: "Indicadores", to: "/admin/indicadores", icon: "i-lucide-chart-line" },
+  [
+    { label: "Monitoreo", to: "/admin", icon: "i-lucide-activity" },
+    { label: "Servicios", to: "/admin/servicios", icon: "i-lucide-server" },
+    { label: "Usuarios", to: "/admin/usuarios", icon: "i-lucide-users" },
+  ],
+  [
+    { label: "Carga de OTP", to: "/admin/bts", icon: "i-lucide-calendar-days" },
+    { label: "Actividad ANAC", to: "/admin/actividad", icon: "i-lucide-chart-column" },
+    { label: "Indicadores", to: "/admin/indicadores", icon: "i-lucide-chart-line" },
+  ],
+  [
+    { label: "Aeropuertos", to: "/admin/aeropuertos", icon: "i-lucide-map-pin" },
+    { label: "Aerolíneas", to: "/admin/aerolineas", icon: "i-lucide-plane" },
+    { label: "Rutas", to: "/admin/rutas", icon: "i-lucide-route" },
+    { label: "Operaciones", to: "/admin/vuelos", icon: "i-lucide-plane-takeoff" },
+  ],
 ];
 const navigation = computed(() =>
-  (user.value?.rol === "ADMIN" ? sections : sections.slice(0, 3)).map(item => ({
-    ...item,
-    exact: true,
-    onSelect: () => { menuOpen.value = false; },
-  })),
+  (user.value?.rol === "ADMIN" ? sections : sections.slice(0, 1)).map(group =>
+    group.map(item => ({
+      ...item,
+      exact: true,
+      onSelect: () => { menuOpen.value = false; },
+    })),
+  ),
 );
 </script>
 
@@ -43,6 +51,9 @@ const navigation = computed(() =>
   <div
     class="min-h-screen bg-background text-text-main flex flex-col font-sans"
   >
+    <a href="#admin-content" class="sr-only focus:not-sr-only focus:fixed focus:inset-s-4 focus:top-2 focus:z-50 focus:rounded-md focus:bg-surface-card focus:px-4 focus:py-3 focus:ring-2 focus:ring-primary">
+      Ir al contenido
+    </a>
     <header class="sticky top-0 z-40 border-b border-border-subtle bg-surface-card">
       <div
         class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2"
@@ -143,7 +154,7 @@ const navigation = computed(() =>
     </header>
 
     <!-- Contenedor Principal -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main id="admin-content" tabindex="-1" class="scroll-mt-32 flex-1 min-w-0 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <p v-if="logoutError" role="alert" class="mb-4 text-sm text-error">
         {{ logoutError }}
       </p>

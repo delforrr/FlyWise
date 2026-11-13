@@ -18,6 +18,7 @@ import {
   ConsultaDescartesBtsDto,
   CorrespondenciaBtsDto,
   EjecucionBtsParams,
+  EjecutarBtsDto,
 } from './bts.dto.js';
 
 @ApiTags('BTS mensual')
@@ -32,8 +33,11 @@ export class BtsController {
   @Patch('configuracion') configurar(@Body() dto: ConfiguracionBtsDto) {
     return this.bts.configurar(dto);
   }
-  @Post('ejecutar') ejecutar(@Req() req: { user: { id?: string } }) {
-    return this.bts.ejecutar(undefined, req.user.id);
+  @Post('ejecutar') ejecutar(
+    @Req() req: { user: { id?: string } },
+    @Body() dto: EjecutarBtsDto,
+  ) {
+    return this.bts.ejecutar(dto?.periodo, req.user.id, !!dto?.periodo);
   }
   @Get('cobertura') cobertura() {
     return this.bts.cobertura();

@@ -25,6 +25,11 @@ export class ConfiguracionBtsDto {
   @MaxLength(100)
   expresionCron!: string;
 }
+export class EjecutarBtsDto {
+  @IsOptional()
+  @Matches(/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/)
+  periodo?: string;
+}
 export class ConsultaBtsDto {
   @IsOptional() @IsIn(['aeropuertos', 'operadores']) tipo:
     'aeropuertos' | 'operadores' = 'aeropuertos';

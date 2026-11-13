@@ -133,12 +133,14 @@ export class BtsService implements OnModuleInit {
         { name: 'programada', data: {} },
       );
   }
-  async ejecutar(periodo?: string, solicitanteId?: string) {
+  async ejecutar(periodo?: string, solicitanteId?: string, manual = false) {
     const config = await this.configuracion();
-    if (config.pausado) throw new ConflictException('BTS pausado');
+    if (config.pausado && !manual) throw new ConflictException('BTS pausado');
     periodo ??= config.periodo;
     if (!/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/.test(periodo))
       throw new BadRequestException('Selecciona un mes');
+    if (periodo >= new Date().toISOString().slice(0, 7))
+      throw new BadRequestException('Seleccioná un mes finalizado');
     const uriFuente = urlBts(periodo);
     const record = await this.prisma.db.transaction(async (tx) => {
       await this.bloquear(tx);
@@ -215,23 +217,29 @@ export class BtsService implements OnModuleInit {
       fuente: 'BTS',
     });
     if (!job) throw new NotFoundException('Ejecución BTS inexistente');
-    if (job.estado !== 'failed')
-      throw new ConflictException('Sólo se reintentan ejecuciones fallidas');
+    if (
+      job.estado !== 'failed' &&
+      !(job.estado === 'completed' && job.filasDescartadas > 0)
+    )
+      throw new ConflictException(
+        'Sólo se reintentan ejecuciones fallidas o parciales',
+      );
     const periodo = periodoDe(job);
     if (!periodo)
       throw new BadRequestException('La ejecución no conserva su mes');
-    return this.ejecutar(periodo, solicitanteId);
+    return this.ejecutar(periodo, solicitanteId, true);
   }
   async cobertura() {
     const db = this.prisma.db;
     return db.query(
       db.raw
-        .sql`SELECT periodo,ejecucion_id AS "ejecucionId",filas,publicado_en::text AS "publicadoEn" FROM cobertura_bts ORDER BY periodo DESC LIMIT 100`
+        .sql`SELECT periodo,ejecucion_id AS "ejecucionId",filas,publicado_en::text AS "publicadoEn",e.filas_descartadas AS descartadas FROM cobertura_bts c JOIN ejecuciones_etl e ON e.id=c.ejecucion_id ORDER BY periodo DESC LIMIT 100`
         .returnsRow({
           periodo: 'pg/text@1',
           ejecucionId: 'pg/text@1',
           filas: 'pg/int4@1',
           publicadoEn: 'pg/text@1',
+          descartadas: 'pg/int4@1',
         })
         .build(),
     );
@@ -371,6 +379,7 @@ export class BtsService implements OnModuleInit {
     let total = 0,
       procesadas = 0,
       descartadas = 0,
+      sinCorrespondencia = 0,
       samples = 0;
     let batch: OperacionBts[] = [];
     const dias = new Set<string>();
@@ -410,6 +419,52 @@ export class BtsService implements OnModuleInit {
           .affectedCount()
           .build(),
       );
+      await db.transaction(async (tx) => {
+        await this.bloquear(tx);
+        await tx.execute(
+          tx.raw.sql`WITH candidatos AS (
+            SELECT i.identificador, min(a.id) AS entidad
+            FROM identidades_aeropuerto_fuente i
+            JOIN aeropuertos a ON a.iata=i.observacion->>'codigo' AND a.archivado_en IS NULL
+            WHERE i.fuente='BTS' AND i.aeropuerto_id IS NULL
+              AND i.identificador IN (
+                SELECT y.identificador FROM jsonb_to_recordset(${input}::jsonb) x("origenBts" text,"destinoBts" text)
+                CROSS JOIN LATERAL (VALUES(x."origenBts"),(x."destinoBts")) y(identificador)
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM identidades_aeropuerto_fuente j
+                WHERE j.fuente='BTS' AND j.identificador<>i.identificador
+                  AND (j.aeropuerto_id=a.id OR j.observacion->>'codigo'=a.iata)
+              )
+            GROUP BY i.identificador HAVING count(*)=1
+          )
+          UPDATE identidades_aeropuerto_fuente i SET aeropuerto_id=c.entidad
+          FROM candidatos c WHERE i.fuente='BTS' AND i.identificador=c.identificador
+            AND i.aeropuerto_id IS NULL`
+            .affectedCount()
+            .build(),
+        );
+        await tx.execute(
+          tx.raw.sql`WITH candidatos AS (
+            SELECT i.identificador, min(a.id) AS entidad
+            FROM identidades_operador_bts i
+            JOIN aerolineas a ON a.iata=i.codigo AND a.archivado_en IS NULL AND a.activa IS DISTINCT FROM false
+            WHERE i.aerolinea_id IS NULL
+              AND i.identificador IN (
+                SELECT x."operadorBts" FROM jsonb_to_recordset(${input}::jsonb) x("operadorBts" text)
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM identidades_operador_bts j WHERE j.identificador<>i.identificador
+                  AND (j.aerolinea_id=a.id OR j.codigo=i.codigo)
+              )
+            GROUP BY i.identificador HAVING count(*)=1
+          )
+          UPDATE identidades_operador_bts i SET aerolinea_id=c.entidad
+          FROM candidatos c WHERE i.identificador=c.identificador AND i.aerolinea_id IS NULL`
+            .affectedCount()
+            .build(),
+        );
+      });
       const resolved = await db.query(
         db.raw
           .sql`SELECT x.identidad,COALESCE(o.aeropuerto_id,'') AS origen,COALESCE(d.aeropuerto_id,'') AS destino,COALESCE(a.aerolinea_id,'') AS operador
@@ -434,6 +489,7 @@ export class BtsService implements OnModuleInit {
       for (const row of batch) {
         const identity = ids.get(row.identidad);
         if (!identity?.origen || !identity.destino || !identity.operador) {
+          sinCorrespondencia++;
           await discard(
             row.numeroFila,
             'Faltan correspondencias BTS explícitas',
@@ -493,7 +549,11 @@ export class BtsService implements OnModuleInit {
       });
       const ultimoDia = new Date(`${periodo}-01T00:00:00Z`);
       ultimoDia.setUTCMonth(ultimoDia.getUTCMonth() + 1, 0);
-      if (dias.size !== ultimoDia.getUTCDate() || descartadas)
+      if (
+        dias.size !== ultimoDia.getUTCDate() ||
+        descartadas !== sinCorrespondencia ||
+        procesadas <= descartadas
+      )
         throw new UnrecoverableError(
           'Mes incompleto: revisar descartes y correspondencias BTS',
         );
@@ -537,10 +597,24 @@ export class BtsService implements OnModuleInit {
           ).insertadas;
           cursor = rows[rows.length - 1].identidad;
         }
-        await retirarAusentesBts(tx, periodo, ejecucionId);
+        if (descartadas) {
+          const [cobertura] = await tx.query(
+            tx.raw
+              .sql`SELECT e.filas_descartadas AS descartadas FROM cobertura_bts c
+            JOIN ejecuciones_etl e ON e.id=c.ejecucion_id WHERE c.periodo=${periodo}`
+              .returnsRow({ descartadas: 'pg/int4@1' })
+              .build(),
+          );
+          if (cobertura)
+            throw new UnrecoverableError(
+              'La nueva carga parcial conserva la publicación anterior',
+            );
+        } else {
+          await retirarAusentesBts(tx, periodo, ejecucionId);
+        }
         await tx.execute(
           tx.raw
-            .sql`INSERT INTO cobertura_bts(periodo,ejecucion_id,filas) VALUES(${periodo},${ejecucionId},${total})
+            .sql`INSERT INTO cobertura_bts(periodo,ejecucion_id,filas) VALUES(${periodo},${ejecucionId},${procesadas})
           ON CONFLICT(periodo) DO UPDATE SET ejecucion_id=EXCLUDED.ejecucion_id,filas=EXCLUDED.filas,publicado_en=CURRENT_TIMESTAMP`
             .affectedCount()
             .build(),
@@ -551,7 +625,7 @@ export class BtsService implements OnModuleInit {
           filasTotales: total,
           filasProcesadas: procesadas,
           filasInsertadas: insertadas,
-          filasDescartadas: 0,
+          filasDescartadas: descartadas,
           checksumFuente,
         });
         await tx.orm.public.EventoEjecucionEtl.create({
@@ -566,7 +640,7 @@ export class BtsService implements OnModuleInit {
             .affectedCount()
             .build(),
         );
-        return { procesadas, insertadas, descartadas: 0 };
+        return { procesadas, insertadas, descartadas };
       });
     } catch (error) {
       const mensaje =
