@@ -19,9 +19,10 @@ export class ParRutaDto {
 }
 
 export class ConsultaMapaDto {
-  @ApiProperty({ example: '2026-08' })
-  @Matches(/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/)
-  periodo!: string;
+  @ApiPropertyOptional({ example: '2026-08' })
+  @IsOptional()
+  @Matches(/^(?:(?!0000)\d{4}-(0[1-9]|1[0-2]))?$/)
+  periodo?: string;
 
   @ApiPropertyOptional() @IsOptional() @IsUUID() aerolineaId?: string;
 

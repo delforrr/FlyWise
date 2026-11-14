@@ -1,3 +1,4 @@
+import { ContextoRutaDto } from './dto/contexto-ruta.dto.js';
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { MetricsService } from './metrics.service.js';
@@ -15,6 +16,9 @@ export class MetricsController {
   @HttpCode(200)
   consultarMapa(@Body() consulta: ConsultaMapaDto) {
     return this.service.consultarMapa(consulta);
+  }
+  @Get('mapa/contexto') contextoRuta(@Query() consulta: ContextoRutaDto) {
+    return this.service.contextoRuta(consulta);
   }
   @Get('mapa/opciones') opcionesMapa() {
     return this.service.opcionesMapa();

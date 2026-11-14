@@ -123,15 +123,21 @@ describe('Pipeline persistence and immutable execution configuration', () => {
           estado: 'running',
           iniciadoEn: '2026-11-09 14:44:05',
         });
-        queue.getJob.mockImplementation(async (id: string) =>
-          id === job.id
-            ? { getState: async () => 'failed', failedReason: 'Postgres client is closed' }
-            : { getState: async () => 'active' },
+        queue.getJob.mockImplementation((id: string) =>
+          Promise.resolve(
+            id === job.id
+              ? {
+                  getState: jest.fn().mockResolvedValue('failed'),
+                  failedReason: 'Postgres client is closed',
+                }
+              : { getState: jest.fn().mockResolvedValue('active') },
+          ),
         );
         await expect(service.onModuleInit()).resolves.toBeUndefined();
         expect(await service.job(job.id)).toMatchObject({
           estado: 'failed',
-          mensajeError: 'La conexión con PostgreSQL se cerró durante la ingesta. Podés reintentar.',
+          mensajeError:
+            'La conexión con PostgreSQL se cerró durante la ingesta. Podés reintentar.',
         });
         expect(queue.removeJobScheduler).toHaveBeenCalledWith(another.id);
         throw rollback;

@@ -138,15 +138,25 @@ export class PipelinesService implements OnModuleInit {
       for (const { id, intento } of rows) {
         const job = await this.queue.getJob(id);
         if (!job || (await job.getState()) !== 'failed') continue;
-        const mensaje = job.failedReason === 'Postgres client is closed'
-          ? 'La conexión con PostgreSQL se cerró durante la ingesta. Podés reintentar.'
-          : 'La cola agotó los intentos de ingesta. Podés reintentar.';
+        const mensaje =
+          job.failedReason === 'Postgres client is closed'
+            ? 'La conexión con PostgreSQL se cerró durante la ingesta. Podés reintentar.'
+            : 'La cola agotó los intentos de ingesta. Podés reintentar.';
         const execution = await this.prisma.models.EjecucionEtl.where({
-          id, intento, estado: 'running',
-        }).update({ estado: 'failed', finalizadoEn: now(), mensajeError: mensaje });
+          id,
+          intento,
+          estado: 'running',
+        }).update({
+          estado: 'failed',
+          finalizadoEn: now(),
+          mensajeError: mensaje,
+        });
         if (execution) {
           await this.prisma.models.EventoEjecucionEtl.create({
-            ejecucionId: id, intento, nivel: 'error', mensaje,
+            ejecucionId: id,
+            intento,
+            nivel: 'error',
+            mensaje,
           });
         }
       }
@@ -157,6 +167,9 @@ export class PipelinesService implements OnModuleInit {
 
   list() {
     return this.prisma.models.ProcesoEtl.where({ archivadoEn: null })
+      .where((row) =>
+        row.entidadDestino.in(['paises', 'aerolineas', 'aeropuertos', 'rutas']),
+      )
       .orderBy((p) => p.creadoEn.desc())
       .limit(1000)
       .all();
@@ -166,7 +179,16 @@ export class PipelinesService implements OnModuleInit {
     const row = await this.prisma.models.ProcesoEtl.where({
       id,
       archivadoEn: null,
-    }).first();
+    })
+      .where((proceso) =>
+        proceso.entidadDestino.in([
+          'paises',
+          'aerolineas',
+          'aeropuertos',
+          'rutas',
+        ]),
+      )
+      .first();
     if (!row) throw new NotFoundException('Pipeline no encontrado');
     return row;
   }
@@ -270,6 +292,7 @@ export class PipelinesService implements OnModuleInit {
     conexion: unknown;
     mapeoEsquema: unknown;
   }) {
+    if (row.entidadDestino === 'otp_metrics') return;
     if (row.pausado || row.archivadoEn) {
       await this.queue.removeJobScheduler(row.id);
       return;
@@ -434,6 +457,8 @@ export class PipelinesService implements OnModuleInit {
   }
   async retry(id: string, solicitanteId: string) {
     const job = await this.job(id);
+    if (job.fuente === 'OAG')
+      throw new ConflictException('Reintentá desde la administración de OAG');
     if (job.estado !== 'failed' && job.estado !== 'completed')
       throw new ConflictException('La ejecución todavía está activa');
     if (!job.instantaneaConfiguracion) {

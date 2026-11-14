@@ -17,6 +17,7 @@ import { VuelosModule } from './vuelos/vuelos.module.js';
 import { ActividadModule } from './actividad/actividad.module.js';
 import { BtsModule } from './bts/bts.module.js';
 import { IndicadoresModule } from './indicadores/indicadores.module.js';
+import { OagModule } from './adapters/oag/oag.module.js';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { IndicadoresModule } from './indicadores/indicadores.module.js';
     ActividadModule,
     BtsModule,
     IndicadoresModule,
+    OagModule,
   ],
   controllers: [AppController],
   providers: [AppService],

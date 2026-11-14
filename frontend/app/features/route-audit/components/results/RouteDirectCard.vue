@@ -1,11 +1,26 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
+import type { TabsItem } from "@nuxt/ui";
+import { useRouteContext } from "../../composables/useRouteContext";
 import type { FlightRoute } from "~/types/route";
 import RouteMetricDetails from "./RouteMetricDetails.vue";
 
 const props = defineProps<{
   route: FlightRoute;
 }>();
+
+const context = useRouteContext(() => props.route);
+const selectedTab = ref<string | number>("otp");
+const numero = new Intl.NumberFormat("es-AR");
+const tabs = computed<TabsItem[]>(() => {
+  const items: TabsItem[] = [{ label: "Puntualidad OTP-15", value: "otp", slot: "otp" }];
+  if (context.value?.actividad) items.push({ label: "Actividad ANAC", value: "actividad", slot: "actividad" });
+  if (context.value?.indicadores.length) items.push({ label: "EUROCONTROL", value: "indicadores", slot: "indicadores" });
+  return items;
+});
+watch(tabs, (items) => {
+  if (!items.some(item => item.value === selectedTab.value)) selectedTab.value = "otp";
+});
 
 // Estilo y color del indicador de confiabilidad según OTP-15
 const otpColorClass = computed(() => {
@@ -80,34 +95,64 @@ const bannerAccentClass = computed(() => {
 
     </div>
 
-    <!-- 3. Mini Reliability Summary Bar & Volume Indicator -->
-    <div
-      class="flex flex-col gap-1.5 p-2.5 rounded-xl bg-surface-base/50 dark:bg-surface-elevated/40 border border-border-subtle/50"
+    <UTabs
+      v-model="selectedTab"
+      :items="tabs"
+      size="xs"
+      variant="link"
+      :ui="{ list: 'flex-wrap', trigger: 'whitespace-nowrap px-2' }"
     >
-      <div class="flex items-center justify-between text-[11px] font-mono">
-        <div class="flex items-center gap-1.5 text-text-muted">
-          <UIcon name="i-lucide-gauge" class="w-3.5 h-3.5 text-text-dim" />
-          <span>Puntualidad OTP-15</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span
-            :class="['font-mono tabular-nums font-bold text-xs', otpColorClass]"
-          >
-            {{ route.averageOtp15 === null ? "Sin datos" : `${route.averageOtp15.toFixed(1)}%` }}
-          </span>
-        </div>
-      </div>
+      <template #otp>
+        <div
+          class="flex flex-col gap-1.5 p-2.5 rounded-xl bg-surface-base/50 dark:bg-surface-elevated/40 border border-border-subtle/50"
+        >
+          <div class="flex items-center justify-between text-[11px] font-mono">
+            <div class="flex items-center gap-1.5 text-text-muted">
+              <UIcon name="i-lucide-gauge" class="w-3.5 h-3.5 text-text-dim" />
+              <span>Puntualidad OTP-15</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span
+                :class="['font-mono tabular-nums font-bold text-xs', otpColorClass]"
+              >
+                {{ route.averageOtp15 === null ? "Sin datos" : `${route.averageOtp15.toFixed(1)}%` }}
+              </span>
+            </div>
+          </div>
 
-      <!-- Barra de confiabilidad visual con UProgress nativo -->
-      <UProgress
-        v-if="route.averageOtp15 !== null"
-        :model-value="route.averageOtp15"
-        size="xs"
-        :color="otpColor"
-        class="w-full"
-      />
-      <RouteMetricDetails v-if="route.metricas" :metricas="route.metricas" />
-    </div>
+          <!-- Barra de confiabilidad visual con UProgress nativo -->
+          <UProgress
+            v-if="route.averageOtp15 !== null"
+            :model-value="route.averageOtp15"
+            size="xs"
+            :color="otpColor"
+            class="w-full"
+          />
+          <RouteMetricDetails v-if="route.metricas" :metricas="route.metricas" />
+        </div>
+      </template>
+      <template #actividad>
+        <dl v-if="context?.actividad" class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-text-muted">
+          <dt>Período</dt>
+          <dd class="text-text-main tabular-nums">{{ context.periodo }}</dd>
+          <dt>Despegues del tramo</dt>
+          <dd class="text-text-main tabular-nums">{{ numero.format(context.actividad.despegues) }}</dd>
+          <template v-if="context.actividad.pasajeros !== null">
+            <dt>Pasajeros</dt>
+            <dd class="text-text-main tabular-nums">{{ numero.format(context.actividad.pasajeros) }}</dd>
+          </template>
+        </dl>
+      </template>
+      <template #indicadores>
+        <p class="mb-1.5 text-xs font-semibold text-text-main">Puntualidad de llegada por aeropuerto</p>
+        <dl class="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs text-text-muted">
+          <template v-for="indicador in context?.indicadores" :key="`${indicador.aeropuerto}/${indicador.desde}/${indicador.hasta}`">
+            <dt>{{ indicador.aeropuerto }} · {{ indicador.desde }} al {{ indicador.hasta }}</dt>
+            <dd class="text-text-main tabular-nums">{{ numero.format(indicador.puntualidadLlegada) }} %</dd>
+          </template>
+        </dl>
+      </template>
+    </UTabs>
 
     <!-- 4. Desglose de Aerolíneas Operadoras -->
     <div class="flex flex-col gap-1.5 border-t border-border-subtle/60 pt-2.5">

@@ -48,8 +48,7 @@ onMounted(() => { void cargarOpciones(); });
           {{ errorOpciones ? 'No se pudieron cargar los filtros.' : 'No se pudo consultar la puntualidad.' }}
         </p>
         <p v-else-if="cargandoOpciones || cargando" role="status" class="text-sm text-text-muted">Consultando puntualidad…</p>
-        <p v-else-if="!opciones?.periodos.length" class="text-sm text-text-muted">Todavía no hay meses con operaciones.</p>
-        <p v-else-if="!filtro.periodo" class="text-sm text-text-muted">Todavía no hay un mes BTS completo publicado.</p>
+        <p v-else-if="!filtro.periodo" class="text-sm text-text-muted">Todavía no hay un mes con métricas publicadas.</p>
         <UButton color="neutral" variant="ghost" label="Actualizar puntualidad" :disabled="cargando || cargandoOpciones" @click="actualizar" />
       </section>
     </template>

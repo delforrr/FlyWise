@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -11,8 +12,11 @@ import { MetricsService } from '../src/metrics/metrics.service.js';
 describe('Puntualidad del mapa por HTTP', () => {
   const db = createDatabase();
   afterAll(() => db.close());
+  afterEach(() => jest.restoreAllMocks());
 
   it('agrupa por ruta dirigida y operador sin confundir cero con ausencia', async () => {
+    // UTC is already in November while Buenos Aires is still in October.
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2099-11-01T02:59:59Z'));
     const rollback = new Error('rollback mapa');
     let app: INestApplication | undefined;
     try {
@@ -64,28 +68,15 @@ describe('Puntualidad del mapa por HTTP', () => {
           vuelosTotales: 1,
           vuelosCancelados: 1,
           fuentes: ['Administrativa'],
+          actualizadoEn: '2099-09-01 15:00:00',
         });
         await tx.orm.public.MetricaRuta.create({
           ...ida,
           periodo: '2099-09-01',
+          vuelosTotales: 0,
           aerolineaId: otro.id,
-          vuelosTotales: 2,
-          fuentes: ['Administrativa'],
+          pendiente: true,
         });
-        const cargaBts = await tx.orm.public.EjecucionEtl.create({
-          fuente: 'BTS',
-          estado: 'completed',
-          iniciadoEn: '2099-09-01 10:00:00',
-          finalizadoEn: '2099-09-01 11:00:00',
-        });
-        await tx.execute(
-          tx.raw.sql`
-          INSERT INTO cobertura_bts(periodo, ejecucion_id, filas)
-          VALUES (${'2099-08'}, ${cargaBts.id}, 1)
-        `
-            .affectedCount()
-            .build(),
-        );
         const module = await Test.createTestingModule({
           controllers: [MetricsController],
           providers: [
@@ -155,7 +146,20 @@ describe('Puntualidad del mapa por HTTP', () => {
         const opciones = await api.get('/metricas/mapa/opciones').expect(200);
         expect(opciones.body).toMatchObject({
           periodoInicial: '2099-08',
-          periodos: expect.arrayContaining(['2099-09', '2099-08']),
+          periodos: [
+            '2099-09',
+            '2099-08',
+            '2099-07',
+            '2099-06',
+            '2099-05',
+            '2099-04',
+            '2099-03',
+            '2099-02',
+            '2099-01',
+            '2098-12',
+            '2098-11',
+            '2098-10',
+          ],
           aerolineas: expect.arrayContaining([
             expect.objectContaining({
               id: operador.id,
@@ -163,6 +167,28 @@ describe('Puntualidad del mapa por HTTP', () => {
             }),
           ]),
         });
+        await api
+          .post('/metricas/mapa')
+          .send({ pares: filtros.pares })
+          .expect(200, combinadas.body);
+        await api
+          .post('/metricas/mapa')
+          .send({ ...filtros, periodo: '' })
+          .expect(200, combinadas.body);
+        await api
+          .post('/metricas/mapa')
+          .send({ ...filtros, periodo: '2099-09' })
+          .expect(200, []);
+        await api
+          .post('/metricas/mapa')
+          .send({ ...filtros, periodo: '2098-10' })
+          .expect(200, []);
+        for (const fueraDeVentana of ['2099-10', '2098-09']) {
+          await api
+            .post('/metricas/mapa')
+            .send({ ...filtros, periodo: fueraDeVentana })
+            .expect(400);
+        }
         throw rollback;
       });
     } catch (error) {

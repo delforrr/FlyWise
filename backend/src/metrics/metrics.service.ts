@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { consultarContextoRuta } from './contexto-ruta.js';
+import type { ContextoRutaDto } from './dto/contexto-ruta.dto.js';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { periodosCerradosMapa } from './periodos-mapa.js';
 import type { Transaction } from '../prisma/db.js';
 import type { Operacion } from '../vuelos/operacion.js';
 import type { ConsultaMetricasDto } from './dto/consulta-metricas.dto.js';
@@ -48,12 +51,13 @@ export class MetricsService {
               coalesce(jsonb_agg(DISTINCT fuente),'[]'::jsonb) AS fuentes
             FROM vuelos WHERE archivado_en IS NULL AND origen_id=m.origen_id AND destino_id=m.destino_id
               AND aerolinea_id=m.aerolinea_id AND fecha_vuelo>=m.periodo
+              AND CASE WHEN m.fuentes ? 'OAG' THEN fuente='OAG' ELSE fuente<>'OAG' END
               AND fecha_vuelo<m.periodo + interval '1 month'
           ) a WHERE m.pendiente
         )
         UPDATE metricas_ruta m SET vuelos_totales=a.total,vuelos_cancelados=a.cancelados,
           vuelos_desviados=a.desviados,vuelos_puntuales=a.puntuales,demora_llegada_total_minutos=a.demora,
-          fuentes=a.fuentes,actualizado_en=CURRENT_TIMESTAMP,pendiente=false,error_actualizacion=NULL
+          fuentes=CASE WHEN m.fuentes ? 'OAG' THEN m.fuentes ELSE a.fuentes END,actualizado_en=CURRENT_TIMESTAMP,pendiente=false,error_actualizacion=NULL
         FROM calculos a WHERE (m.origen_id,m.destino_id,m.aerolinea_id,m.periodo)=(a.origen_id,a.destino_id,a.aerolinea_id,a.periodo)
       `
           .affectedCount()
@@ -74,37 +78,50 @@ export class MetricsService {
     );
   }
 
-  async consultarMapa({ pares, ...filtros }: ConsultaMapaDto) {
+  async consultarMapa({ pares, periodo, aerolineaId }: ConsultaMapaDto) {
+    const periodos = periodosCerradosMapa();
+    if (periodo && !periodos.includes(periodo)) {
+      throw new BadRequestException(
+        'El período debe estar entre los últimos doce meses cerrados',
+      );
+    }
+    const seleccionado = periodo || (await this.periodoInicialMapa(periodos));
+    if (!seleccionado) return [];
+
     const { datos } = await this.consultar(
-      { ...filtros, pagina: 1, limite: MAX_PARES_MAPA },
+      { periodo: seleccionado, aerolineaId, pagina: 1, limite: MAX_PARES_MAPA },
       pares,
     );
     return datos;
   }
 
+  private async periodoInicialMapa(periodos: string[]) {
+    const { db } = this.prisma;
+    const [mes] = await db.query(
+      db.raw.sql`
+        SELECT to_char(max(periodo), 'YYYY-MM') AS periodo
+        FROM metricas_ruta
+        WHERE periodo BETWEEN ${periodos.at(-1) + '-01'}::date AND ${periodos[0] + '-01'}::date
+          AND actualizado_en IS NOT NULL AND vuelos_totales > 0
+      `
+        .returnsRow({ periodo: { codecId: 'pg/text@1', nullable: true } })
+        .build(),
+    );
+    return mes.periodo;
+  }
+
   async opcionesMapa() {
     const { db } = this.prisma;
-    const [meses, aerolineas] = await Promise.all([
-      db.query(
-        db.raw.sql`
-        WITH meses AS (
-          SELECT to_char(periodo, 'YYYY-MM') AS periodo
-          FROM metricas_ruta WHERE vuelos_totales > 0 OR pendiente
-          UNION SELECT periodo FROM cobertura_bts
-        )
-        SELECT meses.periodo, b.periodo IS NOT NULL AS "completoBts"
-        FROM meses LEFT JOIN cobertura_bts b USING (periodo)
-        ORDER BY meses.periodo DESC
-      `
-          .returnsRow({ periodo: 'pg/text@1', completoBts: 'pg/bool@1' })
-          .build(),
-      ),
+    const periodos = periodosCerradosMapa();
+    const [periodoInicial, aerolineas] = await Promise.all([
+      this.periodoInicialMapa(periodos),
       db.query(
         db.raw.sql`
         SELECT a.id, a.nombre, a.iata FROM aerolineas a
         WHERE EXISTS (
           SELECT 1 FROM metricas_ruta m WHERE m.aerolinea_id=a.id
-            AND (m.vuelos_totales > 0 OR m.pendiente)
+            AND m.periodo BETWEEN ${periodos.at(-1) + '-01'}::date AND ${periodos[0] + '-01'}::date
+            AND m.actualizado_en IS NOT NULL AND m.vuelos_totales > 0
         )
         ORDER BY a.nombre, a.id
       `
@@ -116,11 +133,16 @@ export class MetricsService {
           .build(),
       ),
     ]);
-    return {
-      periodoInicial: meses.find((mes) => mes.completoBts)?.periodo ?? null,
-      periodos: meses.map((mes) => mes.periodo),
-      aerolineas,
-    };
+    return { periodoInicial, periodos, aerolineas };
+  }
+
+  contextoRuta(consulta: ContextoRutaDto) {
+    if (!periodosCerradosMapa().includes(consulta.periodo)) {
+      throw new BadRequestException(
+        'El período debe estar entre los últimos doce meses cerrados',
+      );
+    }
+    return consultarContextoRuta(this.prisma.db, consulta);
   }
 
   async consultar(consulta: ConsultaMetricasDto, pares?: ParRutaDto[]) {
@@ -139,9 +161,10 @@ export class MetricsService {
         AND (${origenId ?? ''}::text = '' OR origen_id=${origenId ?? ''})
         AND (${destinoId ?? ''}::text = '' OR destino_id=${destinoId ?? ''})
         AND (${aerolineaId ?? ''}::text = '' OR aerolinea_id=${aerolineaId ?? ''})
-        AND (NOT ${pares !== undefined} OR (origen_id, destino_id) IN (
+        AND (NOT ${pares !== undefined} OR (actualizado_en IS NOT NULL AND vuelos_totales > 0
+          AND (origen_id, destino_id) IN (
           SELECT p."origenId", p."destinoId" FROM jsonb_to_recordset(${lote}::jsonb) p("origenId" text, "destinoId" text)
-        ))
+        )))
       GROUP BY origen_id,destino_id ORDER BY origen_id,destino_id LIMIT ${limite} OFFSET ${(pagina - 1) * limite}
     `
         .returnsRow({
