@@ -466,6 +466,17 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
           ).toMatchObject({
             ejecucionEtlId: bts.id,
           });
+          await tx.orm.public.MetricaRuta.where(poblacion).update({
+            ejecucionEtlId: null,
+          });
+          await ejecutar('failed', 'El cambio de fuente requiere autorización');
+          expect(
+            await tx.orm.public.MetricaRuta.first(poblacion),
+          ).toMatchObject({
+            ejecucionEtlId: null,
+            fuentes: ['BTS'],
+            vuelosPuntuales: 0,
+          });
           const nueva = await ejecutar('completed', undefined, undefined, [
             aerolinea.id,
           ]);

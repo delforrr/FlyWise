@@ -1,3 +1,4 @@
+import { MetricsModule } from './metrics/metrics.module.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { validate } from './config/env.validation.js';
@@ -36,6 +37,7 @@ import { OagModule } from './adapters/oag/oag.module.js';
     RoutesModule,
     EtlModule,
     VuelosModule,
+    MetricsModule,
     ActividadModule,
     BtsModule,
     IndicadoresModule,

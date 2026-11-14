@@ -1,3 +1,5 @@
+import { admiteFuente } from '../metrics/domain/autoridad-publicacion.js';
+import { exigirIngestaDisponible } from '../ingestion/infrastructure/admision-operaciones.js';
 import { fechaInformadaBts } from '../adapters/bts/operacion-bts.js';
 import type { AdaptadorOperaciones } from '../ingestion/application/adaptador-operaciones.js';
 import {
@@ -157,17 +159,7 @@ export class BtsService implements OnModuleInit {
       throw new BadRequestException('Seleccioná un mes finalizado');
     const uriFuente = urlBts(periodo);
     const record = await this.prisma.db.transaction(async (tx) => {
-      await this.bloquear(tx);
-      const [active] = await tx.query(
-        tx.raw
-          .sql`SELECT count(*)::int AS total FROM ejecuciones_etl WHERE fuente='BTS' AND estado IN('pending','running') AND instantanea_configuracion->'conexion'->>'periodo'=${periodo}`
-          .returnsRow({ total: 'pg/int4@1' })
-          .build(),
-      );
-      if (active.total)
-        throw new ConflictException(
-          'Ya hay una ejecución BTS activa para ese mes',
-        );
+      await exigirIngestaDisponible(tx);
       return tx.orm.public.EjecucionEtl.create({
         fuente: 'BTS',
         estado: 'pending',
@@ -383,18 +375,27 @@ export class BtsService implements OnModuleInit {
         } | null
       )?.conexion?.autorizarCambioFuente ?? [];
     const intento = job.intento + 1;
-    await this.prisma.models.EjecucionEtl.where({ id: ejecucionId }).update({
-      estado: 'running',
-      intento,
-      iniciadoEn: now(),
-      finalizadoEn: null,
-      mensajeError: null,
-      filasTotales: 0,
-      filasProcesadas: 0,
-      filasInsertadas: 0,
-      filasDescartadas: 0,
-    });
     const db = this.prisma.db;
+    await db.transaction(async (tx) => {
+      if (job.estado === 'failed') await exigirIngestaDisponible(tx);
+      const iniciada = await tx.orm.public.EjecucionEtl.where({
+        id: ejecucionId,
+        estado: job.estado,
+        intento: job.intento,
+      }).update({
+        estado: 'running',
+        intento,
+        iniciadoEn: now(),
+        finalizadoEn: null,
+        mensajeError: null,
+        filasTotales: 0,
+        filasProcesadas: 0,
+        filasInsertadas: 0,
+        filasDescartadas: 0,
+      });
+      if (!iniciada)
+        throw new ConflictException('La ejecución BTS cambió de estado');
+    });
     await db.execute(
       db.raw.sql`DELETE FROM preparacion_bts WHERE ejecucion_id=${ejecucionId}`
         .affectedCount()
@@ -603,108 +604,13 @@ export class BtsService implements OnModuleInit {
       const checksumFuente = hash.copy().digest('hex');
       return await db.transaction(async (tx) => {
         await this.bloquear(tx);
-        let cursor = '',
-          insertadas = 0;
-        for (;;) {
-          const rows = await tx.query(
-            tx.raw
-              .sql`SELECT identidad, observacion->>'fechaVuelo' AS "fechaVuelo",
-                observacion->>'numeroVuelo' AS "numeroVuelo", observacion->>'origenId' AS "origenId",
-                observacion->>'destinoId' AS "destinoId", observacion->>'aerolineaId' AS "aerolineaId",
-                observacion->>'estado' AS estado, (observacion->>'demoraLlegadaMinutos')::int AS "demoraLlegadaMinutos"
-                FROM preparacion_bts WHERE ejecucion_id=${ejecucionId} AND identidad>${cursor}
-                ORDER BY identidad LIMIT 1000`
-              .returnsRow({
-                identidad: 'pg/text@1',
-                fechaVuelo: 'pg/text@1',
-                numeroVuelo: 'pg/text@1',
-                origenId: 'pg/text@1',
-                destinoId: 'pg/text@1',
-                aerolineaId: 'pg/text@1',
-                estado: 'pg/text@1',
-                demoraLlegadaMinutos: { codecId: 'pg/int4@1', nullable: true },
-              })
-              .build(),
-          );
-          if (!rows.length) break;
-          const observations = rows.map(
-            ({ identidad, estado, ...operacion }) => ({
-              ...operacion,
-              estado: estado as Operacion['estado'],
-              horarios: fechaInformadaBts,
-              fuente: 'BTS',
-              idRegistroFuente: identidad,
-            }),
-          );
-          insertadas += (
-            await this.vuelos.importarLote(observations, ejecucionId, tx)
-          ).insertadas;
-          cursor = rows[rows.length - 1].identidad;
-        }
-        if (descartadas) {
-          const [cobertura] = await tx.query(
-            tx.raw
-              .sql`SELECT e.filas_descartadas AS descartadas FROM cobertura_bts c
-            JOIN ejecuciones_etl e ON e.id=c.ejecucion_id WHERE c.periodo=${periodo}`
-              .returnsRow({ descartadas: 'pg/int4@1' })
-              .build(),
-          );
-          if (cobertura)
-            throw new UnrecoverableError(
-              'La nueva carga parcial conserva la publicación anterior',
-            );
-          await tx.execute(
-            tx.raw.sql`
-              UPDATE metricas_ruta m SET pendiente=false,error_actualizacion=NULL
-              WHERE m.periodo=${periodo + '-01'}::date AND EXISTS (
-                SELECT 1 FROM vuelos v WHERE v.ejecucion_etl_id=${ejecucionId}
-                  AND (v.origen_id,v.destino_id,v.aerolinea_id)=(m.origen_id,m.destino_id,m.aerolinea_id)
-              )
-            `
-              .affectedCount()
-              .build(),
-          );
-        } else {
-          await retirarAusentesBts(tx, periodo, ejecucionId);
-          let cursor = { origenId: '', destinoId: '', aerolineaId: '' };
-          for (;;) {
-            const poblaciones = await tx.query(
-              tx.raw.sql`
-                SELECT m.origen_id AS "origenId",m.destino_id AS "destinoId",m.aerolinea_id AS "aerolineaId"
-                FROM metricas_ruta m LEFT JOIN ejecuciones_etl e ON e.id=m.ejecucion_etl_id
-                WHERE m.periodo=${periodo + '-01'}::date AND m.pendiente
-                  AND (e.fuente='BTS' OR (
-                    ((e.id IS NULL AND (
-                    m.actualizado_en IS NULL OR m.vuelos_totales=0 OR
-                    m.fuentes IN ('["Administrativa"]'::jsonb, '["BTS"]'::jsonb)
-                  )) OR EXISTS (
-                    SELECT 1 FROM jsonb_to_recordset(${JSON.stringify(autorizadas)}::jsonb)
-                      AS a("origenId" text,"destinoId" text,"aerolineaId" text)
-                    WHERE (a."origenId",a."destinoId",a."aerolineaId")=(m.origen_id,m.destino_id,m.aerolinea_id)
-                  )) AND EXISTS (
-                    SELECT 1 FROM vuelos v WHERE v.ejecucion_etl_id=${ejecucionId} AND v.fuente='BTS'
-                      AND (v.origen_id,v.destino_id,v.aerolinea_id)=(m.origen_id,m.destino_id,m.aerolinea_id)
-                  )))
-                  AND (m.origen_id,m.destino_id,m.aerolinea_id)>(${cursor.origenId},${cursor.destinoId},${cursor.aerolineaId})
-                ORDER BY m.origen_id,m.destino_id,m.aerolinea_id LIMIT 100
-              `
-                .returnsRow({
-                  origenId: 'pg/text@1',
-                  destinoId: 'pg/text@1',
-                  aerolineaId: 'pg/text@1',
-                })
-                .build(),
-            );
-            for (const poblacion of poblaciones)
-              await escribirPublicacion(
-                tx,
-                { ...poblacion, periodo },
-                { fuente: 'BTS', ejecucionId },
-              );
-            if (poblaciones.length < 100) break;
-            cursor = poblaciones[poblaciones.length - 1];
-          }
-        }
+        const insertadas = await this.importarOperacionesPreparadas(
+          tx,
+          ejecucionId,
+        );
+        if (descartadas)
+          await this.conservarPublicacionBts(tx, periodo, ejecucionId);
+        else await this.publicarMesBts(tx, periodo, ejecucionId, autorizadas);
         await tx.execute(
           tx.raw
             .sql`INSERT INTO cobertura_bts(periodo,ejecucion_id,filas) VALUES(${periodo},${ejecucionId},${procesadas})
@@ -760,6 +666,143 @@ export class BtsService implements OnModuleInit {
           .build(),
       );
       throw error;
+    }
+  }
+  private async importarOperacionesPreparadas(
+    tx: Transaction,
+    ejecucionId: string,
+  ) {
+    let cursor = '',
+      insertadas = 0;
+    for (;;) {
+      const rows = await tx.query(
+        tx.raw.sql`SELECT identidad, observacion->>'fechaVuelo' AS "fechaVuelo",
+                observacion->>'numeroVuelo' AS "numeroVuelo", observacion->>'origenId' AS "origenId",
+                observacion->>'destinoId' AS "destinoId", observacion->>'aerolineaId' AS "aerolineaId",
+                observacion->>'estado' AS estado, (observacion->>'demoraLlegadaMinutos')::int AS "demoraLlegadaMinutos"
+                FROM preparacion_bts WHERE ejecucion_id=${ejecucionId} AND identidad>${cursor}
+                ORDER BY identidad LIMIT 1000`
+          .returnsRow({
+            identidad: 'pg/text@1',
+            fechaVuelo: 'pg/text@1',
+            numeroVuelo: 'pg/text@1',
+            origenId: 'pg/text@1',
+            destinoId: 'pg/text@1',
+            aerolineaId: 'pg/text@1',
+            estado: 'pg/text@1',
+            demoraLlegadaMinutos: { codecId: 'pg/int4@1', nullable: true },
+          })
+          .build(),
+      );
+      if (!rows.length) break;
+      const observations = rows.map(({ identidad, estado, ...operacion }) => ({
+        ...operacion,
+        estado: estado as Operacion['estado'],
+        horarios: fechaInformadaBts,
+        fuente: 'BTS',
+        idRegistroFuente: identidad,
+      }));
+      insertadas += (
+        await this.vuelos.importarLote(observations, ejecucionId, tx)
+      ).insertadas;
+      cursor = rows[rows.length - 1].identidad;
+    }
+    return insertadas;
+  }
+
+  private async conservarPublicacionBts(
+    tx: Transaction,
+    periodo: string,
+    ejecucionId: string,
+  ) {
+    const [cobertura] = await tx.query(
+      tx.raw.sql`SELECT e.filas_descartadas AS descartadas FROM cobertura_bts c
+            JOIN ejecuciones_etl e ON e.id=c.ejecucion_id WHERE c.periodo=${periodo}`
+        .returnsRow({ descartadas: 'pg/int4@1' })
+        .build(),
+    );
+    if (cobertura)
+      throw new UnrecoverableError(
+        'La nueva carga parcial conserva la publicación anterior',
+      );
+    await tx.execute(
+      tx.raw.sql`
+              UPDATE metricas_ruta m SET pendiente=false,error_actualizacion=NULL
+              WHERE m.periodo=${periodo + '-01'}::date AND EXISTS (
+                SELECT 1 FROM vuelos v WHERE v.ejecucion_etl_id=${ejecucionId}
+                  AND (v.origen_id,v.destino_id,v.aerolinea_id)=(m.origen_id,m.destino_id,m.aerolinea_id)
+              )
+            `
+        .affectedCount()
+        .build(),
+    );
+  }
+
+  private async publicarMesBts(
+    tx: Transaction,
+    periodo: string,
+    ejecucionId: string,
+    autorizadas: PoblacionBtsDto[],
+  ) {
+    await retirarAusentesBts(tx, periodo, ejecucionId);
+    const clavePoblacion = ({
+      origenId,
+      destinoId,
+      aerolineaId,
+    }: PoblacionBtsDto) => JSON.stringify([origenId, destinoId, aerolineaId]);
+    const conAutorizacion = new Set(autorizadas.map(clavePoblacion));
+    let cursor = { origenId: '', destinoId: '', aerolineaId: '' };
+    for (;;) {
+      const poblaciones = await tx.query(
+        tx.raw.sql`
+                SELECT m.origen_id AS "origenId",m.destino_id AS "destinoId",m.aerolinea_id AS "aerolineaId",
+                  e.fuente, m.ejecucion_etl_id AS "ejecucionId",
+                  m.actualizado_en IS NOT NULL AS actualizada, m.vuelos_totales AS "vuelosTotales", m.fuentes, COALESCE(observada.existe, false) AS observada
+                FROM metricas_ruta m LEFT JOIN ejecuciones_etl e ON e.id=m.ejecucion_etl_id
+                LEFT JOIN LATERAL (
+                  SELECT true AS existe FROM vuelos v
+                  WHERE v.ejecucion_etl_id=${ejecucionId} AND v.fuente='BTS'
+                    AND (v.origen_id,v.destino_id,v.aerolinea_id)=(m.origen_id,m.destino_id,m.aerolinea_id)
+                  LIMIT 1
+                ) observada ON true
+                WHERE m.periodo=${periodo + '-01'}::date AND m.pendiente
+                  AND (m.ejecucion_etl_id IS NOT NULL OR observada.existe)
+                  AND (m.origen_id,m.destino_id,m.aerolinea_id)>(${cursor.origenId},${cursor.destinoId},${cursor.aerolineaId})
+                ORDER BY m.origen_id,m.destino_id,m.aerolinea_id LIMIT 100
+              `
+          .returnsRow({
+            origenId: 'pg/text@1',
+            destinoId: 'pg/text@1',
+            aerolineaId: 'pg/text@1',
+            fuente: { codecId: 'pg/text@1', nullable: true },
+            ejecucionId: { codecId: 'pg/text@1', nullable: true },
+            actualizada: 'pg/bool@1',
+            vuelosTotales: 'pg/int4@1',
+            fuentes: 'pg/jsonb@1',
+            observada: 'pg/bool@1',
+          })
+          .build(),
+      );
+      for (const actual of poblaciones) {
+        const { origenId, destinoId, aerolineaId } = actual;
+        const poblacion = { origenId, destinoId, aerolineaId };
+        if (actual.fuente !== 'BTS' && !actual.observada) continue;
+        if (
+          !admiteFuente(
+            actual,
+            'BTS',
+            conAutorizacion.has(clavePoblacion(poblacion)),
+          )
+        )
+          continue;
+        await escribirPublicacion(
+          tx,
+          { ...poblacion, periodo },
+          { fuente: 'BTS', ejecucionId },
+        );
+      }
+      if (poblaciones.length < 100) break;
+      cursor = poblaciones[poblaciones.length - 1];
     }
   }
 }

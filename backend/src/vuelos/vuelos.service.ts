@@ -1,4 +1,8 @@
 import {
+  bloquearCambiosMetricas,
+  marcarPendiente,
+} from '../metrics/publicacion.store.js';
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -8,7 +12,6 @@ import { randomUUID } from 'node:crypto';
 import { guardarObservaciones } from './observaciones.store.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Transaction } from '../prisma/db.js';
-import { MetricsService } from '../metrics/metrics.service.js';
 import type {
   ConsultaVuelosDto,
   EditarVueloDto,
@@ -28,10 +31,7 @@ type CambiosVuelo = Partial<Operacion> & {
 
 @Injectable()
 export class VuelosService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly metrics: MetricsService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async listar(consulta: ConsultaVuelosDto) {
     let query = this.prisma.models.Vuelo;
@@ -101,7 +101,7 @@ export class VuelosService {
   crear(datos: OperacionDto, actorId: string) {
     const operacion = this.validar(datos);
     return this.prisma.db.transaction(async (tx) => {
-      await this.metrics.bloquearCambios(tx);
+      await bloquearCambiosMetricas(tx);
       await this.validarReferencias(tx, operacion);
       const vuelo = await tx.orm.public.Vuelo.create({
         ...operacion,
@@ -111,7 +111,7 @@ export class VuelosService {
         protegidoManualmente: true,
       });
       await this.auditar(tx, vuelo, 'crear', actorId);
-      await this.metrics.marcarPendiente(tx, operacion);
+      await marcarPendiente(tx, operacion);
       return vuelo;
     });
   }
@@ -208,7 +208,7 @@ export class VuelosService {
       identidades.add(clave);
     }
     const importar = async (tx: Transaction) => {
-      await this.metrics.bloquearCambios(tx);
+      await bloquearCambiosMetricas(tx);
       return guardarObservaciones(tx, observaciones, ejecucionEtlId);
     };
     return transaccion
@@ -279,7 +279,7 @@ export class VuelosService {
     ) => CambiosVuelo | Promise<CambiosVuelo>,
   ) {
     return this.prisma.db.transaction(async (tx) => {
-      await this.metrics.bloquearCambios(tx);
+      await bloquearCambiosMetricas(tx);
       const actual = await tx.orm.public.Vuelo.first({ id });
       if (!actual) throw new NotFoundException('La operación no existe');
       if (actual.version !== version)
@@ -290,8 +290,8 @@ export class VuelosService {
       });
       const actualizado = await tx.orm.public.Vuelo.firstOrThrow({ id });
       await this.auditar(tx, actualizado, accion, actorId);
-      await this.metrics.marcarPendiente(tx, actual);
-      await this.metrics.marcarPendiente(tx, actualizado);
+      await marcarPendiente(tx, actual);
+      await marcarPendiente(tx, actualizado);
       return actualizado;
     });
   }

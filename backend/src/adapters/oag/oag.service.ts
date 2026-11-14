@@ -1,3 +1,9 @@
+import { admiteFuente } from '../../metrics/domain/autoridad-publicacion.js';
+import {
+  prepararPublicacionOag,
+  type VueloResuelto,
+} from './preparar-publicacion-oag.js';
+import { exigirIngestaDisponible } from '../../ingestion/infrastructure/admision-operaciones.js';
 import type { AdaptadorOperaciones } from '../../ingestion/application/adaptador-operaciones.js';
 import { InjectQueue } from '@nestjs/bullmq';
 import {
@@ -10,19 +16,15 @@ import {
 } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { ConfiguracionOagDto } from './oag.controller.js';
-import { MetricsService } from '../../metrics/metrics.service.js';
 import {
+  bloquearCambiosMetricas,
   escribirPublicacion,
-  cambioFuenteSinAutorizar,
+  leerPublicacionesDelTramo,
 } from '../../metrics/publicacion.store.js';
 import { periodosCerradosMapa } from '../../metrics/periodos-mapa.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Transaction } from '../../prisma/db.js';
 import { guardarObservaciones } from '../../vuelos/observaciones.store.js';
-import {
-  validarOperacion,
-  type ObservacionVuelo,
-} from '../../entities/vuelos/domain/operacion.js';
 import {
   CredencialOagRechazada,
   CuotaOagAgotada,
@@ -58,7 +60,6 @@ type AlcanceOag = Omit<ConfiguracionOagDto, 'pausado'> &
   ConsultaOag & {
     autorizarCambioFuente?: string[];
   };
-type VueloResuelto = Omit<OperacionOag, 'carrier'> & { aerolineaId: string };
 function combinarRevision(actual: VueloResuelto, previa?: VueloResuelto) {
   if (!previa) return actual;
   const reemplazar =
@@ -120,7 +121,6 @@ export class OagService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(OAG_QUEUE) private readonly queue: Queue<TrabajoOag>,
-    private readonly metrics: MetricsService,
     @Inject(ADAPTADOR_OAG)
     private readonly adaptador: AdaptadorOperaciones<LecturaOag, OperacionOag>,
   ) {}
@@ -278,21 +278,7 @@ export class OagService implements OnModuleInit {
       );
       if (!proceso || proceso.pausado)
         throw new ConflictException('OAG pausado');
-      const [activa] = await tx.query(
-        tx.raw.sql`
-          SELECT id FROM ejecuciones_etl WHERE proceso_id=${PROCESO_ID} AND estado IN ('pending','running')
-          AND instantanea_configuracion->'conexion'->>'origenId'=${alcance.origenId}
-          AND instantanea_configuracion->'conexion'->>'destinoId'=${alcance.destinoId}
-          AND instantanea_configuracion->'conexion'->>'periodo'=${alcance.periodo}
-          LIMIT 1
-        `
-          .returnsRow({ id: 'pg/text@1' })
-          .build(),
-      );
-      if (activa)
-        throw new ConflictException(
-          'Ya hay una ejecución OAG activa para este tramo y mes',
-        );
+      await exigirIngestaDisponible(tx);
       return tx.orm.public.EjecucionEtl.create({
         fuente,
         estado: 'pending',
@@ -466,66 +452,20 @@ export class OagService implements OnModuleInit {
         },
       );
 
-      const porOperadora = new Map<
-        string,
-        {
-          total: number;
-          resueltas: number;
-          llegadas: number;
-          desviadas: number;
-          canceladas: number;
-        }
-      >();
-      const observaciones: ObservacionVuelo[] = [];
-      for (const vuelo of candidatos.values()) {
-        const resumen = porOperadora.get(vuelo.aerolineaId) ?? {
-          total: 0,
-          resueltas: 0,
-          llegadas: 0,
-          desviadas: 0,
-          canceladas: 0,
-        };
-        porOperadora.set(vuelo.aerolineaId, resumen);
-        resumen.total++;
-        if (!vuelo.estado) {
-          descartadas++;
-          continue;
-        }
-        resumen.resueltas++;
-        if (vuelo.estado === 'ARRIVED' && vuelo.demoraLlegadaMinutos !== null)
-          resumen.llegadas++;
-        if (vuelo.estado === 'DIVERTED') resumen.desviadas++;
-        if (vuelo.estado === 'CANCELLED') resumen.canceladas++;
-        observaciones.push({
-          fuente,
-          idRegistroFuente: JSON.stringify([vuelo.aerolineaId, vuelo.id]),
-          ...validarOperacion({
-            origenId: alcance.origenId,
-            destinoId: alcance.destinoId,
-            aerolineaId: vuelo.aerolineaId,
-            fechaVuelo: vuelo.fechaVuelo,
-            horarios: vuelo.horarios,
-            numeroVuelo: vuelo.numeroVuelo,
-            estado: vuelo.estado,
-            demoraLlegadaMinutos: vuelo.demoraLlegadaMinutos,
-          }),
-        });
-      }
-      const cobertura = alcance.coberturaMinimaPct / 100;
-      const tieneCobertura = [...porOperadora.values()].every(
-        (r) =>
-          r.resueltas >= cobertura * r.total &&
-          r.llegadas >= cobertura * (r.total - r.canceladas - r.desviadas),
+      const preparada = prepararPublicacionOag(
+        candidatos.values(),
+        alcance,
+        descartadas,
       );
-      if (
-        !observaciones.length ||
-        !tieneCobertura ||
-        observaciones.length < cobertura * (observaciones.length + descartadas)
-      )
+      if (preparada.tipo !== 'lista') {
+        descartadas = preparada.descartadas;
+        if (preparada.tipo === 'invalida') throw preparada.error;
         throw new FalloOag('Cobertura OAG insuficiente para publicar');
+      }
+      const { observaciones, totalesPorOperadora } = preparada;
       descartadas = total - observaciones.length;
       await this.prisma.db.transaction(async (tx) => {
-        await this.metrics.bloquearCambios(tx);
+        await bloquearCambiosMetricas(tx);
         const [activa] = await tx.query(
           tx.raw.sql`
           SELECT id FROM ejecuciones_etl WHERE id=${id} AND intento=${intento} AND estado='running' FOR UPDATE
@@ -534,25 +474,38 @@ export class OagService implements OnModuleInit {
             .build(),
         );
         if (!activa) return;
-        const totalesPorOperadora = Object.fromEntries(
-          [...porOperadora].map(([id, resumen]) => [id, resumen.resueltas]),
+        const autoridades = await leerPublicacionesDelTramo(tx, alcance);
+        const perdioCobertura = autoridades.some(
+          (actual) =>
+            actual.incluyeOag &&
+            (totalesPorOperadora[actual.aerolineaId] ?? 0) <
+              actual.vuelosTotales,
         );
-        await this.protegerPublicacion(
-          tx,
-          alcance,
-          totalesPorOperadora,
-          observaciones.map((vuelo) => vuelo.idRegistroFuente),
-        );
+        if (
+          perdioCobertura ||
+          (await this.faltaObservacionAnterior(
+            tx,
+            alcance,
+            observaciones.map((vuelo) => vuelo.idRegistroFuente),
+          ))
+        ) {
+          throw new FalloOag(
+            'Cobertura OAG insuficiente para una operadora ya publicada',
+          );
+        }
         const operadoras = Object.keys(totalesPorOperadora).filter(
           (id) => totalesPorOperadora[id] > 0,
         );
+        const autorizadas = new Set(alcance.autorizarCambioFuente);
         if (
-          await cambioFuenteSinAutorizar(
-            tx,
-            alcance,
-            fuente,
-            operadoras,
-            alcance.autorizarCambioFuente ?? [],
+          autoridades.some(
+            (actual) =>
+              totalesPorOperadora[actual.aerolineaId] > 0 &&
+              !admiteFuente(
+                actual,
+                fuente,
+                autorizadas.has(actual.aerolineaId),
+              ),
           )
         ) {
           throw new FalloOag(
@@ -639,19 +592,13 @@ export class OagService implements OnModuleInit {
     return ids.length && ids.every((id) => id === ids[0]) ? ids[0] : null;
   }
 
-  private async protegerPublicacion(
+  private async faltaObservacionAnterior(
     tx: Transaction,
     { origenId, destinoId, periodo }: AlcanceOag,
-    totalesPorOperadora: Record<string, number>,
     identidades: string[],
   ) {
     const [faltante] = await tx.query(
       tx.raw.sql`
-      SELECT aerolinea_id AS id FROM metricas_ruta
-      WHERE origen_id=${origenId} AND destino_id=${destinoId} AND periodo=${periodo + '-01'}::date
-      AND fuentes ? 'OAG'
-      AND coalesce((${JSON.stringify(totalesPorOperadora)}::jsonb ->> aerolinea_id)::int, 0) < vuelos_totales
-      UNION ALL
       SELECT aerolinea_id AS id FROM vuelos
       WHERE origen_id=${origenId} AND destino_id=${destinoId}
         AND fecha_vuelo>=${periodo + '-01'}::date
@@ -663,10 +610,7 @@ export class OagService implements OnModuleInit {
         .returnsRow({ id: 'pg/text@1' })
         .build(),
     );
-    if (faltante)
-      throw new FalloOag(
-        'Cobertura OAG insuficiente para una operadora ya publicada',
-      );
+    return Boolean(faltante);
   }
 
   private async retirarObservacionesAnteriores(

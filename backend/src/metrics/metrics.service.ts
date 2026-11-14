@@ -1,12 +1,13 @@
 import { consultarContextoRuta } from './contexto-ruta.js';
 import { porcentajeOtp } from './domain/otp.js';
-import { escribirPublicacion } from './publicacion.store.js';
+import {
+  recalcularMetricasPendientes,
+  registrarErrorMetricas,
+} from './metricas-pendientes.store.js';
 import type { ContextoRutaDto } from './dto/contexto-ruta.dto.js';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { periodosCerradosMapa } from './periodos-mapa.js';
-import type { Transaction } from '../prisma/db.js';
-import type { Operacion } from '../entities/vuelos/domain/operacion.js';
 import type { ConsultaMetricasDto } from './dto/consulta-metricas.dto.js';
 import {
   MAX_PARES_MAPA,
@@ -18,86 +19,12 @@ import {
 export class MetricsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async marcarPendiente(
-    tx: Transaction,
-    operacion: Pick<
-      Operacion,
-      'origenId' | 'destinoId' | 'aerolineaId' | 'fechaVuelo'
-    >,
-  ) {
-    await tx.execute(
-      tx.raw.sql`
-      INSERT INTO metricas_ruta(origen_id,destino_id,aerolinea_id,periodo,vuelos_totales,vuelos_cancelados,vuelos_desviados,vuelos_puntuales,demora_llegada_total_minutos,actualizado_en,pendiente)
-      VALUES (${operacion.origenId},${operacion.destinoId},${operacion.aerolineaId},${operacion.fechaVuelo.slice(0, 7) + '-01'}::date,0,0,0,0,0,NULL,true)
-      ON CONFLICT (origen_id,destino_id,aerolinea_id,periodo) DO UPDATE SET pendiente=true,error_actualizacion=NULL
-    `
-        .affectedCount()
-        .build(),
-    );
+  recalcularPendientes() {
+    return this.prisma.db.transaction(recalcularMetricasPendientes);
   }
 
-  async bloquearCambios(tx: Transaction) {
-    // A publication sees every operation and its pending marker in the same generation.
-    await tx.execute(
-      tx.raw.sql`SELECT pg_advisory_xact_lock(826103)`.affectedCount().build(),
-    );
-  }
-
-  async recalcularPendientes() {
-    return this.prisma.db.transaction(async (tx) => {
-      await this.bloquearCambios(tx);
-      let recalculadas = 0;
-      for (;;) {
-        const pendientes = await tx.query(
-          tx.raw.sql`
-            SELECT m.origen_id AS "origenId",m.destino_id AS "destinoId",
-              m.aerolinea_id AS "aerolineaId",to_char(m.periodo,'YYYY-MM') AS periodo,
-              (m.ejecucion_etl_id IS NOT NULL OR
-                (m.actualizado_en IS NOT NULL AND m.fuentes <> '["Administrativa"]'::jsonb
-                  AND m.vuelos_totales > 0)) AS publicada
-            FROM metricas_ruta m
-            WHERE m.pendiente
-            ORDER BY m.origen_id,m.destino_id,m.aerolinea_id,m.periodo LIMIT 100
-          `
-            .returnsRow({
-              origenId: 'pg/text@1',
-              destinoId: 'pg/text@1',
-              aerolineaId: 'pg/text@1',
-              periodo: 'pg/text@1',
-              publicada: 'pg/bool@1',
-            })
-            .build(),
-        );
-        for (const { publicada, ...poblacion } of pendientes) {
-          if (publicada) {
-            // Una recomputación del circuito legado no sustituye una publicación vigente.
-            await tx.orm.public.MetricaRuta.where({
-              ...poblacion,
-              periodo: poblacion.periodo + '-01',
-            }).update({ pendiente: false, errorActualizacion: null });
-          } else {
-            await escribirPublicacion(tx, poblacion, {
-              fuente: 'Administrativa',
-              ejecucionId: null,
-            });
-          }
-          recalculadas++;
-        }
-        if (pendientes.length < 100) return recalculadas;
-      }
-    });
-  }
-  async registrarError(error: unknown) {
-    const mensaje =
-      error instanceof Error
-        ? error.message.slice(0, 500)
-        : 'Falló la actualización de métricas';
-    await this.prisma.db.execute(
-      this.prisma.db.raw
-        .sql`UPDATE metricas_ruta SET error_actualizacion=${mensaje} WHERE pendiente`
-        .affectedCount()
-        .build(),
-    );
+  registrarError(error: unknown) {
+    return registrarErrorMetricas(this.prisma.db, error);
   }
 
   async consultarMapa({ pares, periodo, aerolineaId }: ConsultaMapaDto) {

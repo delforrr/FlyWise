@@ -1,38 +1,34 @@
+import type { Operacion } from '../entities/vuelos/domain/operacion.js';
 import type { Transaction } from '../prisma/db.js';
-import { publicarOtp } from './domain/publicar-otp.js';
+import { publicarOtp } from './application/publicar-otp.js';
 
-type Poblacion = {
-  origenId: string;
-  destinoId: string;
-  aerolineaId: string;
-  periodo: string;
-};
+import type { Poblacion } from './application/recalcular-pendientes.js';
 
-export async function cambioFuenteSinAutorizar(
+export function leerPublicacionesDelTramo(
   tx: Transaction,
   { origenId, destinoId, periodo }: Omit<Poblacion, 'aerolineaId'>,
-  fuente: string,
-  operadoras: string[],
-  autorizadas: string[],
 ) {
-  const [conflicto] = await tx.query(
+  return tx.query(
     tx.raw.sql`
-      SELECT m.aerolinea_id AS id
+      SELECT m.aerolinea_id AS "aerolineaId", e.fuente,
+        m.ejecucion_etl_id AS "ejecucionId", m.actualizado_en IS NOT NULL AS actualizada,
+        m.vuelos_totales AS "vuelosTotales", m.fuentes, m.fuentes ? 'OAG' AS "incluyeOag"
       FROM metricas_ruta m
       LEFT JOIN ejecuciones_etl e ON m.ejecucion_etl_id=e.id
       WHERE m.origen_id=${origenId} AND m.destino_id=${destinoId}
         AND m.periodo=${periodo + '-01'}::date
-        AND (e.fuente<>${fuente} OR (e.id IS NULL AND m.actualizado_en IS NOT NULL
-          AND m.vuelos_totales>0 AND m.fuentes<>'["Administrativa"]'::jsonb
-          AND m.fuentes<>jsonb_build_array(${fuente}::text)))
-        AND ${JSON.stringify(operadoras)}::jsonb ? m.aerolinea_id
-        AND NOT (${JSON.stringify(autorizadas)}::jsonb ? m.aerolinea_id)
-      LIMIT 1
     `
-      .returnsRow({ id: 'pg/text@1' })
+      .returnsRow({
+        aerolineaId: 'pg/text@1',
+        fuente: { codecId: 'pg/text@1', nullable: true },
+        ejecucionId: { codecId: 'pg/text@1', nullable: true },
+        actualizada: 'pg/bool@1',
+        vuelosTotales: 'pg/int4@1',
+        fuentes: 'pg/jsonb@1',
+        incluyeOag: 'pg/bool@1',
+      })
       .build(),
   );
-  return conflicto;
 }
 
 export async function escribirPublicacion(
@@ -108,5 +104,30 @@ export async function escribirPublicacion(
       },
     },
     autoridad.fuente,
+  );
+}
+
+export async function marcarPendiente(
+  tx: Transaction,
+  operacion: Pick<
+    Operacion,
+    'origenId' | 'destinoId' | 'aerolineaId' | 'fechaVuelo'
+  >,
+) {
+  await tx.execute(
+    tx.raw.sql`
+      INSERT INTO metricas_ruta(origen_id,destino_id,aerolinea_id,periodo,vuelos_totales,vuelos_cancelados,vuelos_desviados,vuelos_puntuales,demora_llegada_total_minutos,actualizado_en,pendiente)
+      VALUES (${operacion.origenId},${operacion.destinoId},${operacion.aerolineaId},${operacion.fechaVuelo.slice(0, 7) + '-01'}::date,0,0,0,0,0,NULL,true)
+      ON CONFLICT (origen_id,destino_id,aerolinea_id,periodo) DO UPDATE SET pendiente=true,error_actualizacion=NULL
+    `
+      .affectedCount()
+      .build(),
+  );
+}
+
+export async function bloquearCambiosMetricas(tx: Transaction) {
+  // A publication sees every operation and its pending marker in the same generation.
+  await tx.execute(
+    tx.raw.sql`SELECT pg_advisory_xact_lock(826103)`.affectedCount().build(),
   );
 }

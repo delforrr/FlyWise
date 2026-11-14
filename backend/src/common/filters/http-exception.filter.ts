@@ -1,6 +1,7 @@
 import {
   ExceptionFilter,
   Catch,
+  ConflictException,
   ArgumentsHost,
   HttpException,
   HttpStatus,
@@ -29,6 +30,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     let message: string | string[] = 'Internal Server Error';
     let error = 'Internal Server Error';
+    let ejecucionId: string | undefined;
 
     if (typeof exceptionResponse === 'string') {
       message = exceptionResponse;
@@ -39,6 +41,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const resObj = exceptionResponse as Record<string, unknown>;
       message = (resObj.message as string | string[]) ?? message;
       error = (resObj.error as string) ?? error;
+      if (
+        exception instanceof ConflictException &&
+        typeof resObj.ejecucionId === 'string'
+      ) {
+        ejecucionId = resObj.ejecucionId;
+      }
     }
 
     if (estado >= 500) {
@@ -53,6 +61,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       path: request.url,
       error,
       message,
+      ...(ejecucionId && { ejecucionId }),
     });
   }
 }

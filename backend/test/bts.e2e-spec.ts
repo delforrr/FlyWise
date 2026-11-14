@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter.js';
 import {
   ADAPTADOR_BTS,
   AdaptadorBts,
@@ -106,6 +108,7 @@ describe('BTS mensual por HTTP y jobs', () => {
             forbidNonWhitelisted: true,
           }),
         );
+        app.useGlobalFilters(new HttpExceptionFilter());
         await app.init();
         const api = request(app.getHttpServer() as Server);
         try {
@@ -551,6 +554,28 @@ describe('BTS mensual por HTTP y jobs', () => {
           const oag = await tx.orm.public.EjecucionEtl.create({
             fuente: 'OAG',
             estado: 'pending',
+          });
+          const conflicto = await api
+            .post('/administracion/bts/ejecutar')
+            .send({ periodo: '2026-06' })
+            .expect(409);
+          expect(conflicto.body).toMatchObject({ ejecucionId: oag.id });
+          const fallida = await tx.orm.public.EjecucionEtl.create({
+            fuente: 'BTS',
+            estado: 'failed',
+          });
+          const leer = jest.fn<() => Promise<Readable>>();
+          await expect(
+            module.get(BtsService).procesar(fallida.id, '2026-06', leer),
+          ).rejects.toMatchObject({ response: { ejecucionId: oag.id } });
+          expect(leer).not.toHaveBeenCalled();
+          expect(
+            await tx.orm.public.EjecucionEtl.first({ id: fallida.id }),
+          ).toMatchObject({ estado: 'failed' });
+          await tx.orm.public.EjecucionEtl.where({ id: oag.id }).update({
+            estado: 'completed',
+            iniciadoEn: '2026-07-01 00:00:00',
+            finalizadoEn: '2026-07-01 00:01:00',
           });
           const autorizada = {
             origenId: origin.id,

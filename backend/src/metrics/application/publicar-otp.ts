@@ -1,4 +1,4 @@
-import { acumularPuntualidad, resumirPuntualidad } from './otp.js';
+import { acumularPuntualidad, resumirPuntualidad } from '../domain/otp.js';
 import type { Operacion } from '../../entities/vuelos/domain/operacion.js';
 
 type FilaOtp = Pick<Operacion, 'estado' | 'demoraLlegadaMinutos'> & {

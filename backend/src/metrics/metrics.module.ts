@@ -8,6 +8,5 @@ import { MetricsProcessor } from './metrics.processor.js';
   imports: [BullModule.registerQueue({ name: 'metrics-queue' })],
   providers: [MetricsService, MetricsProcessor],
   controllers: [MetricsController],
-  exports: [MetricsService],
 })
 export class MetricsModule {}
