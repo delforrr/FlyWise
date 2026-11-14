@@ -1,3 +1,4 @@
+import { extremosDistintos } from '../../rutas/domain/ruta.js';
 export interface Operacion {
   fechaVuelo: string;
   numeroVuelo: string;
@@ -17,8 +18,10 @@ export function validarOperacion(
     demoraLlegadaMinutos?: number | null;
   },
 ): Operacion {
-  if (datos.origenId === datos.destinoId)
+  if (!extremosDistintos(datos.origenId, datos.destinoId))
     throw new RangeError('Origen y destino deben ser distintos');
+  if (!datos.numeroVuelo.trim())
+    throw new RangeError('El número de vuelo es obligatorio');
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(datos.fechaVuelo) ||
     datos.fechaVuelo < '0001-01-01' ||

@@ -152,6 +152,10 @@ describe('Administración de catálogos (PostgreSQL y HTTP)', () => {
         .patch(`/administracion/aeropuertos/${origen.id}`)
         .send({ latitud: -34, longitud: -58 })
         .expect(200);
+      await api
+        .patch(`/administracion/aeropuertos/${origen.id}`)
+        .send({ iata: 'INVALID', icao: 'INVALID' })
+        .expect(400);
       // A partial coordinate edit must preserve latitude and update the spatial point.
       await api
         .patch(`/administracion/aeropuertos/${origen.id}`)
@@ -266,6 +270,10 @@ describe('Administración de catálogos (PostgreSQL y HTTP)', () => {
       await api
         .patch(`${urlOfertas}/${oferta.id}`)
         .send({ escalas: null })
+        .expect(400);
+      await api
+        .patch(`${urlOfertas}/${oferta.id}`)
+        .send({ escalas: 2147483648 })
         .expect(400);
       const liberada = (
         await api

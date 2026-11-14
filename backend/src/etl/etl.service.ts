@@ -1,3 +1,4 @@
+import { extremosDistintos } from '../entities/rutas/domain/ruta.js';
 import { encolarEjecucion } from './encolar-ejecucion.js';
 import { readOpenFlightsRow } from './adapters/openflights.js';
 import { readOurAirportsRow } from './adapters/ourairports.js';
@@ -191,7 +192,7 @@ export class EtlService {
             if (
               !refs?.origenId ||
               !refs.destinoId ||
-              refs.origenId === refs.destinoId
+              !extremosDistintos(refs.origenId, refs.destinoId)
             ) {
               recordDiscard(
                 entry.numeroFila,

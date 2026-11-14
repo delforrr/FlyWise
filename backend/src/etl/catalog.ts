@@ -1,3 +1,14 @@
+import {
+  IATA_AEROPUERTO,
+  ICAO_AEROPUERTO,
+  IATA_AEROLINEA,
+  ICAO_AEROLINEA,
+} from '../entities/catalogo/domain/codigos.js';
+import {
+  CODIGO_OPERADORA_RUTA,
+  MAX_ESCALAS,
+  MIN_ESCALAS,
+} from '../entities/rutas/domain/ruta.js';
 import { createHash } from 'node:crypto';
 export type CatalogDataset = 'paises' | 'aeropuertos' | 'aerolineas' | 'rutas';
 export type CatalogRecord = Record<string, string | number | boolean | null>;
@@ -78,7 +89,11 @@ function normalizeRouteRow(row: Record<string, unknown>): CatalogRecord {
   const text = catalogValue(row.escalas);
   const escalas =
     text !== null && /^\d+$/.test(text) ? Number(text) : Number.NaN;
-  if (!Number.isSafeInteger(escalas) || escalas > 2147483647)
+  if (
+    !Number.isSafeInteger(escalas) ||
+    escalas < MIN_ESCALAS ||
+    escalas > MAX_ESCALAS
+  )
     throw new Error('escalas: entero no negativo obligatorio');
   const codigoCompartido = catalogValue(row.codigoCompartido)?.toUpperCase();
   if (
@@ -87,7 +102,7 @@ function normalizeRouteRow(row: Record<string, unknown>): CatalogRecord {
   )
     throw new Error('codigoCompartido: indicador invalido');
   return {
-    codigoAerolinea: code(row.codigoAerolinea, /^[A-Z0-9]{2,3}$/),
+    codigoAerolinea: code(row.codigoAerolinea, CODIGO_OPERADORA_RUTA),
     idOpenflightsAerolinea: identifier(row.idOpenflightsAerolinea),
     codigoOrigen: code(row.codigoOrigen, /^[A-Z0-9]{3,4}$/),
     idOpenflightsOrigen: identifier(row.idOpenflightsOrigen),
@@ -117,8 +132,8 @@ export function normalizeCatalogRow(
     const activa = ['N', 'FALSE'].includes(indicador) ? false : null;
     return {
       ...common,
-      iata: code(row.iata, /^[A-Z0-9]{2}$/),
-      icao: code(row.icao, /^[A-Z0-9]{3}$/),
+      iata: code(row.iata, IATA_AEROLINEA),
+      icao: code(row.icao, ICAO_AEROLINEA),
       pais: catalogValue(row.pais),
       activa: ['Y', 'TRUE'].includes(indicador) ? true : activa,
     };
@@ -139,8 +154,8 @@ export function normalizeCatalogRow(
     ...coordenadas,
     ciudad: catalogValue(row.ciudad),
     nombrePais: catalogValue(row.nombrePais) ?? 'Unknown',
-    iata: code(row.iata, /^[A-Z]{3}$/),
-    icao: code(row.icao, /^[A-Z0-9]{4}$/),
+    iata: code(row.iata, IATA_AEROPUERTO),
+    icao: code(row.icao, ICAO_AEROPUERTO),
     fuente: catalogValue(row.fuente) ?? 'OpenFlights',
   };
 }

@@ -19,7 +19,10 @@ import { periodosCerradosMapa } from '../../metrics/periodos-mapa.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Transaction } from '../../prisma/db.js';
 import { guardarObservaciones } from '../../vuelos/observaciones.store.js';
-import type { ObservacionVuelo } from '../../entities/vuelos/domain/operacion.js';
+import {
+  validarOperacion,
+  type ObservacionVuelo,
+} from '../../entities/vuelos/domain/operacion.js';
 import {
   CredencialOagRechazada,
   CuotaOagAgotada,
@@ -458,13 +461,15 @@ export class OagService implements OnModuleInit {
         observaciones.push({
           fuente,
           idRegistroFuente: JSON.stringify([vuelo.aerolineaId, vuelo.id]),
-          origenId: alcance.origenId,
-          destinoId: alcance.destinoId,
-          aerolineaId: vuelo.aerolineaId,
-          fechaVuelo: vuelo.fechaVuelo,
-          numeroVuelo: vuelo.numeroVuelo,
-          estado: vuelo.estado,
-          demoraLlegadaMinutos: vuelo.demoraLlegadaMinutos,
+          ...validarOperacion({
+            origenId: alcance.origenId,
+            destinoId: alcance.destinoId,
+            aerolineaId: vuelo.aerolineaId,
+            fechaVuelo: vuelo.fechaVuelo,
+            numeroVuelo: vuelo.numeroVuelo,
+            estado: vuelo.estado,
+            demoraLlegadaMinutos: vuelo.demoraLlegadaMinutos,
+          }),
         });
       }
       const cobertura = alcance.coberturaMinimaPct / 100;

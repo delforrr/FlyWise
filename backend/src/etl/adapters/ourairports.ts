@@ -1,4 +1,8 @@
 import {
+  IATA_AEROPUERTO,
+  ICAO_AEROPUERTO,
+} from '../../entities/catalogo/domain/codigos.js';
+import {
   catalogValue,
   type CatalogDataset,
   type CatalogRecord,
@@ -38,7 +42,7 @@ export function readOurAirportsRow(
     codigoIso: row.iso_country,
     latitud,
     longitud,
-    iata: /^[A-Z]{3}$/.test(row.iata_code ?? '') ? row.iata_code : null,
-    icao: /^[A-Z0-9]{4}$/.test(row.icao_code ?? '') ? row.icao_code : null,
+    iata: IATA_AEROPUERTO.test(row.iata_code ?? '') ? row.iata_code : null,
+    icao: ICAO_AEROPUERTO.test(row.icao_code ?? '') ? row.icao_code : null,
   };
 }

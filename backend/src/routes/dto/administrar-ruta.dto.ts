@@ -1,3 +1,8 @@
+import {
+  CODIGO_OPERADORA_RUTA,
+  MAX_ESCALAS,
+  MIN_ESCALAS,
+} from '../../entities/rutas/domain/ruta.js';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
@@ -39,7 +44,7 @@ export class CrearOfertaRutaDto {
   aerolineaId?: string | null;
 
   @IsOptional()
-  @Matches(/^[A-Z0-9]{2,3}$/)
+  @Matches(CODIGO_OPERADORA_RUTA)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toUpperCase() || null : value,
   )
@@ -53,8 +58,8 @@ export class CrearOfertaRutaDto {
 
   @ValidateIf((_obj, value: unknown) => value !== undefined)
   @IsInt()
-  @Min(0)
-  @Max(2147483647)
+  @Min(MIN_ESCALAS)
+  @Max(MAX_ESCALAS)
   @ApiPropertyOptional()
   escalas?: number;
 }

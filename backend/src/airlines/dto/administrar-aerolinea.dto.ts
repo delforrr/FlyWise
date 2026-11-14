@@ -1,3 +1,7 @@
+import {
+  IATA_AEROLINEA,
+  ICAO_AEROLINEA,
+} from '../../entities/catalogo/domain/codigos.js';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
@@ -28,7 +32,7 @@ export class CrearAerolineaDto {
   paisId?: string | null;
 
   @IsOptional()
-  @Matches(/^[A-Z0-9]{2}$/)
+  @Matches(IATA_AEROLINEA)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toUpperCase() || null : value,
   )
@@ -36,7 +40,7 @@ export class CrearAerolineaDto {
   iata?: string | null;
 
   @IsOptional()
-  @Matches(/^[A-Z0-9]{3}$/)
+  @Matches(ICAO_AEROLINEA)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toUpperCase() || null : value,
   )

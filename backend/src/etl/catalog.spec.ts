@@ -87,5 +87,8 @@ describe('OpenFlights catalog validation', () => {
     expect(() => normalizeCatalogRow('rutas', { escalas: '1.5' })).toThrow(
       /escalas/,
     );
+    expect(() =>
+      normalizeCatalogRow('rutas', { escalas: '2147483648' }),
+    ).toThrow(/escalas/);
   });
 });

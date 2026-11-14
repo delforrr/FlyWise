@@ -1,3 +1,4 @@
+import { extremosDistintos } from '../entities/rutas/domain/ruta.js';
 import {
   includeRouteDetails,
   seleccionarConexiones,
@@ -228,7 +229,7 @@ export class RoutesService {
       endpoints.push(aeropuertos[0].id);
     }
     const [origenId, destinoId] = endpoints;
-    if (origenId === destinoId)
+    if (!extremosDistintos(origenId, destinoId))
       throw new BadRequestException(
         'El origen y el destino deben ser aeropuertos distintos',
       );
@@ -441,7 +442,7 @@ export class RoutesService {
     destinoId: string,
     aerolineaId?: string | null,
   ) {
-    if (origenId === destinoId)
+    if (!extremosDistintos(origenId, destinoId))
       throw new BadRequestException(
         'El origen y el destino deben ser distintos',
       );
