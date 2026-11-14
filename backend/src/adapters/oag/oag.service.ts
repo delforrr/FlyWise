@@ -15,6 +15,8 @@ import type { Transaction } from '../../prisma/db.js';
 import { guardarObservaciones } from '../../vuelos/observaciones.store.js';
 import type { ObservacionVuelo } from '../../vuelos/operacion.js';
 import {
+  CredencialOagRechazada,
+  CuotaOagAgotada,
   FalloOag,
   normalizarVueloOag,
   OAG_CLAVE_ENTORNO,
@@ -43,13 +45,24 @@ type Normalizada = Exclude<
   ReturnType<typeof normalizarVueloOag>,
   string | null
 >;
-type VueloResuelto = Normalizada & { aerolineaId: string };
+type VueloResuelto = Omit<Normalizada, 'carrier'> & { aerolineaId: string };
+type CheckpointOag = {
+  cursores: string[];
+  total: number;
+  descartadas: number;
+  candidatos: [string, VueloResuelto][];
+};
+type TrabajoOag = {
+  ejecucionId: string;
+  checkpoint?: CheckpointOag;
+  reintentarDesde?: number;
+};
 
 @Injectable()
 export class OagService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(OAG_QUEUE) private readonly queue: Queue,
+    @InjectQueue(OAG_QUEUE) private readonly queue: Queue<TrabajoOag>,
     private readonly metrics: MetricsService,
   ) {}
 
@@ -169,7 +182,11 @@ export class OagService implements OnModuleInit {
     );
   }
 
-  async ejecutar(solicitanteId?: string, alcanceAnterior?: AlcanceOag) {
+  async ejecutar(
+    solicitanteId?: string,
+    alcanceAnterior?: AlcanceOag,
+    checkpoint?: CheckpointOag,
+  ) {
     const { pausado, ...config } = await this.configuracion();
     if (pausado) throw new ConflictException('OAG pausado');
     if (!process.env[OAG_CLAVE_ENTORNO]?.trim())
@@ -184,6 +201,14 @@ export class OagService implements OnModuleInit {
       periodo,
       coberturaMinimaPct,
     });
+    if (
+      checkpoint &&
+      alcanceAnterior &&
+      (alcance.origenCodigo !== alcanceAnterior.origenCodigo ||
+        alcance.destinoCodigo !== alcanceAnterior.destinoCodigo ||
+        alcance.tipoCodigo !== alcanceAnterior.tipoCodigo)
+    )
+      checkpoint = undefined;
     const ejecucion = await this.prisma.db.transaction(async (tx) => {
       const [proceso] = await tx.query(
         tx.raw
@@ -224,7 +249,9 @@ export class OagService implements OnModuleInit {
     try {
       await this.queue.add(
         'mes',
-        { ejecucionId: ejecucion.id },
+        checkpoint
+          ? { ejecucionId: ejecucion.id, checkpoint }
+          : { ejecucionId: ejecucion.id },
         {
           jobId: ejecucion.id,
           removeOnComplete: { count: 100 },
@@ -259,7 +286,30 @@ export class OagService implements OnModuleInit {
       throw new ConflictException('La ejecución sigue activa');
     const alcance = alcanceDe(ejecucion.instantaneaConfiguracion);
     if (!alcance) throw new BadRequestException('Falta el alcance del tramo');
-    return this.ejecutar(solicitanteId, alcance);
+    const trabajo =
+      ejecucion.estado === 'failed' ? await this.queue.getJob(id) : undefined;
+    if ((trabajo?.data.reintentarDesde ?? 0) > Date.now())
+      throw new ConflictException(
+        'OAG todavía solicita esperar antes de reintentar',
+      );
+    if (!trabajo?.data.checkpoint || !ejecucion.iniciadoEn)
+      return this.ejecutar(solicitanteId, alcance);
+    const [publicacionPosterior] = await this.prisma.db.query(
+      this.prisma.db.raw.sql`
+        SELECT 1 AS existe FROM metricas_ruta
+        WHERE origen_id=${alcance.origenId} AND destino_id=${alcance.destinoId}
+          AND periodo=${alcance.periodo + '-01'}::date AND fuentes ? 'OAG'
+          AND actualizado_en > ${ejecucion.iniciadoEn}::timestamp
+        LIMIT 1
+      `
+        .returnsRow({ existe: 'pg/int4@1' })
+        .build(),
+    );
+    return this.ejecutar(
+      solicitanteId,
+      alcance,
+      publicacionPosterior ? undefined : trabajo?.data.checkpoint,
+    );
   }
 
   async importar(id: string) {
@@ -278,7 +328,9 @@ export class OagService implements OnModuleInit {
     let total = 0;
     let descartadas = 0;
     let paginas = 0;
+    let trabajo: Awaited<ReturnType<typeof this.queue.getJob>>;
     try {
+      trabajo = await this.queue.getJob(id);
       if ((await this.configuracion()).pausado)
         throw new FalloOag('OAG pausado');
       const clave = process.env[OAG_CLAVE_ENTORNO]?.trim();
@@ -287,10 +339,19 @@ export class OagService implements OnModuleInit {
       const alcance = alcanceDe(ejecucion.instantaneaConfiguracion);
       if (!alcance) throw new FalloOag('Falta el alcance del tramo');
 
-      const candidatos = new Map<string, VueloResuelto>();
-      // shortcut: un tramo-mes limitado a 10.000 filas, usar staging persistente para lotes históricos grandes.
+      const checkpoint = trabajo?.data.checkpoint;
+      const cursores = checkpoint?.cursores ?? [];
+      total = checkpoint?.total ?? 0;
+      descartadas = checkpoint?.descartadas ?? 0;
+      paginas = cursores.length;
+      const candidatos = new Map(checkpoint?.candidatos);
+      // shortcut: checkpoint acotado al job retenido; T10 traslada la preparación a PostgreSQL.
       const aerolineas = new Map<string, Promise<string | null>>();
-      for await (const filas of paginasOag(alcance, clave)) {
+      for await (const { filas, cursor } of paginasOag(
+        alcance,
+        clave,
+        cursores,
+      )) {
         paginas++;
         total += filas.length;
         if (total > MAX_FILAS || paginas > MAX_PAGINAS)
@@ -302,7 +363,7 @@ export class OagService implements OnModuleInit {
             descartadas++;
             continue;
           }
-          const { carrier } = normalizada;
+          const { carrier, ...vuelo } = normalizada;
           const codigo = JSON.stringify([carrier.iata, carrier.icao]);
           let resolucion = aerolineas.get(codigo);
           if (!resolucion) {
@@ -323,7 +384,19 @@ export class OagService implements OnModuleInit {
               normalizada.estado &&
               !previa.estado)
           )
-            candidatos.set(claveOperacion, { ...normalizada, aerolineaId });
+            candidatos.set(claveOperacion, { ...vuelo, aerolineaId });
+        }
+        if (cursor && trabajo) {
+          cursores.push(cursor);
+          await trabajo.updateData({
+            ejecucionId: id,
+            checkpoint: {
+              cursores,
+              total,
+              descartadas,
+              candidatos: [...candidatos],
+            },
+          });
         }
       }
 
@@ -391,9 +464,15 @@ export class OagService implements OnModuleInit {
             .build(),
         );
         if (!activa) return;
-        await this.protegerOperadorasPublicadas(tx, alcance, [
-          ...porOperadora.keys(),
-        ]);
+        const totalesPorOperadora = Object.fromEntries(
+          [...porOperadora].map(([id, resumen]) => [id, resumen.resueltas]),
+        );
+        await this.protegerPublicacion(
+          tx,
+          alcance,
+          totalesPorOperadora,
+          observaciones.map((vuelo) => vuelo.idRegistroFuente),
+        );
         let insertadas = 0;
         for (let i = 0; i < observaciones.length; i += LOTE) {
           const lote = await guardarObservaciones(
@@ -403,6 +482,7 @@ export class OagService implements OnModuleInit {
           );
           insertadas += lote.insertadas;
         }
+        // FIXME(T12): exigir aprobación y verificar permisos antes de publicar datos reales.
         await this.publicar(tx, alcance, id);
         await tx.orm.public.EjecucionEtl.where({ id, intento }).update({
           estado: 'completed',
@@ -424,7 +504,19 @@ export class OagService implements OnModuleInit {
         error instanceof FalloOag
           ? error.message
           : 'No se pudo publicar la ejecución OAG';
-      await this.fallar(id, intento, mensaje, total, descartadas);
+      await this.fallar(
+        id,
+        intento,
+        mensaje,
+        total,
+        descartadas,
+        error instanceof CredencialOagRechazada,
+      );
+      if (error instanceof CuotaOagAgotada && trabajo)
+        await trabajo.updateData({
+          ...trabajo.data,
+          reintentarDesde: error.reintentarDesde,
+        });
       throw new Error(mensaje);
     }
   }
@@ -454,17 +546,25 @@ export class OagService implements OnModuleInit {
     return ids.length && ids.every((id) => id === ids[0]) ? ids[0] : null;
   }
 
-  private async protegerOperadorasPublicadas(
+  private async protegerPublicacion(
     tx: Transaction,
     { origenId, destinoId, periodo }: AlcanceOag,
-    operadoras: string[],
+    totalesPorOperadora: Record<string, number>,
+    identidades: string[],
   ) {
     const [faltante] = await tx.query(
       tx.raw.sql`
       SELECT aerolinea_id AS id FROM metricas_ruta
       WHERE origen_id=${origenId} AND destino_id=${destinoId} AND periodo=${periodo + '-01'}::date
       AND fuentes ? 'OAG'
-      AND aerolinea_id NOT IN (SELECT jsonb_array_elements_text(${JSON.stringify(operadoras)}::jsonb))
+      AND coalesce((${JSON.stringify(totalesPorOperadora)}::jsonb ->> aerolinea_id)::int, 0) < vuelos_totales
+      UNION ALL
+      SELECT aerolinea_id AS id FROM vuelos
+      WHERE origen_id=${origenId} AND destino_id=${destinoId}
+        AND fecha_vuelo>=${periodo + '-01'}::date
+        AND fecha_vuelo<${periodo + '-01'}::date+interval '1 month'
+        AND fuente='OAG' AND archivado_en IS NULL AND NOT protegido_manualmente
+        AND NOT (${JSON.stringify(identidades)}::jsonb ? id_registro_fuente)
       LIMIT 1
     `
         .returnsRow({ id: 'pg/text@1' })
@@ -537,8 +637,13 @@ export class OagService implements OnModuleInit {
     mensaje: string,
     filasTotales: number,
     filasDescartadas: number,
+    pausar = false,
   ) {
     await this.prisma.db.transaction(async (tx) => {
+      if (pausar)
+        await tx.orm.public.ProcesoEtl.where({ id: PROCESO_ID }).update({
+          pausado: true,
+        });
       const ejecucion = await tx.orm.public.EjecucionEtl.where({
         id,
         intento,

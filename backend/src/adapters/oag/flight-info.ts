@@ -1,7 +1,17 @@
+import { setTimeout } from 'node:timers/promises';
+
 export class FalloOag extends Error {}
+export class CredencialOagRechazada extends FalloOag {}
+export class CuotaOagAgotada extends FalloOag {
+  constructor(readonly reintentarDesde: number) {
+    super('Cuota de OAG agotada');
+  }
+}
 
 export const OAG_ENDPOINT = 'https://api.oag.com/flight-instances/';
 export const OAG_CLAVE_ENTORNO = 'OAG_SUBSCRIPTION_KEY';
+const MAX_REINTENTOS_PAGINA = 2;
+const MAX_ESPERA_PAGINA_MS = 30_000;
 
 export type Codigos = { iata?: string; icao?: string };
 type Hora = { local?: string; utc?: string };
@@ -32,7 +42,11 @@ export type ConsultaOag = {
   tipoCodigo: 'IATA' | 'ICAO';
 };
 
-export async function* paginasOag(consulta: ConsultaOag, clave: string) {
+export async function* paginasOag(
+  consulta: ConsultaOag,
+  clave: string,
+  cursoresPrevios: string[] = [],
+) {
   const url = new URL(OAG_ENDPOINT);
   const [anio, mes] = consulta.periodo.split('-').map(Number);
   const ultimoDia = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
@@ -47,16 +61,17 @@ export async function* paginasOag(consulta: ConsultaOag, clave: string) {
     ServiceType: 'Passenger',
     Limit: '10',
   }).toString();
-  const cursores = new Set<string>();
+  const cursores = new Set(cursoresPrevios);
+  if (cursoresPrevios.length)
+    url.searchParams.set('After', cursoresPrevios[cursoresPrevios.length - 1]);
   for (;;) {
     let pagina: { data?: unknown; paging?: { next?: string | null } };
     try {
-      const respuesta = await fetch(url.toString(), {
-        headers: { 'Subscription-Key': clave },
-        redirect: 'error',
-        signal: AbortSignal.timeout(30_000),
-      });
-      if (respuesta.status === 429) throw new FalloOag('Cuota de OAG agotada');
+      const respuesta = await descargarPagina(url, clave);
+      if (respuesta.status === 401 || respuesta.status === 403)
+        throw new CredencialOagRechazada(
+          `OAG respondió HTTP ${respuesta.status}`,
+        );
       if (!respuesta.ok)
         throw new FalloOag(`OAG respondió HTTP ${respuesta.status}`);
       try {
@@ -68,11 +83,18 @@ export async function* paginasOag(consulta: ConsultaOag, clave: string) {
       if (error instanceof FalloOag) throw error;
       throw new FalloOag('No fue posible obtener la página de OAG');
     }
-    if (!Array.isArray(pagina?.data) || pagina.data.length > 1000)
+    if (
+      !Array.isArray(pagina?.data) ||
+      pagina.data.length > 1000 ||
+      (pagina.paging != null &&
+        (typeof pagina.paging !== 'object' || Array.isArray(pagina.paging)))
+    )
       throw new FalloOag('OAG devolvió una página inválida');
-    yield pagina.data as unknown[];
     const siguiente = pagina.paging?.next;
-    if (siguiente == null) return;
+    if (siguiente == null) {
+      yield { filas: pagina.data as unknown[], cursor: null };
+      return;
+    }
     const enlace =
       typeof siguiente === 'string' ? URL.parse(siguiente, url) : null;
     const cursor = enlace?.searchParams.get('After');
@@ -85,7 +107,36 @@ export async function* paginasOag(consulta: ConsultaOag, clave: string) {
       throw new FalloOag('OAG devolvió un cursor de paginación inválido');
     // El proveedor sólo decide el cursor; la consulta y el destino se mantienen fijos.
     cursores.add(cursor);
+    yield { filas: pagina.data as unknown[], cursor };
     url.searchParams.set('After', cursor);
+  }
+}
+
+async function descargarPagina(url: URL, clave: string) {
+  for (let intento = 0; ; intento++) {
+    const respuesta = await fetch(url.toString(), {
+      headers: { 'Subscription-Key': clave },
+      redirect: 'error',
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (respuesta.status !== 429) return respuesta;
+
+    const cabecera = respuesta.headers.get('Retry-After')?.trim();
+    const demora = !cabecera
+      ? 1000 * 2 ** intento
+      : /^\d+$/.test(cabecera)
+        ? Number(cabecera) * 1000
+        : Math.max(0, Date.parse(cabecera) - Date.now());
+    await respuesta.body?.cancel();
+    if (
+      intento >= MAX_REINTENTOS_PAGINA ||
+      !Number.isFinite(demora) ||
+      demora > MAX_ESPERA_PAGINA_MS
+    )
+      throw new CuotaOagAgotada(
+        Date.now() + (cabecera && Number.isFinite(demora) ? demora : 0),
+      );
+    await setTimeout(demora);
   }
 }
 

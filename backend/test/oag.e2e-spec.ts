@@ -148,7 +148,11 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
             ],
           });
           let sinCuota = false;
+          let limiteTransitorio = false;
+          let esperaLarga = false;
           let sinCobertura = false;
+          let paginaTruncada = false;
+          let errorCredencial: number | undefined;
           const fetchOag = jest
             .spyOn(globalThis, 'fetch')
             .mockImplementation((input, options) => {
@@ -158,7 +162,27 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
                 new Headers(options?.headers).get('Subscription-Key'),
               ).toBe('clave-sintetica-oag');
               expect(url.searchParams.get('DepartureAirport')).toBe('QZXZ');
+              if (errorCredencial)
+                return Promise.resolve(
+                  new Response(null, { status: errorCredencial }),
+                );
               if (url.searchParams.has('After')) {
+                if (esperaLarga)
+                  return Promise.resolve(
+                    new Response(null, {
+                      status: 429,
+                      headers: { 'Retry-After': '60' },
+                    }),
+                  );
+                if (limiteTransitorio) {
+                  limiteTransitorio = false;
+                  return Promise.resolve(
+                    new Response(null, {
+                      status: 429,
+                      headers: { 'Retry-After': '0' },
+                    }),
+                  );
+                }
                 if (sinCuota)
                   return Promise.resolve(new Response(null, { status: 429 }));
                 return Promise.resolve(
@@ -176,6 +200,12 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
                 return Promise.resolve(
                   Response.json({ data: [fila(6, 'Landed')] }),
                 );
+              if (paginaTruncada)
+                return Promise.resolve(
+                  Response.json({
+                    data: [fila(1, 'InGate', '2026-10-11T00:15:00Z')],
+                  }),
+                );
               return Promise.resolve(
                 Response.json({
                   data: [
@@ -188,14 +218,22 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
                 }),
               );
             });
-          const ejecutar = async (estado: string, fallo?: string) => {
+          const ejecutar = async (
+            estado: string,
+            fallo?: string,
+            anterior?: string,
+          ) => {
             const res = await api
-              .post(endpoint + '/ejecutar')
+              .post(
+                anterior
+                  ? `${endpoint}/ejecuciones/${anterior}/reintentar`
+                  : endpoint + '/ejecutar',
+              )
               .send({})
               .expect(201);
             const { ejecucionId: id } = res.body as { ejecucionId: string };
             const job = await queue.getJob(id);
-            expect(job?.data).toEqual({ ejecucionId: id });
+            expect(job?.data).toMatchObject({ ejecucionId: id });
             if (!job) throw new Error('No se encoló OAG');
             const trabajo = job.waitUntilFinished(events, 5000);
             if (fallo) await expect(trabajo).rejects.toThrow(fallo);
@@ -209,6 +247,7 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
               ]),
             );
             expect(historial.text).not.toContain('clave-sintetica-oag');
+            return id;
           };
           const metrica = async () => {
             const res = await api
@@ -233,13 +272,51 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
             }),
           ];
           expect(await metrica()).toEqual(esperado);
+          limiteTransitorio = true;
+          fetchOag.mockClear();
           await ejecutar('completed');
+          expect(fetchOag).toHaveBeenCalledTimes(3);
+          expect(fetchOag.mock.calls[2]?.[0]).toBe(fetchOag.mock.calls[1]?.[0]);
           expect(await metrica()).toEqual(esperado);
+          esperaLarga = true;
+          const diferida = await ejecutar('failed', 'Cuota de OAG agotada');
+          await api
+            .post(`${endpoint}/ejecuciones/${diferida}/reintentar`)
+            .send({})
+            .expect(409);
+          esperaLarga = false;
           sinCuota = true;
-          await ejecutar('failed', 'Cuota de OAG agotada');
+          const agotada = await ejecutar('failed', 'Cuota de OAG agotada');
           expect(await metrica()).toEqual(esperado);
           sinCuota = false;
+          fetchOag.mockClear();
+          await ejecutar('completed', undefined, agotada);
+          expect(fetchOag).toHaveBeenCalledTimes(1);
+          expect(fetchOag.mock.calls[0]?.[0]).toEqual(
+            expect.stringContaining('After=pag2'),
+          );
+          expect(await metrica()).toEqual(esperado);
           sinCobertura = true;
+          await ejecutar('failed', 'Cobertura OAG insuficiente');
+          expect(await metrica()).toEqual(esperado);
+          for (const status of [401, 403]) {
+            errorCredencial = status;
+            fetchOag.mockClear();
+            await ejecutar('failed', `OAG respondió HTTP ${status}`);
+            expect(fetchOag).toHaveBeenCalledTimes(1);
+            await api
+              .post(endpoint + '/ejecutar')
+              .send({})
+              .expect(409);
+            expect(await metrica()).toEqual(esperado);
+            await api
+              .patch(endpoint + '/configuracion')
+              .send(config)
+              .expect(200);
+          }
+          errorCredencial = undefined;
+          sinCobertura = false;
+          paginaTruncada = true;
           await ejecutar('failed', 'Cobertura OAG insuficiente');
           expect(await metrica()).toEqual(esperado);
         } finally {
