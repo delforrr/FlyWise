@@ -27,6 +27,14 @@ Estas reglas aplican a todo el código en el directorio `backend/` y son de cump
   - Lanzar excepciones HTTP nativas (`NotFoundException`, `BadRequestException`, `ConflictException`, `UnauthorizedException`).
   - Evitar promesas flotantes (floating promises); manejar siempre con `await` o `void` explícito.
 
+### Calidad de código y principios SOLID
+
+- **Agrupar por responsabilidad.** Cada archivo agrupa código que cambia por el mismo motivo. Controllers traducen HTTP, workers traducen jobs, casos de uso coordinan y adaptadores ejecutan I/O. Separar config, historial, importación y publicación cuando cambian por razones distintas.
+- **Mantener las funciones pequeñas.** Nombrar por resultado observable. Usar retornos tempranos para errores y casos terminales. Extraer un método privado cuando represente un paso con nombre propio. Darle archivo propio cuando encapsule una regla o un detalle de infraestructura que se pueda verificar por su contrato. Evaluar longitud junto con anidamiento, estado compartido y cantidad de responsabilidades.
+- **Diseñar contratos desde el consumidor.** Diseñar interfaces pequeñas con las operaciones que necesita el consumidor y sus garantías de error, orden y atomía. Componer adaptadores en Nest y exigir que cada implementación preserve las garantías del contrato. Reutilizar el contrato existente cuando preserve la semántica y mantener cada invariante en un solo lugar. Reservar la extensión por interfaz para variaciones reales.
+- **Ubicar el dominio en TypeScript.** Mantener en el backend la elegibilidad, el cálculo OTP y la autoridad de publicación. PostgreSQL conserva integridad estructural, consultas parametrizadas, transacciones y operaciones PostGIS. Usar Prisma tipado cuando pueda expresar la operación. Dejar explícito qué adaptador abre la transacción y qué escrituras deben confirmarse juntas.
+- **Organizar por módulo.** Ubicar primero el código en el módulo dueño. Reservar `common` para utilidades transversales con consumidores reales. Al mover archivos, comprobar imports, exports de Nest, fixtures y arranque. Revisar el cambio con el [estándar de revisión](../../CODING_STANDARDS.md).
+
 ---
 
 ## 2. Base de Datos & Prisma ORM (RNF-03)

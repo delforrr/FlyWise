@@ -14,6 +14,14 @@ Estas reglas aplican a todo el código en el directorio `frontend/` y son de cum
   - Para estados compartidos en SSR, utilizar siempre `useState<T>('key', () => defaultValue)`.
   - Limpiar intervalos, timers y suscripciones en el hook `onUnmounted()` para prevenir fugas de memoria.
 
+### Calidad de código y principios SOLID
+
+- **Separar página, componente y composable.** La página compone la vista y conecta la navegación. El componente presenta una parte de la interfaz mediante props y eventos tipados. El composable coordina estado reactivo, efectos y llamadas API de su funcionalidad. Mantener cada pieza cerca de la funcionalidad que la usa.
+- **Mantener componentes y funciones pequeños.** Nombrar por la intención del usuario o el resultado de la función. Separar una sección visual coherente o un paso de coordinación con nombre propio cuando el archivo acumule responsabilidades, ramas o estado que cambian por separado. Extraer funciones puras de presentación cuando faciliten su verificación. Evaluar longitud junto con la cantidad de estados y efectos.
+- **Componer con contratos específicos.** Preferir composición, props y eventos específicos. Usar los tipos del contrato de API y centralizar las transformaciones compartidas junto a su consumidor. Reutilizar las primitivas y composables existentes cuando cubran el comportamiento. Promover código a una ubicación compartida cuando tenga consumidores reales.
+- **Definir una fuente de verdad.** Mantener una autoridad por dato o estado. Derivar valores de presentación con `computed` y reservar los efectos reactivos para sincronización con sistemas externos. Consumir del backend las decisiones de negocio y sus resultados.
+- **Verificar los recorridos afectados.** Al mover archivos, revisar autoimports de Nuxt, rutas, llamadas y pruebas. Verificar los estados de carga, vacío, error y éxito de las vistas afectadas, además de navegación por teclado cuando cambie la interacción.
+
 ---
 
 ## 2. Nuxt UI v4 First (`@nuxt/ui`)
