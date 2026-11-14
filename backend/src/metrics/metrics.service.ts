@@ -1,4 +1,6 @@
 import { consultarContextoRuta } from './contexto-ruta.js';
+import { porcentajeOtp } from './domain/otp.js';
+import { escribirPublicacion } from './publicacion.store.js';
 import type { ContextoRutaDto } from './dto/contexto-ruta.dto.js';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -38,31 +40,45 @@ export class MetricsService {
   async recalcularPendientes() {
     return this.prisma.db.transaction(async (tx) => {
       await this.bloquearCambios(tx);
-      return tx.execute(
-        tx.raw.sql`
-        WITH calculos AS (
-          SELECT m.origen_id,m.destino_id,m.aerolinea_id,m.periodo,a.*
-          FROM metricas_ruta m CROSS JOIN LATERAL (
-            SELECT count(*)::int AS total,
-              count(*) FILTER (WHERE estado='CANCELLED')::int AS cancelados,
-              count(*) FILTER (WHERE estado='DIVERTED')::int AS desviados,
-              count(*) FILTER (WHERE estado='ARRIVED' AND demora_llegada_minutos<=15)::int AS puntuales,
-              coalesce(sum(demora_llegada_minutos),0)::bigint AS demora,
-              coalesce(jsonb_agg(DISTINCT fuente),'[]'::jsonb) AS fuentes
-            FROM vuelos WHERE archivado_en IS NULL AND origen_id=m.origen_id AND destino_id=m.destino_id
-              AND aerolinea_id=m.aerolinea_id AND fecha_vuelo>=m.periodo
-              AND CASE WHEN m.fuentes ? 'OAG' THEN fuente='OAG' ELSE fuente<>'OAG' END
-              AND fecha_vuelo<m.periodo + interval '1 month'
-          ) a WHERE m.pendiente
-        )
-        UPDATE metricas_ruta m SET vuelos_totales=a.total,vuelos_cancelados=a.cancelados,
-          vuelos_desviados=a.desviados,vuelos_puntuales=a.puntuales,demora_llegada_total_minutos=a.demora,
-          fuentes=CASE WHEN m.fuentes ? 'OAG' THEN m.fuentes ELSE a.fuentes END,actualizado_en=CURRENT_TIMESTAMP,pendiente=false,error_actualizacion=NULL
-        FROM calculos a WHERE (m.origen_id,m.destino_id,m.aerolinea_id,m.periodo)=(a.origen_id,a.destino_id,a.aerolinea_id,a.periodo)
-      `
-          .affectedCount()
-          .build(),
-      );
+      let recalculadas = 0;
+      for (;;) {
+        const pendientes = await tx.query(
+          tx.raw.sql`
+            SELECT m.origen_id AS "origenId",m.destino_id AS "destinoId",
+              m.aerolinea_id AS "aerolineaId",to_char(m.periodo,'YYYY-MM') AS periodo,
+              (m.ejecucion_etl_id IS NOT NULL OR
+                (m.actualizado_en IS NOT NULL AND m.fuentes <> '["Administrativa"]'::jsonb
+                  AND m.vuelos_totales > 0)) AS publicada
+            FROM metricas_ruta m
+            WHERE m.pendiente
+            ORDER BY m.origen_id,m.destino_id,m.aerolinea_id,m.periodo LIMIT 100
+          `
+            .returnsRow({
+              origenId: 'pg/text@1',
+              destinoId: 'pg/text@1',
+              aerolineaId: 'pg/text@1',
+              periodo: 'pg/text@1',
+              publicada: 'pg/bool@1',
+            })
+            .build(),
+        );
+        for (const { publicada, ...poblacion } of pendientes) {
+          if (publicada) {
+            // Una recomputación del circuito legado no sustituye una publicación vigente.
+            await tx.orm.public.MetricaRuta.where({
+              ...poblacion,
+              periodo: poblacion.periodo + '-01',
+            }).update({ pendiente: false, errorActualizacion: null });
+          } else {
+            await escribirPublicacion(tx, poblacion, {
+              fuente: 'Administrativa',
+              ejecucionId: null,
+            });
+          }
+          recalculadas++;
+        }
+        if (pendientes.length < 100) return recalculadas;
+      }
     });
   }
   async registrarError(error: unknown) {
@@ -153,6 +169,7 @@ export class MetricsService {
       this.prisma.db.raw.sql`
       SELECT origen_id AS "origenId",destino_id AS "destinoId",
         sum(vuelos_totales)::int AS "vuelosTotales",sum(vuelos_cancelados)::int AS "vuelosCancelados",
+        sum(vuelos_sin_evidencia)::int AS "vuelosSinEvidencia",
         sum(vuelos_desviados)::int AS "vuelosDesviados",sum(vuelos_puntuales)::int AS "vuelosPuntuales",
         sum(demora_llegada_total_minutos)::float8 AS "demoraLlegadaTotalMinutos", bool_or(pendiente) AS pendiente,
         max(error_actualizacion) AS "errorActualizacion",min(actualizado_en)::text AS "actualizadoEn",
@@ -172,6 +189,7 @@ export class MetricsService {
           destinoId: 'pg/text@1',
           vuelosTotales: 'pg/int4@1',
           vuelosCancelados: 'pg/int4@1',
+          vuelosSinEvidencia: 'pg/int4@1',
           vuelosDesviados: 'pg/int4@1',
           vuelosPuntuales: 'pg/int4@1',
           demoraLlegadaTotalMinutos: 'pg/float8@1',
@@ -197,11 +215,11 @@ export class MetricsService {
       periodo,
       aerolineaId: aerolineaId ?? null,
       vuelosOperados: row.vuelosTotales - row.vuelosCancelados,
-      otp15:
-        row.vuelosTotales === row.vuelosCancelados
-          ? null
-          : (100 * row.vuelosPuntuales) /
-            (row.vuelosTotales - row.vuelosCancelados),
+      vuelosSinEvidencia: row.vuelosSinEvidencia,
+      otp15: porcentajeOtp(
+        row.vuelosPuntuales,
+        row.vuelosTotales - row.vuelosCancelados - row.vuelosSinEvidencia,
+      ),
       fuentes: [...new Set((row.fuentes as string[][]).flat())].sort(),
     }));
     let total = rows[0]?.total ?? 0;

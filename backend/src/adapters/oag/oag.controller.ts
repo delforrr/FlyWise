@@ -9,7 +9,18 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsUUID, Matches, Max, Min } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 import { JwtAuthGuard, AdminGuard } from '../../auth/auth.guard.js';
 import { CurrentUser } from '../../users/decorators/current-user.decorator.js';
 import type { UserDto } from '../../users/dto/user.dto.js';
@@ -24,7 +35,14 @@ export class ConfiguracionOagDto {
   @IsInt() @Min(1) @Max(100) coberturaMinimaPct!: number;
 }
 
-class EjecutarOagDto {}
+class EjecutarOagDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  autorizarCambioFuente?: string[];
+}
 
 @ApiTags('OAG mensual')
 @ApiBearerAuth()
@@ -44,8 +62,13 @@ export class OagController {
   }
 
   @Post('ejecutar')
-  ejecutar(@Body() _dto: EjecutarOagDto, @CurrentUser() user: UserDto) {
-    return this.oag.ejecutar(user.id);
+  ejecutar(@Body() dto: EjecutarOagDto, @CurrentUser() user: UserDto) {
+    return this.oag.ejecutar(
+      user.id,
+      undefined,
+      undefined,
+      dto.autorizarCambioFuente,
+    );
   }
 
   @Get('ejecuciones')

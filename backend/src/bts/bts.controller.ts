@@ -37,7 +37,12 @@ export class BtsController {
     @Req() req: { user: { id?: string } },
     @Body() dto: EjecutarBtsDto,
   ) {
-    return this.bts.ejecutar(dto?.periodo, req.user.id, !!dto?.periodo);
+    return this.bts.ejecutar(
+      dto?.periodo,
+      req.user.id,
+      !!dto?.periodo,
+      dto?.autorizarCambioFuente,
+    );
   }
   @Get('cobertura') cobertura() {
     return this.bts.cobertura();

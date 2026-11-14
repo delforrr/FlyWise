@@ -1,3 +1,6 @@
+export type CausaDescarteBts = 'identidad' | 'formato' | 'elegibilidad';
+export type DescarteBts = { causa: CausaDescarteBts; motivo: string };
+
 export type FilaBts = Record<string, string>;
 export type OperacionBts = {
   identidad: string;
@@ -18,46 +21,54 @@ export function normalizarBts(
   row: FilaBts,
   periodo: string,
   numeroFila: number,
-): OperacionBts | string {
+): OperacionBts | DescarteBts {
   const date = row.FlightDate?.slice(0, 10);
   if (
     !date ||
     !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    !date.startsWith(`${periodo}-`) ||
     !Number.isFinite(Date.parse(date)) ||
     new Date(date).toISOString().slice(0, 10) !== date
   )
-    return 'Fecha fuera del mes seleccionado';
+    return { causa: 'formato', motivo: 'Fecha de vuelo inválida' };
+  if (!date.startsWith(`${periodo}-`))
+    return {
+      causa: 'elegibilidad',
+      motivo: 'Fecha fuera del mes seleccionado',
+    };
   for (const key of [
     'DOT_ID_Reporting_Airline',
     'Flight_Number_Reporting_Airline',
     'OriginAirportID',
     'DestAirportID',
   ])
-    if (!/^\d+$/.test(row[key] ?? '')) return `Identificador inválido: ${key}`;
-  if (row.OriginAirportID === row.DestAirportID) return 'Extremos idénticos';
+    if (!/^\d+$/.test(row[key] ?? ''))
+      return { causa: 'identidad', motivo: `Identificador inválido: ${key}` };
+  if (row.OriginAirportID === row.DestAirportID)
+    return { causa: 'elegibilidad', motivo: 'Extremos idénticos' };
   if (!/^(?:[01]\d|2[0-3])[0-5]\d$|^2400$/.test(row.CRSDepTime ?? ''))
-    return 'Hora programada inválida';
+    return { causa: 'formato', motivo: 'Hora programada inválida' };
   if (
     !/^[01](?:\.0+)?$/.test(row.Cancelled ?? '') ||
     !/^[01](?:\.0+)?$/.test(row.Diverted ?? '')
   )
-    return 'Resultado final desconocido';
+    return { causa: 'elegibilidad', motivo: 'Resultado final desconocido' };
   const estado =
     Number(row.Cancelled) === 1
       ? 'CANCELLED'
       : Number(row.Diverted) === 1
         ? 'DIVERTED'
         : 'ARRIVED';
-  const demora = estado === 'ARRIVED' ? Number(row.ArrDelay) : null;
+  const textoDemora = row.ArrDelay?.trim();
+  const demora =
+    estado === 'ARRIVED' && textoDemora ? Number(textoDemora) : null;
   if (
-    estado === 'ARRIVED' &&
-    (!row.ArrDelay?.trim() ||
+    demora !== null &&
+    (!/^[+-]?\d+(?:\.0+)?$/.test(textoDemora ?? '') ||
       !Number.isInteger(demora) ||
-      demora! < -2147483648 ||
-      demora! > 2147483647)
+      demora < -2147483648 ||
+      demora > 2147483647)
   )
-    return 'Demora de llegada desconocida o inválida';
+    return { causa: 'formato', motivo: 'Demora de llegada inválida' };
   return {
     identidad: [
       date,

@@ -9,6 +9,10 @@ import {
 import type { Queue } from 'bullmq';
 import type { ConfiguracionOagDto } from './oag.controller.js';
 import { MetricsService } from '../../metrics/metrics.service.js';
+import {
+  escribirPublicacion,
+  cambioFuenteSinAutorizar,
+} from '../../metrics/publicacion.store.js';
 import { periodosCerradosMapa } from '../../metrics/periodos-mapa.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Transaction } from '../../prisma/db.js';
@@ -40,7 +44,10 @@ const ahora = () => new Date().toISOString().replace('T', ' ').replace('Z', '');
 const MAX_FILAS = 10_000;
 const MAX_PAGINAS = 1000;
 const LOTE = 1000;
-type AlcanceOag = Omit<ConfiguracionOagDto, 'pausado'> & ConsultaOag;
+type AlcanceOag = Omit<ConfiguracionOagDto, 'pausado'> &
+  ConsultaOag & {
+    autorizarCambioFuente?: string[];
+  };
 type Normalizada = Exclude<
   ReturnType<typeof normalizarVueloOag>,
   string | null
@@ -186,6 +193,7 @@ export class OagService implements OnModuleInit {
     solicitanteId?: string,
     alcanceAnterior?: AlcanceOag,
     checkpoint?: CheckpointOag,
+    autorizarCambioFuente: string[] = [],
   ) {
     const { pausado, ...config } = await this.configuracion();
     if (pausado) throw new ConflictException('OAG pausado');
@@ -240,7 +248,7 @@ export class OagService implements OnModuleInit {
         procesoId: PROCESO_ID,
         uriFuente: OAG_ENDPOINT,
         instantaneaConfiguracion: {
-          conexion: alcance,
+          conexion: { ...alcance, autorizarCambioFuente },
           mapeoEsquema: [],
           configuracionProgramacion: {},
         },
@@ -322,6 +330,7 @@ export class OagService implements OnModuleInit {
     const ejecucion = await this.prisma.models.EjecucionEtl.where({
       id,
       intento: anterior.intento,
+      estado: anterior.estado,
     }).update({ estado: 'running', intento, iniciadoEn: ahora() });
     if (!ejecucion) return;
 
@@ -382,7 +391,11 @@ export class OagService implements OnModuleInit {
             normalizada.revision > previa.revision ||
             (normalizada.revision === previa.revision &&
               normalizada.estado &&
-              !previa.estado)
+              (!previa.estado ||
+                (previa.estado === 'ARRIVED' &&
+                  previa.demoraLlegadaMinutos === null &&
+                  normalizada.estado === 'ARRIVED' &&
+                  normalizada.demoraLlegadaMinutos !== null)))
           )
             candidatos.set(claveOperacion, { ...vuelo, aerolineaId });
         }
@@ -426,7 +439,8 @@ export class OagService implements OnModuleInit {
           continue;
         }
         resumen.resueltas++;
-        if (vuelo.estado === 'ARRIVED') resumen.llegadas++;
+        if (vuelo.estado === 'ARRIVED' && vuelo.demoraLlegadaMinutos !== null)
+          resumen.llegadas++;
         if (vuelo.estado === 'DIVERTED') resumen.desviadas++;
         if (vuelo.estado === 'CANCELLED') resumen.canceladas++;
         observaciones.push({
@@ -473,6 +487,22 @@ export class OagService implements OnModuleInit {
           totalesPorOperadora,
           observaciones.map((vuelo) => vuelo.idRegistroFuente),
         );
+        const operadoras = Object.keys(totalesPorOperadora).filter(
+          (id) => totalesPorOperadora[id] > 0,
+        );
+        if (
+          await cambioFuenteSinAutorizar(
+            tx,
+            alcance,
+            fuente,
+            operadoras,
+            alcance.autorizarCambioFuente ?? [],
+          )
+        ) {
+          throw new FalloOag(
+            'El cambio de fuente requiere autorización por operadora',
+          );
+        }
         let insertadas = 0;
         for (let i = 0; i < observaciones.length; i += LOTE) {
           const lote = await guardarObservaciones(
@@ -483,7 +513,14 @@ export class OagService implements OnModuleInit {
           insertadas += lote.insertadas;
         }
         // FIXME(T12): exigir aprobación y verificar permisos antes de publicar datos reales.
-        await this.publicar(tx, alcance, id);
+        await this.retirarObservacionesAnteriores(tx, alcance, id);
+        for (const aerolineaId of operadoras) {
+          await escribirPublicacion(
+            tx,
+            { ...alcance, aerolineaId },
+            { fuente, ejecucionId: id },
+          );
+        }
         await tx.orm.public.EjecucionEtl.where({ id, intento }).update({
           estado: 'completed',
           finalizadoEn: ahora(),
@@ -576,7 +613,7 @@ export class OagService implements OnModuleInit {
       );
   }
 
-  private async publicar(
+  private async retirarObservacionesAnteriores(
     tx: Transaction,
     { origenId, destinoId, periodo }: AlcanceOag,
     ejecucionId: string,
@@ -599,32 +636,6 @@ export class OagService implements OnModuleInit {
           'aerolineaId',aerolinea_id,'estado',estado,'demoraLlegadaMinutos',demora_llegada_minutos,
           'protegidoManualmente',false,'archivadoEn',archivado_en,'ejecucionEtlId',ejecucion_etl_id,'ultimaObservacion',ultima_observacion)
       FROM retiradas
-    `
-        .affectedCount()
-        .build(),
-    );
-    await tx.execute(
-      tx.raw.sql`
-      INSERT INTO metricas_ruta (
-        origen_id,destino_id,aerolinea_id,periodo,vuelos_totales,vuelos_cancelados,
-        vuelos_desviados,vuelos_puntuales,demora_llegada_total_minutos,fuentes,
-        ejecucion_etl_id,actualizado_en,pendiente
-      )
-      SELECT origen_id,destino_id,aerolinea_id,${mes}::date,count(*)::int,
-        count(*) FILTER (WHERE estado='CANCELLED')::int,
-        count(*) FILTER (WHERE estado='DIVERTED')::int,
-        count(*) FILTER (WHERE estado='ARRIVED' AND demora_llegada_minutos<=15)::int,
-        coalesce(sum(demora_llegada_minutos),0),'["OAG"]'::jsonb,
-        ${ejecucionId},CURRENT_TIMESTAMP,false
-      FROM vuelos WHERE fuente='OAG' AND origen_id=${origenId} AND destino_id=${destinoId}
-      AND fecha_vuelo>=${mes}::date AND fecha_vuelo<${mes}::date+interval '1 month'
-      AND archivado_en IS NULL GROUP BY origen_id,destino_id,aerolinea_id
-      ON CONFLICT(origen_id,destino_id,aerolinea_id,periodo) DO UPDATE SET
-        vuelos_totales=EXCLUDED.vuelos_totales,vuelos_cancelados=EXCLUDED.vuelos_cancelados,
-        vuelos_desviados=EXCLUDED.vuelos_desviados,vuelos_puntuales=EXCLUDED.vuelos_puntuales,
-        demora_llegada_total_minutos=EXCLUDED.demora_llegada_total_minutos,
-        fuentes=EXCLUDED.fuentes,ejecucion_etl_id=EXCLUDED.ejecucion_etl_id,
-        actualizado_en=EXCLUDED.actualizado_en,pendiente=false,error_actualizacion=NULL
     `
         .affectedCount()
         .build(),

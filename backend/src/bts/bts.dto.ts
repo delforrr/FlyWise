@@ -1,4 +1,7 @@
 import {
+  ArrayMaxSize,
+  IsArray,
+  ValidateNested,
   IsBoolean,
   IsIn,
   IsInt,
@@ -25,7 +28,19 @@ export class ConfiguracionBtsDto {
   @MaxLength(100)
   expresionCron!: string;
 }
+export class PoblacionBtsDto {
+  @IsUUID() origenId!: string;
+  @IsUUID() destinoId!: string;
+  @IsUUID() aerolineaId!: string;
+}
+
 export class EjecutarBtsDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => PoblacionBtsDto)
+  autorizarCambioFuente?: PoblacionBtsDto[];
   @IsOptional()
   @Matches(/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/)
   periodo?: string;

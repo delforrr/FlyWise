@@ -230,6 +230,12 @@ export function normalizarVueloOag(fila: unknown, consulta: ConsultaOag) {
     const demoraLlegadaMinutos = Math.ceil((real - programada) / 60_000);
     return { ...salida, estado: 'ARRIVED' as const, demoraLlegadaMinutos };
   }
+  if (estado?.state === 'InGate')
+    return {
+      ...salida,
+      estado: 'ARRIVED' as const,
+      demoraLlegadaMinutos: null,
+    };
   return { ...salida, estado: null, demoraLlegadaMinutos: null };
 }
 

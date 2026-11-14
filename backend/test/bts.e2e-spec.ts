@@ -338,6 +338,14 @@ describe('BTS mensual por HTTP y jobs', () => {
               }),
             ],
           });
+          expect(
+            await tx.orm.public.MetricaRuta.first({
+              origenId: origin.id,
+              destinoId: destination.id,
+              aerolineaId: airline.id,
+              periodo: '2026-08-01',
+            }),
+          ).toMatchObject({ ejecucionEtlId: ejecucionId });
           const retry = await tx.orm.public.EjecucionEtl.create({
             fuente: 'BTS',
             estado: 'pending',
@@ -466,6 +474,126 @@ describe('BTS mensual por HTTP y jobs', () => {
               }),
             ]),
           );
+          const mesSinEvidencia = await tx.orm.public.EjecucionEtl.create({
+            fuente: 'BTS',
+            estado: 'pending',
+          });
+          const junio = days
+            .slice(0, 30)
+            .map((fila, i) =>
+              fila
+                .replace('2026-07', '2026-06')
+                .replace('0800,-5', i === 0 ? '0800,' : '0800,15'),
+            );
+          await module
+            .get(BtsService)
+            .procesar(
+              mesSinEvidencia.id,
+              '2026-06',
+              Readable.from([[header, ...junio].join('\n')]),
+            );
+          expect(
+            (
+              await api
+                .get('/metricas/rutas')
+                .query({
+                  periodo: '2026-06',
+                  origenId: origin.id,
+                  destinoId: countryAirport.id,
+                })
+                .expect(200)
+            ).body,
+          ).toMatchObject({
+            datos: [
+              {
+                vuelosTotales: 30,
+                vuelosSinEvidencia: 1,
+                vuelosPuntuales: 29,
+                otp15: 100,
+                fuentes: ['BTS'],
+              },
+            ],
+          });
+          const oag = await tx.orm.public.EjecucionEtl.create({
+            fuente: 'OAG',
+            estado: 'pending',
+          });
+          const autorizada = {
+            origenId: origin.id,
+            destinoId: countryAirport.id,
+            aerolineaId: airline.id,
+          };
+          const poblacion = { ...autorizada, periodo: '2026-06-01' };
+          await tx.orm.public.MetricaRuta.where(poblacion).update({
+            ejecucionEtlId: oag.id,
+            fuentes: ['OAG'],
+            vuelosPuntuales: 0,
+          });
+          const iniciarBts = async (
+            autorizarCambioFuente: (typeof autorizada)[],
+          ) => {
+            const response = await api
+              .post('/administracion/bts/ejecutar')
+              .send({
+                periodo: '2026-06',
+                autorizarCambioFuente,
+              })
+              .expect(201);
+            const { ejecucionId } = response.body as { ejecucionId: string };
+            await module
+              .get(BtsService)
+              .procesar(
+                ejecucionId,
+                '2026-06',
+                Readable.from([[header, ...junio].join('\n')]),
+              );
+            return ejecucionId;
+          };
+          await iniciarBts([]);
+          expect(
+            await tx.orm.public.MetricaRuta.first(poblacion),
+          ).toMatchObject({
+            ejecucionEtlId: oag.id,
+            vuelosPuntuales: 0,
+          });
+          const btsAutorizada = await iniciarBts([autorizada]);
+          expect(
+            await tx.orm.public.MetricaRuta.first(poblacion),
+          ).toMatchObject({
+            ejecucionEtlId: btsAutorizada,
+            vuelosPuntuales: 29,
+          });
+          const diagnostico = await tx.orm.public.EjecucionEtl.create({
+            fuente: 'BTS',
+            estado: 'pending',
+          });
+          const filasInvalidas = [
+            junio[0].replace('19393', '?'),
+            junio[1].replace('0800', '2500'),
+            junio[2].replace('2026-06', '2026-05'),
+          ];
+          await expect(
+            module
+              .get(BtsService)
+              .procesar(
+                diagnostico.id,
+                '2026-06',
+                Readable.from([
+                  [header, ...junio, junio[0], ...filasInvalidas].join('\n'),
+                ]),
+              ),
+          ).rejects.toThrow('Mes incompleto');
+          const eventos = await tx.orm.public.EventoEjecucionEtl.where({
+            ejecucionId: diagnostico.id,
+            nivel: 'error',
+          }).all();
+          expect(eventos).toEqual([
+            expect.objectContaining({
+              mensaje: expect.stringContaining(
+                'identidad 2, formato 1, elegibilidad 1',
+              ),
+            }),
+          ]);
           rol = 'USER';
           await api.get('/administracion/bts/configuracion').expect(403);
         } finally {

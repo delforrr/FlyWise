@@ -1,5 +1,6 @@
 import {
   normalizarBts,
+  type CausaDescarteBts,
   type FilaBts,
   type OperacionBts,
 } from '../adapters/bts/operacion-bts.js';
@@ -17,6 +18,7 @@ import type { Transaction } from '../prisma/db.js';
 import type {
   ConfiguracionBtsDto,
   ConsultaBtsDto,
+  PoblacionBtsDto,
   CorrespondenciaBtsDto,
 } from './bts.dto.js';
 import type { Readable } from 'node:stream';
@@ -25,6 +27,7 @@ import csv from 'csv-parser';
 import { createHash } from 'node:crypto';
 import { abrirCsvBts, descargarBts } from '../adapters/bts/bts-source.js';
 import { retirarAusentesBts } from './retiros-bts.js';
+import { escribirPublicacion } from '../metrics/publicacion.store.js';
 import { VuelosService } from '../vuelos/vuelos.service.js';
 import type { Operacion } from '../entities/vuelos/domain/operacion.js';
 
@@ -133,7 +136,12 @@ export class BtsService implements OnModuleInit {
         { name: 'programada', data: {} },
       );
   }
-  async ejecutar(periodo?: string, solicitanteId?: string, manual = false) {
+  async ejecutar(
+    periodo?: string,
+    solicitanteId?: string,
+    manual = false,
+    autorizarCambioFuente: PoblacionBtsDto[] = [],
+  ) {
     const config = await this.configuracion();
     if (config.pausado && !manual) throw new ConflictException('BTS pausado');
     periodo ??= config.periodo;
@@ -160,7 +168,17 @@ export class BtsService implements OnModuleInit {
         solicitanteId: solicitanteId ?? null,
         uriFuente,
         instantaneaConfiguracion: {
-          conexion: { periodo, urlEndpoint: uriFuente },
+          conexion: {
+            periodo,
+            urlEndpoint: uriFuente,
+            autorizarCambioFuente: autorizarCambioFuente.map(
+              ({ origenId, destinoId, aerolineaId }) => ({
+                origenId,
+                destinoId,
+                aerolineaId,
+              }),
+            ),
+          },
           mapeoEsquema: [],
           configuracionProgramacion: { ...config },
         },
@@ -352,6 +370,12 @@ export class BtsService implements OnModuleInit {
         insertadas: job.filasInsertadas,
         descartadas: job.filasDescartadas,
       };
+    const autorizadas =
+      (
+        job.instantaneaConfiguracion as {
+          conexion?: { autorizarCambioFuente?: PoblacionBtsDto[] };
+        } | null
+      )?.conexion?.autorizarCambioFuente ?? [];
     const intento = job.intento + 1;
     await this.prisma.models.EjecucionEtl.where({ id: ejecucionId }).update({
       estado: 'running',
@@ -384,12 +408,17 @@ export class BtsService implements OnModuleInit {
     let batch: OperacionBts[] = [];
     const dias = new Set<string>();
     const hash = createHash('sha256');
+    const descartesPorCausa = { identidad: 0, formato: 0, elegibilidad: 0 };
+    const resumenDescartes = () =>
+      `Descartes BTS: identidad ${descartesPorCausa.identidad}, formato ${descartesPorCausa.formato}, elegibilidad ${descartesPorCausa.elegibilidad}`;
     const discard = async (
       numeroFila: number,
+      causa: CausaDescarteBts,
       motivo: string,
       row: unknown,
     ) => {
       descartadas++;
+      descartesPorCausa[causa]++;
       if (samples++ < 100)
         await this.prisma.models.MuestraDescartadaEtl.create({
           ejecucionId,
@@ -492,6 +521,7 @@ export class BtsService implements OnModuleInit {
           sinCorrespondencia++;
           await discard(
             row.numeroFila,
+            'identidad',
             'Faltan correspondencias BTS explícitas',
             row,
           );
@@ -518,6 +548,7 @@ export class BtsService implements OnModuleInit {
           if (!stagedRows.has(row.numeroFila))
             await discard(
               row.numeroFila,
+              'identidad',
               'Identidad de vuelo BTS repetida',
               row,
             );
@@ -538,7 +569,8 @@ export class BtsService implements OnModuleInit {
           const row = raw as FilaBts;
           total++;
           const result = normalizarBts(row, periodo, total);
-          if (typeof result === 'string') await discard(total, result, row);
+          if ('causa' in result)
+            await discard(total, result.causa, result.motivo, row);
           else {
             dias.add(result.fechaVuelo);
             batch.push(result);
@@ -609,8 +641,57 @@ export class BtsService implements OnModuleInit {
             throw new UnrecoverableError(
               'La nueva carga parcial conserva la publicación anterior',
             );
+          await tx.execute(
+            tx.raw.sql`
+              UPDATE metricas_ruta m SET pendiente=false,error_actualizacion=NULL
+              WHERE m.periodo=${periodo + '-01'}::date AND EXISTS (
+                SELECT 1 FROM vuelos v WHERE v.ejecucion_etl_id=${ejecucionId}
+                  AND (v.origen_id,v.destino_id,v.aerolinea_id)=(m.origen_id,m.destino_id,m.aerolinea_id)
+              )
+            `
+              .affectedCount()
+              .build(),
+          );
         } else {
           await retirarAusentesBts(tx, periodo, ejecucionId);
+          let cursor = { origenId: '', destinoId: '', aerolineaId: '' };
+          for (;;) {
+            const poblaciones = await tx.query(
+              tx.raw.sql`
+                SELECT m.origen_id AS "origenId",m.destino_id AS "destinoId",m.aerolinea_id AS "aerolineaId"
+                FROM metricas_ruta m LEFT JOIN ejecuciones_etl e ON e.id=m.ejecucion_etl_id
+                WHERE m.periodo=${periodo + '-01'}::date AND m.pendiente
+                  AND (e.fuente='BTS' OR (
+                    ((e.id IS NULL AND (
+                    m.actualizado_en IS NULL OR m.vuelos_totales=0 OR
+                    m.fuentes IN ('["Administrativa"]'::jsonb, '["BTS"]'::jsonb)
+                  )) OR EXISTS (
+                    SELECT 1 FROM jsonb_to_recordset(${JSON.stringify(autorizadas)}::jsonb)
+                      AS a("origenId" text,"destinoId" text,"aerolineaId" text)
+                    WHERE (a."origenId",a."destinoId",a."aerolineaId")=(m.origen_id,m.destino_id,m.aerolinea_id)
+                  )) AND EXISTS (
+                    SELECT 1 FROM vuelos v WHERE v.ejecucion_etl_id=${ejecucionId} AND v.fuente='BTS'
+                      AND (v.origen_id,v.destino_id,v.aerolinea_id)=(m.origen_id,m.destino_id,m.aerolinea_id)
+                  )))
+                  AND (m.origen_id,m.destino_id,m.aerolinea_id)>(${cursor.origenId},${cursor.destinoId},${cursor.aerolineaId})
+                ORDER BY m.origen_id,m.destino_id,m.aerolinea_id LIMIT 100
+              `
+                .returnsRow({
+                  origenId: 'pg/text@1',
+                  destinoId: 'pg/text@1',
+                  aerolineaId: 'pg/text@1',
+                })
+                .build(),
+            );
+            for (const poblacion of poblaciones)
+              await escribirPublicacion(
+                tx,
+                { ...poblacion, periodo },
+                { fuente: 'BTS', ejecucionId },
+              );
+            if (poblaciones.length < 100) break;
+            cursor = poblaciones[poblaciones.length - 1];
+          }
         }
         await tx.execute(
           tx.raw
@@ -632,7 +713,7 @@ export class BtsService implements OnModuleInit {
           ejecucionId,
           intento,
           nivel: 'success',
-          mensaje: `Mes BTS ${periodo} publicado: ${procesadas} operaciones`,
+          mensaje: `Mes BTS ${periodo}: ${procesadas} operaciones aceptadas. ${resumenDescartes()}`,
         });
         await tx.execute(
           tx.raw
@@ -658,7 +739,7 @@ export class BtsService implements OnModuleInit {
         ejecucionId,
         intento,
         nivel: 'error',
-        mensaje,
+        mensaje: `${mensaje}. ${resumenDescartes()}`,
       });
       await db.execute(
         db.raw

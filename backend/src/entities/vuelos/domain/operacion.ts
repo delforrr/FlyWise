@@ -32,11 +32,12 @@ export function validarOperacion(
     throw new RangeError('Sólo se admiten resultados finales');
   if (
     datos.estado === 'ARRIVED'
-      ? !Number.isInteger(datos.demoraLlegadaMinutos)
+      ? datos.demoraLlegadaMinutos != null &&
+        !Number.isInteger(datos.demoraLlegadaMinutos)
       : datos.demoraLlegadaMinutos != null
   )
     throw new RangeError(
-      'ARRIVED requiere demora entera; CANCELLED y DIVERTED requieren demora nula',
+      'La demora debe ser entera cuando está disponible y nula para cancelaciones y desvíos',
     );
   return {
     fechaVuelo: datos.fechaVuelo,

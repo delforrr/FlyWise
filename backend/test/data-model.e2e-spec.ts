@@ -423,13 +423,20 @@ describe('Data model (PostgreSQL integration)', () => {
         () => tx.orm.public.Aeropuerto.where({ id: origen.id }).delete(),
         /foreign key/i,
       );
+      const sinEvidencia = await tx.orm.public.Vuelo.create({
+        ...flight,
+        idRegistroFuente: 'unknown',
+        estado: 'ARRIVED',
+      });
+      expect(sinEvidencia.demoraLlegadaMinutos).toBeNull();
       await rejected(
         tx,
         () =>
           tx.orm.public.Vuelo.create({
             ...flight,
-            idRegistroFuente: 'unknown',
-            estado: 'ARRIVED',
+            idRegistroFuente: 'cancelled-with-delay',
+            estado: 'CANCELLED',
+            demoraLlegadaMinutos: 5,
           }),
         /flights_arrival_delay_check/,
       );
@@ -448,7 +455,7 @@ describe('Data model (PostgreSQL integration)', () => {
       const [result] = await tx.query(
         tx.raw.sql`
         SELECT (100.0 * count(*) FILTER (WHERE estado = 'ARRIVED' AND demora_llegada_minutos <= 15)
-          / NULLIF(count(*) FILTER (WHERE estado <> 'CANCELLED'), 0))::float8 AS otp,
+          / NULLIF(count(*) FILTER (WHERE estado = 'DIVERTED' OR demora_llegada_minutos IS NOT NULL), 0))::float8 AS otp,
           avg(demora_llegada_minutos)::float8 AS mean FROM vuelos WHERE origen_id = ${origen.id}
       `
           .returnsRow({

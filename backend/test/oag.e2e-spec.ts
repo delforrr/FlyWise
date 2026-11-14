@@ -45,11 +45,12 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
             }),
           ),
         );
-        await tx.orm.public.Aerolinea.create({
+        const aerolinea = await tx.orm.public.Aerolinea.create({
           nombre: 'OAG ficticia',
           iata: null,
           icao: '8Z7',
         });
+        let fallarTrasEscrituras = false;
         const module = await Test.createTestingModule({
           controllers: [OagController, MetricsController],
           providers: [
@@ -65,7 +66,28 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
                   query: tx.query.bind(tx),
                   transaction: async <T>(
                     work: (inner: typeof tx) => Promise<T>,
-                  ) => work(tx),
+                  ) => {
+                    const ejecutarSql = (sql: ReturnType<typeof tx.raw.sql>) =>
+                      tx.execute(sql.affectedCount().build());
+                    await ejecutarSql(tx.raw.sql`SAVEPOINT publicacion_oag`);
+                    try {
+                      const resultado = await work(tx);
+                      if (fallarTrasEscrituras) {
+                        fallarTrasEscrituras = false;
+                        throw new Error('Fallo simulado antes del commit');
+                      }
+                      return resultado;
+                    } catch (error) {
+                      await ejecutarSql(
+                        tx.raw.sql`ROLLBACK TO SAVEPOINT publicacion_oag`,
+                      );
+                      throw error;
+                    } finally {
+                      await ejecutarSql(
+                        tx.raw.sql`RELEASE SAVEPOINT publicacion_oag`,
+                      );
+                    }
+                  },
                 },
               },
             },
@@ -151,6 +173,7 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
           let limiteTransitorio = false;
           let esperaLarga = false;
           let sinCobertura = false;
+          let fallarAlPublicar = false;
           let paginaTruncada = false;
           let errorCredencial: number | undefined;
           const fetchOag = jest
@@ -185,13 +208,14 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
                 }
                 if (sinCuota)
                   return Promise.resolve(new Response(null, { status: 429 }));
+                fallarTrasEscrituras = fallarAlPublicar;
                 return Promise.resolve(
                   Response.json({
                     data: [
                       fila(1, 'InGate', '2026-10-11T00:15:00Z'),
                       fila(3, 'Canceled'),
                       fila(4, 'Diverted'),
-                      fila(5, 'Landed'),
+                      fila(5, 'InGate'),
                     ],
                   }),
                 );
@@ -209,7 +233,7 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
               return Promise.resolve(
                 Response.json({
                   data: [
-                    fila(1, 'InGate', '2026-10-11T00:15:00Z'),
+                    fila(1, 'InGate'),
                     fila(2, 'InGate', '2026-10-11T00:15:01Z'),
                   ],
                   paging: {
@@ -222,6 +246,7 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
             estado: string,
             fallo?: string,
             anterior?: string,
+            autorizadas?: string[],
           ) => {
             const res = await api
               .post(
@@ -229,7 +254,7 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
                   ? `${endpoint}/ejecuciones/${anterior}/reintentar`
                   : endpoint + '/ejecutar',
               )
-              .send({})
+              .send(autorizadas ? { autorizarCambioFuente: autorizadas } : {})
               .expect(201);
             const { ejecucionId: id } = res.body as { ejecucionId: string };
             const job = await queue.getJob(id);
@@ -264,7 +289,8 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
           const esperado = [
             expect.objectContaining({
               otp15: 100 / 3,
-              vuelosTotales: 4,
+              vuelosTotales: 5,
+              vuelosSinEvidencia: 1,
               vuelosCancelados: 1,
               vuelosDesviados: 1,
               vuelosPuntuales: 1,
@@ -319,6 +345,55 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
           paginaTruncada = true;
           await ejecutar('failed', 'Cobertura OAG insuficiente');
           expect(await metrica()).toEqual(esperado);
+          paginaTruncada = false;
+          const bts = await tx.orm.public.EjecucionEtl.create({
+            fuente: 'BTS',
+            estado: 'completed',
+            iniciadoEn: '2026-11-01 00:00:00',
+            finalizadoEn: '2026-11-01 00:00:01',
+          });
+          const poblacion = {
+            origenId: origen.id,
+            destinoId: destino.id,
+            aerolineaId: aerolinea.id,
+            periodo: '2026-10-01',
+          };
+          await tx.orm.public.MetricaRuta.where(poblacion).update({
+            ejecucionEtlId: bts.id,
+            fuentes: ['BTS'],
+            vuelosPuntuales: 0,
+          });
+          const previa = await metrica();
+          await ejecutar('failed', 'El cambio de fuente requiere autorización');
+          expect(await metrica()).toEqual(previa);
+          expect(
+            await tx.orm.public.MetricaRuta.first(poblacion),
+          ).toMatchObject({
+            ejecucionEtlId: bts.id,
+          });
+          fallarAlPublicar = true;
+          await ejecutar(
+            'failed',
+            'No se pudo publicar la ejecución OAG',
+            undefined,
+            [aerolinea.id],
+          );
+          fallarAlPublicar = false;
+          expect(await metrica()).toEqual(previa);
+          expect(
+            await tx.orm.public.MetricaRuta.first(poblacion),
+          ).toMatchObject({
+            ejecucionEtlId: bts.id,
+          });
+          const nueva = await ejecutar('completed', undefined, undefined, [
+            aerolinea.id,
+          ]);
+          expect(await metrica()).toEqual(esperado);
+          expect(
+            await tx.orm.public.MetricaRuta.first(poblacion),
+          ).toMatchObject({
+            ejecucionEtlId: nueva,
+          });
         } finally {
           await worker.close();
           await app.close();

@@ -273,10 +273,10 @@ describe('Operaciones y OTP mensual por HTTP', () => {
           });
           await recalcular();
           expect(await consultar('2020-02')).toMatchObject({
-            vuelosTotales: 2,
+            vuelosTotales: 1,
             vuelosPuntuales: 1,
-            otp15: 50,
-            fuentes: ['Administrativa', 'BTS'],
+            otp15: 100,
+            fuentes: ['Administrativa'],
           });
           await api
             .post(`${importado}/archivar`)
@@ -300,15 +300,6 @@ describe('Operaciones y OTP mensual por HTTP', () => {
           });
 
           const marzo = { fechaVuelo: '2020-03-01', numeroVuelo: 'FW3' };
-          await api
-            .post(vuelos)
-            .send({
-              ...ruta,
-              aerolineaId: airline.id,
-              ...marzo,
-              estado: 'ARRIVED',
-            })
-            .expect(400);
           await crear(
             { ...marzo, estado: 'CANCELLED', demoraLlegadaMinutos: 10 },
             400,
@@ -351,16 +342,14 @@ describe('Operaciones y OTP mensual por HTTP', () => {
           const otra = await tx.orm.public.Aerolinea.create({
             nombre: 'Segundo operador fixture 03',
           });
-          await module.get(VuelosService).importarLote(
-            Array.from({ length: 8 }, (_, i) => ({
-              ...observacion,
-              fechaVuelo: marzo.fechaVuelo,
-              idRegistroFuente: `fixture03-${i}`,
+          for (let i = 0; i < 8; i++) {
+            await crear({
+              ...marzo,
+              numeroVuelo: `OTP${i}`,
               aerolineaId: otra.id,
               demoraLlegadaMinutos: 0,
-            })),
-            job.id,
-          );
+            });
+          }
           await module
             .get(MetricsService)
             .registrarError(new Error('Error de actualización fixture'));
@@ -376,6 +365,31 @@ describe('Operaciones y OTP mensual por HTTP', () => {
             otp15: 90,
             pendiente: false,
             errorActualizacion: null,
+          });
+          await crear({ ...marzo, demoraLlegadaMinutos: null });
+          await recalcular();
+          expect(await consultar('2020-03')).toMatchObject({
+            vuelosTotales: 12,
+            vuelosOperados: 11,
+            vuelosSinEvidencia: 1,
+            vuelosPuntuales: 9,
+            otp15: 90,
+          });
+          await tx.orm.public.MetricaRuta.where({
+            ...ruta,
+            aerolineaId: airline.id,
+            periodo: '2020-03-01',
+          }).update({
+            vuelosPuntuales: 0,
+            fuentes: ['BTS'],
+            pendiente: true,
+          });
+          await recalcular();
+          expect(await consultar('2020-03')).toMatchObject({
+            vuelosPuntuales: 8,
+            otp15: 80,
+            pendiente: false,
+            fuentes: ['Administrativa', 'BTS'],
           });
           await api.get(vuelos).query({ limite: 101 }).expect(400);
           await api.get(metricas).query({ periodo: '2020-13' }).expect(400);
