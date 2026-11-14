@@ -31,6 +31,9 @@ _Evitar_: ruta, oferta, movimiento aeroportuario.
 **Movimiento aeroportuario**: aterrizaje o despegue observado en un aeropuerto; una operación puede producir más de un movimiento.
 _Evitar_: vuelo completo.
 
+**Puntualidad de llegada**: medida del cumplimiento del horario de llegada previsto de las operaciones elegibles. Es la puntualidad que representa el color de una ruta en FlyWise.
+_Evitar_: puntualidad de salida, indicador externo.
+
 **Indicador externo**: medida publicada por una fuente con su población, metodología y período propios.
 _Evitar_: operación individual, OTP FlyWise.
 
@@ -43,5 +46,11 @@ _Evitar_: fecha de carga.
 **Correspondencia de identidad**: vinculación explícita entre una identidad externa y el aeropuerto u operador que representa en FlyWise.
 _Evitar_: igualdad de códigos entre fuentes.
 
-**Protección de operación**: condición que preserva una corrección o retiro administrativo frente a futuras observaciones de la fuente.
-_Evitar_: eliminación del dato de origen.
+**Revisión candidata**: operaciones inmutables de una ejecución de ingesta para una población. Puede sustituir la publicación vigente tras validar que cubre el alcance completo y que sigue habilitada para promoverse.
+_Evitar_: publicación vigente.
+
+**Publicación de métricas**: resultado validado de una población de operaciones de un tramo, operadora y mes, con procedencia y definición de cálculo identificadas. La publicación vigente permanece disponible hasta que otra válida la sustituye.
+_Evitar_: ejecución de ingesta, descarga completada.
+
+**Servicio de datos**: configuración administrable de un proveedor o modalidad de carga compatible, con alcance y programación propios.
+_Evitar_: proveedor externo, ejecución individual.

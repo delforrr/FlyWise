@@ -1,0 +1,60 @@
+sequenceDiagram
+  actor Admin as Administrador
+  actor User as Usuario
+  participant API as Controladores HTTP
+  participant App as Ingesta y publicación
+  participant DB as PostgreSQL
+  participant Q as Cola y worker
+  participant Cron as Planificador
+  participant A as Adaptador instalado
+  participant P as Proveedor
+  participant C as Caché
+
+  alt Disparo manual
+    Admin->>API: Solicitar carga por proveedor, mes y rutas
+    API->>App: Validar solicitud y capturar autorización de cambio si corresponde
+  else Disparo programado
+    Cron->>App: Solicitar carga programada
+  end
+  App->>DB: Admitir ejecución y señal durable solo si no hay otra activa
+  alt Ingesta de operaciones activa
+    DB-->>App: Identificador de la ejecución activa
+    App-->>API: Si es manual, HTTP 409 con ID activo
+    App-->>Cron: Si es programada, registrar omisión
+  else Ejecución admitida
+    DB-->>App: ID de la nueva ejecución
+    App->>Q: Notificar trabajo
+    Q->>App: Procesar ejecución
+    loop Páginas o lotes acotados
+      App->>A: Leer siguiente lote
+      A->>P: Consultar fuente
+      P-->>A: Datos y cursor
+      A-->>App: Evidencia normalizada
+      App->>DB: Insertar operaciones inmutables por ejecución
+    end
+    User->>API: Consultar mapa
+    API->>DB: Leer publicación vigente
+    DB-->>API: Último resultado válido o Sin datos
+    API-->>User: Mostrar resultado vigente
+    alt Descarga completa y cobertura validada para la población
+      App->>DB: Leer candidata y calcular OTP con política FlyWise
+      Note over App,DB: Un vacío verificado produce Sin datos
+      opt Primera publicación real
+        Admin->>API: Aprobar evidencia del piloto
+        API->>App: Autorizar promoción
+      end
+      App->>DB: Verificar ejecución activa y autorización de cambio en la transacción
+      alt Ejecución habilitada y fuente autorizada
+        DB-->>App: Confirmar actualización atómica de conteos y referencia
+        App->>C: Renovar generación después del commit
+        App-->>Admin: Resultado actualizado
+      else Ejecución cerrada o cambio sin autorización
+        DB-->>App: Conservar publicación vigente
+        App-->>Admin: Informar candidata descartada
+      end
+    else Fallo, carga parcial o cobertura incierta
+      App->>DB: Registrar resultado sin promover
+      App-->>Admin: Informar estado de la ejecución
+    end
+    Note over App,DB: Finalizar la ejecución libera la admisión. La limpieza ocurre después de la promoción.
+  end

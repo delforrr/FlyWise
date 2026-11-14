@@ -1,0 +1,108 @@
+erDiagram
+  PAISES |o--o{ AEROPUERTOS : ubica
+  PAISES |o--o{ AEROLINEAS : registra
+  AEROPUERTOS ||--o{ RUTAS : origen
+  AEROPUERTOS ||--o{ RUTAS : destino
+  RUTAS ||--o{ OFERTAS_RUTA : contiene
+  AEROLINEAS |o--o{ OFERTAS_RUTA : ofrece
+  PROCESOS_ETL |o--o{ EJECUCIONES_ETL : configura
+  EJECUCIONES_ETL ||--o{ VUELOS : incorpora
+  EJECUCIONES_ETL ||--o{ METRICAS_RUTA : respalda
+  AEROPUERTOS ||--o{ VUELOS : origen
+  AEROPUERTOS ||--o{ VUELOS : destino
+  AEROLINEAS ||--o{ VUELOS : opera
+  AEROPUERTOS ||--o{ METRICAS_RUTA : origen
+  AEROPUERTOS ||--o{ METRICAS_RUTA : destino
+  AEROLINEAS ||--o{ METRICAS_RUTA : operadora
+
+  PAISES {
+    uuid id PK
+    string codigo_iso UK
+    string nombre
+  }
+  AEROPUERTOS {
+    uuid id PK
+    uuid pais_id FK
+    string iata
+    string icao
+    string nombre
+    string zona_horaria
+    geometry geom "Point SRID 4326"
+    datetime archivado_en
+  }
+  AEROLINEAS {
+    uuid id PK
+    uuid pais_id FK
+    string iata
+    string icao
+    string nombre
+    datetime archivado_en
+  }
+  RUTAS {
+    uuid id PK
+    uuid origen_id FK
+    uuid destino_id FK
+    datetime archivado_en
+  }
+  OFERTAS_RUTA {
+    uuid id PK
+    uuid ruta_id FK
+    uuid aerolinea_id FK
+    string codigo_aerolinea
+    boolean codigo_compartido
+    int escalas
+    datetime archivado_en
+  }
+  PROCESOS_ETL {
+    uuid id PK
+    string nombre
+    string fuente
+    json alcance_configurado
+    json programacion
+    boolean pausado
+  }
+  EJECUCIONES_ETL {
+    uuid id PK
+    uuid proceso_id FK
+    string fuente
+    string estado
+    json alcance
+    boolean descarga_completa
+    int filas_recibidas
+    int filas_aceptadas
+    json descartes_por_motivo
+    datetime iniciada_en
+    datetime finalizada_en
+  }
+  VUELOS {
+    uuid id PK
+    uuid ejecucion_etl_id FK
+    string clave_en_fuente "Unica por ejecucion"
+    uuid origen_id FK
+    uuid destino_id FK
+    uuid operadora_id FK
+    string numero_vuelo
+    date mes_observado
+    date fecha_operativa
+    string zona_origen
+    string estado_final
+    datetime salida_programada_utc
+    datetime salida_real_utc
+    datetime llegada_programada_utc
+    datetime llegada_real_utc
+    int demora_reportada_minutos
+  }
+  METRICAS_RUTA {
+    uuid origen_id PK, FK
+    uuid destino_id PK, FK
+    uuid operadora_id PK, FK
+    date mes PK
+    uuid ejecucion_publicada_id FK
+    string version_calculo
+    int puntuales
+    int elegibles
+    int canceladas
+    int desviadas
+    int evidencia_insuficiente
+    datetime publicada_en
+  }

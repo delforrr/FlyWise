@@ -1,5 +1,7 @@
 # Plan de integración de servicios de datos
 
+> Antecedente histórico. Desde el 14-11-2026 prevalecen el [plan de arquitectura y confiabilidad](plan-arquitectura-confiabilidad.md) y sus specs, incluido el recorte de pasajeros y capacidades sin aporte a confiabilidad. Este documento no certifica el estado de implementación.
+
 ## Decisiones
 
 OAG será la fuente predeterminada de OTP. El adaptador se ejecutará en BullMQ dentro de FlyWise, con una primera carga manual por rutas y mes. BTS, ANAC y EUROCONTROL quedarán disponibles como servicios opcionales, con su programación automática desactivada en una instalación nueva. Connections y Master Data quedan para una entrega posterior.
@@ -22,4 +24,4 @@ La base de desarrollo se recreará durante la implementación. La base nueva se 
 4. **ANAC y EUROCONTROL.** Trasladar la lectura y normalización a sus adaptadores y publicar en las tablas comunes. Conservar la consulta de actividad y la de indicadores. Retirar las tablas específicas del esquema limpio una vez verificadas esas pantallas. Adaptar BTS al contrato común de vuelos en lo necesario para mantenerlo instalable y opcional. El descarte masivo observado en BTS requiere una investigación independiente antes de usarlo como respaldo.
 5. **Aceptación y entrega.** Probar instalación limpia, activación, importación, actualización del mapa y consultas de actividad e indicadores. Repetir lotes para verificar idempotencia, agotar la cuota a mitad de corrida para comprobar que se mantiene la publicación, y probar los límites de mes. Ejecutar compilaciones y pruebas de ambos proyectos con PostgreSQL y Redis disponibles. Si OAG no puede publicarse a tiempo, ensayar el recorrido con datos sintéticos y habilitar los conectores opcionales que tengan datos verificados.
 
-El piloto autenticado confirmó la disponibilidad de llegadas reales en la primera página de dos días de octubre para AEP–COR, con equivalencia IATA/ICAO comprobada en uno de esos días. El mes completo, la cobertura del resto de la red y los derechos de publicación se verifican en el paso 2. [Evaluación de OAG](oag-evaluacion.md)
+El piloto autenticado confirmó la disponibilidad de llegadas reales en la primera página de dos días de octubre para AEP–COR, con equivalencia IATA/ICAO comprobada en uno de esos días. El mes completo, la cobertura del resto de la red y los derechos de publicación se verifican en [T12](tickets/T12.md).

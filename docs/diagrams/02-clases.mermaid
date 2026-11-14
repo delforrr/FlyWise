@@ -1,0 +1,120 @@
+classDiagram
+  direction TB
+  class Pais {
+    +UUID id
+    +String codigoIso
+    +String nombre
+    +editarNombre(nombre)
+  }
+  class Aeropuerto {
+    +UUID id
+    +UUID paisId
+    +String iata
+    +String icao
+    +String nombre
+    +String zonaHoraria
+    +Point4326 ubicacion
+    +editarDatos(datos)
+    +archivar()
+  }
+  class Aerolinea {
+    +UUID id
+    +UUID paisId
+    +String iata
+    +String icao
+    +String nombre
+    +editarDatos(datos)
+    +archivar()
+  }
+  class Ruta {
+    +UUID id
+    +UUID origenId
+    +UUID destinoId
+    +DateTime archivadaEn
+    +archivar()
+    +restaurar()
+  }
+  class OfertaRuta {
+    +UUID id
+    +UUID rutaId
+    +UUID aerolineaId
+    +String codigoAerolinea
+    +Boolean codigoCompartido
+    +Integer escalas
+    +editarDatos(datos)
+    +archivar()
+  }
+  class OperacionVuelo {
+    +UUID ejecucionId
+    +String claveEnFuente
+    +UUID origenId
+    +UUID destinoId
+    +UUID operadoraId
+    +String numeroVuelo
+    +Date mesObservado
+    +Date fechaOperativa
+    +String zonaOrigen
+    +EstadoFinal estado
+    +HorariosUtc horarios
+    +Integer demoraReportadaMinutos
+  }
+  class EjecucionIngesta {
+    +UUID id
+    +String fuente
+    +Alcance alcance
+    +EstadoIngesta estado
+    +Boolean descargaCompleta
+    +ConteosIngesta conteos
+    +registrarLote(conteos)
+    +finalizar(resultado)
+    +fallar(motivo)
+  }
+  class AdaptadorOperaciones {
+    <<interface>>
+    +leerLotes(alcance) FlujoDeLotes
+  }
+  class AdaptadorOAG
+  class AdaptadorBTS
+  class IngestaOperaciones {
+    +procesar(ejecucionId)
+  }
+  class PuntualidadLlegada {
+    +clasificar(operacion) Clasificacion
+    +acumular(clasificacion, conteos)
+  }
+  class PublicacionMetricas {
+    +promover(ejecucionId, poblacion)
+    +consultar(filtros) ResultadoMetricas
+  }
+  class MetricaRuta {
+    +Poblacion poblacion
+    +UUID ejecucionPublicadaId
+    +String versionCalculo
+    +Integer puntuales
+    +Integer elegibles
+    +Integer canceladas
+    +Integer desviadas
+    +Integer evidenciaInsuficiente
+    +DateTime publicadaEn
+    +otp15() DecimalOpcional
+  }
+
+  Pais "0..1" -- "*" Aeropuerto
+  Pais "0..1" -- "*" Aerolinea
+  Aeropuerto "1" -- "*" Ruta : origen
+  Aeropuerto "1" -- "*" Ruta : destino
+  Ruta "1" -- "*" OfertaRuta
+  Aerolinea "0..1" -- "*" OfertaRuta
+  Aeropuerto "1" -- "*" OperacionVuelo : origen
+  Aeropuerto "1" -- "*" OperacionVuelo : destino
+  Aerolinea "1" -- "*" OperacionVuelo : operadora
+  EjecucionIngesta "1" -- "*" OperacionVuelo
+  EjecucionIngesta "1" -- "*" MetricaRuta : respalda
+  AdaptadorOperaciones <|.. AdaptadorOAG
+  AdaptadorOperaciones <|.. AdaptadorBTS
+  IngestaOperaciones ..> AdaptadorOperaciones
+  IngestaOperaciones ..> EjecucionIngesta
+  IngestaOperaciones ..> PublicacionMetricas
+  PublicacionMetricas ..> PuntualidadLlegada
+  PublicacionMetricas ..> MetricaRuta
+  PuntualidadLlegada ..> OperacionVuelo

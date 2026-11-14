@@ -1,0 +1,18 @@
+flowchart TB
+  UI["Nuxt: catálogo editable y métricas de consulta"] --> HTTP["Controladores HTTP"]
+  Worker["Workers y planificador BullMQ"] --> UC["Casos de uso"]
+  HTTP --> UC
+  UC --> DOM["Dominio: operaciones inmutables por ejecución y política OTP"]
+  UC --> PORT["Puertos propiedad del consumidor"]
+  OAG["Adaptador OAG"] -. implementa .-> PORT
+  BTS["Adaptador BTS"] -. implementa .-> PORT
+  FILE["Adaptadores de archivos compatibles"] -. implementa .-> PORT
+  DB["Repositorios PostgreSQL y PostGIS"] -. implementa .-> PORT
+  CACHE["Caché Redis"] -. implementa .-> PORT
+  QUEUE["Planificación y encolado"] -. implementa .-> PORT
+  ROOT["Composición NestJS"] -. enlaza .-> UC
+  ROOT -. enlaza .-> OAG
+  ROOT -. enlaza .-> BTS
+  ROOT -. enlaza .-> DB
+  ROOT -. enlaza .-> CACHE
+  ROOT -. enlaza .-> QUEUE
