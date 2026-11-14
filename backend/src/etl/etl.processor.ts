@@ -9,7 +9,10 @@ import { ETL_DATASETS } from './dto/trigger-etl.dto.js';
 import { OPENFLIGHTS_FILES, type CatalogDataset } from './catalog.js';
 
 @Processor('etl-queue', { concurrency: 1 })
-export class EtlProcessor extends WorkerHost implements BeforeApplicationShutdown {
+export class EtlProcessor
+  extends WorkerHost
+  implements BeforeApplicationShutdown
+{
   private readonly logger = new Logger(EtlProcessor.name);
   constructor(
     private readonly etlService: EtlService,

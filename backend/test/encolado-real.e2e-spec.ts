@@ -21,16 +21,18 @@ describe('Encolado y reintento real (BullMQ y PostgreSQL)', () => {
     const ids: string[] = [];
     let worker: Worker | undefined;
     try {
+      const prisma = { db, models: db.orm.public } as PrismaService;
       const module = await Test.createTestingModule({
         providers: [
           EtlService,
-          EtlProcessor,
           PipelinesService,
-          { provide: PrismaService, useValue: { db, models: db.orm.public } },
+          { provide: PrismaService, useValue: prisma },
           { provide: getQueueToken('etl-queue'), useValue: queue },
         ],
       }).compile();
-      const processor = module.get(EtlProcessor);
+      const etl = module.get(EtlService);
+      const pipelines = module.get(PipelinesService);
+      const processor = new EtlProcessor(etl, prisma, pipelines);
       worker = new Worker(
         name,
         (job: Job<{ jobId: string; dataset: string }>) =>
@@ -38,12 +40,11 @@ describe('Encolado y reintento real (BullMQ y PostgreSQL)', () => {
         { connection },
       );
       await events.waitUntilReady();
-      const first = await module.get(EtlService).triggerJob('paises');
+      const first = await etl.triggerJob('paises');
       ids.push(first.ejecucionId);
       const job = await queue.getJob(first.ejecucionId);
       expect(job).toBeDefined();
       await job!.waitUntilFinished(events, 15000);
-      const pipelines = module.get(PipelinesService);
       expect(await pipelines.job(first.ejecucionId)).toMatchObject({
         estado: 'completed',
         intento: 1,

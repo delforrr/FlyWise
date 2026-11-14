@@ -119,6 +119,7 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
           a.id.asc(),
         ).firstOrThrow();
         await tx.orm.public.Aeropuerto.where({ id: aeropuerto.id }).update({
+          fuente: 'OpenFlights',
           nombre: 'Edición manual conservada',
           protegidoManualmente: true,
         });
@@ -146,7 +147,10 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
         );
         expect(
           await tx.orm.public.Aeropuerto.first({ id: aeropuerto.id }),
-        ).toMatchObject({ nombre: aeropuerto.nombre });
+        ).toMatchObject({
+          nombre: aeropuerto.nombre,
+          fuente: aeropuerto.fuente,
+        });
         expect(after.count).toBe(before.count);
         expect(
           await tx.orm.public.OfertaRuta.first({ id: protegida.id }),
