@@ -330,6 +330,7 @@ model Vuelo {
   fuente              String
   idRegistroFuente      String       @map("id_registro_fuente")
   fechaVuelo          DateString     @map("fecha_vuelo")
+  horarios            Jsonb?
   numeroVuelo        String       @map("numero_vuelo")
   origenId            String       @map("origen_id")
   destinoId       String       @map("destino_id")

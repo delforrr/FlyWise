@@ -1,4 +1,5 @@
 import { setTimeout } from 'node:timers/promises';
+import type { HorariosOperacion } from '../../entities/vuelos/domain/operacion.js';
 
 export class FalloOag extends Error {}
 export class CredencialOagRechazada extends FalloOag {}
@@ -21,6 +22,7 @@ type EstadoOag = {
   updatedAt?: string;
   diversionAirport?: string;
   irregularOperationType?: string;
+  departure?: { actualTime?: { outGate?: Hora } };
   arrival?: { actualTime?: { inGate?: Hora } };
 };
 type VueloOag = {
@@ -154,13 +156,55 @@ function instanteUtc(valor: unknown): number {
     : NaN;
 }
 
+function instanteProgramado(
+  extremo: Extremo | undefined,
+  referencia: keyof Hora,
+) {
+  const hora = extremo?.time?.[referencia];
+  const hhmm =
+    typeof hora === 'string' ? hora.replace(/^(\d{2})(\d{2})$/, '$1:$2') : '';
+  return instanteUtc(`${extremo?.date?.[referencia]}T${hhmm}`);
+}
+
+function iso(instante: number) {
+  return Number.isFinite(instante) ? new Date(instante).toISOString() : null;
+}
+
+function primerInstante(
+  estados: EstadoOag[],
+  hora: (estado: EstadoOag) => string | undefined,
+) {
+  for (const estado of estados) {
+    const instante = instanteUtc(hora(estado));
+    if (Number.isFinite(instante)) return instante;
+  }
+  return NaN;
+}
+
+function salidaProgramada(vuelo: VueloOag) {
+  const utc = instanteProgramado(vuelo.departure, 'utc');
+  const local = instanteProgramado(vuelo.departure, 'local');
+  const minutos = (local - utc) / 60_000;
+  const desfase =
+    Number.isInteger(minutos) && Math.abs(minutos) <= 14 * 60 ? minutos : null;
+  return {
+    utc,
+    desfase,
+    fecha:
+      desfase === null
+        ? vuelo.departure?.date?.local
+        : new Date(utc + desfase * 60_000).toISOString().slice(0, 10),
+  };
+}
+
 export function normalizarVueloOag(fila: unknown, consulta: ConsultaOag) {
   if (!fila || typeof fila !== 'object') return null;
   const vuelo = fila as VueloOag;
   if (vuelo.codeshare?.operatingFlight?.code || vuelo.originalFlight)
     return 'fuera-de-poblacion';
   const campoCodigo = consulta.tipoCodigo === 'IATA' ? 'iata' : 'icao';
-  const fechaVuelo = vuelo.departure?.date?.local;
+  const programacion = salidaProgramada(vuelo);
+  const fechaVuelo = programacion.fecha;
   const numeroVuelo =
     String(vuelo.flightNumber ?? '') + (vuelo.serviceSuffix ?? '');
   if (
@@ -196,12 +240,32 @@ export function normalizarVueloOag(fila: unknown, consulta: ConsultaOag) {
       detalle.irregularOperationType === 'Diverted' ||
       Boolean(detalle.diversionAirport),
   );
+  const llegadaProgramada = instanteProgramado(vuelo.arrival, 'utc');
+  const llegadaReal = primerInstante(
+    estados,
+    (detalle) => detalle.arrival?.actualTime?.inGate?.utc,
+  );
+  const horarios: HorariosOperacion = {
+    salidaProgramadaUtc: iso(programacion.utc),
+    salidaRealUtc: iso(
+      primerInstante(
+        estados,
+        (detalle) => detalle.departure?.actualTime?.outGate?.utc,
+      ),
+    ),
+    llegadaProgramadaUtc: iso(llegadaProgramada),
+    llegadaRealUtc: iso(llegadaReal),
+    desfaseOrigenMinutos: programacion.desfase,
+    evidenciaFecha:
+      programacion.desfase === null ? 'fecha-informada' : 'desfase-origen',
+  };
   const salida = {
     id: vuelo.scheduleInstanceKey,
     carrier: vuelo.carrier,
     fechaVuelo,
     numeroVuelo,
     revision: estado ? fechaEstado(estado) : 0,
+    horarios,
   };
   if (estado?.state === 'Canceled')
     return {
@@ -209,25 +273,22 @@ export function normalizarVueloOag(fila: unknown, consulta: ConsultaOag) {
       estado: 'CANCELLED' as const,
       demoraLlegadaMinutos: null,
     };
-  if (diversion)
+  if (diversion && estado?.state === 'InGate')
     return {
       ...salida,
       estado: 'DIVERTED' as const,
       demoraLlegadaMinutos: null,
     };
 
-  const hora = vuelo.arrival?.time?.utc;
-  const hhmm =
-    typeof hora === 'string' ? hora.replace(/^(\d{2})(\d{2})$/, '$1:$2') : '';
-  const programada = instanteUtc(`${vuelo.arrival?.date?.utc}T${hhmm}`);
-  const real = instanteUtc(estado?.arrival?.actualTime?.inGate?.utc);
   if (
     estado?.state === 'InGate' &&
-    Number.isFinite(programada) &&
-    Number.isFinite(real)
+    Number.isFinite(llegadaProgramada) &&
+    Number.isFinite(llegadaReal)
   ) {
     // El redondeo hacia arriba conserva el umbral vigente de hasta 15 minutos exactos.
-    const demoraLlegadaMinutos = Math.ceil((real - programada) / 60_000);
+    const demoraLlegadaMinutos = Math.ceil(
+      (llegadaReal - llegadaProgramada) / 60_000,
+    );
     return { ...salida, estado: 'ARRIVED' as const, demoraLlegadaMinutos };
   }
   if (estado?.state === 'InGate')

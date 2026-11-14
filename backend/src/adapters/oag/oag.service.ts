@@ -466,6 +466,7 @@ export class OagService implements OnModuleInit {
             destinoId: alcance.destinoId,
             aerolineaId: vuelo.aerolineaId,
             fechaVuelo: vuelo.fechaVuelo,
+            horarios: vuelo.horarios,
             numeroVuelo: vuelo.numeroVuelo,
             estado: vuelo.estado,
             demoraLlegadaMinutos: vuelo.demoraLlegadaMinutos,
@@ -650,7 +651,7 @@ export class OagService implements OnModuleInit {
       SELECT gen_random_uuid()::text,id,version,'retiro-fuente',
         jsonb_build_object('id',id,'version',version,'fuente',fuente,'idRegistroFuente',id_registro_fuente,
           'fechaVuelo',fecha_vuelo,'numeroVuelo',numero_vuelo,'origenId',origen_id,'destinoId',destino_id,
-          'aerolineaId',aerolinea_id,'estado',estado,'demoraLlegadaMinutos',demora_llegada_minutos,
+          'aerolineaId',aerolinea_id,'estado',estado,'demoraLlegadaMinutos',demora_llegada_minutos,'horarios',horarios,
           'protegidoManualmente',false,'archivadoEn',archivado_en,'ejecucionEtlId',ejecucion_etl_id,'ultimaObservacion',ultima_observacion)
       FROM retiradas
     `

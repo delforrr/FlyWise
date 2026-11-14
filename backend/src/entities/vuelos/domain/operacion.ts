@@ -1,6 +1,16 @@
 import { extremosDistintos } from '../../rutas/domain/ruta.js';
+export type HorariosOperacion = {
+  salidaProgramadaUtc: string | null;
+  salidaRealUtc: string | null;
+  llegadaProgramadaUtc: string | null;
+  llegadaRealUtc: string | null;
+  desfaseOrigenMinutos: number | null;
+  evidenciaFecha: 'desfase-origen' | 'fecha-informada';
+};
+
 export interface Operacion {
   fechaVuelo: string;
+  horarios?: HorariosOperacion | null;
   numeroVuelo: string;
   origenId: string;
   destinoId: string;
@@ -44,6 +54,7 @@ export function validarOperacion(
     );
   return {
     fechaVuelo: datos.fechaVuelo,
+    horarios: datos.horarios ?? null,
     numeroVuelo: datos.numeroVuelo,
     origenId: datos.origenId,
     destinoId: datos.destinoId,
@@ -51,4 +62,17 @@ export function validarOperacion(
     estado: datos.estado,
     demoraLlegadaMinutos: datos.demoraLlegadaMinutos ?? null,
   };
+}
+
+export function mismaOperacionProgramada(
+  anterior: Omit<Operacion, 'horarios'>,
+  siguiente: Operacion,
+) {
+  return (
+    anterior.fechaVuelo === siguiente.fechaVuelo &&
+    anterior.origenId === siguiente.origenId &&
+    anterior.destinoId === siguiente.destinoId &&
+    anterior.aerolineaId === siguiente.aerolineaId &&
+    anterior.numeroVuelo === siguiente.numeroVuelo
+  );
 }

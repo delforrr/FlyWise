@@ -60,7 +60,12 @@ describe('Contrato OTP de OAG y BTS', () => {
                 time: { utc: '1200' },
               },
               statusDetails: [
-                { state: estado, arrival: { actualTime: { inGate: { utc } } } },
+                {
+                  state: estado === 'Diverted' ? 'InGate' : estado,
+                  irregularOperationType:
+                    estado === 'Diverted' ? 'Diversion' : undefined,
+                  arrival: { actualTime: { inGate: { utc } } },
+                },
               ],
             })),
           }),

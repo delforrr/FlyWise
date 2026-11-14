@@ -232,12 +232,21 @@ describe('Operaciones y OTP mensual por HTTP', () => {
             fuente: 'BTS',
             estado: 'pending',
           });
+          const horarios = {
+            salidaProgramadaUtc: '2020-02-05T13:00:00.000Z',
+            salidaRealUtc: null,
+            llegadaProgramadaUtc: null,
+            llegadaRealUtc: null,
+            desfaseOrigenMinutos: -180,
+            evidenciaFecha: 'desfase-origen' as const,
+          };
           const observacion = {
             ...base,
             fuente: 'BTS',
             idRegistroFuente: 'fixture03',
             fechaVuelo: '2020-02-05',
             numeroVuelo: 'BTS1',
+            horarios,
             demoraLlegadaMinutos: 16,
           };
           const importar = (demoraLlegadaMinutos: number) =>
@@ -255,11 +264,16 @@ describe('Operaciones y OTP mensual por HTTP', () => {
           const importado = `${vuelos}/${lista.datos[0].id}`;
           await api
             .patch(importado)
-            .send({ version: 1, demoraLlegadaMinutos: 0 })
+            .send({
+              version: 1,
+              numeroVuelo: 'EDITADO',
+              demoraLlegadaMinutos: 0,
+            })
             .expect(200);
           expect(await importar(90)).toEqual({ procesadas: 1, insertadas: 0 });
           expect((await api.get(importado).expect(200)).body).toMatchObject({
             demoraLlegadaMinutos: 0,
+            horarios: null,
             protegidoManualmente: true,
             ultimaObservacion: { demoraLlegadaMinutos: 90 },
           });
@@ -269,6 +283,7 @@ describe('Operaciones y OTP mensual por HTTP', () => {
             .expect(201);
           expect((await api.get(importado).expect(200)).body).toMatchObject({
             demoraLlegadaMinutos: 90,
+            horarios,
             protegidoManualmente: false,
           });
           await recalcular();

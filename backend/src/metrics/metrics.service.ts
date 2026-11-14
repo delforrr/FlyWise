@@ -18,7 +18,13 @@ import {
 export class MetricsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async marcarPendiente(tx: Transaction, operacion: Operacion) {
+  async marcarPendiente(
+    tx: Transaction,
+    operacion: Pick<
+      Operacion,
+      'origenId' | 'destinoId' | 'aerolineaId' | 'fechaVuelo'
+    >,
+  ) {
     await tx.execute(
       tx.raw.sql`
       INSERT INTO metricas_ruta(origen_id,destino_id,aerolinea_id,periodo,vuelos_totales,vuelos_cancelados,vuelos_desviados,vuelos_puntuales,demora_llegada_total_minutos,actualizado_en,pendiente)

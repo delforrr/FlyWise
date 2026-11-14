@@ -19,14 +19,15 @@ export async function guardarObservaciones(
   const [resultado] = await tx.query(
     tx.raw.sql`
     WITH entrada AS (
-      SELECT * FROM jsonb_to_recordset(${entrada}::jsonb) AS e(id text,fuente text,"idRegistroFuente" text,"fechaVuelo" date,"numeroVuelo" text,"origenId" text,"destinoId" text,"aerolineaId" text,estado text,"demoraLlegadaMinutos" integer,observacion jsonb)
+      SELECT * FROM jsonb_to_recordset(${entrada}::jsonb) AS e(id text,fuente text,"idRegistroFuente" text,"fechaVuelo" date,"numeroVuelo" text,"origenId" text,"destinoId" text,"aerolineaId" text,estado text,"demoraLlegadaMinutos" integer,horarios jsonb,observacion jsonb)
     ), anteriores AS (
       SELECT v.* FROM vuelos v JOIN entrada e ON v.fuente=e.fuente AND v.id_registro_fuente=e."idRegistroFuente"
     ), cambios AS (
-      INSERT INTO vuelos(id,fuente,id_registro_fuente,fecha_vuelo,numero_vuelo,origen_id,destino_id,aerolinea_id,estado,demora_llegada_minutos,ejecucion_etl_id,ultima_observacion)
-      SELECT id,fuente,"idRegistroFuente","fechaVuelo","numeroVuelo","origenId","destinoId","aerolineaId",estado,"demoraLlegadaMinutos",${ejecucionId},observacion FROM entrada
+      INSERT INTO vuelos(id,fuente,id_registro_fuente,fecha_vuelo,numero_vuelo,origen_id,destino_id,aerolinea_id,estado,demora_llegada_minutos,horarios,ejecucion_etl_id,ultima_observacion)
+      SELECT id,fuente,"idRegistroFuente","fechaVuelo","numeroVuelo","origenId","destinoId","aerolineaId",estado,"demoraLlegadaMinutos",horarios,${ejecucionId},observacion FROM entrada
       ON CONFLICT(fuente,id_registro_fuente) DO UPDATE SET
         fecha_vuelo=CASE WHEN vuelos.protegido_manualmente THEN vuelos.fecha_vuelo ELSE EXCLUDED.fecha_vuelo END,
+        horarios=CASE WHEN vuelos.protegido_manualmente THEN vuelos.horarios ELSE EXCLUDED.horarios END,
         numero_vuelo=CASE WHEN vuelos.protegido_manualmente THEN vuelos.numero_vuelo ELSE EXCLUDED.numero_vuelo END,
         origen_id=CASE WHEN vuelos.protegido_manualmente THEN vuelos.origen_id ELSE EXCLUDED.origen_id END,
         destino_id=CASE WHEN vuelos.protegido_manualmente THEN vuelos.destino_id ELSE EXCLUDED.destino_id END,
@@ -41,7 +42,7 @@ export async function guardarObservaciones(
       SELECT gen_random_uuid()::text,id,version,CASE WHEN insertada THEN 'importar' ELSE 'observacion-fuente' END,
         jsonb_build_object('id',id,'version',version,'fuente',fuente,'idRegistroFuente',id_registro_fuente,
           'fechaVuelo',fecha_vuelo,'numeroVuelo',numero_vuelo,'origenId',origen_id,'destinoId',destino_id,
-          'aerolineaId',aerolinea_id,'estado',estado,'demoraLlegadaMinutos',demora_llegada_minutos,
+          'aerolineaId',aerolinea_id,'estado',estado,'demoraLlegadaMinutos',demora_llegada_minutos,'horarios',horarios,
           'protegidoManualmente',protegido_manualmente,'archivadoEn',archivado_en,'ejecucionEtlId',ejecucion_etl_id,'ultimaObservacion',ultima_observacion)
       FROM cambios
     ), poblaciones AS (

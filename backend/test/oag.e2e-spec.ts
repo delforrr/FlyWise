@@ -10,6 +10,8 @@ import { Queue, QueueEvents, Worker } from 'bullmq';
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
 import request from 'supertest';
+import { VuelosController } from '../src/vuelos/vuelos.controller.js';
+import { VuelosService } from '../src/vuelos/vuelos.service.js';
 import { OagController } from '../src/adapters/oag/oag.controller.js';
 import { OagService } from '../src/adapters/oag/oag.service.js';
 import { JwtAuthGuard } from '../src/auth/auth.guard.js';
@@ -56,11 +58,12 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
         });
         let fallarTrasEscrituras = false;
         const module = await Test.createTestingModule({
-          controllers: [OagController, MetricsController],
+          controllers: [OagController, MetricsController, VuelosController],
           providers: [
             { provide: ADAPTADOR_OAG, useClass: AdaptadorOag },
             OagService,
             MetricsService,
+            VuelosService,
             { provide: getQueueToken('oag-queue'), useValue: queue },
             {
               provide: PrismaService,
@@ -135,7 +138,7 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
             origenId: origen.id,
             destinoId: destino.id,
             periodo: '2026-10',
-            coberturaMinimaPct: 65,
+            coberturaMinimaPct: 50,
           };
           await api
             .patch(endpoint + '/configuracion')
@@ -156,22 +159,35 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
             flightNumber: number,
             state: string,
             real?: string,
+            utcDst?: string,
           ) => ({
             flightNumber,
             scheduleInstanceKey: `synthetic-${flightNumber}`,
             carrier: { icao: '8Z7' },
             departure: {
               airport: { icao: 'QZXZ' },
-              date: { local: '2026-10-10' },
-              time: { local: '2300' },
+              date: utcDst
+                ? { local: '2026-10-25', utc: '2026-10-25' }
+                : { local: '2026-10-31', utc: '2026-11-01' },
+              time: utcDst
+                ? { local: '0230', utc: utcDst }
+                : { local: '2300', utc: '0300' },
             },
             arrival: {
               airport: { icao: 'QZYZ' },
-              date: { utc: '2026-10-11' },
-              time: { utc: '0000' },
+              date: { utc: '2026-11-01' },
+              time: { utc: '0500' },
             },
             statusDetails: [
-              { state, arrival: { actualTime: { inGate: { utc: real } } } },
+              {
+                state,
+                updatedAt: '2026-11-01T05:20:00Z',
+                departure: real
+                  ? { actualTime: { outGate: { utc: '2026-11-01T04:05:00Z' } } }
+                  : undefined,
+                arrival: { actualTime: { inGate: { utc: real } } },
+              },
+              ...(real ? [{ state, updatedAt: '2026-11-01T05:30:00Z' }] : []),
             ],
           });
           let sinCuota = false;
@@ -217,10 +233,24 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
                 return Promise.resolve(
                   Response.json({
                     data: [
-                      fila(1, 'InGate', '2026-10-11T00:15:00Z'),
-                      fila(3, 'Canceled'),
-                      fila(4, 'Diverted'),
+                      fila(1, 'InGate', '2026-11-01T05:15:00Z'),
+                      fila(3, 'Canceled', undefined, '0030'),
+                      {
+                        ...fila(4, 'InGate', undefined, '0130'),
+                        statusDetails: [
+                          {
+                            state: 'InGate',
+                            irregularOperationType: 'Diversion',
+                          },
+                        ],
+                      },
                       fila(5, 'InGate'),
+                      {
+                        ...fila(6, 'InAir'),
+                        statusDetails: [
+                          { state: 'Diverted', diversionAirport: 'ABC' },
+                        ],
+                      },
                     ],
                   }),
                 );
@@ -232,14 +262,14 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
               if (paginaTruncada)
                 return Promise.resolve(
                   Response.json({
-                    data: [fila(1, 'InGate', '2026-10-11T00:15:00Z')],
+                    data: [fila(1, 'InGate', '2026-11-01T05:15:00Z')],
                   }),
                 );
               return Promise.resolve(
                 Response.json({
                   data: [
                     fila(1, 'InGate'),
-                    fila(2, 'InGate', '2026-10-11T00:15:01Z'),
+                    fila(2, 'InGate', '2026-11-01T05:15:01Z'),
                   ],
                   paging: {
                     next: 'https://api.oag.com/flight-instances/?After=pag2',
@@ -291,6 +321,47 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
           };
           await ejecutar('completed');
           expect(fetchOag).toHaveBeenCalledTimes(2);
+          const operaciones = await api
+            .get('/administracion/vuelos')
+            .query({ fuente: 'OAG', origenId: origen.id, periodo: '2026-10' })
+            .expect(200);
+          expect(operaciones.body).toMatchObject({
+            total: 5,
+            datos: expect.arrayContaining([
+              expect.objectContaining({
+                numeroVuelo: '1',
+                fechaVuelo: '2026-10-31',
+                horarios: {
+                  salidaProgramadaUtc: '2026-11-01T03:00:00.000Z',
+                  salidaRealUtc: '2026-11-01T04:05:00.000Z',
+                  llegadaProgramadaUtc: '2026-11-01T05:00:00.000Z',
+                  llegadaRealUtc: '2026-11-01T05:15:00.000Z',
+                  desfaseOrigenMinutos: -240,
+                  evidenciaFecha: 'desfase-origen',
+                },
+              }),
+              expect.objectContaining({
+                estado: 'CANCELLED',
+                fechaVuelo: '2026-10-25',
+                horarios: expect.objectContaining({
+                  salidaRealUtc: null,
+                  llegadaRealUtc: null,
+                  desfaseOrigenMinutos: 120,
+                  salidaProgramadaUtc: '2026-10-25T00:30:00.000Z',
+                }),
+              }),
+              expect.objectContaining({
+                estado: 'DIVERTED',
+                fechaVuelo: '2026-10-25',
+                horarios: expect.objectContaining({
+                  salidaRealUtc: null,
+                  llegadaRealUtc: null,
+                  desfaseOrigenMinutos: 60,
+                  salidaProgramadaUtc: '2026-10-25T01:30:00.000Z',
+                }),
+              }),
+            ]),
+          });
           const esperado = [
             expect.objectContaining({
               otp15: 100 / 3,

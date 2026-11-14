@@ -1,0 +1,3 @@
+BEGIN;
+ALTER TABLE vuelos ADD COLUMN IF NOT EXISTS horarios jsonb;
+COMMIT;

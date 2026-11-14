@@ -15,6 +15,7 @@ import type {
   OperacionDto,
 } from './dto/vuelo.dto.js';
 import {
+  mismaOperacionProgramada,
   validarOperacion,
   type ObservacionVuelo,
   type Operacion,
@@ -126,9 +127,19 @@ export class VuelosService {
           throw new ConflictException(
             'Restaure la operación antes de editarla',
           );
-        const operacion = this.validar({ ...actual, ...datos });
+        const operacion = this.validar({
+          ...actual,
+          ...datos,
+          horarios: undefined,
+        });
         await this.validarReferencias(tx, operacion);
-        return { ...operacion, protegidoManualmente: true };
+        return {
+          ...operacion,
+          horarios: mismaOperacionProgramada(actual, operacion)
+            ? undefined
+            : null,
+          protegidoManualmente: true,
+        };
       },
     );
   }
@@ -205,7 +216,7 @@ export class VuelosService {
       : this.prisma.db.transaction(importar);
   }
 
-  private validar(datos: OperacionDto) {
+  private validar(datos: Parameters<typeof validarOperacion>[0]) {
     try {
       return validarOperacion(datos);
     } catch (error) {

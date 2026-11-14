@@ -17,6 +17,7 @@ import { Readable } from 'node:stream';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
+import { VuelosController } from '../src/vuelos/vuelos.controller.js';
 import { VuelosService } from '../src/vuelos/vuelos.service.js';
 import { MetricsService } from '../src/metrics/metrics.service.js';
 import { MetricsController } from '../src/metrics/metrics.controller.js';
@@ -40,6 +41,7 @@ describe('BTS mensual por HTTP y jobs', () => {
             BtsController,
             MetricsController,
             CatalogIdentitiesController,
+            VuelosController,
           ],
           providers: [
             { provide: ADAPTADOR_BTS, useClass: AdaptadorBts },
@@ -325,6 +327,26 @@ describe('BTS mensual por HTTP y jobs', () => {
               ejecucionId,
             }),
           ]);
+          expect(
+            (
+              await api
+                .get('/administracion/vuelos')
+                .query({
+                  fuente: 'BTS',
+                  origenId: origin.id,
+                  periodo: '2026-08',
+                })
+                .expect(200)
+            ).body,
+          ).toMatchObject({
+            total: 31,
+            datos: expect.arrayContaining([
+              expect.objectContaining({
+                fechaVuelo: '2026-08-31',
+                horarios: null,
+              }),
+            ]),
+          });
           await module.get(MetricsService).recalcularPendientes();
           const query = {
             periodo: '2026-08',
