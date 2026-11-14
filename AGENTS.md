@@ -93,6 +93,8 @@ fs.createReadStream(filePath)
   - Todo endpoint debe tipar sus parámetros y cuerpo con DTOs decorados con `class-validator` y `class-transformer`.
   - Mantener activo el `ValidationPipe` global con `whitelist: true` y `forbidNonWhitelisted: true`.
 
+- Revisiones de backend: consultar el [estándar de código](CODING_STANDARDS.md) para evaluar responsabilidades, contratos y transacciones.
+
 ---
 
 ## 5. Quality Gate (Definición de Terminado)
