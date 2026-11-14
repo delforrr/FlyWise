@@ -4,7 +4,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { periodosCerradosMapa } from './periodos-mapa.js';
 import type { Transaction } from '../prisma/db.js';
-import type { Operacion } from '../vuelos/operacion.js';
+import type { Operacion } from '../entities/vuelos/domain/operacion.js';
 import type { ConsultaMetricasDto } from './dto/consulta-metricas.dto.js';
 import {
   MAX_PARES_MAPA,

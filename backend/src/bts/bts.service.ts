@@ -26,7 +26,7 @@ import { createHash } from 'node:crypto';
 import { abrirCsvBts, descargarBts } from '../adapters/bts/bts-source.js';
 import { retirarAusentesBts } from './retiros-bts.js';
 import { VuelosService } from '../vuelos/vuelos.service.js';
-import type { Operacion } from '../vuelos/operacion.js';
+import type { Operacion } from '../entities/vuelos/domain/operacion.js';
 
 const now = () => new Date().toISOString().replace('T', ' ').replace('Z', '');
 @Injectable()

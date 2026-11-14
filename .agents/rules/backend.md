@@ -6,13 +6,8 @@ Estas reglas aplican a todo el código en el directorio `backend/` y son de cump
 
 ## 1. Arquitectura y Estilo NestJS
 
-- **Modularidad de Dominio:** Cada funcionalidad debe residir en su propio módulo bajo `src/`:
-  - `src/airports/`: Búsqueda geoespacial y catálogo de aeropuertos.
-  - `src/routes/`: Tramos, cálculo de arcos geodésicos y agregaciones OTP-15.
-  - `src/etl/`: Ingesta asíncrona, parsers de datasets y jobs BullMQ.
-  - `src/metrics/`: Agregación estadística periódica.
-  - `src/auth/`: Control de acceso administrativo mediante JWT y Passport.
-- **Inyección de Dependencias:** Utilizar siempre el contenedor IoC nativo de NestJS (`@Injectable()`). Prohibido instanciar servicios manualmente.
+- **Límites por módulo:** En módulos migrados, `entities` conserva invariantes, `metrics` define la política de métricas e `ingestion` coordina casos de uso. El código de dominio y aplicación depende de contratos propios. Adaptadores e infraestructura implementan esos contratos.
+- **Composición:** Los módulos NestJS enlazan los puertos con sus implementaciones y exponen los casos de uso al transporte HTTP y a los workers. Mantener las interfaces junto a sus consumidores y limitar `common` a utilidades transversales.
 - **Validación Estricta de Entradas:**
   - Todos los endpoints deben tipar sus parámetros (`@Param`), query strings (`@Query`) y cuerpo (`@Body`) mediante DTOs dedicados.
   - Decorar cada propiedad del DTO con validadores de `class-validator` y transformadores de `class-transformer`.

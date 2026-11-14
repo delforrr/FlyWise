@@ -18,7 +18,7 @@ import {
   validarOperacion,
   type ObservacionVuelo,
   type Operacion,
-} from './operacion.js';
+} from '../entities/vuelos/domain/operacion.js';
 
 type CambiosVuelo = Partial<Operacion> & {
   protegidoManualmente?: boolean;

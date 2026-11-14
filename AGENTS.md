@@ -88,12 +88,7 @@ fs.createReadStream(filePath)
 
 ## 4. Módulos y Estructura del Backend (NestJS)
 
-- **Arquitectura Modular:** Cada dominio funcional debe estructurarse en su propio módulo:
-  - `src/airports/`: Búsqueda geoespacial y catálogo OurAirports.
-  - `src/routes/`: Consulta de tramos, cálculo de arcos y OTP-15.
-  - `src/etl/`: Ingesta asíncrona, parsers y jobs BullMQ.
-  - `src/metrics/`: Agregación estadística periódica.
-  - `src/auth/`: Control de acceso administrativo mediante JWT y Passport.
+- Antes de mover módulos o definir puertos, consultar los [límites del backend](.agents/rules/backend.md) y [T02](docs/tickets/T02.md). Para componentes y composables, consultar las [reglas del frontend](.agents/rules/frontend.md).
 - **Validación Estricta de Entradas:**
   - Todo endpoint debe tipar sus parámetros y cuerpo con DTOs decorados con `class-validator` y `class-transformer`.
   - Mantener activo el `ValidationPipe` global con `whitelist: true` y `forbidNonWhitelisted: true`.

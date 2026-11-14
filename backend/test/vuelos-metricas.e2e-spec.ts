@@ -13,7 +13,7 @@ import { MetricsController } from '../src/metrics/metrics.controller.js';
 import { MetricsService } from '../src/metrics/metrics.service.js';
 import { MetricsProcessor } from '../src/metrics/metrics.processor.js';
 import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
-import type { Operacion } from '../src/vuelos/operacion.js';
+import type { Operacion } from '../src/entities/vuelos/domain/operacion.js';
 
 function cuerpo<T>(respuesta: { body: unknown }): T {
   return respuesta.body as T;

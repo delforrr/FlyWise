@@ -6,6 +6,50 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
+    files: [
+      'src/entities/**/{domain,application}/**/*.ts',
+      'src/{metrics,ingestion}/{domain,application}/**/*.ts',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportExpression, TSImportEqualsDeclaration',
+          message: 'Usar imports estáticos para verificar los límites del módulo.',
+        },
+      ],
+      'no-restricted-modules': [
+        'error',
+        {
+          patterns: [
+            '@nestjs/*',
+            '@prisma/*',
+            'bullmq',
+            'ioredis',
+            '**/adapters/**',
+            '**/infrastructure/**',
+            '**/prisma/**',
+            '**/redis/**',
+            '**/dto/**',
+          ],
+        },
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex:
+                '(^@nestjs/|^@prisma/|^(bullmq|ioredis|express|fastify|class-validator|class-transformer)(/|$)|(^|/)(adapters|infrastructure|prisma|redis|dto)(/|$)|\\.(controller|processor|module|service|store)(\\.js)?$)',
+              message:
+                'Dominio y aplicación usan contratos propios, sin depender de infraestructura o transporte.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     ignores: ['eslint.config.mjs', 'src/prisma/generated/**'],
   },
   eslint.configs.recommended,

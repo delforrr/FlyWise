@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Transaction } from '../prisma/db.js';
-import type { ObservacionVuelo } from './operacion.js';
+import type { ObservacionVuelo } from '../entities/vuelos/domain/operacion.js';
 
 export async function guardarObservaciones(
   tx: Transaction,

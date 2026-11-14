@@ -10,7 +10,7 @@ Estas reglas aplican a todo el código en el directorio `frontend/` y son de cum
   - Utilizar exclusivamente `<script setup lang="ts">`. Prohibida la Options API.
   - Prohibido el uso de `any` injustificado y de `@ts-ignore` sin documentación técnica.
 - **Composables y Lógica Reactiva:**
-  - Extraer lógica de negocio, cálculos geoespaciales y llamadas API en composables bajo `app/composables/` o `features/<feature>/composables/`.
+  - Los composables coordinan llamadas API, estado reactivo y presentación. Las reglas de negocio, agregaciones de puntualidad y cálculos geoespaciales de dominio residen en el backend.
   - Para estados compartidos en SSR, utilizar siempre `useState<T>('key', () => defaultValue)`.
   - Limpiar intervalos, timers y suscripciones en el hook `onUnmounted()` para prevenir fugas de memoria.
 

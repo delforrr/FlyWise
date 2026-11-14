@@ -13,7 +13,7 @@ import { periodosCerradosMapa } from '../../metrics/periodos-mapa.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Transaction } from '../../prisma/db.js';
 import { guardarObservaciones } from '../../vuelos/observaciones.store.js';
-import type { ObservacionVuelo } from '../../vuelos/operacion.js';
+import type { ObservacionVuelo } from '../../entities/vuelos/domain/operacion.js';
 import {
   CredencialOagRechazada,
   CuotaOagAgotada,
