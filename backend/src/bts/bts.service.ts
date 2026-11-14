@@ -1,12 +1,12 @@
+import type { AdaptadorOperaciones } from '../ingestion/application/adaptador-operaciones.js';
 import {
-  normalizarBts,
   type CausaDescarteBts,
-  type FilaBts,
   type OperacionBts,
 } from '../adapters/bts/operacion-bts.js';
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
   type OnModuleInit,
@@ -22,8 +22,11 @@ import type {
   CorrespondenciaBtsDto,
 } from './bts.dto.js';
 import type { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
-import csv from 'csv-parser';
+import {
+  ADAPTADOR_BTS,
+  type LecturaBts,
+} from '../adapters/bts/adaptador-bts.js';
+import { ingerirOperaciones } from '../ingestion/application/ingesta-operaciones.js';
 import { createHash } from 'node:crypto';
 import { abrirCsvBts, descargarBts } from '../adapters/bts/bts-source.js';
 import { retirarAusentesBts } from './retiros-bts.js';
@@ -38,6 +41,8 @@ export class BtsService implements OnModuleInit {
     private readonly prisma: PrismaService,
     @InjectQueue('bts-queue') private readonly queue: Queue,
     private readonly vuelos: VuelosService,
+    @Inject(ADAPTADOR_BTS)
+    private readonly adaptador: AdaptadorOperaciones<LecturaBts, OperacionBts>,
   ) {}
   async onModuleInit() {
     await this.schedule(await this.configuracion());
@@ -562,23 +567,28 @@ export class BtsService implements OnModuleInit {
       });
     };
     try {
-      const input = typeof source === 'function' ? await source() : source;
-      input.on('data', (chunk: Buffer | string) => hash.update(chunk));
-      await pipeline(input, csv({ maxRowBytes: 65536 }), async (rows) => {
-        for await (const raw of rows) {
-          const row = raw as FilaBts;
-          total++;
-          const result = normalizarBts(row, periodo, total);
-          if ('causa' in result)
-            await discard(total, result.causa, result.motivo, row);
-          else {
-            dias.add(result.fechaVuelo);
-            batch.push(result);
-          }
-          if (batch.length === 1000) await flush();
-        }
-        await flush();
-      });
+      await ingerirOperaciones(
+        this.adaptador,
+        {
+          periodo,
+          source,
+          registrarBytes: (chunk: Buffer | string) => {
+            hash.update(chunk);
+          },
+        },
+        {
+          async procesarFila(fila) {
+            total++;
+            if (fila.tipo === 'descarte')
+              await discard(total, fila.causa, fila.motivo, fila.original);
+            else if (fila.tipo === 'operacion') {
+              dias.add(fila.operacion.fechaVuelo);
+              batch.push(fila.operacion);
+            }
+          },
+          terminarLote: flush,
+        },
+      );
       const ultimoDia = new Date(`${periodo}-01T00:00:00Z`);
       ultimoDia.setUTCMonth(ultimoDia.getUTCMonth() + 1, 0);
       if (

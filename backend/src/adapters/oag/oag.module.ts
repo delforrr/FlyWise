@@ -1,3 +1,4 @@
+import { ADAPTADOR_OAG, AdaptadorOag } from './adaptador-oag.js';
 import { Module } from '@nestjs/common';
 import { BullModule, Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
@@ -19,6 +20,10 @@ class OagProcessor extends WorkerHost {
 @Module({
   imports: [MetricsModule, BullModule.registerQueue({ name: OAG_QUEUE })],
   controllers: [OagController],
-  providers: [OagService, OagProcessor],
+  providers: [
+    { provide: ADAPTADOR_OAG, useClass: AdaptadorOag },
+    OagService,
+    OagProcessor,
+  ],
 })
 export class OagModule {}

@@ -1,7 +1,9 @@
+import type { AdaptadorOperaciones } from '../../ingestion/application/adaptador-operaciones.js';
 import { InjectQueue } from '@nestjs/bullmq';
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
   OnModuleInit,
@@ -22,13 +24,18 @@ import {
   CredencialOagRechazada,
   CuotaOagAgotada,
   FalloOag,
-  normalizarVueloOag,
   OAG_CLAVE_ENTORNO,
   OAG_ENDPOINT,
-  paginasOag,
   type Codigos,
   type ConsultaOag,
 } from './flight-info.js';
+
+import {
+  ADAPTADOR_OAG,
+  type LecturaOag,
+  type OperacionOag,
+} from './adaptador-oag.js';
+import { ingerirOperaciones } from '../../ingestion/application/ingesta-operaciones.js';
 
 export const OAG_QUEUE = 'oag-queue';
 const PROCESO_ID = '00000000-0000-4000-8000-000000000020';
@@ -48,11 +55,7 @@ type AlcanceOag = Omit<ConfiguracionOagDto, 'pausado'> &
   ConsultaOag & {
     autorizarCambioFuente?: string[];
   };
-type Normalizada = Exclude<
-  ReturnType<typeof normalizarVueloOag>,
-  string | null
->;
-type VueloResuelto = Omit<Normalizada, 'carrier'> & { aerolineaId: string };
+type VueloResuelto = Omit<OperacionOag, 'carrier'> & { aerolineaId: string };
 type CheckpointOag = {
   cursores: string[];
   total: number;
@@ -71,6 +74,8 @@ export class OagService implements OnModuleInit {
     private readonly prisma: PrismaService,
     @InjectQueue(OAG_QUEUE) private readonly queue: Queue<TrabajoOag>,
     private readonly metrics: MetricsService,
+    @Inject(ADAPTADOR_OAG)
+    private readonly adaptador: AdaptadorOperaciones<LecturaOag, OperacionOag>,
   ) {}
 
   async onModuleInit() {
@@ -356,62 +361,69 @@ export class OagService implements OnModuleInit {
       const candidatos = new Map(checkpoint?.candidatos);
       // shortcut: checkpoint acotado al job retenido; T10 traslada la preparación a PostgreSQL.
       const aerolineas = new Map<string, Promise<string | null>>();
-      for await (const { filas, cursor } of paginasOag(
-        alcance,
-        clave,
-        cursores,
-      )) {
-        paginas++;
-        total += filas.length;
-        if (total > MAX_FILAS || paginas > MAX_PAGINAS)
-          throw new FalloOag('OAG excedió el límite de esta corrida');
-        for (const fila of filas) {
-          const normalizada = normalizarVueloOag(fila, alcance);
-          if (normalizada === 'fuera-de-poblacion') continue;
-          if (!normalizada) {
-            descartadas++;
-            continue;
-          }
-          const { carrier, ...vuelo } = normalizada;
-          const codigo = JSON.stringify([carrier.iata, carrier.icao]);
-          let resolucion = aerolineas.get(codigo);
-          if (!resolucion) {
-            resolucion = this.resolverAerolinea(carrier);
-            aerolineas.set(codigo, resolucion);
-          }
-          const aerolineaId = await resolucion;
-          if (!aerolineaId) {
-            descartadas++;
-            continue;
-          }
-          const claveOperacion = JSON.stringify([aerolineaId, normalizada.id]);
-          const previa = candidatos.get(claveOperacion);
-          if (
-            !previa ||
-            normalizada.revision > previa.revision ||
-            (normalizada.revision === previa.revision &&
-              normalizada.estado &&
-              (!previa.estado ||
-                (previa.estado === 'ARRIVED' &&
-                  previa.demoraLlegadaMinutos === null &&
-                  normalizada.estado === 'ARRIVED' &&
-                  normalizada.demoraLlegadaMinutos !== null)))
-          )
-            candidatos.set(claveOperacion, { ...vuelo, aerolineaId });
-        }
-        if (cursor && trabajo) {
-          cursores.push(cursor);
-          await trabajo.updateData({
-            ejecucionId: id,
-            checkpoint: {
-              cursores,
-              total,
-              descartadas,
-              candidatos: [...candidatos],
-            },
-          });
-        }
-      }
+      await ingerirOperaciones(
+        this.adaptador,
+        { consulta: alcance, clave, cursores },
+        {
+          iniciarLote({ filas }) {
+            paginas++;
+            total += filas.length;
+            if (total > MAX_FILAS || paginas > MAX_PAGINAS)
+              throw new FalloOag('OAG excedió el límite de esta corrida');
+          },
+          procesarFila: async (fila) => {
+            if (fila.tipo === 'fuera-de-poblacion') return;
+            if (fila.tipo === 'descarte') {
+              descartadas++;
+              return;
+            }
+            const normalizada = fila.operacion;
+            const { carrier, ...vuelo } = normalizada;
+            const codigo = JSON.stringify([carrier.iata, carrier.icao]);
+            let resolucion = aerolineas.get(codigo);
+            if (!resolucion) {
+              resolucion = this.resolverAerolinea(carrier);
+              aerolineas.set(codigo, resolucion);
+            }
+            const aerolineaId = await resolucion;
+            if (!aerolineaId) {
+              descartadas++;
+              return;
+            }
+            const claveOperacion = JSON.stringify([
+              aerolineaId,
+              normalizada.id,
+            ]);
+            const previa = candidatos.get(claveOperacion);
+            if (
+              !previa ||
+              normalizada.revision > previa.revision ||
+              (normalizada.revision === previa.revision &&
+                normalizada.estado &&
+                (!previa.estado ||
+                  (previa.estado === 'ARRIVED' &&
+                    previa.demoraLlegadaMinutos === null &&
+                    normalizada.estado === 'ARRIVED' &&
+                    normalizada.demoraLlegadaMinutos !== null)))
+            )
+              candidatos.set(claveOperacion, { ...vuelo, aerolineaId });
+          },
+          async terminarLote({ cursor }) {
+            if (cursor && trabajo) {
+              cursores.push(cursor);
+              await trabajo.updateData({
+                ejecucionId: id,
+                checkpoint: {
+                  cursores,
+                  total,
+                  descartadas,
+                  candidatos: [...candidatos],
+                },
+              });
+            }
+          },
+        },
+      );
 
       const porOperadora = new Map<
         string,

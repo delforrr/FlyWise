@@ -1,3 +1,7 @@
+import {
+  ADAPTADOR_OAG,
+  AdaptadorOag,
+} from '../src/adapters/oag/adaptador-oag.js';
 import { jest } from '@jest/globals';
 import { getQueueToken } from '@nestjs/bullmq';
 import { ValidationPipe, type ExecutionContext } from '@nestjs/common';
@@ -54,6 +58,7 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
         const module = await Test.createTestingModule({
           controllers: [OagController, MetricsController],
           providers: [
+            { provide: ADAPTADOR_OAG, useClass: AdaptadorOag },
             OagService,
             MetricsService,
             { provide: getQueueToken('oag-queue'), useValue: queue },

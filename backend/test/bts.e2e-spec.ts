@@ -1,3 +1,7 @@
+import {
+  ADAPTADOR_BTS,
+  AdaptadorBts,
+} from '../src/adapters/bts/adaptador-bts.js';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type ExecutionContext } from '@nestjs/common';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -38,6 +42,7 @@ describe('BTS mensual por HTTP y jobs', () => {
             CatalogIdentitiesController,
           ],
           providers: [
+            { provide: ADAPTADOR_BTS, useClass: AdaptadorBts },
             BtsService,
             VuelosService,
             MetricsService,
