@@ -3,7 +3,6 @@ import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
   escribirCatalogo,
   proteccionManual,
-  recalcularCantidadRutas,
 } from '../catalogos/catalog-state.js';
 import {
   CrearAerolineaDto,
@@ -187,7 +186,6 @@ export class AirlinesService {
           .replace('T', ' ')
           .replace('Z', ''),
       });
-      await recalcularCantidadRutas(tx);
     });
   }
 }

@@ -239,13 +239,14 @@ npx prisma contract emit
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/functions.sql
 npx prisma db init --db "$DATABASE_URL"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/changes/20261108_bts.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/changes/20261114_catalogo_consultas.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/constraints.sql
 npx prisma db verify --db "$DATABASE_URL"
 ```
 
 Las funciones y triggers propios se trasladaron al backend; ver [migración de reglas](docs/migracion-reglas-backend.md).
 
-En bases nuevas, el script BTS crea las tablas que usa su adaptador y que quedan fuera del contrato actual. `constraints.sql` instala la restricción de ofertas y las configuraciones iniciales de ANAC y EUROCONTROL. En bases existentes se aplican únicamente las migraciones pendientes, en orden; consultar [la migración al modelo en español](docs/migracion-modelo-espanol.md). No aplicar los scripts históricos en inglés sobre tablas ya renombradas.
+En bases nuevas, el script BTS crea las tablas que usa su adaptador y que quedan fuera del contrato actual. `constraints.sql` instala la restricción de ofertas y las configuraciones iniciales de ANAC y EUROCONTROL. Para una base existente con el modelo en español, consultar el [orden de actualización y recuperación del catálogo](docs/tickets/T07.md#actualización-y-recuperación).
 
 Prisma 8 está fijado a las versiones RC del lockfile. Se parte del contrato actual, sin historial de migraciones. El arranque requiere `psql`.
 

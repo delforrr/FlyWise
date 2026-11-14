@@ -58,10 +58,13 @@ describe('Archivo lógico de catálogos (PostgreSQL)', () => {
         }).compile();
         try {
           expect(
-            (
-              await module.get(CountriesService).findByName(pais.nombre)
-            ).aeropuertos.map((a) => a.id),
-          ).toContain(origen.id);
+            (await module.get(CountriesService).findByName(pais.nombre))
+              .aeropuertos,
+          ).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({ id: origen.id, cantidadRutas: 1 }),
+            ]),
+          );
           await tx.execute(
             tx.raw
               .sql`UPDATE aeropuertos SET archivado_en=now() WHERE id=${origen.id}`

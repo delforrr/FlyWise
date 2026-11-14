@@ -343,7 +343,14 @@ describe('BTS mensual por HTTP y jobs', () => {
             datos: expect.arrayContaining([
               expect.objectContaining({
                 fechaVuelo: '2026-08-31',
-                horarios: null,
+                horarios: {
+                  evidenciaFecha: 'fecha-informada',
+                  salidaProgramadaUtc: null,
+                  salidaRealUtc: null,
+                  llegadaProgramadaUtc: null,
+                  llegadaRealUtc: null,
+                  desfaseOrigenMinutos: null,
+                },
               }),
             ]),
           });

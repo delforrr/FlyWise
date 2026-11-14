@@ -59,6 +59,50 @@ type AlcanceOag = Omit<ConfiguracionOagDto, 'pausado'> &
     autorizarCambioFuente?: string[];
   };
 type VueloResuelto = Omit<OperacionOag, 'carrier'> & { aerolineaId: string };
+function combinarRevision(actual: VueloResuelto, previa?: VueloResuelto) {
+  if (!previa) return actual;
+  const reemplazar =
+    actual.revision > previa.revision ||
+    (actual.revision === previa.revision &&
+      actual.estado !== null &&
+      (previa.estado === null ||
+        (actual.estado === 'ARRIVED' &&
+          previa.estado === 'ARRIVED' &&
+          previa.demoraLlegadaMinutos === null &&
+          actual.demoraLlegadaMinutos !== null)));
+  const [principal, secundaria] = reemplazar
+    ? [actual, previa]
+    : [previa, actual];
+  if (
+    !principal.horarios ||
+    !secundaria.horarios ||
+    principal.fechaVuelo !== secundaria.fechaVuelo ||
+    principal.numeroVuelo !== secundaria.numeroVuelo ||
+    principal.estado !== secundaria.estado
+  )
+    return principal;
+  const a = principal.horarios;
+  const b = secundaria.horarios;
+  return {
+    ...principal,
+    horarios: {
+      ...a,
+      ...(a.salidaProgramadaUtc === null && b.salidaProgramadaUtc !== null
+        ? {
+            salidaProgramadaUtc: b.salidaProgramadaUtc,
+            desfaseOrigenMinutos: b.desfaseOrigenMinutos,
+            evidenciaFecha: b.evidenciaFecha,
+          }
+        : {}),
+      salidaRealUtc: a.salidaRealUtc ?? b.salidaRealUtc,
+      llegadaProgramadaUtc: a.llegadaProgramadaUtc ?? b.llegadaProgramadaUtc,
+      llegadaRealUtc: a.llegadaRealUtc ?? b.llegadaRealUtc,
+    },
+    demoraLlegadaMinutos:
+      principal.demoraLlegadaMinutos ?? secundaria.demoraLlegadaMinutos,
+  };
+}
+
 type CheckpointOag = {
   cursores: string[];
   total: number;
@@ -397,19 +441,13 @@ export class OagService implements OnModuleInit {
               aerolineaId,
               normalizada.id,
             ]);
-            const previa = candidatos.get(claveOperacion);
-            if (
-              !previa ||
-              normalizada.revision > previa.revision ||
-              (normalizada.revision === previa.revision &&
-                normalizada.estado &&
-                (!previa.estado ||
-                  (previa.estado === 'ARRIVED' &&
-                    previa.demoraLlegadaMinutos === null &&
-                    normalizada.estado === 'ARRIVED' &&
-                    normalizada.demoraLlegadaMinutos !== null)))
-            )
-              candidatos.set(claveOperacion, { ...vuelo, aerolineaId });
+            candidatos.set(
+              claveOperacion,
+              combinarRevision(
+                { ...vuelo, aerolineaId },
+                candidatos.get(claveOperacion),
+              ),
+            );
           },
           async terminarLote({ cursor }) {
             if (cursor && trabajo) {

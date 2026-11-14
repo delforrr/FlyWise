@@ -1,3 +1,4 @@
+import { aeropuertoOpenFlights } from './helpers/identidad-openflights.js';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -54,9 +55,10 @@ describe('Administración e ingesta concurrentes (HTTP y PostgreSQL)', () => {
         `${idOpenflights},Importado,City,Argentina,\\N,\\N,${lat},${lng},0,0,N,UTC,airport,OpenFlights`;
       await writeFile(file, source(90, 180));
       await etl.importCatalog('aeropuertos', file);
-      const airport = await db.orm.public.Aeropuerto.firstOrThrow({
+      const airport = await aeropuertoOpenFlights(
+        db,
         idOpenflights,
-      });
+      ).firstOrThrow();
       const nearby = async (lat: number, lng: number) =>
         (
           await api
@@ -103,7 +105,19 @@ describe('Administración e ingesta concurrentes (HTTP y PostgreSQL)', () => {
       ).toBe(false);
     } finally {
       await app?.close();
-      await db.orm.public.Aeropuerto.where({ idOpenflights }).delete();
+      const identity = {
+        fuente: 'OpenFlights',
+        identificador: String(idOpenflights),
+      };
+      await db.transaction(async (tx) => {
+        const row =
+          await tx.orm.public.IdentidadAeropuertoFuente.first(identity);
+        await tx.orm.public.IdentidadAeropuertoFuente.where(identity).delete();
+        if (row?.aeropuertoId)
+          await tx.orm.public.Aeropuerto.where({
+            id: row.aeropuertoId,
+          }).delete();
+      });
       await rm(directory, { recursive: true });
     }
   }, 30000);

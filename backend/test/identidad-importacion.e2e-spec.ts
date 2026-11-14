@@ -1,3 +1,7 @@
+import {
+  aeropuertoOpenFlights,
+  asociarAeropuertoOpenFlights,
+} from './helpers/identidad-openflights.js';
 import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -145,7 +149,6 @@ describe('Claves de importación con una fila real de routes.dat', () => {
   it('crea una ruta y su oferta cuando el nuevo par de aeropuertos no existe', async () => {
     await aislado(async (tx, service) => {
       const aeropuerto = await tx.orm.public.Aeropuerto.create({
-        idOpenflights: 2147483001,
         nombre: 'Origen nuevo de importación',
         iata: 'ZZZ',
         nombrePais: 'Test',
@@ -154,6 +157,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         ubicacion: ubicacionAeropuerto(1, 2),
       });
       const celdas = linea.split(',');
+      await asociarAeropuertoOpenFlights(tx, 2147483001, aeropuerto.id);
       celdas[2] = 'ZZZ';
       celdas[3] = '2147483001';
       await writeFile(fichero, celdas.join(',') + '\n');
@@ -287,9 +291,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
     'omite y audita el conflicto entre ID externo y código de %s',
     async (extremo, columna) => {
       await aislado(async (tx, service) => {
-        const otro = await tx.orm.public.Aeropuerto.firstOrThrow({
-          idOpenflights: 1,
-        });
+        const otro = await aeropuertoOpenFlights(tx, 1).firstOrThrow();
         const celdas = linea.split(',');
         celdas[columna] = otro.iata!;
         await writeFile(fichero, celdas.join(',') + '\n');
@@ -317,9 +319,10 @@ describe('Claves de importación con una fila real de routes.dat', () => {
   it('acepta IATA e ICAO del mismo aeropuerto sin confundirlos con contradicciones', async () => {
     await aislado(async (tx, service) => {
       const celdas = linea.split(',');
-      const origen = await tx.orm.public.Aeropuerto.firstOrThrow({
-        idOpenflights: Number(celdas[3]),
-      });
+      const origen = await aeropuertoOpenFlights(
+        tx,
+        Number(celdas[3]),
+      ).firstOrThrow();
       expect(origen.icao).not.toBeNull();
       celdas[2] = origen.icao!;
       await writeFile(fichero, linea + '\n' + celdas.join(',') + '\n');
@@ -333,14 +336,12 @@ describe('Claves de importación con una fila real de routes.dat', () => {
 
   it('acepta el mismo aeropuerto de origen en ofertas con destinos diferentes', async () => {
     await aislado(async (tx, service) => {
-      const otro = await tx.orm.public.Aeropuerto.firstOrThrow({
-        idOpenflights: 1,
-      });
+      const otro = await aeropuertoOpenFlights(tx, 1).firstOrThrow();
       const celdas = linea.split(',');
       celdas[7] = '99';
       const primera = celdas.join(',');
       celdas[4] = otro.iata!;
-      celdas[5] = String(otro.idOpenflights);
+      celdas[5] = '1';
       await writeFile(fichero, primera + '\n' + celdas.join(',') + '\n');
       expect(await service.importCatalog('rutas', fichero)).toMatchObject({
         processed: 2,
@@ -357,9 +358,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
     'omite la misma clave con %s distinto al de una oferta de una carga anterior',
     async (extremo, columna) => {
       await aislado(async (tx, service) => {
-        const otro = await tx.orm.public.Aeropuerto.firstOrThrow({
-          idOpenflights: 1,
-        });
+        const otro = await aeropuertoOpenFlights(tx, 1).firstOrThrow();
         const celdas = linea.split(',');
         celdas[columna + 1] = '2147483002';
         celdas[7] = '99';
@@ -397,9 +396,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
     'omite dos filas del lote con el mismo ID externo desconocido y %s resuelto distinto',
     async (extremo, columna) => {
       await aislado(async (tx, service) => {
-        const otro = await tx.orm.public.Aeropuerto.firstOrThrow({
-          idOpenflights: 1,
-        });
+        const otro = await aeropuertoOpenFlights(tx, 1).firstOrThrow();
         const celdas = linea.split(',');
         celdas[columna + 1] = '2147483002';
         celdas[7] = '99';
@@ -430,9 +427,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
 
   it('omite IDs de aeropuerto contradictorios aunque cambien las claves y el extremo donde aparecen', async () => {
     await aislado(async (tx, service) => {
-      const otro = await tx.orm.public.Aeropuerto.firstOrThrow({
-        idOpenflights: 1,
-      });
+      const otro = await aeropuertoOpenFlights(tx, 1).firstOrThrow();
       const primera = linea.split(',');
       primera[3] = '2147483002';
       primera[7] = '99';

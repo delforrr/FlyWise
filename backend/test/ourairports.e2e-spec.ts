@@ -1,3 +1,7 @@
+import {
+  aeropuertoOpenFlights,
+  asociarAeropuertoOpenFlights,
+} from './helpers/identidad-openflights.js';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -33,7 +37,6 @@ describe('OurAirports: ingesta de catálogo', () => {
         });
         const ofId = 1900000000 + Math.floor(Math.random() * 1000000);
         const airport = await tx.orm.public.Aeropuerto.create({
-          idOpenflights: ofId,
           nombre: sourceId,
           nombrePais: country.nombre,
           paisId: country.id,
@@ -44,6 +47,7 @@ describe('OurAirports: ingesta de catálogo', () => {
           ubicacion: ubicacionAeropuerto(-6.1, 145),
           fuente: 'OpenFlights',
         });
+        await asociarAeropuertoOpenFlights(tx, ofId, airport.id);
         const module = await Test.createTestingModule({
           imports: [RedisModule],
           controllers: [
@@ -130,7 +134,6 @@ describe('OurAirports: ingesta de catálogo', () => {
               .expect(200)
           ).body as Record<string, unknown>;
           expect(updated).toMatchObject({
-            idOpenflights: ofId,
             nombre: 'OurAirports fixture',
             fuente: 'OurAirports',
             latitud: -6,
@@ -198,14 +201,22 @@ describe('OurAirports: ingesta de catálogo', () => {
                 .expect(200)
             ).body,
           ).toMatchObject({
-            idOpenflights: reverseOfId,
             latitud: -6,
             fuente: 'OurAirports',
           });
+          expect(
+            await aeropuertoOpenFlights(tx, reverseOfId).first(),
+          ).toMatchObject({ id: first.datos[0].id });
           const conflictIcao = `7${randomUUID().slice(0, 3).toUpperCase()}`;
+          const codigos = await tx.orm.public.Aeropuerto.select('iata').all();
+          const usados = new Set(codigos.map(({ iata }) => iata));
+          const conflictIata = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
+            .map((letra) => 'QZ' + letra)
+            .find((codigo) => !usados.has(codigo));
+          if (!conflictIata) throw new Error('Fixture sin código IATA libre');
           await writeFile(
             file,
-            `id,ident,type,name,latitude_deg,longitude_deg,iso_country,municipality,icao_code,iata_code\n!double-${sourceId},${conflictIcao},large_airport,Doble OpenFlights,-6,145,PG,Goroka,${conflictIcao},\n`,
+            `id,ident,type,name,latitude_deg,longitude_deg,iso_country,municipality,icao_code,iata_code\n!double-${sourceId},${conflictIcao},large_airport,Doble OpenFlights,-6,145,PG,Goroka,${conflictIcao},${conflictIata}\n`,
           );
           await service.importCatalog(
             'aeropuertos',
@@ -218,12 +229,32 @@ describe('OurAirports: ingesta de catálogo', () => {
             file,
             pair
               .map(
-                (id) =>
-                  `${id},"OpenFlights en conflicto","Goroka","${country.nombre}",\\N,"${conflictIcao}",-7,145,0,0,"U","UTC","airport","OpenFlights"`,
+                (id, indice) =>
+                  `${id},"OpenFlights en conflicto","Goroka","${country.nombre}",${indice ? '\\N' : conflictIata},${indice ? conflictIcao : '\\N'},-7,145,0,0,"U","UTC","airport","OpenFlights"`,
               )
               .join('\n') + '\n',
           );
           await service.importCatalog('aeropuertos', file);
+          await writeFile(
+            file,
+            `${pair[0]},"OpenFlights corregido","Ciudad nueva","País sin resolver",${conflictIata},\\N,-8,145,0,0,"U","UTC","airport","OpenFlights"\n`,
+          );
+          await service.importCatalog('aeropuertos', file);
+          const corregida = await api
+            .get('/administracion/fuentes/identidades')
+            .query({ busqueda: String(pair[0]) })
+            .expect(200);
+          expect(corregida.body).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                observacion: expect.objectContaining({
+                  ciudad: 'Ciudad nueva',
+                  nombrePais: 'País sin resolver',
+                  latitud: -8,
+                }),
+              }),
+            ]),
+          );
           for (const id of pair) {
             const pendingPair = await api
               .get('/administracion/fuentes/identidades')
@@ -239,15 +270,21 @@ describe('OurAirports: ingesta de catálogo', () => {
               ]),
             );
           }
+          await writeFile(
+            file,
+            `2B,410,${conflictIata},${pair[0]},KZN,2990,,0,CR2\n`,
+          );
+          expect(await service.importCatalog('rutas', file)).toMatchObject({
+            processed: 0,
+            discarded: 1,
+          });
           const noDuplicate = await api
             .get('/administracion/aeropuertos')
             .query({ busqueda: conflictIcao })
             .expect(200);
           expect(noDuplicate.body).toMatchObject({
             total: 1,
-            datos: [
-              expect.objectContaining({ idOpenflights: null, latitud: -6 }),
-            ],
+            datos: [expect.objectContaining({ latitud: -6 })],
           });
           await api
             .post('/administracion/aeropuertos')

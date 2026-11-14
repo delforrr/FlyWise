@@ -1,3 +1,4 @@
+import { conCantidadesRutas } from '../catalogos/cantidades-rutas.js';
 import { escaparLike } from '../prisma/escape-like.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -26,9 +27,16 @@ export class CountriesService {
       airport.paisId.eq(pais.id),
     )
       .where({ archivadoEn: null })
-      .orderBy((airport) => airport.cantidadRutas.desc())
+      .orderBy((airport, { fns }) =>
+        fns.raw`COALESCE((SELECT cantidad FROM cantidades_rutas_aeropuerto WHERE aeropuerto_id=${airport.id}),0)`
+          .returns('pg/int4@1')
+          .desc(),
+      )
       .limit(50)
       .all();
-    return { ...pais, aeropuertos };
+    return {
+      ...pais,
+      aeropuertos: await conCantidadesRutas(this.prisma.db, aeropuertos),
+    };
   }
 }

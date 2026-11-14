@@ -3,10 +3,7 @@ import { encolarEjecucion } from './encolar-ejecucion.js';
 import { readOpenFlightsRow } from './adapters/openflights.js';
 import { readOurAirportsRow } from './adapters/ourairports.js';
 import { storeOurAirportsBatch } from './adapters/ourairports-store.js';
-import {
-  escribirCatalogo,
-  recalcularCantidadRutas,
-} from '../catalogos/catalog-state.js';
+import { escribirCatalogo } from '../catalogos/catalog-state.js';
 import { timestampToDate } from '../prisma/timestamp.js';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -355,7 +352,6 @@ export class EtlService {
     );
     if (total > discarded && dataset !== 'rutas')
       await linkCatalogCountries(this.prisma.db);
-    if (dataset === 'rutas') await this.computeRouteCounts();
     if (omitidas && ejecucionId)
       await this.prisma.models.EventoEjecucionEtl.create({
         ejecucionId,
@@ -378,11 +374,5 @@ export class EtlService {
       `${dataset}: ${total} leidas, ${total - discarded} procesadas, ${inserted} nuevas, ${discarded} descartadas`,
     );
     return { total, processed: total - discarded, inserted, discarded };
-  }
-
-  async computeRouteCounts() {
-    await escribirCatalogo(this.prisma.db, async (tx) => {
-      await recalcularCantidadRutas(tx);
-    });
   }
 }

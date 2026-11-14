@@ -1,10 +1,10 @@
+import { conCantidadesRutas } from '../catalogos/cantidades-rutas.js';
 import { ubicacionAeropuerto } from './ubicacion.js';
 import { escaparLike } from '../prisma/escape-like.js';
 import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
   escribirCatalogo,
   proteccionManual,
-  recalcularCantidadRutas,
 } from '../catalogos/catalog-state.js';
 import {
   CrearAeropuertoDto,
@@ -17,8 +17,6 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { RedisService } from '../redis/redis.service.js';
-import { firstValueFrom, from, timeout } from 'rxjs';
 import { CatalogAirportsDto } from './dto/catalog-airports.dto.js';
 import { SearchAirportsDto } from './dto/search-airports.dto.js';
 import { NearbyAirportsDto } from './dto/nearby-airports.dto.js';
@@ -46,20 +44,44 @@ export interface NearbyAirportResult {
 
 @Injectable()
 export class AirportsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async catalog(dto: CatalogAirportsDto) {
-    return (
-      await this.prisma.models.Aeropuerto.where({ archivadoEn: null })
-        .orderBy([(a) => a.cantidadRutas.desc(), (a) => a.id.asc()])
-        .offset(dto.offset)
-        .limit(dto.limit)
-        .include('pais', (pais) => pais.select('codigoIso'))
-        .all()
-    ).map(withCountryCode);
+    const { db } = this.prisma;
+    return db.query(
+      db.raw.sql`
+        SELECT a.id,a.nombre,a.ciudad,a.nombre_pais AS "nombrePais",a.iata,a.icao,
+          a.latitud,a.longitud,a.pais_id AS "paisId",a.fuente,
+          a.protegido_manualmente AS "protegidoManualmente",
+          a.vinculo_pais_inferido AS "vinculoPaisInferido",
+          a.archivado_en::text AS "archivadoEn",p.codigo_iso AS "codigoIsoPais",
+          COALESCE(c.cantidad,0) AS "cantidadRutas"
+        FROM aeropuertos a
+        LEFT JOIN paises p ON p.id=a.pais_id
+        LEFT JOIN cantidades_rutas_aeropuerto c ON c.aeropuerto_id=a.id
+        WHERE a.archivado_en IS NULL
+        ORDER BY COALESCE(c.cantidad,0) DESC,a.id ASC
+        LIMIT ${dto.limit} OFFSET ${dto.offset}
+      `
+        .returnsRow({
+          id: 'pg/text@1',
+          nombre: 'pg/text@1',
+          ciudad: { codecId: 'pg/text@1', nullable: true },
+          nombrePais: 'pg/text@1',
+          iata: { codecId: 'pg/text@1', nullable: true },
+          icao: { codecId: 'pg/text@1', nullable: true },
+          latitud: 'pg/float8@1',
+          longitud: 'pg/float8@1',
+          codigoIsoPais: { codecId: 'pg/text@1', nullable: true },
+          paisId: { codecId: 'pg/text@1', nullable: true },
+          fuente: { codecId: 'pg/text@1', nullable: true },
+          archivadoEn: { codecId: 'pg/text@1', nullable: true },
+          protegidoManualmente: 'pg/bool@1',
+          vinculoPaisInferido: 'pg/bool@1',
+          cantidadRutas: 'pg/int4@1',
+        })
+        .build(),
+    );
   }
 
   async search(searchDto: SearchAirportsDto) {
@@ -67,24 +89,8 @@ export class AirportsService {
     const limit = searchDto.limit ?? 20;
     const upperTerm = term.toUpperCase();
     const code = /^[A-Z0-9]{3,4}$/.test(upperTerm) ? upperTerm : null;
-    const key = `airports:search:v2:${limit}:${code ?? ''}:${term.toLowerCase()}`;
-    try {
-      const cached = await firstValueFrom(
-        from(this.redis.get(key)).pipe(timeout(50)),
-      );
-      if (cached !== null) {
-        const rows: unknown = JSON.parse(cached);
-        if (Array.isArray(rows)) {
-          return rows as Awaited<ReturnType<AirportsService['findMatches']>>;
-        }
-      }
-    } catch {
-      return this.findMatches(term, limit, code);
-    }
-
     const matches = await this.findMatches(term, limit, code);
-    void this.redis.set(key, JSON.stringify(matches), 60).catch(() => {});
-    return matches;
+    return conCantidadesRutas(this.prisma.db, matches);
   }
 
   private async findMatches(term: string, limit: number, code: string | null) {
@@ -93,7 +99,10 @@ export class AirportsService {
     })
       .include('pais', (pais) => pais.select('codigoIso'))
       .orderBy([
-        (airport) => airport.cantidadRutas.desc(),
+        (airport, { fns }) =>
+          fns.raw`COALESCE((SELECT cantidad FROM cantidades_rutas_aeropuerto WHERE aeropuerto_id=${airport.id}),0)`
+            .returns('pg/int4@1')
+            .desc(),
         (airport) => airport.nombre.asc(),
         (airport) => airport.id.asc(),
       ]);
@@ -135,7 +144,7 @@ export class AirportsService {
         icao,
         latitud,
         longitud,
-        cantidad_rutas as "cantidadRutas",
+        COALESCE((SELECT cantidad FROM cantidades_rutas_aeropuerto WHERE aeropuerto_id=aeropuertos.id),0) as "cantidadRutas",
         ROUND((ST_DistanceSphere(
           ubicacion::geometry,
           ST_SetSRID(ST_MakePoint(${nearbyDto.lng}, ${nearbyDto.lat}), 4326)
@@ -221,7 +230,17 @@ export class AirportsService {
       );
     }
 
-    return withCountryCode(airport);
+    const [origen, ...destinos] = await conCantidadesRutas(this.prisma.db, [
+      withCountryCode(airport),
+      ...airport.rutasOrigen.map((ruta) => ruta.destino),
+    ]);
+    return {
+      ...origen,
+      rutasOrigen: airport.rutasOrigen.map((ruta, i) => ({
+        ...ruta,
+        destino: destinos[i],
+      })),
+    };
   }
 
   async listarAdmin(consulta: ConsultaCatalogoDto) {
@@ -250,7 +269,7 @@ export class AirportsService {
       query.aggregate((a) => ({ total: a.count() })),
     ]);
     return {
-      datos,
+      datos: await conCantidadesRutas(this.prisma.db, datos),
       total: Number(resumen.total),
       pagina: consulta.pagina,
       limite: consulta.limite,
@@ -260,7 +279,8 @@ export class AirportsService {
   async detalleAdmin(id: string) {
     const registro = await this.prisma.models.Aeropuerto.first({ id });
     if (!registro) throw new NotFoundException('El aeropuerto no existe');
-    return registro;
+    const [resultado] = await conCantidadesRutas(this.prisma.db, [registro]);
+    return resultado;
   }
 
   crearAdmin(datos: CrearAeropuertoDto) {
@@ -319,7 +339,6 @@ export class AirportsService {
           .replace('T', ' ')
           .replace('Z', ''),
       });
-      await recalcularCantidadRutas(tx);
     });
   }
 }

@@ -1,3 +1,4 @@
+import { aeropuertoOpenFlights } from './helpers/identidad-openflights.js';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { OPENFLIGHTS_FILES } from '../src/etl/catalog.js';
 import { EtlService } from '../src/etl/etl.service.js';
@@ -81,7 +82,10 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
           JOIN aeropuertos origen ON origen.id=r.origen_id
           JOIN aeropuertos destino ON destino.id=r.destino_id
           JOIN aerolineas a ON a.id=o.aerolinea_id
-          WHERE a.id_openflights=410 AND origen.id_openflights=2965 AND destino.id_openflights=2990
+          JOIN identidades_aerolinea_fuente ai ON ai.aerolinea_id=a.id AND ai.fuente='OpenFlights'
+          JOIN identidades_aeropuerto_fuente oi ON oi.aeropuerto_id=origen.id AND oi.fuente='OpenFlights'
+          JOIN identidades_aeropuerto_fuente di ON di.aeropuerto_id=destino.id AND di.fuente='OpenFlights'
+          WHERE ai.identificador='410' AND oi.identificador='2965' AND di.identificador='2990'
             AND o.codigo_aerolinea='2B' AND NOT o.codigo_compartido AND o.escalas=0
         `
             .returnsRow({ id: 'pg/text@1', aerolineaId: 'pg/text@1' })
@@ -112,9 +116,7 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
         const after = await tx.orm.public.OfertaRuta.aggregate((a) => ({
           count: a.count(),
         }));
-        const aeropuerto = await tx.orm.public.Aeropuerto.firstOrThrow({
-          idOpenflights: 1,
-        });
+        const aeropuerto = await aeropuertoOpenFlights(tx, 1).firstOrThrow();
         const aerolinea = await tx.orm.public.Aerolinea.orderBy((a) =>
           a.id.asc(),
         ).firstOrThrow();

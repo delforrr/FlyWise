@@ -1,3 +1,4 @@
+import { aeropuertoOpenFlights } from './helpers/identidad-openflights.js';
 import { RedisModule } from '../src/redis/redis.module.js';
 import type { Server } from 'node:http';
 import type { AirportsService } from '../src/airports/airports.service.js';
@@ -107,9 +108,7 @@ describe('Administración de catálogos (PostgreSQL y HTTP)', () => {
     rol = 'ADMIN';
     await aislado(async (app, tx) => {
       const api = request(app.getHttpServer());
-      const muestra = await tx.orm.public.Aeropuerto.firstOrThrow({
-        idOpenflights: 1,
-      });
+      const muestra = await aeropuertoOpenFlights(tx, 1).firstOrThrow();
       const pais = await tx.orm.public.Pais.firstOrThrow({
         nombre: muestra.nombrePais,
       });
@@ -130,7 +129,10 @@ describe('Administración de catálogos (PostgreSQL y HTTP)', () => {
         .send({ ...datos, idOpenflights: 1 })
         .expect(400);
       const origen: Awaited<ReturnType<AirportsService['crearAdmin']>> = (
-        await api.post('/administracion/aeropuertos').send(datos).expect(201)
+        await api
+          .post('/administracion/aeropuertos')
+          .send({ ...datos, icao: 'TQXZ' })
+          .expect(201)
       ).body;
       const destino: Awaited<ReturnType<AirportsService['crearAdmin']>> = (
         await api
@@ -307,13 +309,8 @@ describe('Administración de catálogos (PostgreSQL y HTTP)', () => {
         true,
       );
       expect(
-        (await tx.orm.public.Aeropuerto.firstOrThrow({ id: origen.id }))
-          .cantidadRutas,
-      ).toBe(1);
-      expect(
-        (await tx.orm.public.Aeropuerto.firstOrThrow({ id: destino.id }))
-          .cantidadRutas,
-      ).toBe(1);
+        (await api.get('/aeropuertos/por-codigo/TQXZ').expect(200)).body,
+      ).toMatchObject({ id: origen.id, cantidadRutas: 1 });
       const vacia: Awaited<ReturnType<RoutesService['crearAdmin']>> = (
         await api
           .post('/administracion/rutas')
@@ -331,16 +328,15 @@ describe('Administración de catálogos (PostgreSQL y HTTP)', () => {
       expect(detalle.origen.id).toBe(origen.id);
       expect(detalle.destino.id).toBe(destino.id);
       expect(
-        (await tx.orm.public.Aeropuerto.firstOrThrow({ id: origen.id }))
-          .cantidadRutas,
-      ).toBe(1);
+        (await api.get('/aeropuertos/por-codigo/TQXZ').expect(200)).body,
+      ).toMatchObject({ id: origen.id, cantidadRutas: 1 });
       await api
         .delete(`/administracion/aerolineas/${aerolinea.id}`)
         .expect(204);
-      expect(
-        (await tx.orm.public.Aeropuerto.firstOrThrow({ id: origen.id }))
-          .cantidadRutas,
-      ).toBe(0);
+      const consulta = await api
+        .get('/aeropuertos/por-codigo/TQXZ')
+        .expect(200);
+      expect(consulta.body).toMatchObject({ id: origen.id, cantidadRutas: 0 });
       await api.delete(`/administracion/rutas/${ruta.id}`).expect(204);
       await api.delete(`/administracion/rutas/${ruta.id}`).expect(204);
       expect(

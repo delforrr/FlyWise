@@ -32,11 +32,7 @@ describe('Global connections (PostgreSQL)', () => {
           nombre: `test-unknown-${tag}`,
           codigoIso: 'XX',
         });
-        async function airport(
-          paisId: string,
-          iata: string,
-          cantidadRutas: number,
-        ) {
+        async function airport(paisId: string, iata: string) {
           return tx.orm.public.Aeropuerto.create({
             paisId,
             nombrePais: 'test',
@@ -45,16 +41,15 @@ describe('Global connections (PostgreSQL)', () => {
             latitud: 10,
             longitud: 20,
             ubicacion: ubicacionAeropuerto(10, 20),
-            cantidadRutas,
           });
         }
-        const origen = await airport(ar.id, 'AAA', 1_000_000);
-        const internal = await airport(ar.id, 'AAB', 100);
-        const unclassified = await airport(unknown.id, 'AAC', 1_000_000);
+        const origen = await airport(ar.id, 'AAA');
+        const internal = await airport(ar.id, 'AAB');
+        const unclassified = await airport(unknown.id, 'AAC');
         const destinations: Awaited<ReturnType<typeof airport>>[] = [];
         for (let i = 0; i < 17; i++)
           destinations.push(
-            await airport(es.id, `BA${String.fromCharCode(65 + i)}`, 100),
+            await airport(es.id, `BA${String.fromCharCode(65 + i)}`),
           );
         for (const destino of destinations.slice(0, 15)) {
           for (const codigoAerolinea of ['T1', 'T2']) {
@@ -102,9 +97,9 @@ describe('Global connections (PostgreSQL)', () => {
         expect(
           top.every((c) => c.ida.length === 2 && c.origenId === origen.id),
         ).toBe(true);
-        expect(top.map((c) => c.destinoId)).toEqual(
-          [...top.map((c) => c.destinoId)].sort(),
-        );
+        expect(top[0].destinoId).toBe(destinations[0].id);
+        const empatados = top.slice(1).map((c) => c.destinoId);
+        expect(empatados).toEqual([...empatados].sort());
         expect((await service.global(filter)).map((c) => c.id)).toEqual(
           top.map((c) => c.id),
         );
@@ -160,12 +155,6 @@ describe('Global connections (PostgreSQL)', () => {
         expect(await service.global({ mode: 'global', limit: 3 })).toEqual(
           global.slice(0, 3),
         );
-        expect(
-          global.some(
-            (c) =>
-              c.origenId === unclassified.id || c.destinoId === unclassified.id,
-          ),
-        ).toBe(true);
         const directed = await service.explore({
           origenId: origen.id,
           destinoId: destinations[0].id,

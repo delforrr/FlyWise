@@ -57,7 +57,6 @@ model Aeropuerto {
   protegidoManualmente Boolean @default(false) @map("protegido_manualmente")
   vinculoPaisInferido Boolean @default(false) @map("vinculo_pais_inferido")
   id            String                                @id @onCreate(uuid())
-  idOpenflights Int?                                  @unique @map("id_openflights")
   nombre          String
   ciudad          String?
   nombrePais   String                                @map("nombre_pais")
@@ -67,10 +66,9 @@ model Aeropuerto {
   icao          String?                               @map("icao")
   latitud      Float
   longitud     Float
-  // SQL trigger maintains WGS 84 coordenadas for all import paths.
+  // El backend escribe coordenadas y geometría WGS 84 en la misma operación.
   ubicacion      Raw(sql`geography(Point,4326)`)?
   fuente        String?                               @default("OurAirports/OpenFlights")
-  cantidadRutas    Int                                   @default(0) @map("cantidad_rutas")
 
   rutasOrigen       Ruta[]       @relation("OriginAirport")
   rutasDestino  Ruta[]       @relation("DestinationAirport")
@@ -86,7 +84,6 @@ model Aeropuerto {
   @@index([nombrePais], map: "airports_country_name_idx")
   @@index([paisId], map: "airports_country_id_idx")
   @@check(expression: sql`(ubicacion IS NOT NULL)`, map: "airports_location_check")
-  @@check(expression: sql`(cantidad_rutas >= 0)`, map: "airports_route_count_check")
   @@check(expression: sql`(((latitud >= ('-90'::integer)::double precision) AND (latitud <= (90)::double precision)) AND ((longitud >= ('-180'::integer)::double precision) AND (longitud <= (180)::double precision)))`, name: "valid_airport_coordinates")
   @@check(expression: sql`((nombre ~ '[^[:space:]]'::text) AND (nombre_pais ~ '[^[:space:]]'::text))`, map: "airports_name_check")
   @@check(expression: sql`(((iata IS NULL) OR (iata ~ '^[A-Z]{3}$'::text)) AND ((icao IS NULL) OR (icao ~ '^[A-Z0-9]{4}$'::text)))`, map: "airports_codes_check")
@@ -110,7 +107,6 @@ model Aerolinea {
   protegidoManualmente Boolean @default(false) @map("protegido_manualmente")
   vinculoPaisInferido Boolean @default(false) @map("vinculo_pais_inferido")
   id            String   @id @onCreate(uuid())
-  idOpenflights Int?     @unique @map("id_openflights")
   nombre          String
   iata          String?  @map("iata")
   icao          String?  @map("icao")
@@ -119,6 +115,7 @@ model Aerolinea {
   registroPais Pais? @relation(fields: [paisId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   activa        Boolean?
 
+  identidadesFuente IdentidadAerolineaFuente[]
   ofertas  OfertaRuta[]
   vuelos Vuelo[]
   metricas MetricaRuta[]
@@ -129,6 +126,17 @@ model Aerolinea {
   @@check(expression: sql`(nombre ~ '[^[:space:]]'::text)`, map: "airlines_name_check")
   @@check(expression: sql`(((iata IS NULL) OR (iata ~ '^[A-Z0-9]{2}$'::text)) AND ((icao IS NULL) OR (icao ~ '^[A-Z0-9]{3}$'::text)))`, map: "airlines_codes_check")
   @@map("aerolineas")
+}
+
+model IdentidadAerolineaFuente {
+  fuente String
+  identificador String
+  aerolineaId String @map("aerolinea_id")
+  aerolinea Aerolinea @relation(fields: [aerolineaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  observacion Json
+  @@id([fuente, identificador])
+  @@index([aerolineaId], map: "identidades_aerolinea_fuente_aerolinea_id_idx")
+  @@map("identidades_aerolinea_fuente")
 }
 
 model Ruta {

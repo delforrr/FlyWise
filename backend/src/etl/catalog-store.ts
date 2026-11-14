@@ -42,10 +42,17 @@ export async function upsertCatalogBatch(
   );
   const data = JSON.stringify([...unique.values()]);
   if (dataset === 'aeropuertos') await reconcileOpenFlightsAirports(db, data);
-  const result =
-    dataset === 'paises'
-      ? await db.query(
-          db.raw.sql`
+  const result = await guardarLote[dataset](db, data);
+  return {
+    insertadas: result.filter((row) => row.inserted).length,
+    omitidas: unique.size - result.length,
+  };
+}
+
+const guardarLote = {
+  paises(db: StoreDatabase, data: string) {
+    return db.query(
+      db.raw.sql`
     INSERT INTO paises (id,nombre,codigo_iso)
     SELECT x.id,x.nombre,CASE WHEN x."codigoIsoInvalid" THEN previous.codigo_iso ELSE x."codigoIso" END
     FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,nombre text,"codigoIso" text,"codigoIsoInvalid" boolean)
@@ -53,43 +60,74 @@ export async function upsertCatalogBatch(
     ON CONFLICT (nombre) DO UPDATE SET codigo_iso=EXCLUDED.codigo_iso
     RETURNING (xmax=0) AS inserted
   `
-            .returnsRow({ inserted: 'pg/bool@1' })
-            .build(),
-        )
-      : dataset === 'aeropuertos'
-        ? await db.query(
-            db.raw.sql`
-    INSERT INTO aeropuertos (id,id_openflights,nombre,ciudad,nombre_pais,iata,icao,latitud,longitud,ubicacion,fuente,cantidad_rutas)
-    SELECT x.id,x."idOpenflights",x.nombre,x.ciudad,x."nombrePais",
-      CASE WHEN x."iataInvalid" THEN previous.iata ELSE x.iata END,
-      CASE WHEN x."icaoInvalid" THEN previous.icao ELSE x.icao END,x.latitud,x.longitud,ST_SetSRID(ST_MakePoint(x.longitud,x.latitud),4326)::geography,x.fuente,0
-    FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"idOpenflights" int,nombre text,ciudad text,"nombrePais" text,iata text,icao text,latitud float8,longitud float8,fuente text,"iataInvalid" boolean,"icaoInvalid" boolean)
-    LEFT JOIN aeropuertos previous ON previous.id_openflights=x."idOpenflights"
-    WHERE NOT EXISTS (SELECT 1 FROM identidades_aeropuerto_fuente pending WHERE pending.fuente='OpenFlights' AND pending.identificador=x."idOpenflights"::text AND pending.aeropuerto_id IS NULL)
-    ON CONFLICT (id_openflights) DO UPDATE SET nombre=EXCLUDED.nombre,ciudad=EXCLUDED.ciudad,nombre_pais=EXCLUDED.nombre_pais,
-      iata=EXCLUDED.iata,icao=EXCLUDED.icao,latitud=EXCLUDED.latitud,longitud=EXCLUDED.longitud,ubicacion=EXCLUDED.ubicacion,fuente=EXCLUDED.fuente WHERE NOT aeropuertos.protegido_manualmente AND aeropuertos.archivado_en IS NULL AND aeropuertos.fuente IS DISTINCT FROM 'OurAirports'
-    RETURNING (xmax=0) AS inserted
-  `
-              .returnsRow({ inserted: 'pg/bool@1' })
-              .build(),
-          )
-        : dataset === 'aerolineas'
-          ? await db.query(
-              db.raw.sql`
-    INSERT INTO aerolineas (id,id_openflights,nombre,iata,icao,pais,activa)
-    SELECT x.id,x."idOpenflights",x.nombre,
-      CASE WHEN x."iataInvalid" THEN previous.iata ELSE x.iata END,
-      CASE WHEN x."icaoInvalid" THEN previous.icao ELSE x.icao END,x.pais,x.activa
-    FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"idOpenflights" int,nombre text,iata text,icao text,pais text,activa boolean,"iataInvalid" boolean,"icaoInvalid" boolean)
-    LEFT JOIN aerolineas previous ON previous.id_openflights=x."idOpenflights"
-    ON CONFLICT (id_openflights) DO UPDATE SET nombre=EXCLUDED.nombre,iata=EXCLUDED.iata,icao=EXCLUDED.icao,pais=EXCLUDED.pais,activa=EXCLUDED.activa WHERE NOT aerolineas.protegido_manualmente AND aerolineas.archivado_en IS NULL
-    RETURNING (xmax=0) AS inserted
-  `
-                .returnsRow({ inserted: 'pg/bool@1' })
-                .build(),
-            )
-          : await db.query(
-              db.raw.sql`
+        .returnsRow({ inserted: 'pg/bool@1' })
+        .build(),
+    );
+  },
+  aeropuertos(db: StoreDatabase, data: string) {
+    return db.query(
+      db.raw.sql`
+    WITH entrada AS (
+      SELECT x.*,COALESCE(i.aeropuerto_id,x.id) AS entidad
+      FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"idOpenflights" int,nombre text,ciudad text,"nombrePais" text,iata text,icao text,latitud float8,longitud float8,fuente text,"iataInvalid" boolean,"icaoInvalid" boolean)
+      LEFT JOIN identidades_aeropuerto_fuente i ON i.fuente='OpenFlights' AND i.identificador=x."idOpenflights"::text
+      WHERE i.identificador IS NULL OR i.aeropuerto_id IS NOT NULL
+    ), cambios AS (
+      INSERT INTO aeropuertos(id,nombre,ciudad,nombre_pais,iata,icao,latitud,longitud,ubicacion,fuente)
+      SELECT x.entidad,x.nombre,x.ciudad,x."nombrePais",
+        CASE WHEN x."iataInvalid" THEN previous.iata ELSE x.iata END,
+        CASE WHEN x."icaoInvalid" THEN previous.icao ELSE x.icao END,
+        x.latitud,x.longitud,ST_SetSRID(ST_MakePoint(x.longitud,x.latitud),4326)::geography,x.fuente
+      FROM entrada x LEFT JOIN aeropuertos previous ON previous.id=x.entidad
+      ON CONFLICT(id) DO UPDATE SET nombre=EXCLUDED.nombre,ciudad=EXCLUDED.ciudad,nombre_pais=EXCLUDED.nombre_pais,
+        iata=EXCLUDED.iata,icao=EXCLUDED.icao,latitud=EXCLUDED.latitud,longitud=EXCLUDED.longitud,ubicacion=EXCLUDED.ubicacion,fuente=EXCLUDED.fuente
+      WHERE NOT aeropuertos.protegido_manualmente AND aeropuertos.archivado_en IS NULL AND aeropuertos.fuente IS DISTINCT FROM 'OurAirports'
+      RETURNING id,(xmax=0) AS inserted
+    ), correspondencias AS (
+      INSERT INTO identidades_aeropuerto_fuente(fuente,identificador,aeropuerto_id,observacion)
+      SELECT 'OpenFlights',x."idOpenflights"::text,x.entidad,to_jsonb(x)-ARRAY['id','entidad']
+      FROM entrada x LEFT JOIN cambios c ON c.id=x.entidad
+      WHERE c.id IS NOT NULL OR EXISTS (SELECT 1 FROM aeropuertos a WHERE a.id=x.entidad)
+      ON CONFLICT(fuente,identificador) DO UPDATE SET observacion=EXCLUDED.observacion
+    )
+    SELECT inserted FROM cambios
+`
+        .returnsRow({ inserted: 'pg/bool@1' })
+        .build(),
+    );
+  },
+  aerolineas(db: StoreDatabase, data: string) {
+    return db.query(
+      db.raw.sql`
+    WITH entrada AS (
+      SELECT x.*,COALESCE(i.aerolinea_id,x.id) AS entidad
+      FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"idOpenflights" int,nombre text,iata text,icao text,pais text,activa boolean,"iataInvalid" boolean,"icaoInvalid" boolean)
+      LEFT JOIN identidades_aerolinea_fuente i ON i.fuente='OpenFlights' AND i.identificador=x."idOpenflights"::text
+    ), cambios AS (
+      INSERT INTO aerolineas(id,nombre,iata,icao,pais,activa)
+      SELECT x.entidad,x.nombre,
+        CASE WHEN x."iataInvalid" THEN previous.iata ELSE x.iata END,
+        CASE WHEN x."icaoInvalid" THEN previous.icao ELSE x.icao END,x.pais,x.activa
+      FROM entrada x LEFT JOIN aerolineas previous ON previous.id=x.entidad
+      ON CONFLICT(id) DO UPDATE SET nombre=EXCLUDED.nombre,iata=EXCLUDED.iata,icao=EXCLUDED.icao,pais=EXCLUDED.pais,activa=EXCLUDED.activa
+      WHERE NOT aerolineas.protegido_manualmente AND aerolineas.archivado_en IS NULL
+      RETURNING id,(xmax=0) AS inserted
+    ), correspondencias AS (
+      INSERT INTO identidades_aerolinea_fuente(fuente,identificador,aerolinea_id,observacion)
+      SELECT 'OpenFlights',x."idOpenflights"::text,x.entidad,to_jsonb(x)-ARRAY['id','entidad']
+      FROM entrada x LEFT JOIN cambios c ON c.id=x.entidad
+      WHERE c.id IS NOT NULL OR EXISTS (SELECT 1 FROM aerolineas a WHERE a.id=x.entidad)
+      ON CONFLICT(fuente,identificador) DO UPDATE SET observacion=EXCLUDED.observacion
+    )
+    SELECT inserted FROM cambios
+`
+        .returnsRow({ inserted: 'pg/bool@1' })
+        .build(),
+    );
+  },
+  rutas(db: StoreDatabase, data: string) {
+    return db.query(
+      db.raw.sql`
     WITH entrada AS (
       SELECT * FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,"origenId" text,"destinoId" text,"aerolineaId" text,"codigoAerolinea" text,"codigoCompartido" boolean,escalas int,"claveImportacion" text)
     ), nuevas_rutas AS (
@@ -110,14 +148,11 @@ export async function upsertCatalogBatch(
     ON CONFLICT (id) DO UPDATE SET aerolinea_id=EXCLUDED.aerolinea_id,codigo_aerolinea=EXCLUDED.codigo_aerolinea,codigo_compartido=EXCLUDED.codigo_compartido,escalas=EXCLUDED.escalas WHERE NOT ofertas_ruta.protegido_manualmente AND ofertas_ruta.archivado_en IS NULL
     RETURNING (xmax=0) AS inserted
   `
-                .returnsRow({ inserted: 'pg/bool@1' })
-                .build(),
-            );
-  return {
-    insertadas: result.filter((row) => row.inserted).length,
-    omitidas: unique.size - result.length,
-  };
-}
+        .returnsRow({ inserted: 'pg/bool@1' })
+        .build(),
+    );
+  },
+};
 
 export async function resolveRouteBatch(
   db: StoreDatabase,
@@ -131,15 +166,22 @@ export async function resolveRouteBatch(
     ), resueltas AS (
       SELECT x.*, COALESCE(o.id,oc.id) AS "origenId", COALESCE(d.id,dc.id) AS "destinoId", COALESCE(a.id,ac.id) AS "aerolineaId",
         CASE
+          WHEN oi.identificador IS NOT NULL AND oi.aeropuerto_id IS NULL
+            THEN format('identidad pendiente de origen: %s',oi.identificador)
+          WHEN di.identificador IS NOT NULL AND di.aeropuerto_id IS NULL
+            THEN format('identidad pendiente de destino: %s',di.identificador)
           WHEN o.id IS NOT NULL AND oc.id IS NOT NULL AND o.id<>oc.id
             THEN format('coincidencia ambigua de origen: ID externo %s y código %s identifican aeropuertos distintos', x."idOpenflightsOrigen", x."codigoOrigen")
           WHEN d.id IS NOT NULL AND dc.id IS NOT NULL AND d.id<>dc.id
             THEN format('coincidencia ambigua de destino: ID externo %s y código %s identifican aeropuertos distintos', x."idOpenflightsDestino", x."codigoDestino")
         END AS "conflictoAeropuerto"
       FROM input x
-      LEFT JOIN aeropuertos o ON o.id_openflights=x."idOpenflightsOrigen"
-      LEFT JOIN aeropuertos d ON d.id_openflights=x."idOpenflightsDestino"
-      LEFT JOIN aerolineas a ON a.id_openflights=x."idOpenflightsAerolinea"
+      LEFT JOIN identidades_aeropuerto_fuente oi ON oi.fuente='OpenFlights' AND oi.identificador=x."idOpenflightsOrigen"::text
+      LEFT JOIN aeropuertos o ON o.id=oi.aeropuerto_id
+      LEFT JOIN identidades_aeropuerto_fuente di ON di.fuente='OpenFlights' AND di.identificador=x."idOpenflightsDestino"::text
+      LEFT JOIN aeropuertos d ON d.id=di.aeropuerto_id
+      LEFT JOIN identidades_aerolinea_fuente ai ON ai.fuente='OpenFlights' AND ai.identificador=x."idOpenflightsAerolinea"::text
+      LEFT JOIN aerolineas a ON a.id=ai.aerolinea_id
       LEFT JOIN LATERAL (SELECT min(id) id FROM aeropuertos WHERE iata=x."codigoOrigen" OR icao=x."codigoOrigen" HAVING count(*)=1) oc ON true
       LEFT JOIN LATERAL (SELECT min(id) id FROM aeropuertos WHERE iata=x."codigoDestino" OR icao=x."codigoDestino" HAVING count(*)=1) dc ON true
       LEFT JOIN LATERAL (SELECT min(id) id FROM aerolineas WHERE iata=x."codigoAerolinea" OR icao=x."codigoAerolinea" HAVING count(*)=1) ac ON a.id IS NULL

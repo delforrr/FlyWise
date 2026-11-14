@@ -54,9 +54,9 @@ export async function storeOurAirportsBatch(
       CROSS JOIN LATERAL (SELECT EXISTS (SELECT 1 FROM entrada otra WHERE otra.identificador<>e.identificador
         AND ((e.icao IS NOT NULL AND otra.icao=e.icao) OR (e.iata IS NOT NULL AND otra.iata=e.iata))) AS lote) conflicto
     ), nuevos AS (
-      INSERT INTO aeropuertos(id,nombre,ciudad,nombre_pais,pais_id,iata,icao,latitud,longitud,ubicacion,fuente,cantidad_rutas)
+      INSERT INTO aeropuertos(id,nombre,ciudad,nombre_pais,pais_id,iata,icao,latitud,longitud,ubicacion,fuente)
       SELECT aeropuerto_id,nombre,ciudad,nombre_pais,pais_id,iata,icao,latitud,longitud,
-        ST_SetSRID(ST_MakePoint(longitud,latitud),4326)::geography,'OurAirports',0
+        ST_SetSRID(ST_MakePoint(longitud,latitud),4326)::geography,'OurAirports'
       FROM resueltas WHERE aeropuerto_id="nuevoId" AND pais_id IS NOT NULL
       RETURNING id
     ), identidades AS (

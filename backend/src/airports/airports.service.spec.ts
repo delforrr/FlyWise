@@ -6,14 +6,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AirportsService } from './airports.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotFoundException } from '@nestjs/common';
-import { RedisService } from '../redis/redis.service.js';
 
 describe('AirportsService', () => {
   let service: AirportsService;
-  const redis = {
-    get: jest.fn<Promise<string | null>, [string]>(),
-    set: jest.fn<Promise<void>, [string, string, number?]>(),
-  };
   let prismaService: {
     models: {
       Aerolinea: ReturnType<typeof mockCollection>;
@@ -25,7 +20,6 @@ describe('AirportsService', () => {
 
   const mockAirport = {
     id: 'airport-uuid-1',
-    idOpenflights: 1,
     nombre: 'Ministro Pistarini International Aeropuerto',
     ciudad: 'Buenos Aires',
     nombrePais: 'Argentina',
@@ -38,8 +32,6 @@ describe('AirportsService', () => {
   };
 
   beforeEach(async () => {
-    redis.get.mockReset().mockResolvedValue(null);
-    redis.set.mockReset().mockResolvedValue(undefined);
     prismaService = {
       models: {
         Aerolinea: mockCollection(),
@@ -49,11 +41,14 @@ describe('AirportsService', () => {
       db: mockDatabase(),
     };
     prismaService.models.Aeropuerto.all.mockResolvedValue([mockAirport]);
+    prismaService.db.query.mockResolvedValue([
+      { id: mockAirport.id, cantidad: 120 },
+      { id: 'airport-uuid-2', cantidad: 120 },
+    ]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AirportsService,
-        { provide: RedisService, useValue: redis },
         {
           provide: PrismaService,
           useValue: prismaService,
@@ -96,42 +91,6 @@ describe('AirportsService', () => {
     expect(prismaService.models.Aeropuerto.all).toHaveBeenCalledTimes(2);
   });
 
-  describe('search cache', () => {
-    it('caches empty results for 60 seconds and separates result limits', async () => {
-      prismaService.models.Aeropuerto.all.mockResolvedValue([]);
-      await expect(
-        service.search({ q: '  Buenos Aires ', limit: 20 }),
-      ).resolves.toEqual([]);
-      const key = redis.get.mock.calls[0][0];
-      expect(redis.set).toHaveBeenCalledWith(key, '[]', 60);
-      redis.get.mockResolvedValueOnce('[]');
-      await expect(
-        service.search({ q: 'buenos aires', limit: 20 }),
-      ).resolves.toEqual([]);
-      expect(redis.get).toHaveBeenLastCalledWith(key);
-      expect(prismaService.models.Aeropuerto.all).toHaveBeenCalledTimes(1);
-      await service.search({ q: 'Buenos Aires', limit: 10 });
-      expect(redis.get.mock.calls[2][0]).not.toBe(key);
-      await service.search({ q: 'Buenos Aires', limit: 20 });
-      expect(redis.get).toHaveBeenLastCalledWith(key);
-      expect(prismaService.models.Aeropuerto.all).toHaveBeenCalledTimes(3);
-    });
-
-    it('separates a code from a term with the same lowercase spelling', async () => {
-      await service.search({ q: 'KLM', limit: 20 });
-      await service.search({ q: 'KLM', limit: 20 });
-      expect(redis.get.mock.calls[0][0]).not.toBe(redis.get.mock.calls[1][0]);
-    });
-
-    it('queries the database if Redis is unresponsive', async () => {
-      redis.get.mockImplementationOnce(() => new Promise(() => {}));
-      await expect(
-        service.search({ q: 'Buenos Aires', limit: 20 }),
-      ).resolves.toEqual([mockAirport]);
-      expect(redis.set).not.toHaveBeenCalled();
-    });
-  });
-
   describe('findNearby', () => {
     it('should execute PostGIS raw query and return nearby aeropuertos', async () => {
       const mockNearby = [
@@ -156,11 +115,13 @@ describe('AirportsService', () => {
 
   describe('findByCode', () => {
     it('should return airport when found by IATA or ICAO', async () => {
-      prismaService.models.Aeropuerto.all.mockResolvedValue([mockAirport]);
+      prismaService.models.Aeropuerto.all.mockResolvedValue([
+        { ...mockAirport, rutasOrigen: [] },
+      ]);
 
       const result = await service.findByCode('EZE');
       expect(prismaService.models.Aeropuerto.all).toHaveBeenCalled();
-      expect(result).toEqual(mockAirport);
+      expect(result).toEqual({ ...mockAirport, rutasOrigen: [] });
     });
 
     it('should throw NotFoundException when airport is not found', async () => {

@@ -1,3 +1,4 @@
+import { fechaInformadaBts } from '../adapters/bts/operacion-bts.js';
 import type { AdaptadorOperaciones } from '../ingestion/application/adaptador-operaciones.js';
 import {
   type CausaDescarteBts,
@@ -630,6 +631,7 @@ export class BtsService implements OnModuleInit {
             ({ identidad, estado, ...operacion }) => ({
               ...operacion,
               estado: estado as Operacion['estado'],
+              horarios: fechaInformadaBts,
               fuente: 'BTS',
               idRegistroFuente: identidad,
             }),

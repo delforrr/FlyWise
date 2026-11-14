@@ -1,3 +1,14 @@
+import type { HorariosOperacion } from '../../entities/vuelos/domain/operacion.js';
+
+export const fechaInformadaBts: HorariosOperacion = {
+  salidaProgramadaUtc: null,
+  salidaRealUtc: null,
+  llegadaProgramadaUtc: null,
+  llegadaRealUtc: null,
+  desfaseOrigenMinutos: null,
+  evidenciaFecha: 'fecha-informada',
+};
+
 export type CausaDescarteBts = 'identidad' | 'formato' | 'elegibilidad';
 export type DescarteBts = { causa: CausaDescarteBts; motivo: string };
 

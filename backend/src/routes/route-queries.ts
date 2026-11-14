@@ -64,10 +64,12 @@ export async function seleccionarConexiones(
         SELECT
           CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN d.id ELSE o.id END AS "origenId",
           CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN o.id ELSE d.id END AS "destinoId",
-          o.cantidad_rutas + d.cantidad_rutas AS score
+          COALESCE(ocount.cantidad,0) + COALESCE(dcount.cantidad,0) AS score
         FROM rutas conexion
         JOIN aeropuertos o ON o.id = conexion.origen_id
         JOIN aeropuertos d ON d.id = conexion.destino_id
+        LEFT JOIN cantidades_rutas_aeropuerto ocount ON ocount.aeropuerto_id=o.id
+        LEFT JOIN cantidades_rutas_aeropuerto dcount ON dcount.aeropuerto_id=d.id
         LEFT JOIN paises oc ON oc.id = o.pais_id
         LEFT JOIN paises dc ON dc.id = d.pais_id
         WHERE conexion.archivado_en IS NULL AND o.archivado_en IS NULL AND d.archivado_en IS NULL

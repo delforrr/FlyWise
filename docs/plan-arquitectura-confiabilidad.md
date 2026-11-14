@@ -80,7 +80,7 @@ Sesiones sugeridas: A T00–T01; B T02–T05; C T06–T09; D T10–T13; E T14–
 
 ### Gobierno de ramas
 
-T00 y T01 se ejecutan sobre feature/integracion-servicios, sin descartar sus cambios locales. Los demás tickets proponen su propia rama. Antes de cualquier modificación comprobar rama y estado. Partir del commit validado que reúne dependencias; cuando aún no haya integración autorizada, usar ramas apiladas explícitas y registrar su base. No asumir dependencias fusionadas. No hacer merge/push sin autorización. Commit atómico solo después del gate. No modificar backend/src ni frontend/app sobre main/master/develop.
+La base común es `feature/integracion-servicios`. Integrar por squash los avances de las ramas de spec que aún no estén en esa base. Crear una rama local por ticket desde integración con sus dependencias verificadas. Al superar el gate, registrar commits atómicos, cerrar el ticket e integrar por squash con una descripción breve del cambio. Retirar las ramas que ya se integraron y dejaron de usarse. Antes de modificar archivos, comprobar rama y estado. Todo merge o push requiere autorización explícita. No modificar `backend/src` ni `frontend/app` sobre `main`, `master` o `develop`.
 
 ### Reconciliación con los tickets anteriores
 

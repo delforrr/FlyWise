@@ -268,7 +268,12 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
               return Promise.resolve(
                 Response.json({
                   data: [
-                    fila(1, 'InGate'),
+                    {
+                      ...fila(1, 'InGate'),
+                      statusDetails: [
+                        { state: 'InGate', updatedAt: '2026-11-01T05:45:00Z' },
+                      ],
+                    },
                     fila(2, 'InGate', '2026-11-01T05:15:01Z'),
                   ],
                   paging: {

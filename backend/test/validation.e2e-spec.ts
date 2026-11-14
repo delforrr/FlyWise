@@ -1,3 +1,4 @@
+import { aeropuertoOpenFlights } from './helpers/identidad-openflights.js';
 import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -134,8 +135,13 @@ describe('Data validation regressions (PostgreSQL)', () => {
               : `2147483001,Preserved aerolinea,Alias,${iata},${icao},Callsign,Argentina,Y\n`;
           const stored = () =>
             dataset === 'aeropuertos'
-              ? tx.orm.public.Aeropuerto.first({ idOpenflights: 2147483001 })
-              : tx.orm.public.Aerolinea.first({ idOpenflights: 2147483001 });
+              ? aeropuertoOpenFlights(tx, 2147483001).first()
+              : tx.orm.public.Aerolinea.where((aerolinea) =>
+                  aerolinea.identidadesFuente.some({
+                    fuente: 'OpenFlights',
+                    identificador: '2147483001',
+                  }),
+                ).first();
           const validIata = dataset === 'aeropuertos' ? 'ZZZ' : 'ZZ';
           const validIcao = dataset === 'aeropuertos' ? 'ZZZZ' : 'ZZZ';
           await writeFile(file, input(validIata, validIcao));

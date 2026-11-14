@@ -8,7 +8,6 @@ import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
   escribirCatalogo,
   proteccionManual,
-  recalcularCantidadRutas,
 } from '../catalogos/catalog-state.js';
 import { escaparLike } from '../prisma/escape-like.js';
 import type { Transaction } from '../prisma/db.js';
@@ -193,7 +192,7 @@ export class RoutesService {
       })
       .orderBy([
         (route, { fns }) =>
-          fns.raw`(SELECT cantidad_rutas FROM aeropuertos WHERE id = (SELECT origen_id FROM rutas WHERE id = ${route.rutaId}))`
+          fns.raw`COALESCE((SELECT cantidad FROM cantidades_rutas_aeropuerto WHERE aeropuerto_id = (SELECT origen_id FROM rutas WHERE id = ${route.rutaId})),0)`
             .returns('pg/int4@1')
             .desc(),
         (route) => route.id.asc(),
@@ -474,7 +473,6 @@ export class RoutesService {
         ...datos,
         protegidoManualmente: true,
       });
-      await recalcularCantidadRutas(tx);
       return registro;
     });
   }
@@ -512,7 +510,6 @@ export class RoutesService {
           actual.protegidoManualmente,
         ),
       });
-      await recalcularCantidadRutas(tx);
       return registro;
     });
   }
@@ -528,7 +525,6 @@ export class RoutesService {
           .replace('T', ' ')
           .replace('Z', ''),
       });
-      await recalcularCantidadRutas(tx);
     });
   }
 
@@ -559,7 +555,6 @@ export class RoutesService {
         fuente: 'Administrativa',
         protegidoManualmente: true,
       });
-      await recalcularCantidadRutas(tx);
       return oferta;
     });
   }
@@ -594,7 +589,6 @@ export class RoutesService {
           actual.protegidoManualmente,
         ),
       });
-      await recalcularCantidadRutas(tx);
       return oferta;
     });
   }
@@ -611,7 +605,6 @@ export class RoutesService {
             .replace('T', ' ')
             .replace('Z', ''),
         });
-      await recalcularCantidadRutas(tx);
     });
   }
 }
