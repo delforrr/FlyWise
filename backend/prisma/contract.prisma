@@ -167,7 +167,7 @@ model OfertaRuta {
 }
 
 model EjecucionEtl {
-  revisionesAnac ActividadAnacRevision[]
+  revisionesAnac RevisionActividad[]
   intento               Int                  @default(0)
   id                    String               @id @onCreate(uuid())
   fuente                String               @map("fuente")
@@ -181,7 +181,7 @@ model EjecucionEtl {
   mensajeError          String?              @map("mensaje_error")
   vuelos               Vuelo[]
   metricas             MetricaRuta[]
-  instantaneasEurocontrol EurocontrolInstantanea[]
+  instantaneasEurocontrol InstantaneaIndicador[]
   procesoId            String?              @map("proceso_id")
   solicitanteId         String?              @map("solicitante_id")
   instantaneaConfiguracion Jsonb?                @map("instantanea_configuracion")
@@ -215,7 +215,7 @@ model ActividadAnacConfiguracion {
   @@map("actividad_anac_config")
 }
 
-model ActividadAnacRevision {
+model RevisionActividad {
   id String @id
   periodo DateString
   uri String
@@ -225,22 +225,22 @@ model ActividadAnacRevision {
   filasDescartadas Int @default(0) @map("filas_descartadas")
   actualizadoEn TimestampString(3) @default(now()) @map("actualizado_en")
   ejecucion EjecucionEtl @relation(fields: [id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  publicaciones ActividadAnacPublicacion[]
-  movimientos ActividadAnacMovimiento[]
+  publicaciones PublicacionActividad[]
+  movimientos MovimientoAeropuerto[]
   @@index([periodo, actualizadoEn], map: "actividad_anac_revisiones_periodo_idx")
   @@check(expression: sql`(EXTRACT(day FROM periodo) = (1)::numeric)`, map: "actividad_anac_revisiones_periodo_check")
   @@check(expression: sql`(estado = ANY (ARRAY['procesando'::text, 'publicada'::text, 'rechazada'::text]))`, map: "actividad_anac_revisiones_estado_check")
-  @@map("actividad_anac_revisiones")
+  @@map("actividad_revisiones")
 }
 
-model ActividadAnacPublicacion {
+model PublicacionActividad {
   periodo DateString @id
   revisionId String @map("revision_id")
-  revision ActividadAnacRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  @@map("actividad_anac_publicaciones")
+  revision RevisionActividad @relation(fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  @@map("actividad_publicaciones")
 }
 
-model ActividadAnacMovimiento {
+model MovimientoAeropuerto {
   revisionId String @map("revision_id")
   numeroFila Int @map("numero_fila")
   fechaUtc TimestampString(6) @map("fecha_utc")
@@ -256,13 +256,13 @@ model ActividadAnacMovimiento {
   pasajeros Int?
   pax Int?
   calidad String
-  revision ActividadAnacRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction, index: false)
+  revision RevisionActividad @relation(fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction, index: false)
   @@id([revisionId, numeroFila])
   @@index([revisionId, aeropuerto, operador, clasificacion], map: "actividad_anac_movimientos_filtros_idx")
   @@check(expression: sql`(movimiento = ANY (ARRAY['DESPEGUE'::text, 'ATERRIZAJE'::text]))`, map: "actividad_anac_movimientos_movimiento_check")
   @@check(expression: sql`(pasajeros >= 0)`, map: "actividad_anac_movimientos_pasajeros_check")
   @@check(expression: sql`(pax >= 0)`, map: "actividad_anac_movimientos_pax_check")
-  @@map("actividad_anac_movimientos")
+  @@map("movimientos_aeropuerto")
 }
 
 model ProcesoEtl {
@@ -410,7 +410,7 @@ model EurocontrolProgramacion {
   @@check(expression: sql`(producto = ANY (ARRAY['network'::text, 'stakeholder'::text]))`, map: "eurocontrol_programacion_producto_check")
   @@map("eurocontrol_programacion")
 }
-model EurocontrolInstantanea {
+model InstantaneaIndicador {
   id String @id
   producto String
   ejecucionId String @unique @map("ejecucion_id")
@@ -424,9 +424,9 @@ model EurocontrolInstantanea {
   ejecucion EjecucionEtl @relation(fields:[ejecucionId],references:[id],onDelete:Restrict)
   indicadores IndicadorExterno[]
   @@index([producto,publicada,creadoEn],map:"eurocontrol_instantaneas_producto_idx")
-  @@check(expression: sql`(producto = ANY (ARRAY['network'::text, 'stakeholder'::text]))`, map: "eurocontrol_instantaneas_producto_check")
+  @@check(expression: sql`(length(btrim(producto)) > 0)`, map: "indicadores_instantaneas_producto_check")
   @@check(expression: sql`(checksum ~ '^[0-9a-f]{64}$'::text)`, map: "eurocontrol_instantaneas_checksum_check")
-  @@map("eurocontrol_instantaneas")
+  @@map("indicadores_instantaneas")
 }
 model IndicadorExterno {
   instantaneaId String @map("instantanea_id")
@@ -437,7 +437,7 @@ model IndicadorExterno {
   desde DateString
   hasta DateString
   valores Jsonb
-  instantanea EurocontrolInstantanea @relation(fields:[instantaneaId],references:[id],onDelete:Restrict)
+  instantanea InstantaneaIndicador @relation(fields:[instantaneaId],references:[id],onDelete:Restrict)
   @@id([instantaneaId,ambito,entidad,granularidad,hasta])
   @@index([ambito,entidad,granularidad,hasta],map:"indicadores_externos_consulta_idx")
   @@map("indicadores_externos")

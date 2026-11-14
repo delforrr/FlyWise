@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { openCsvSource } from '../etl/http-source.js';
-import { readEurocontrolWorkbook } from './eurocontrol-workbook.js';
+import { readEurocontrolWorkbook } from '../adapters/eurocontrol/eurocontrol-workbook.js';
 import {
   EUROCONTROL_PRODUCTS,
   type ConsultaIndicadoresDto,
@@ -224,13 +224,13 @@ export class EurocontrolService implements OnModuleInit {
       id = randomUUID();
     await this.prisma.db.execute(
       this.prisma.db.raw
-        .sql`INSERT INTO eurocontrol_instantaneas(id,producto,ejecucion_id,checksum,uri) VALUES(${id},${producto},${ejecucionId},${checksum},${URLS[producto]}) ON CONFLICT(ejecucion_id) DO NOTHING`
+        .sql`INSERT INTO indicadores_instantaneas(id,producto,ejecucion_id,checksum,uri) VALUES(${id},${producto},${ejecucionId},${checksum},${URLS[producto]}) ON CONFLICT(ejecucion_id) DO NOTHING`
         .affectedCount()
         .build(),
     );
     const [snapshot] = await this.prisma.db.query(
       this.prisma.db.raw
-        .sql`SELECT id,publicada FROM eurocontrol_instantaneas WHERE ejecucion_id=${ejecucionId}`
+        .sql`SELECT id,publicada FROM indicadores_instantaneas WHERE ejecucion_id=${ejecucionId}`
         .returnsRow({ id: 'pg/text@1', publicada: 'pg/bool@1' })
         .build(),
     );
@@ -268,7 +268,7 @@ export class EurocontrolService implements OnModuleInit {
     await this.prisma.db.transaction(async (tx) => {
       await tx.execute(
         tx.raw
-          .sql`UPDATE eurocontrol_instantaneas SET publicada=true,creado_en=now(),checksum=${checksum},aviso=${result.aviso},metodologia=${JSON.stringify(result.metadata)}::jsonb WHERE id=${snapshot.id}`
+          .sql`UPDATE indicadores_instantaneas SET publicada=true,creado_en=now(),checksum=${checksum},aviso=${result.aviso},metodologia=${JSON.stringify(result.metadata)}::jsonb WHERE id=${snapshot.id}`
           .affectedCount()
           .build(),
       );
@@ -302,7 +302,7 @@ export class EurocontrolService implements OnModuleInit {
     const [row] = await this.prisma.db.query(
       this.prisma.db.raw.sql`
       WITH snapshots AS (
-        SELECT DISTINCT ON(producto) * FROM eurocontrol_instantaneas WHERE publicada=true AND (${producto ?? ''}::text = '' OR producto=${producto ?? ''}) AND (${instantaneaId ?? ''}::text = '' OR id=${instantaneaId ?? ''}) ORDER BY producto,creado_en DESC,id DESC
+        SELECT DISTINCT ON(producto) * FROM indicadores_instantaneas WHERE publicada=true AND (${producto ?? ''}::text = '' OR producto=${producto ?? ''}) AND (${instantaneaId ?? ''}::text = '' OR id=${instantaneaId ?? ''}) ORDER BY producto,creado_en DESC,id DESC
       ), datos AS (
         SELECT i.*
         FROM indicadores_externos i JOIN snapshots s ON s.id=i.instantanea_id WHERE (${ambito ?? ''}::text = '' OR i.ambito=${ambito ?? ''}) AND (${entidad ?? ''}::text = '' OR i.entidad=${entidad ?? ''}) AND (${granularidad ?? ''}::text = '' OR i.granularidad=${granularidad ?? ''}) AND (${mes ?? ''}::text = '' OR to_char(i.hasta,'YYYY-MM')=${mes ?? ''})
@@ -323,7 +323,7 @@ export class EurocontrolService implements OnModuleInit {
     const [row] = await this.prisma.db.query(
       this.prisma.db.raw.sql`
         WITH publicadas AS (
-          SELECT id,producto,creado_en,checksum,ejecucion_id FROM eurocontrol_instantaneas
+          SELECT id,producto,creado_en,checksum,ejecucion_id FROM indicadores_instantaneas
           WHERE publicada=true AND (${query.producto ?? ''}='' OR producto=${query.producto ?? ''})
         ), pagina AS (
           SELECT * FROM publicadas ORDER BY creado_en DESC,id DESC LIMIT ${query.limite} OFFSET ${(query.pagina - 1) * query.limite}

@@ -19,7 +19,7 @@ import {
   fechaUtcAnac,
   normalizarMovimiento,
   type MovimientoAnac,
-} from './anac.js';
+} from '../adapters/anac/anac.js';
 import type {
   ConfiguracionAnacDto,
   ConsultaActividadDto,
@@ -216,7 +216,7 @@ export class ActividadService implements OnModuleInit {
     // A retry may replace only unpublished staging rows.
     const [revision] = await db.query(
       db.raw
-        .sql`INSERT INTO actividad_anac_revisiones(id,periodo,uri) VALUES (${ejecucionId},${`${periodo}-01`}::date,${uri}) ON CONFLICT(id) DO UPDATE SET estado='procesando',filas_procesadas=0,filas_descartadas=0,checksum=NULL,uri=EXCLUDED.uri WHERE actividad_anac_revisiones.estado<>'publicada' RETURNING id`
+        .sql`INSERT INTO actividad_revisiones(id,periodo,uri) VALUES (${ejecucionId},${`${periodo}-01`}::date,${uri}) ON CONFLICT(id) DO UPDATE SET estado='procesando',filas_procesadas=0,filas_descartadas=0,checksum=NULL,uri=EXCLUDED.uri WHERE actividad_revisiones.estado<>'publicada' RETURNING id`
         .returnsRow({ id: 'pg/text@1' })
         .build(),
     );
@@ -226,7 +226,7 @@ export class ActividadService implements OnModuleInit {
     }
     await db.execute(
       db.raw
-        .sql`DELETE FROM actividad_anac_movimientos WHERE revision_id=${ejecucionId}`
+        .sql`DELETE FROM movimientos_aeropuerto WHERE revision_id=${ejecucionId}`
         .affectedCount()
         .build(),
     );
@@ -245,7 +245,7 @@ export class ActividadService implements OnModuleInit {
       if (!batch.length) return;
       await db.execute(
         db.raw
-          .sql`INSERT INTO actividad_anac_movimientos(revision_id,numero_fila,fecha_utc,movimiento,aeropuerto,origen,destino,operador,clase,clasificacion,aeronave,matricula,pasajeros,pax,calidad)
+          .sql`INSERT INTO movimientos_aeropuerto(revision_id,numero_fila,fecha_utc,movimiento,aeropuerto,origen,destino,operador,clase,clasificacion,aeronave,matricula,pasajeros,pax,calidad)
         SELECT ${ejecucionId},x."numeroFila",x."fechaUtc"::timestamptz AT TIME ZONE 'UTC',x.movimiento,x.aeropuerto,x.origen,x.destino,x.operador,x.clase,x.clasificacion,x.aeronave,x.matricula,x.pasajeros,x.pax,x.calidad
         FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb) AS x("numeroFila" int,"fechaUtc" text,movimiento text,aeropuerto text,origen text,destino text,operador text,clase text,clasificacion text,aeronave text,matricula text,pasajeros int,pax int,calidad text)`
           .affectedCount()
@@ -326,13 +326,13 @@ export class ActividadService implements OnModuleInit {
         );
         await tx.execute(
           tx.raw
-            .sql`UPDATE actividad_anac_revisiones SET estado='publicada',checksum=${checksum},filas_procesadas=${processed},filas_descartadas=0,actualizado_en=CURRENT_TIMESTAMP WHERE id=${ejecucionId}`
+            .sql`UPDATE actividad_revisiones SET estado='publicada',checksum=${checksum},filas_procesadas=${processed},filas_descartadas=0,actualizado_en=CURRENT_TIMESTAMP WHERE id=${ejecucionId}`
             .affectedCount()
             .build(),
         );
         await tx.execute(
           tx.raw
-            .sql`INSERT INTO actividad_anac_publicaciones(periodo,revision_id) VALUES (${`${periodo}-01`}::date,${ejecucionId}) ON CONFLICT(periodo) DO UPDATE SET revision_id=EXCLUDED.revision_id`
+            .sql`INSERT INTO actividad_publicaciones(periodo,revision_id) VALUES (${`${periodo}-01`}::date,${ejecucionId}) ON CONFLICT(periodo) DO UPDATE SET revision_id=EXCLUDED.revision_id`
             .affectedCount()
             .build(),
         );
@@ -360,7 +360,7 @@ export class ActividadService implements OnModuleInit {
     } catch (error) {
       await db.execute(
         db.raw
-          .sql`UPDATE actividad_anac_revisiones SET estado='rechazada',filas_procesadas=${processed},filas_descartadas=${discarded},actualizado_en=CURRENT_TIMESTAMP WHERE id=${ejecucionId}`
+          .sql`UPDATE actividad_revisiones SET estado='rechazada',filas_procesadas=${processed},filas_descartadas=${discarded},actualizado_en=CURRENT_TIMESTAMP WHERE id=${ejecucionId}`
           .affectedCount()
           .build(),
       );
@@ -380,8 +380,8 @@ export class ActividadService implements OnModuleInit {
     const db = this.prisma.db;
     const [row] = await db.query(
       db.raw.sql`
-      WITH vigente AS (SELECT r.* FROM actividad_anac_publicaciones p JOIN actividad_anac_revisiones r ON r.id=p.revision_id WHERE p.periodo=${`${dto.periodo}-01`}::date),
-      filtrados AS (SELECT m.* FROM actividad_anac_movimientos m JOIN vigente v ON m.revision_id=v.id
+      WITH vigente AS (SELECT r.* FROM actividad_publicaciones p JOIN actividad_revisiones r ON r.id=p.revision_id WHERE p.periodo=${`${dto.periodo}-01`}::date),
+      filtrados AS (SELECT m.* FROM movimientos_aeropuerto m JOIN vigente v ON m.revision_id=v.id
         WHERE (${dto.aeropuerto ?? ''}='' OR m.aeropuerto=${dto.aeropuerto ?? ''}) AND (${dto.operador ?? ''}='' OR m.operador=${dto.operador ?? ''})
         AND (${dto.clasificacion ?? ''}='' OR m.clasificacion=${dto.clasificacion ?? ''}) AND (${dto.calidad ?? ''}='' OR m.calidad=${dto.calidad ?? ''})
         AND (${dto.movimiento ?? ''}='' OR m.movimiento=${dto.movimiento ?? ''}) AND (NOT ${conectividad} OR m.movimiento='DESPEGUE')),
@@ -427,7 +427,7 @@ export class ActividadService implements OnModuleInit {
     const db = this.prisma.db;
     const [row] = await db.query(
       db.raw
-        .sql`SELECT COALESCE(json_agg(x),'[]')::text AS json FROM (SELECT r.id,r.periodo,r.estado,r.checksum,r.uri,r.filas_procesadas AS "filasProcesadas",r.filas_descartadas AS "filasDescartadas",r.actualizado_en AS "actualizadoEn",(p.revision_id=r.id) AS vigente FROM actividad_anac_revisiones r LEFT JOIN actividad_anac_publicaciones p ON p.periodo=r.periodo WHERE r.periodo=${`${periodo}-01`}::date ORDER BY r.actualizado_en DESC LIMIT 20) x`
+        .sql`SELECT COALESCE(json_agg(x),'[]')::text AS json FROM (SELECT r.id,r.periodo,r.estado,r.checksum,r.uri,r.filas_procesadas AS "filasProcesadas",r.filas_descartadas AS "filasDescartadas",r.actualizado_en AS "actualizadoEn",(p.revision_id=r.id) AS vigente FROM actividad_revisiones r LEFT JOIN actividad_publicaciones p ON p.periodo=r.periodo WHERE r.periodo=${`${periodo}-01`}::date ORDER BY r.actualizado_en DESC LIMIT 20) x`
         .returnsRow({ json: 'pg/text@1' })
         .build(),
     );
@@ -438,7 +438,7 @@ export class ActividadService implements OnModuleInit {
     const db = this.prisma.db;
     const [row] = await db.query(
       db.raw
-        .sql`WITH codigos AS (SELECT m.origen AS codigo FROM actividad_anac_movimientos m JOIN actividad_anac_publicaciones p ON p.revision_id=m.revision_id WHERE p.periodo=${`${dto.periodo}-01`}::date UNION SELECT m.destino FROM actividad_anac_movimientos m JOIN actividad_anac_publicaciones p ON p.revision_id=m.revision_id WHERE p.periodo=${`${dto.periodo}-01`}::date)
+        .sql`WITH codigos AS (SELECT m.origen AS codigo FROM movimientos_aeropuerto m JOIN actividad_publicaciones p ON p.revision_id=m.revision_id WHERE p.periodo=${`${dto.periodo}-01`}::date UNION SELECT m.destino FROM movimientos_aeropuerto m JOIN actividad_publicaciones p ON p.revision_id=m.revision_id WHERE p.periodo=${`${dto.periodo}-01`}::date)
       SELECT COALESCE(json_agg(x),'[]')::text AS json FROM (SELECT c.codigo,i.aeropuerto_id AS "aeropuertoId",a.nombre FROM codigos c LEFT JOIN identidades_aeropuerto_fuente i ON i.fuente='ANAC' AND i.identificador=c.codigo LEFT JOIN aeropuertos a ON a.id=i.aeropuerto_id ORDER BY c.codigo LIMIT ${dto.limite} OFFSET ${(dto.pagina - 1) * dto.limite}) x`
         .returnsRow({ json: 'pg/text@1' })
         .build(),

@@ -2,7 +2,7 @@ import {
   normalizarBts,
   type FilaBts,
   type OperacionBts,
-} from './operacion-bts.js';
+} from '../adapters/bts/operacion-bts.js';
 import {
   BadRequestException,
   ConflictException,
@@ -23,7 +23,7 @@ import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import csv from 'csv-parser';
 import { createHash } from 'node:crypto';
-import { abrirCsvBts, descargarBts } from './bts-source.js';
+import { abrirCsvBts, descargarBts } from '../adapters/bts/bts-source.js';
 import { retirarAusentesBts } from './retiros-bts.js';
 import { VuelosService } from '../vuelos/vuelos.service.js';
 import type { Operacion } from '../vuelos/operacion.js';

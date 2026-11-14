@@ -6,7 +6,7 @@ import { Transform, Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { crc32 } from 'node:zlib';
 import yauzl, { type Entry, type ZipFile } from 'yauzl';
-import { openCsvSource } from '../etl/http-source.js';
+import { openCsvSource } from '../../etl/http-source.js';
 
 const MAX_ZIP = 128 * 1024 * 1024;
 const MAX_CSV = 1024 * 1024 * 1024;

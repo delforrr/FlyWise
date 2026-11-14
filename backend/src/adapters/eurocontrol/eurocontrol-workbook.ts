@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { withWorkbookArchive } from './workbook-archive.js';
-import type { EurocontrolProduct } from './indicadores.dto.js';
+import type { EurocontrolProduct } from '../../indicadores/indicadores.dto.js';
 
 const DAY_MS = 86_400_000;
 const RATIOS = ['ARR_PUN', 'DEP_PUN', 'OPE_SCH'];
