@@ -1,3 +1,5 @@
+import { ultimoDiaDelMes } from '../../prisma/timestamp.js';
+import { not } from '@prisma/orm-postgres/orm-client';
 import { admiteFuente } from '../../metrics/domain/autoridad-publicacion.js';
 import {
   prepararPublicacionOag,
@@ -270,12 +272,10 @@ export class OagService implements OnModuleInit {
     )
       checkpoint = undefined;
     const ejecucion = await this.prisma.db.transaction(async (tx) => {
-      const [proceso] = await tx.query(
-        tx.raw
-          .sql`SELECT pausado FROM procesos_etl WHERE id=${PROCESO_ID} FOR UPDATE`
-          .returnsRow({ pausado: 'pg/bool@1' })
-          .build(),
-      );
+      const proceso = await tx.orm.public.ProcesoEtl.where({ id: PROCESO_ID })
+        .select('pausado')
+        .forUpdate()
+        .first();
       if (!proceso || proceso.pausado)
         throw new ConflictException('OAG pausado');
       await exigirIngestaDisponible(tx);
@@ -340,21 +340,30 @@ export class OagService implements OnModuleInit {
       );
     if (!trabajo?.data.checkpoint || !ejecucion.iniciadoEn)
       return this.ejecutar(solicitanteId, alcance);
-    const [publicacionPosterior] = await this.prisma.db.query(
-      this.prisma.db.raw.sql`
-        SELECT 1 AS existe FROM metricas_ruta
-        WHERE origen_id=${alcance.origenId} AND destino_id=${alcance.destinoId}
-          AND periodo=${alcance.periodo + '-01'}::date AND fuentes ? 'OAG'
-          AND actualizado_en > ${ejecucion.iniciadoEn}::timestamp
-        LIMIT 1
-      `
-        .returnsRow({ existe: 'pg/int4@1' })
-        .build(),
+    const publicacionPosterior = await this.hayPublicacionPosterior(
+      alcance,
+      ejecucion.iniciadoEn,
     );
     return this.ejecutar(
       solicitanteId,
       alcance,
       publicacionPosterior ? undefined : trabajo?.data.checkpoint,
+    );
+  }
+
+  private async hayPublicacionPosterior(
+    alcance: AlcanceOag,
+    iniciadoEn: string,
+  ) {
+    const publicaciones = await leerPublicacionesDelTramo(
+      this.prisma.db,
+      alcance,
+    );
+    return publicaciones.some(
+      (actual) =>
+        actual.incluyeOag &&
+        actual.actualizadoEn !== null &&
+        actual.actualizadoEn > iniciadoEn,
     );
   }
 
@@ -466,13 +475,14 @@ export class OagService implements OnModuleInit {
       descartadas = total - observaciones.length;
       await this.prisma.db.transaction(async (tx) => {
         await bloquearCambiosMetricas(tx);
-        const [activa] = await tx.query(
-          tx.raw.sql`
-          SELECT id FROM ejecuciones_etl WHERE id=${id} AND intento=${intento} AND estado='running' FOR UPDATE
-        `
-            .returnsRow({ id: 'pg/text@1' })
-            .build(),
-        );
+        const activa = await tx.orm.public.EjecucionEtl.where({
+          id,
+          intento,
+          estado: 'running',
+        })
+          .select('id')
+          .forUpdate()
+          .first();
         if (!activa) return;
         const autoridades = await leerPublicacionesDelTramo(tx, alcance);
         const perdioCobertura = autoridades.some(
@@ -597,19 +607,22 @@ export class OagService implements OnModuleInit {
     { origenId, destinoId, periodo }: AlcanceOag,
     identidades: string[],
   ) {
-    const [faltante] = await tx.query(
-      tx.raw.sql`
-      SELECT aerolinea_id AS id FROM vuelos
-      WHERE origen_id=${origenId} AND destino_id=${destinoId}
-        AND fecha_vuelo>=${periodo + '-01'}::date
-        AND fecha_vuelo<${periodo + '-01'}::date+interval '1 month'
-        AND fuente='OAG' AND archivado_en IS NULL AND NOT protegido_manualmente
-        AND NOT (${JSON.stringify(identidades)}::jsonb ? id_registro_fuente)
-      LIMIT 1
-    `
-        .returnsRow({ id: 'pg/text@1' })
-        .build(),
-    );
+    const desde = periodo + '-01';
+    const hasta = ultimoDiaDelMes(desde);
+    let vuelos = tx.orm.public.Vuelo.where({
+      origenId,
+      destinoId,
+      fuente,
+      archivadoEn: null,
+      protegidoManualmente: false,
+    })
+      .where((vuelo) => vuelo.fechaVuelo.gte(desde))
+      .where((vuelo) => vuelo.fechaVuelo.lte(hasta));
+    if (identidades.length)
+      vuelos = vuelos.where((vuelo) =>
+        not(vuelo.idRegistroFuente.in(identidades)),
+      );
+    const faltante = await vuelos.select('id').first();
     return Boolean(faltante);
   }
 

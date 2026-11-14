@@ -29,11 +29,7 @@ export class HealthController {
     let redisStatus = 'down';
 
     try {
-      await this.prisma.db.query(
-        this.prisma.db.raw.sql`SELECT 1 AS ok`
-          .returnsRow({ ok: 'pg/int4@1' })
-          .build(),
-      );
+      await this.prisma.models.ProcesoEtl.select('id').first();
       dbStatus = 'up';
     } catch {
       dbStatus = 'down';

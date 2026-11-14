@@ -125,16 +125,23 @@ export class PipelinesService implements OnModuleInit {
   private async reconcileFailedExecutions() {
     let cursor = '';
     for (;;) {
-      const rows = await this.prisma.db.query(
-        this.prisma.db.raw.sql`
-          SELECT id, intento FROM ejecuciones_etl
-          WHERE estado = 'running' AND id > ${cursor}
-            AND fuente IN ('paises', 'aeropuertos', 'aerolineas', 'rutas', 'all')
-          ORDER BY id LIMIT 100
-        `
-          .returnsRow({ id: 'pg/text@1', intento: 'pg/int4@1' })
-          .build(),
-      );
+      const rows = await this.prisma.models.EjecucionEtl.where({
+        estado: 'running',
+      })
+        .where((row) => row.id.gt(cursor))
+        .where((row) =>
+          row.fuente.in([
+            'paises',
+            'aeropuertos',
+            'aerolineas',
+            'rutas',
+            'all',
+          ]),
+        )
+        .select('id', 'intento')
+        .orderBy((row) => row.id.asc())
+        .limit(100)
+        .all();
       for (const { id, intento } of rows) {
         const job = await this.queue.getJob(id);
         if (!job || (await job.getState()) !== 'failed') continue;

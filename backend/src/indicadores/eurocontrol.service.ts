@@ -53,13 +53,15 @@ export class EurocontrolService implements OnModuleInit {
     for (const producto of EUROCONTROL_PRODUCTS) {
       let cursor = '';
       for (;;) {
-        const executions = await this.prisma.db.query(
-          this.prisma.db.raw.sql`SELECT id FROM ejecuciones_etl
-            WHERE fuente=${`EUROCONTROL:${producto}`} AND estado IN ('pending','running') AND id>${cursor}
-            ORDER BY id LIMIT 100`
-            .returnsRow({ id: 'pg/text@1' })
-            .build(),
-        );
+        const executions = await this.prisma.models.EjecucionEtl.where({
+          fuente: `EUROCONTROL:${producto}`,
+        })
+          .where((row) => row.estado.in(['pending', 'running']))
+          .where((row) => row.id.gt(cursor))
+          .select('id')
+          .orderBy((row) => row.id.asc())
+          .limit(100)
+          .all();
         for (const { id } of executions) {
           const job = await this.queue.getJob(id);
           const state = await job?.getState();
@@ -107,11 +109,11 @@ export class EurocontrolService implements OnModuleInit {
     return rows.map((row) => row.dato);
   }
   async schedule(producto: EurocontrolProduct, pausado: boolean) {
-    await this.prisma.db.execute(
-      this.prisma.db.raw
-        .sql`UPDATE eurocontrol_programacion SET pausado=${pausado},actualizado_en=now() WHERE producto=${producto}`
-        .affectedCount()
-        .build(),
+    await this.prisma.models.EurocontrolProgramacion.where({ producto }).update(
+      {
+        pausado,
+        actualizadoEn: new Date().toISOString().slice(0, -1).replace('T', ' '),
+      },
     );
     return { producto, pausado, programacionUtc: '0 4 1 * *' };
   }
@@ -121,12 +123,11 @@ export class EurocontrolService implements OnModuleInit {
     scheduled = false,
   ) {
     if (scheduled) {
-      const [state] = await this.prisma.db.query(
-        this.prisma.db.raw
-          .sql`SELECT pausado FROM eurocontrol_programacion WHERE producto=${producto}`
-          .returnsRow({ pausado: 'pg/bool@1' })
-          .build(),
-      );
+      const state = await this.prisma.models.EurocontrolProgramacion.where({
+        producto,
+      })
+        .select('pausado')
+        .first();
       if (!state || state.pausado) return { pausado: true };
     }
     const job = await this.prisma.db.transaction(async (tx) => {
@@ -203,6 +204,30 @@ export class EurocontrolService implements OnModuleInit {
       throw error;
     }
   }
+  private async prepararInstantanea(
+    ejecucionId: string,
+    producto: EurocontrolProduct,
+    checksum: string,
+  ) {
+    const id = randomUUID();
+    await this.prisma.models.InstantaneaIndicador.createAndCount(
+      [{ id, producto, ejecucionId, checksum, uri: URLS[producto] }],
+      { onConflict: 'skip' },
+    );
+    const snapshot = await this.prisma.models.InstantaneaIndicador.select(
+      'id',
+      'publicada',
+    ).firstOrThrow({ ejecucionId });
+    if (snapshot.publicada)
+      throw new BadRequestException(
+        'La ejecución ya tiene una instantánea publicada',
+      );
+    await this.prisma.models.IndicadorExterno.where({
+      instantaneaId: snapshot.id,
+    }).deleteAndCount();
+    return snapshot;
+  }
+
   async importWorkbook(
     producto: EurocontrolProduct,
     path: string,
@@ -220,40 +245,19 @@ export class EurocontrolService implements OnModuleInit {
     const hash = createHash('sha256');
     for await (const chunk of createReadStream(path))
       hash.update(chunk as Buffer);
-    const checksum = hash.digest('hex'),
-      id = randomUUID();
-    await this.prisma.db.execute(
-      this.prisma.db.raw
-        .sql`INSERT INTO indicadores_instantaneas(id,producto,ejecucion_id,checksum,uri) VALUES(${id},${producto},${ejecucionId},${checksum},${URLS[producto]}) ON CONFLICT(ejecucion_id) DO NOTHING`
-        .affectedCount()
-        .build(),
-    );
-    const [snapshot] = await this.prisma.db.query(
-      this.prisma.db.raw
-        .sql`SELECT id,publicada FROM indicadores_instantaneas WHERE ejecucion_id=${ejecucionId}`
-        .returnsRow({ id: 'pg/text@1', publicada: 'pg/bool@1' })
-        .build(),
-    );
-    if (snapshot.publicada)
-      throw new BadRequestException(
-        'La ejecución ya tiene una instantánea publicada',
-      );
-    await this.prisma.db.execute(
-      this.prisma.db.raw
-        .sql`DELETE FROM indicadores_externos WHERE instantanea_id=${snapshot.id}`
-        .affectedCount()
-        .build(),
+    const checksum = hash.digest('hex');
+    const snapshot = await this.prepararInstantanea(
+      ejecucionId,
+      producto,
+      checksum,
     );
     let processed = 0;
     const result = await readEurocontrolWorkbook(
       path,
       producto,
       async (rows) => {
-        await this.prisma.db.execute(
-          this.prisma.db.raw
-            .sql`INSERT INTO indicadores_externos(instantanea_id,ambito,entidad,nombre,granularidad,desde,hasta,valores) SELECT ${snapshot.id},r.ambito,r.entidad,r.nombre,r.granularidad,r.desde,r.hasta,r.valores FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS r(ambito text,entidad text,nombre text,granularidad text,desde date,hasta date,valores jsonb)`
-            .affectedCount()
-            .build(),
+        await this.prisma.models.IndicadorExterno.createAndCount(
+          rows.map((row) => ({ ...row, instantaneaId: snapshot.id })),
         );
         processed += rows.length;
         await this.prisma.models.EjecucionEtl.where({ id: ejecucionId }).update(
@@ -266,12 +270,15 @@ export class EurocontrolService implements OnModuleInit {
       },
     );
     await this.prisma.db.transaction(async (tx) => {
-      await tx.execute(
-        tx.raw
-          .sql`UPDATE indicadores_instantaneas SET publicada=true,creado_en=now(),checksum=${checksum},aviso=${result.aviso},metodologia=${JSON.stringify(result.metadata)}::jsonb WHERE id=${snapshot.id}`
-          .affectedCount()
-          .build(),
-      );
+      await tx.orm.public.InstantaneaIndicador.where({
+        id: snapshot.id,
+      }).update({
+        publicada: true,
+        creadoEn: new Date().toISOString().slice(0, -1).replace('T', ' '),
+        checksum,
+        aviso: result.aviso,
+        metodologia: result.metadata,
+      });
       await tx.orm.public.EjecucionEtl.where({ id: ejecucionId }).update({
         estado: 'completed',
         finalizadoEn: new Date()

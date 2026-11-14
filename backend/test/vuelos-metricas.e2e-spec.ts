@@ -62,6 +62,7 @@ describe('Operaciones y OTP mensual por HTTP', () => {
               useValue: {
                 models: tx.orm.public,
                 db: {
+                  orm: tx.orm,
                   raw: tx.raw,
                   query: tx.query.bind(tx),
                   execute: tx.execute.bind(tx),

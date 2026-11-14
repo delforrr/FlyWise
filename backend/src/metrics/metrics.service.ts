@@ -1,3 +1,4 @@
+import { and } from '@prisma/orm-postgres/orm-client';
 import { consultarContextoRuta } from './contexto-ruta.js';
 import { porcentajeOtp } from './domain/otp.js';
 import {
@@ -45,44 +46,41 @@ export class MetricsService {
   }
 
   private async periodoInicialMapa(periodos: string[]) {
-    const { db } = this.prisma;
-    const [mes] = await db.query(
-      db.raw.sql`
-        SELECT to_char(max(periodo), 'YYYY-MM') AS periodo
-        FROM metricas_ruta
-        WHERE periodo BETWEEN ${periodos.at(-1) + '-01'}::date AND ${periodos[0] + '-01'}::date
-          AND actualizado_en IS NOT NULL AND vuelos_totales > 0
-      `
-        .returnsRow({ periodo: { codecId: 'pg/text@1', nullable: true } })
-        .build(),
-    );
-    return mes.periodo;
+    const mes = await this.prisma.models.MetricaRuta.where((m) =>
+      m.periodo.gte(periodos.at(-1) + '-01'),
+    )
+      .where((m) => m.periodo.lte(periodos[0] + '-01'))
+      .where((m) => m.actualizadoEn.isNotNull())
+      .where((m) => m.vuelosTotales.gt(0))
+      .select('periodo')
+      .orderBy((m) => m.periodo.desc())
+      .first();
+    return mes?.periodo.slice(0, 7) ?? null;
   }
 
   async opcionesMapa() {
-    const { db } = this.prisma;
     const periodos = periodosCerradosMapa();
     const [periodoInicial, aerolineas] = await Promise.all([
       this.periodoInicialMapa(periodos),
-      db.query(
-        db.raw.sql`
-        SELECT a.id, a.nombre, a.iata FROM aerolineas a
-        WHERE EXISTS (
-          SELECT 1 FROM metricas_ruta m WHERE m.aerolinea_id=a.id
-            AND m.periodo BETWEEN ${periodos.at(-1) + '-01'}::date AND ${periodos[0] + '-01'}::date
-            AND m.actualizado_en IS NOT NULL AND m.vuelos_totales > 0
-        )
-        ORDER BY a.nombre, a.id
-      `
-          .returnsRow({
-            id: 'pg/text@1',
-            nombre: 'pg/text@1',
-            iata: { codecId: 'pg/text@1', nullable: true },
-          })
-          .build(),
-      ),
+      this.listarAerolineasDelMapa(periodos),
     ]);
     return { periodoInicial, periodos, aerolineas };
+  }
+
+  private listarAerolineasDelMapa(periodos: string[]) {
+    return this.prisma.models.Aerolinea.where((a) =>
+      a.metricas.some((m) =>
+        and(
+          m.periodo.gte(periodos.at(-1) + '-01'),
+          m.periodo.lte(periodos[0] + '-01'),
+          m.actualizadoEn.isNotNull(),
+          m.vuelosTotales.gt(0),
+        ),
+      ),
+    )
+      .select('id', 'nombre', 'iata')
+      .orderBy([(a) => a.nombre.asc(), (a) => a.id.asc()])
+      .all();
   }
 
   contextoRuta(consulta: ContextoRutaDto) {

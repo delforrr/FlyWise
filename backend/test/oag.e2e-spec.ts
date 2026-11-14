@@ -70,6 +70,7 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
               useValue: {
                 models: tx.orm.public,
                 db: {
+                  orm: tx.orm,
                   raw: tx.raw,
                   query: tx.query.bind(tx),
                   transaction: async <T>(

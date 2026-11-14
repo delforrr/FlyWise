@@ -50,27 +50,22 @@ export class ActividadService implements OnModuleInit {
   }
 
   async configuracion(): Promise<ConfiguracionAnac> {
-    const [row] = await this.prisma.db.query(
-      this.prisma.db.raw
-        .sql`SELECT ficha_url AS "fichaUrl",expresion_cron AS "expresionCron",pausado FROM actividad_anac_config WHERE id='ANAC'`
-        .returnsRow({
-          fichaUrl: 'pg/text@1',
-          expresionCron: 'pg/text@1',
-          pausado: 'pg/bool@1',
-        })
-        .build(),
-    );
-    return row;
+    return this.prisma.models.ActividadAnacConfiguracion.select(
+      'fichaUrl',
+      'expresionCron',
+      'pausado',
+    ).firstOrThrow({ id: 'ANAC' });
   }
 
   async guardarConfiguracion(dto: ConfiguracionAnacDto) {
     this.validarFicha(dto.fichaUrl);
-    await this.prisma.db.execute(
-      this.prisma.db.raw
-        .sql`UPDATE actividad_anac_config SET ficha_url=${dto.fichaUrl},expresion_cron=${dto.expresionCron},pausado=${dto.pausado} WHERE id='ANAC'`
-        .affectedCount()
-        .build(),
-    );
+    await this.prisma.models.ActividadAnacConfiguracion.where({
+      id: 'ANAC',
+    }).update({
+      fichaUrl: dto.fichaUrl,
+      expresionCron: dto.expresionCron,
+      pausado: dto.pausado,
+    });
     await this.programar(dto);
     return dto;
   }
@@ -204,6 +199,16 @@ export class ActividadService implements OnModuleInit {
     };
   }
 
+  private guardarMovimientos(revisionId: string, filas: MovimientoAnac[]) {
+    return this.prisma.models.MovimientoAeropuerto.createAndCount(
+      filas.map(({ fechaUtc, ...fila }) => ({
+        ...fila,
+        revisionId,
+        fechaUtc: fechaUtc.slice(0, -1).replace('T', ' '),
+      })),
+    );
+  }
+
   async importar(
     fuente: Readable,
     periodo: string,
@@ -224,12 +229,9 @@ export class ActividadService implements OnModuleInit {
       fuente.destroy();
       return;
     }
-    await db.execute(
-      db.raw
-        .sql`DELETE FROM movimientos_aeropuerto WHERE revision_id=${ejecucionId}`
-        .affectedCount()
-        .build(),
-    );
+    await this.prisma.models.MovimientoAeropuerto.where({
+      revisionId: ejecucionId,
+    }).deleteAndCount();
     const job = await this.prisma.models.EjecucionEtl.firstOrThrow({
       id: ejecucionId,
     });
@@ -243,14 +245,7 @@ export class ActividadService implements OnModuleInit {
     let batch: MovimientoAnac[] = [];
     const flush = async () => {
       if (!batch.length) return;
-      await db.execute(
-        db.raw
-          .sql`INSERT INTO movimientos_aeropuerto(revision_id,numero_fila,fecha_utc,movimiento,aeropuerto,origen,destino,operador,clase,clasificacion,aeronave,matricula,pasajeros,pax,calidad)
-        SELECT ${ejecucionId},x."numeroFila",x."fechaUtc"::timestamptz AT TIME ZONE 'UTC',x.movimiento,x.aeropuerto,x.origen,x.destino,x.operador,x.clase,x.clasificacion,x.aeronave,x.matricula,x.pasajeros,x.pax,x.calidad
-        FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb) AS x("numeroFila" int,"fechaUtc" text,movimiento text,aeropuerto text,origen text,destino text,operador text,clase text,clasificacion text,aeronave text,matricula text,pasajeros int,pax int,calidad text)`
-          .affectedCount()
-          .build(),
-      );
+      await this.guardarMovimientos(ejecucionId, batch);
       processed += batch.length;
       batch = [];
     };
@@ -324,18 +319,22 @@ export class ActividadService implements OnModuleInit {
             .affectedCount()
             .build(),
         );
-        await tx.execute(
-          tx.raw
-            .sql`UPDATE actividad_revisiones SET estado='publicada',checksum=${checksum},filas_procesadas=${processed},filas_descartadas=0,actualizado_en=CURRENT_TIMESTAMP WHERE id=${ejecucionId}`
-            .affectedCount()
-            .build(),
+        await tx.orm.public.RevisionActividad.where({ id: ejecucionId }).update(
+          {
+            estado: 'publicada',
+            checksum,
+            filasProcesadas: processed,
+            filasDescartadas: 0,
+            actualizadoEn: new Date()
+              .toISOString()
+              .slice(0, -1)
+              .replace('T', ' '),
+          },
         );
-        await tx.execute(
-          tx.raw
-            .sql`INSERT INTO actividad_publicaciones(periodo,revision_id) VALUES (${`${periodo}-01`}::date,${ejecucionId}) ON CONFLICT(periodo) DO UPDATE SET revision_id=EXCLUDED.revision_id`
-            .affectedCount()
-            .build(),
-        );
+        await tx.orm.public.PublicacionActividad.upsert({
+          create: { periodo: periodo + '-01', revisionId: ejecucionId },
+          update: { revisionId: ejecucionId },
+        });
         await tx.orm.public.EjecucionEtl.where({ id: ejecucionId }).update({
           estado: 'completed',
           finalizadoEn: new Date()
@@ -358,12 +357,14 @@ export class ActividadService implements OnModuleInit {
       });
       return { processed, discarded, checksum };
     } catch (error) {
-      await db.execute(
-        db.raw
-          .sql`UPDATE actividad_revisiones SET estado='rechazada',filas_procesadas=${processed},filas_descartadas=${discarded},actualizado_en=CURRENT_TIMESTAMP WHERE id=${ejecucionId}`
-          .affectedCount()
-          .build(),
-      );
+      await this.prisma.models.RevisionActividad.where({
+        id: ejecucionId,
+      }).update({
+        estado: 'rechazada',
+        filasProcesadas: processed,
+        filasDescartadas: discarded,
+        actualizadoEn: new Date().toISOString().slice(0, -1).replace('T', ' '),
+      });
       await this.prisma.models.EjecucionEtl.where({ id: ejecucionId }).update({
         filasTotales: processed + discarded,
         filasProcesadas: processed,
@@ -453,12 +454,15 @@ export class ActividadService implements OnModuleInit {
     });
     if (!airport)
       throw new BadRequestException('Aeropuerto inexistente o archivado');
-    await this.prisma.db.execute(
-      this.prisma.db.raw
-        .sql`INSERT INTO identidades_aeropuerto_fuente(fuente,identificador,aeropuerto_id,observacion) VALUES ('ANAC',${dto.codigo},${dto.aeropuertoId},'{}'::jsonb) ON CONFLICT(fuente,identificador) DO UPDATE SET aeropuerto_id=EXCLUDED.aeropuerto_id`
-        .affectedCount()
-        .build(),
-    );
+    await this.prisma.models.IdentidadAeropuertoFuente.upsert({
+      create: {
+        fuente: 'ANAC',
+        identificador: dto.codigo,
+        aeropuertoId: dto.aeropuertoId,
+        observacion: {},
+      },
+      update: { aeropuertoId: dto.aeropuertoId },
+    });
     return dto;
   }
 }
