@@ -1,3 +1,4 @@
+import { CatalogImportService } from './catalog-import.service.js';
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { EtlService } from './etl.service.js';
@@ -14,7 +15,6 @@ import { CatalogIdentitiesController } from './catalog-identities.controller.js'
     }),
   ],
   controllers: [EtlController, PipelineController, CatalogIdentitiesController],
-  providers: [EtlService, EtlProcessor, PipelinesService],
-  exports: [EtlService],
+  providers: [CatalogImportService, EtlService, EtlProcessor, PipelinesService],
 })
 export class EtlModule {}

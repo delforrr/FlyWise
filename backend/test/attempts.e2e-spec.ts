@@ -4,7 +4,7 @@ import { Queue, QueueEvents, Worker } from 'bullmq';
 import { randomUUID } from 'node:crypto';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { EtlService } from '../src/etl/etl.service.js';
+import { CatalogImportService } from '../src/etl/catalog-import.service.js';
 import { EtlProcessor } from '../src/etl/etl.processor.js';
 import { PipelinesService } from '../src/etl/pipelines.service.js';
 
@@ -34,7 +34,7 @@ describe('Attempt audit (real BullMQ and PostgreSQL)', () => {
         await db.transaction(async (tx) => {
           const module = await Test.createTestingModule({
             providers: [
-              EtlService,
+              CatalogImportService,
               EtlProcessor,
               PipelinesService,
               { provide: getQueueToken('etl-queue'), useValue: queue },

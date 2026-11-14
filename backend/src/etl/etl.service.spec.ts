@@ -1,3 +1,4 @@
+import { CatalogImportService } from './catalog-import.service.js';
 import {
   mockCollection,
   mockDatabase,
@@ -14,6 +15,7 @@ import { BadRequestException } from '@nestjs/common';
 
 describe('EtlService', () => {
   let service: EtlService;
+  let catalog: CatalogImportService;
   let queueMock: {
     add: jest.Mock;
     getWaitingCount: jest.Mock;
@@ -65,6 +67,7 @@ describe('EtlService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EtlService,
+        CatalogImportService,
         {
           provide: getQueueToken('etl-queue'),
           useValue: queueMock,
@@ -77,17 +80,18 @@ describe('EtlService', () => {
     }).compile();
 
     service = module.get<EtlService>(EtlService);
+    catalog = module.get(CatalogImportService);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  it.each(['processAirports', 'processAirlines', 'processCountries'] as const)(
+  it.each(['aeropuertos', 'aerolineas', 'paises'] as const)(
     '%s rejects unreadable files instead of leaving an unhandled stream error',
     async (method) => {
       await expect(
-        service[method]('/missing/flywise-audit-file.dat'),
+        catalog.importCatalog(method, '/missing/flywise-audit-file.dat'),
       ).rejects.toThrow(/ENOENT/);
     },
   );
@@ -105,7 +109,7 @@ describe('EtlService', () => {
           Array.from({ length: 2000 }, (_, i) => ({ inserted: i !== 0 })),
         )
         .mockResolvedValueOnce([{ inserted: true }]);
-      await expect(service.processCountries(file)).resolves.toEqual({
+      await expect(catalog.importCatalog('paises', file)).resolves.toEqual({
         total: 2001,
         processed: 2001,
         inserted: 2000,
@@ -119,10 +123,10 @@ describe('EtlService', () => {
 
   it.each([
     [
-      'processAirports',
+      'aeropuertos',
       '1,Ezeiza,City,Argentina,EZE,SAEZ,-34,-58,0,0,N,UTC,airport,OpenFlights',
     ],
-    ['processAirlines', '1,Aerolinea,Alias,AR,ARG,Callsign,Argentina,Y'],
+    ['aerolineas', '1,Aerolinea,Alias,AR,ARG,Callsign,Argentina,Y'],
   ] as const)(
     '%s does not count duplicate rows as inserts',
     async (method, row) => {
@@ -130,7 +134,7 @@ describe('EtlService', () => {
       try {
         const file = join(directory, 'catalog.dat');
         await writeFile(file, row);
-        await expect(service[method](file)).resolves.toEqual({
+        await expect(catalog.importCatalog(method, file)).resolves.toEqual({
           total: 1,
           processed: 1,
           inserted: 0,
@@ -155,12 +159,14 @@ describe('EtlService', () => {
           '3,Invalid,City,Argentina,EZE,SAEZ,Infinity,-58,0,0,N,UTC,airport,OpenFlights',
         ].join('\n'),
       );
-      await expect(service.processAirports(file)).resolves.toEqual({
-        total: 3,
-        processed: 0,
-        inserted: 0,
-        discarded: 3,
-      });
+      await expect(catalog.importCatalog('aeropuertos', file)).resolves.toEqual(
+        {
+          total: 3,
+          processed: 0,
+          inserted: 0,
+          discarded: 3,
+        },
+      );
       expect(
         prismaMock.models.Aeropuerto.createAndCount,
       ).not.toHaveBeenCalled();
@@ -223,7 +229,7 @@ describe('EtlService', () => {
             `id;title;lat;lng;extra\n42;Aeropuerto;0;0;${value}\n`,
           );
           await expect(
-            service.importCatalog('aeropuertos', file, undefined, {
+            catalog.importCatalog('aeropuertos', file, undefined, {
               ...configuration,
               mapeoEsquema: [
                 ...configuration.mapeoEsquema,
@@ -249,7 +255,7 @@ describe('EtlService', () => {
             `id;title;lat;lng;code\n42;Aeropuerto;0;0;${value}\n`,
           );
           await expect(
-            service.importCatalog('aeropuertos', file, undefined, {
+            catalog.importCatalog('aeropuertos', file, undefined, {
               ...configuration,
               mapeoEsquema: [
                 ...configuration.mapeoEsquema,
@@ -274,7 +280,7 @@ describe('EtlService', () => {
         await writeFile(file, 'id;title;lat;lng\n2147480000;" a; b ";0;-58\n');
         prismaMock.db.query.mockResolvedValueOnce([{ inserted: true }]);
         await expect(
-          service.importCatalog('aeropuertos', file, undefined, configuration),
+          catalog.importCatalog('aeropuertos', file, undefined, configuration),
         ).resolves.toEqual({
           total: 1,
           processed: 1,
@@ -309,7 +315,7 @@ describe('EtlService', () => {
         const file = join(directory, 'aeropuertos.csv');
         await writeFile(file, 'id;title;lat;lng\n42;Aeropuerto;0;0\n');
         await expect(
-          service.importCatalog('aeropuertos', file, undefined, {
+          catalog.importCatalog('aeropuertos', file, undefined, {
             ...configuration,
             mapeoEsquema: configuration.mapeoEsquema.map((rule) =>
               rule.campoDestino === 'nombre'
@@ -328,7 +334,7 @@ describe('EtlService', () => {
         const file = join(directory, 'aeropuertos.csv');
         await writeFile(file, 'wrong;columns\n1;2\n');
         await expect(
-          service.importCatalog('aeropuertos', file, undefined, configuration),
+          catalog.importCatalog('aeropuertos', file, undefined, configuration),
         ).rejects.toThrow(/columnas/);
         expect(prismaMock.db.query).not.toHaveBeenCalled();
       } finally {

@@ -14,7 +14,7 @@ import { PrismaModule } from '../src/prisma/prisma.module.js';
 import { RedisModule } from '../src/redis/redis.module.js';
 import { AirportsModule } from '../src/airports/airports.module.js';
 import { JwtAuthGuard, AdminGuard } from '../src/auth/auth.guard.js';
-import { EtlService } from '../src/etl/etl.service.js';
+import { CatalogImportService } from '../src/etl/catalog-import.service.js';
 
 describe('Administración e ingesta concurrentes (HTTP y PostgreSQL)', () => {
   const db = disposableDatabase();
@@ -29,7 +29,7 @@ describe('Administración e ingesta concurrentes (HTTP y PostgreSQL)', () => {
       const module = await Test.createTestingModule({
         imports: [PrismaModule, RedisModule, AirportsModule],
         providers: [
-          EtlService,
+          CatalogImportService,
           { provide: getQueueToken('etl-queue'), useValue: {} },
         ],
       })
@@ -49,7 +49,7 @@ describe('Administración e ingesta concurrentes (HTTP y PostgreSQL)', () => {
         }),
       );
       await app.init();
-      const etl = module.get(EtlService);
+      const etl = module.get(CatalogImportService);
       const api = request(app.getHttpServer());
       const source = (lat: number, lng: number) =>
         `${idOpenflights},Importado,City,Argentina,\\N,\\N,${lat},${lng},0,0,N,UTC,airport,OpenFlights`;

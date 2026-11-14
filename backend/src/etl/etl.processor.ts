@@ -2,7 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Logger, type BeforeApplicationShutdown } from '@nestjs/common';
 import { resolve } from 'node:path';
-import { EtlService } from './etl.service.js';
+import { CatalogImportService } from './catalog-import.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PipelinesService } from './pipelines.service.js';
 import { ETL_DATASETS } from './dto/trigger-etl.dto.js';
@@ -15,7 +15,7 @@ export class EtlProcessor
 {
   private readonly logger = new Logger(EtlProcessor.name);
   constructor(
-    private readonly etlService: EtlService,
+    private readonly catalogImport: CatalogImportService,
     private readonly prisma: PrismaService,
     private readonly pipelines: PipelinesService,
   ) {
@@ -82,7 +82,7 @@ export class EtlProcessor
           ? ['paises', 'aeropuertos', 'aerolineas', 'rutas']
           : [dataset as CatalogDataset];
       for (const target of datasets) {
-        const result = await this.etlService.importCatalog(
+        const result = await this.catalogImport.importCatalog(
           target,
           config
             ? null

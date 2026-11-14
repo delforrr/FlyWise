@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { EtlService } from '../src/etl/etl.service.js';
+import { CatalogImportService } from '../src/etl/catalog-import.service.js';
 import { AirlinesService } from '../src/airlines/airlines.service.js';
 import { AirlinesController } from '../src/airlines/airlines.controller.js';
 import { AirportsService } from '../src/airports/airports.service.js';
@@ -34,7 +34,7 @@ describe('Data validation regressions (PostgreSQL)', () => {
   async function importer(tx: Transaction) {
     const module = await Test.createTestingModule({
       providers: [
-        EtlService,
+        CatalogImportService,
         { provide: getQueueToken('etl-queue'), useValue: {} },
         {
           provide: PrismaService,
@@ -52,7 +52,7 @@ describe('Data validation regressions (PostgreSQL)', () => {
         },
       ],
     }).compile();
-    return module.get(EtlService);
+    return module.get(CatalogImportService);
   }
   it('returns 409 over HTTP for ambiguous airport and aerolinea codes', async () => {
     await isolated(async (tx) => {
@@ -117,14 +117,14 @@ describe('Data validation regressions (PostgreSQL)', () => {
         const service = await importer(tx);
         const file = join(directory, 'countries.dat');
         await writeFile(file, 'Preserved fixture,AR,AR\n');
-        await service.processCountries(file);
+        await service.importCatalog('paises', file);
         await writeFile(file, 'Preserved fixture,INVALID,AR\n');
-        await service.processCountries(file);
+        await service.importCatalog('paises', file);
         expect(
           await tx.orm.public.Pais.first({ nombre: 'Preserved fixture' }),
         ).toMatchObject({ codigoIso: 'AR' });
         await writeFile(file, 'Preserved fixture,\\N,AR\n');
-        await service.processCountries(file);
+        await service.importCatalog('paises', file);
         expect(
           await tx.orm.public.Pais.first({ nombre: 'Preserved fixture' }),
         ).toMatchObject({ codigoIso: null });

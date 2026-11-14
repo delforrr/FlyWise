@@ -1,3 +1,4 @@
+import { CatalogImportService } from '../src/etl/catalog-import.service.js';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Queue, QueueEvents, Worker, Job } from 'bullmq';
@@ -25,6 +26,7 @@ describe('Encolado y reintento real (BullMQ y PostgreSQL)', () => {
       const module = await Test.createTestingModule({
         providers: [
           EtlService,
+          CatalogImportService,
           PipelinesService,
           { provide: PrismaService, useValue: prisma },
           { provide: getQueueToken('etl-queue'), useValue: queue },
@@ -32,7 +34,11 @@ describe('Encolado y reintento real (BullMQ y PostgreSQL)', () => {
       }).compile();
       const etl = module.get(EtlService);
       const pipelines = module.get(PipelinesService);
-      const processor = new EtlProcessor(etl, prisma, pipelines);
+      const processor = new EtlProcessor(
+        module.get(CatalogImportService),
+        prisma,
+        pipelines,
+      );
       worker = new Worker(
         name,
         (job: Job<{ jobId: string; dataset: string }>) =>

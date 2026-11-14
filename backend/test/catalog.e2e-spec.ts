@@ -1,9 +1,8 @@
 import { aeropuertoOpenFlights } from './helpers/identidad-openflights.js';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { OPENFLIGHTS_FILES } from '../src/etl/catalog.js';
-import { EtlService } from '../src/etl/etl.service.js';
+import { CatalogImportService } from '../src/etl/catalog-import.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import type { Queue } from 'bullmq';
 import { resolve } from 'node:path';
 import { RoutesService } from '../src/routes/routes.service.js';
 
@@ -28,12 +27,14 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
           models: tx.orm.public,
           db: database,
         } as unknown as PrismaService;
-        const service = new EtlService({} as Queue, prisma);
+        const service = new CatalogImportService(prisma);
         const job = await tx.orm.public.EjecucionEtl.create({
           fuente: 'all',
           estado: 'running',
         });
-        const results: Awaited<ReturnType<EtlService['importCatalog']>>[] = [];
+        const results: Awaited<
+          ReturnType<CatalogImportService['importCatalog']>
+        >[] = [];
         for (const target of [
           'paises',
           'aeropuertos',

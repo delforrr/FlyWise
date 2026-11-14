@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { EtlService } from '../src/etl/etl.service.js';
+import { CatalogImportService } from '../src/etl/catalog-import.service.js';
 import {
   OPENFLIGHTS_COLUMNS,
   normalizeCatalogRow,
@@ -47,14 +47,14 @@ describe('Claves de importación con una fila real de routes.dat', () => {
   });
 
   async function aislado(
-    trabajo: (tx: Transaction, service: EtlService) => Promise<void>,
+    trabajo: (tx: Transaction, service: CatalogImportService) => Promise<void>,
   ) {
     const rollback = new Error('rollback identidad');
     try {
       await db.transaction(async (tx) => {
         const module = await Test.createTestingModule({
           providers: [
-            EtlService,
+            CatalogImportService,
             { provide: getQueueToken('etl-queue'), useValue: {} },
             {
               provide: PrismaService,
@@ -73,7 +73,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
           ],
         }).compile();
         try {
-          await trabajo(tx, module.get(EtlService));
+          await trabajo(tx, module.get(CatalogImportService));
         } finally {
           await module.close();
         }

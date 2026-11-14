@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '../src/auth/auth.guard.js';
 import { ValidationPipe } from '@nestjs/common';
 import { CatalogIdentitiesController } from '../src/etl/catalog-identities.controller.js';
 import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
-import { EtlService } from '../src/etl/etl.service.js';
+import { CatalogImportService } from '../src/etl/catalog-import.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { createDatabase } from '../src/prisma/db.js';
 import type { PipelineConfiguration } from '../src/etl/interfaces/pipeline-configuration.js';
@@ -55,7 +55,7 @@ describe('OurAirports: ingesta de catálogo', () => {
             CatalogIdentitiesController,
           ],
           providers: [
-            EtlService,
+            CatalogImportService,
             AirportsService,
             { provide: getQueueToken('etl-queue'), useValue: {} },
             {
@@ -119,7 +119,7 @@ describe('OurAirports: ingesta de catálogo', () => {
           `id,ident,type,name,latitude_deg,longitude_deg,iso_country,municipality,icao_code,iata_code\n${sourceId},${airport.icao},large_airport,OurAirports fixture,-6,145,PG,Goroka,${airport.icao},${airport.iata}\n`,
         );
         try {
-          const service = module.get(EtlService);
+          const service = module.get(CatalogImportService);
           expect(
             await service.importCatalog(
               'aeropuertos',

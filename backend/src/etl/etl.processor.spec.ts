@@ -1,6 +1,6 @@
 import { mockCollection } from '../../test/helpers/prisma-mock.js';
 import { EtlProcessor } from './etl.processor.js';
-import { EtlService } from './etl.service.js';
+import { CatalogImportService } from './catalog-import.service.js';
 import { PipelinesService } from './pipelines.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -10,7 +10,7 @@ describe('EtlProcessor', () => {
   const importCatalog = jest.fn();
   const run = jest.fn();
   const processor = new EtlProcessor(
-    { importCatalog } as unknown as EtlService,
+    { importCatalog } as unknown as CatalogImportService,
     {
       models: { EjecucionEtl: ejecuciones, EventoEjecucionEtl: eventos },
     } as unknown as PrismaService,
