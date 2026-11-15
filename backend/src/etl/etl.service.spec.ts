@@ -104,18 +104,20 @@ describe('EtlService', () => {
         file,
         Array.from({ length: 2001 }, (_, i) => `Pais ${i},XX,XX`).join('\n'),
       );
-      prismaMock.db.query
-        .mockResolvedValueOnce(
-          Array.from({ length: 2000 }, (_, i) => ({ inserted: i !== 0 })),
-        )
-        .mockResolvedValueOnce([{ inserted: true }]);
+      const pais = prismaMock.db.orm.public.Pais;
+      pais.createAll
+        .mockImplementationOnce((rows: { id: string }[]) => rows.slice(1))
+        .mockImplementationOnce((rows: { id: string }[]) => rows);
       await expect(catalog.importCatalog('paises', file)).resolves.toEqual({
         total: 2001,
         processed: 2001,
         inserted: 2000,
         discarded: 0,
       });
-      expect(prismaMock.db.query).toHaveBeenCalledTimes(2);
+      expect(
+        pais.createAll.mock.calls.map(([rows]) => (rows as unknown[]).length),
+      ).toEqual([2000, 1]);
+      expect(pais.updateAndCount).toHaveBeenCalledWith({ codigoIso: 'XX' });
     } finally {
       await rm(directory, { recursive: true });
     }

@@ -23,30 +23,49 @@ export class AirlinesService {
 
   async findAll({ q, page = 1, limit = 20 }: QueryAirlinesDto) {
     const term = q?.trim();
-    const aerolineas = term
-      ? this.prisma.models.Aerolinea.where({ archivadoEn: null }).where(
-          (aerolinea) =>
-            or(
-              aerolinea.iata.eq(term.toUpperCase()),
-              aerolinea.icao.eq(term.toUpperCase()),
-              aerolinea.nombre.ilike(`%${escaparLike(term)}%`),
-            ),
-        )
-      : this.prisma.models.Aerolinea.where({ archivadoEn: null });
-    const [data, { totalItems }] = await Promise.all([
-      aerolineas
-        .orderBy([
-          (aerolinea, { fns }) =>
-            fns.raw`COALESCE(${aerolinea.activa}::int, -1)`
-              .returns('pg/int4@1')
-              .desc(),
-          (aerolinea) => aerolinea.nombre.asc(),
-          (aerolinea) => aerolinea.id.asc(),
-        ])
-        .offset((page - 1) * limit)
-        .limit(limit)
-        .all(),
-      aerolineas.aggregate((aggregate) => ({ totalItems: aggregate.count() })),
+    const { db } = this.prisma;
+    const aerolineas = db.sql.public.aerolineas
+      .select()
+      .where((a, sql) =>
+        sql.and(
+          sql.eq(a.archivado_en, null),
+          ...(term
+            ? [
+                sql.or(
+                  sql.eq(a.iata, term.toUpperCase()),
+                  sql.eq(a.icao, term.toUpperCase()),
+                  sql.ilike(a.nombre, `%${escaparLike(term)}%`),
+                ),
+              ]
+            : []),
+        ),
+      );
+    const [data, [{ totalItems }]] = await Promise.all([
+      db.query(
+        aerolineas
+          .select((a) => ({
+            id: a.id,
+            nombre: a.nombre,
+            iata: a.iata,
+            icao: a.icao,
+            pais: a.pais,
+            paisId: a.pais_id,
+            activa: a.activa,
+            fuente: a.fuente,
+            archivadoEn: a.archivado_en,
+            protegidoManualmente: a.protegido_manualmente,
+            vinculoPaisInferido: a.vinculo_pais_inferido,
+          }))
+          .orderBy('activa', { direction: 'desc', nulls: 'last' })
+          .orderBy('nombre')
+          .orderBy('id')
+          .offset((page - 1) * limit)
+          .limit(limit)
+          .build(),
+      ),
+      db.query(
+        aerolineas.select('totalItems', (_a, sql) => sql.count()).build(),
+      ),
     ]);
     return {
       data,

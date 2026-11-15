@@ -15,7 +15,9 @@ describe('AirlinesService', () => {
       Aeropuerto: ReturnType<typeof mockCollection>;
       Pais: ReturnType<typeof mockCollection>;
     };
-    db: ReturnType<typeof mockDatabase>;
+    db: ReturnType<typeof mockDatabase> & {
+      sql: { public: { aerolineas: unknown } };
+    };
   };
 
   const mockAirline = {
@@ -27,18 +29,26 @@ describe('AirlinesService', () => {
   };
 
   beforeEach(async () => {
+    const query = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      build: jest.fn().mockReturnThis(),
+    };
     prismaService = {
       models: {
         Aerolinea: mockCollection(),
         Aeropuerto: mockCollection(),
         Pais: mockCollection(),
       },
-      db: mockDatabase(),
+      db: { ...mockDatabase(), sql: { public: { aerolineas: query } } },
     };
     prismaService.models.Aerolinea.all.mockResolvedValue([mockAirline]);
-    prismaService.models.Aerolinea.aggregate.mockResolvedValue({
-      totalItems: 1,
-    });
+    prismaService.db.query
+      .mockResolvedValueOnce([mockAirline])
+      .mockResolvedValueOnce([{ totalItems: 1 }]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,8 +70,7 @@ describe('AirlinesService', () => {
   describe('findAll', () => {
     it('should return paginated aerolineas', async () => {
       const res = await service.findAll({ page: 1, limit: 10 });
-      expect(prismaService.models.Aerolinea.all).toHaveBeenCalled();
-      expect(prismaService.models.Aerolinea.aggregate).toHaveBeenCalled();
+      expect(prismaService.db.query).toHaveBeenCalledTimes(2);
       expect(res.data).toEqual([mockAirline]);
       expect(res.pagination.totalItems).toBe(1);
     });

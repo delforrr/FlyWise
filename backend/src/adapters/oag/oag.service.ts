@@ -1,5 +1,5 @@
 import { ultimoDiaDelMes } from '../../prisma/timestamp.js';
-import { not } from '@prisma/orm-postgres/orm-client';
+import { not, or } from '@prisma/orm-postgres/orm-client';
 import { admiteFuente } from '../../metrics/domain/autoridad-publicacion.js';
 import {
   prepararPublicacionOag,
@@ -26,7 +26,10 @@ import {
 import { periodosCerradosMapa } from '../../metrics/periodos-mapa.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Transaction } from '../../prisma/db.js';
-import { guardarObservaciones } from '../../vuelos/observaciones.store.js';
+import {
+  archivarObservaciones,
+  guardarObservaciones,
+} from '../../vuelos/observaciones.store.js';
 import {
   CredencialOagRechazada,
   CuotaOagAgotada,
@@ -631,28 +634,36 @@ export class OagService implements OnModuleInit {
     { origenId, destinoId, periodo }: AlcanceOag,
     ejecucionId: string,
   ) {
-    const mes = periodo + '-01';
-    await tx.execute(
-      tx.raw.sql`
-      WITH retiradas AS (
-        UPDATE vuelos SET archivado_en=CURRENT_TIMESTAMP,version=version+1,ejecucion_etl_id=${ejecucionId}
-        WHERE fuente='OAG' AND origen_id=${origenId} AND destino_id=${destinoId}
-        AND fecha_vuelo>=${mes}::date AND fecha_vuelo<${mes}::date+interval '1 month'
-        AND NOT protegido_manualmente AND archivado_en IS NULL
-        AND ejecucion_etl_id IS DISTINCT FROM ${ejecucionId}
-        RETURNING *
-      )
-      INSERT INTO historial_vuelos(id,vuelo_id,version,accion,instantanea)
-      SELECT gen_random_uuid()::text,id,version,'retiro-fuente',
-        jsonb_build_object('id',id,'version',version,'fuente',fuente,'idRegistroFuente',id_registro_fuente,
-          'fechaVuelo',fecha_vuelo,'numeroVuelo',numero_vuelo,'origenId',origen_id,'destinoId',destino_id,
-          'aerolineaId',aerolinea_id,'estado',estado,'demoraLlegadaMinutos',demora_llegada_minutos,'horarios',horarios,
-          'protegidoManualmente',false,'archivadoEn',archivado_en,'ejecucionEtlId',ejecucion_etl_id,'ultimaObservacion',ultima_observacion)
-      FROM retiradas
-    `
-        .affectedCount()
-        .build(),
-    );
+    const desde = periodo + '-01';
+    const hasta = ultimoDiaDelMes(desde);
+    const { Vuelo } = tx.orm.public;
+    const vigentes = Vuelo.where({
+      fuente,
+      origenId,
+      destinoId,
+      protegidoManualmente: false,
+      archivadoEn: null,
+    })
+      .where((vuelo) => vuelo.fechaVuelo.gte(desde))
+      .where((vuelo) => vuelo.fechaVuelo.lte(hasta))
+      .where((vuelo) =>
+        or(
+          vuelo.ejecucionEtlId.isNull(),
+          not(vuelo.ejecucionEtlId.eq(ejecucionId)),
+        ),
+      );
+    const archivadoEn = ahora();
+    for (;;) {
+      const lote = await vigentes
+        .select('id', 'version')
+        .orderBy((vuelo) => vuelo.id.asc())
+        .limit(100)
+        .forUpdate()
+        .all();
+      if (!lote.length) return;
+
+      await archivarObservaciones(tx, lote, ejecucionId, archivadoEn);
+    }
   }
 
   private async fallar(

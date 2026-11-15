@@ -13,8 +13,10 @@ export function mockCollection() {
     firstOrThrow: jest.fn(),
     aggregate: jest.fn(),
     create: jest.fn(),
+    createAll: jest.fn(),
     createAndCount: jest.fn(),
     update: jest.fn(),
+    updateAndCount: jest.fn(),
     delete: jest.fn(),
     deleteAndCount: jest.fn(),
     upsert: jest.fn(),
@@ -31,6 +33,7 @@ export function mockDatabase() {
     transaction: jest.fn(),
     orm: {
       public: {
+        Pais: mockCollection(),
         BloqueoTransaccional: {
           where: jest.fn().mockReturnThis(),
           forUpdate: jest.fn().mockReturnThis(),

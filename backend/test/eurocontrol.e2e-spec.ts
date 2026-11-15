@@ -128,6 +128,7 @@ describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
               useValue: {
                 models: tx.orm.public,
                 db: {
+                  sql: tx.sql,
                   raw: tx.raw,
                   query: tx.query.bind(tx),
                   execute: tx.execute.bind(tx),

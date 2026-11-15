@@ -40,6 +40,42 @@ export async function upsertCatalogBatch(
       row,
     ]),
   );
+  if (dataset === 'paises') {
+    const { Pais } = db.orm.public;
+    const paises = [...unique.values()].map((row) => {
+      if (typeof row.nombre !== 'string')
+        throw new Error('nombre: obligatorio');
+      return {
+        id: row.id,
+        nombre: row.nombre,
+        codigoIso: typeof row.codigoIso === 'string' ? row.codigoIso : null,
+        codigoIsoInvalid: row.codigoIsoInvalid === true,
+      };
+    });
+    if (!paises.length) return { insertadas: 0, omitidas: 0 };
+
+    const creados = await Pais.select('id').createAll(
+      paises.map(({ id, nombre, codigoIso, codigoIsoInvalid }) => ({
+        id,
+        nombre,
+        codigoIso: codigoIsoInvalid ? null : codigoIso,
+      })),
+      { onConflict: 'skip' },
+    );
+    const idsCreados = new Set(creados.map(({ id }) => id));
+    const nombresPorIso = new Map<string | null, string[]>();
+    for (const { id, nombre, codigoIso, codigoIsoInvalid } of paises) {
+      if (idsCreados.has(id) || codigoIsoInvalid) continue;
+      const nombres = nombresPorIso.get(codigoIso) ?? [];
+      nombres.push(nombre);
+      nombresPorIso.set(codigoIso, nombres);
+    }
+    for (const [codigoIso, nombres] of nombresPorIso)
+      await Pais.where((pais) => pais.nombre.in(nombres)).updateAndCount({
+        codigoIso,
+      });
+    return { insertadas: creados.length, omitidas: 0 };
+  }
   const data = JSON.stringify([...unique.values()]);
   if (dataset === 'aeropuertos') await reconcileOpenFlightsAirports(db, data);
   const result = await guardarLote[dataset](db, data);
@@ -50,20 +86,6 @@ export async function upsertCatalogBatch(
 }
 
 const guardarLote = {
-  paises(db: StoreDatabase, data: string) {
-    return db.query(
-      db.raw.sql`
-    INSERT INTO paises (id,nombre,codigo_iso)
-    SELECT x.id,x.nombre,CASE WHEN x."codigoIsoInvalid" THEN previous.codigo_iso ELSE x."codigoIso" END
-    FROM jsonb_to_recordset(${data}::jsonb) AS x(id text,nombre text,"codigoIso" text,"codigoIsoInvalid" boolean)
-    LEFT JOIN paises previous ON previous.nombre=x.nombre
-    ON CONFLICT (nombre) DO UPDATE SET codigo_iso=EXCLUDED.codigo_iso
-    RETURNING (xmax=0) AS inserted
-  `
-        .returnsRow({ inserted: 'pg/bool@1' })
-        .build(),
-    );
-  },
   aeropuertos(db: StoreDatabase, data: string) {
     return db.query(
       db.raw.sql`

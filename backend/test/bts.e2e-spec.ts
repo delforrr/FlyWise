@@ -59,6 +59,7 @@ describe('BTS mensual por HTTP y jobs', () => {
               useValue: {
                 models: tx.orm.public,
                 db: {
+                  sql: tx.sql,
                   raw: tx.raw,
                   query: tx.query.bind(tx),
                   execute: tx.execute.bind(tx),
@@ -433,6 +434,26 @@ describe('BTS mensual por HTTP y jobs', () => {
                 join(process.cwd(), 'test/fixtures/bts-month-revision.zip'),
               ),
           ).toEqual({ procesadas: 31, insertadas: 1, descartadas: 0 });
+          const retiradas = await tx.orm.public.Vuelo.where({
+            fuente: 'BTS',
+            ejecucionEtlId: revision.id,
+          })
+            .where((vuelo) => vuelo.archivadoEn.isNotNull())
+            .include('historial', (historial) =>
+              historial.where({ accion: 'retiro-fuente' }),
+            )
+            .all();
+          expect(retiradas).toHaveLength(1);
+          expect(retiradas[0].historial).toEqual([
+            expect.objectContaining({
+              version: retiradas[0].version,
+              instantanea: expect.objectContaining({
+                id: retiradas[0].id,
+                archivadoEn: expect.any(String),
+                ejecucionEtlId: revision.id,
+              }),
+            }),
+          ]);
           await module.get(MetricsService).recalcularPendientes();
           expect(
             (await api.get('/metricas/rutas').query(query).expect(200)).body,

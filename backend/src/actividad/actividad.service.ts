@@ -1,4 +1,6 @@
 import { timestampToJson } from '../prisma/timestamp.js';
+import { FunctionCallExpr } from '@prisma/orm-postgres/relational-core/ast';
+import { ExpressionImpl } from '@prisma/orm-postgres/relational-core/expression';
 import { bloquearMesAnac } from '../prisma/bloqueo-transaccional.js';
 import {
   BadRequestException,
@@ -398,28 +400,167 @@ export class ActividadService implements OnModuleInit {
   }
 
   async consultar(dto: ConsultaActividadDto, conectividad = false) {
-    const db = this.prisma.db;
-    const [row] = await db.query(
-      db.raw.sql`
-      WITH vigente AS (SELECT r.* FROM actividad_publicaciones p JOIN actividad_revisiones r ON r.id=p.revision_id WHERE p.periodo=${`${dto.periodo}-01`}::date),
-      filtrados AS (SELECT m.* FROM movimientos_aeropuerto m JOIN vigente v ON m.revision_id=v.id
-        WHERE (${dto.aeropuerto ?? ''}='' OR m.aeropuerto=${dto.aeropuerto ?? ''}) AND (${dto.operador ?? ''}='' OR m.operador=${dto.operador ?? ''})
-        AND (${dto.clasificacion ?? ''}='' OR m.clasificacion=${dto.clasificacion ?? ''}) AND (${dto.calidad ?? ''}='' OR m.calidad=${dto.calidad ?? ''})
-        AND (${dto.movimiento ?? ''}='' OR m.movimiento=${dto.movimiento ?? ''}) AND (NOT ${conectividad} OR m.movimiento='DESPEGUE')),
-      conexiones AS (SELECT origen,destino,operador,clasificacion,count(*)::int AS "movimientosSalida",sum(pasajeros)::int AS pasajeros,count(pasajeros)::int AS "movimientosConPasajeros" FROM filtrados GROUP BY origen,destino,operador,clasificacion),
-      datos AS (SELECT numero_fila AS "numeroFila",fecha_utc::text AS "fechaUtc",movimiento,aeropuerto,origen,destino,operador,clase,clasificacion,aeronave,matricula,pasajeros,pax,calidad FROM filtrados ORDER BY fecha_utc,numero_fila LIMIT ${dto.limite} OFFSET ${(dto.pagina - 1) * dto.limite}),
-      pagina_conexiones AS (SELECT * FROM conexiones ORDER BY origen,destino,operador,clasificacion LIMIT ${dto.limite} OFFSET ${(dto.pagina - 1) * dto.limite}),
-      resumen AS (SELECT clasificacion,count(*)::int AS movimientos,count(*) FILTER(WHERE movimiento='DESPEGUE')::int AS despegues,count(*) FILTER(WHERE movimiento='ATERRIZAJE')::int AS aterrizajes,
-        sum(pasajeros)::int AS pasajeros,sum(pax)::int AS pax,count(pasajeros)::int AS "movimientosConPasajeros",count(pax)::int AS "movimientosConPax" FROM filtrados GROUP BY clasificacion ORDER BY clasificacion)
-      SELECT json_build_object('datos',CASE WHEN ${conectividad} THEN COALESCE((SELECT json_agg(x) FROM pagina_conexiones x),'[]') ELSE COALESCE((SELECT json_agg(x) FROM datos x),'[]') END,
-        'total',CASE WHEN ${conectividad} THEN (SELECT count(*)::int FROM conexiones) ELSE (SELECT count(*)::int FROM filtrados) END,'pagina',${dto.pagina}::int,'limite',${dto.limite}::int,
-        'resumen',COALESCE((SELECT json_agg(x) FROM resumen x),'[]'),'cobertura',(SELECT json_build_object('revisionId',id,'periodo',periodo,'uri',uri,'checksum',checksum,'estado',estado,'filasProcesadas',filas_procesadas,'filasDescartadas',filas_descartadas,'actualizadoEn',actualizado_en) FROM vigente),
-        'fuente','ANAC — CC BY 4.0','metodologia','Movimientos UTC. Conectividad: sólo despegues. Pasajeros: movimiento/aeropuerto; PAX: tarjetas de embarque, agregado nacional cabotaje. No sumar ambas columnas ni inferir vuelos, OTP, cancelaciones u ocupación.')::text AS json
-    `
-        .returnsRow({ json: 'pg/text@1' })
-        .build(),
-    );
-    return JSON.parse(row.json) as unknown;
+    const { db, models } = this.prisma;
+    const periodo = dto.periodo + '-01';
+    const publicacion = await models.PublicacionActividad.where({ periodo })
+      .include('revision')
+      .first();
+    const respuesta = {
+      datos: [],
+      total: 0,
+      pagina: dto.pagina,
+      limite: dto.limite,
+      resumen: [],
+      cobertura: null,
+      fuente: 'ANAC — CC BY 4.0',
+      metodologia:
+        'Movimientos UTC. Conectividad: sólo despegues. Pasajeros: movimiento/aeropuerto; PAX: tarjetas de embarque, agregado nacional cabotaje. No sumar ambas columnas ni inferir vuelos, OTP, cancelaciones u ocupación.',
+    };
+    if (!publicacion) return respuesta;
+
+    const revision = publicacion.revision;
+    const offset = (dto.pagina - 1) * dto.limite;
+    const tablas = db.sql.public;
+    const filtrados = tablas.movimientos_aeropuerto
+      .select()
+      .where((m, sql) =>
+        sql.and(
+          sql.eq(m.revision_id, revision.id),
+          ...(dto.aeropuerto ? [sql.eq(m.aeropuerto, dto.aeropuerto)] : []),
+          ...(dto.operador ? [sql.eq(m.operador, dto.operador)] : []),
+          ...(dto.clasificacion
+            ? [sql.eq(m.clasificacion, dto.clasificacion)]
+            : []),
+          ...(dto.calidad ? [sql.eq(m.calidad, dto.calidad)] : []),
+          ...(dto.movimiento ? [sql.eq(m.movimiento, dto.movimiento)] : []),
+          ...(conectividad ? [sql.eq(m.movimiento, 'DESPEGUE')] : []),
+        ),
+      );
+    const totales = filtrados.select((m, sql) => ({
+      movimientos: sql.count(),
+      pasajeros: sql.sum(m.pasajeros),
+      pax: sql.sum(m.pax),
+      movimientosConPasajeros: sql.count(m.pasajeros),
+      movimientosConPax: sql.count(m.pax),
+    }));
+    const porClasificacion = totales
+      .select('clasificacion', 'movimiento')
+      .groupBy('clasificacion', 'movimiento')
+      .orderBy('clasificacion');
+    const conexiones = filtrados
+      .select('origen', 'destino', 'operador', 'clasificacion')
+      .select((m, sql) => ({
+        movimientosSalida: sql.count(),
+        pasajeros: sql.sum(m.pasajeros),
+        movimientosConPasajeros: sql.count(m.pasajeros),
+      }))
+      .groupBy('origen', 'destino', 'operador', 'clasificacion');
+
+    const [datos, grupos, totalConexiones] = await Promise.all([
+      conectividad
+        ? db.query(
+            conexiones
+              .orderBy('origen')
+              .orderBy('destino')
+              .orderBy('operador')
+              .orderBy('clasificacion')
+              .limit(dto.limite)
+              .offset(offset)
+              .build(),
+          )
+        : db.query(
+            filtrados
+              .select(
+                'movimiento',
+                'aeropuerto',
+                'origen',
+                'destino',
+                'operador',
+                'clase',
+                'clasificacion',
+                'aeronave',
+                'matricula',
+                'pasajeros',
+                'pax',
+                'calidad',
+              )
+              .select((m) => ({
+                numeroFila: m.numero_fila,
+                fechaUtc: m.fecha_utc,
+              }))
+              .orderBy('fecha_utc')
+              .orderBy('numero_fila')
+              .limit(dto.limite)
+              .offset(offset)
+              .build(),
+          ),
+      db.query(porClasificacion.build()),
+      conectividad
+        ? db.query(
+            tablas.actividad_publicaciones
+              .lateralJoin('totalConexiones', (lateral) =>
+                lateral
+                  .from(conexiones.as('conexiones'))
+                  .select('total', (_m, sql) => sql.count()),
+              )
+              .select('total')
+              .where((p, sql) => sql.eq(p.periodo, periodo))
+              .build(),
+          )
+        : [],
+    ]);
+    const resumen = new Map<
+      string,
+      {
+        clasificacion: string;
+        movimientos: number;
+        despegues: number;
+        aterrizajes: number;
+        pasajeros: number | null;
+        pax: number | null;
+        movimientosConPasajeros: number;
+        movimientosConPax: number;
+      }
+    >();
+    let movimientos = 0;
+    for (const grupo of grupos) {
+      const fila = resumen.get(grupo.clasificacion) ?? {
+        clasificacion: grupo.clasificacion,
+        movimientos: 0,
+        despegues: 0,
+        aterrizajes: 0,
+        pasajeros: null,
+        pax: null,
+        movimientosConPasajeros: 0,
+        movimientosConPax: 0,
+      };
+      movimientos += grupo.movimientos;
+      fila.movimientos += grupo.movimientos;
+      if (grupo.movimiento === 'DESPEGUE') fila.despegues += grupo.movimientos;
+      else fila.aterrizajes += grupo.movimientos;
+      if (grupo.pasajeros !== null)
+        fila.pasajeros = (fila.pasajeros ?? 0) + grupo.pasajeros;
+      if (grupo.pax !== null) fila.pax = (fila.pax ?? 0) + grupo.pax;
+      fila.movimientosConPasajeros += grupo.movimientosConPasajeros;
+      fila.movimientosConPax += grupo.movimientosConPax;
+      resumen.set(grupo.clasificacion, fila);
+    }
+    return {
+      ...respuesta,
+      datos,
+      total: conectividad ? (totalConexiones[0]?.total ?? 0) : movimientos,
+      resumen: [...resumen.values()],
+      cobertura: {
+        revisionId: revision.id,
+        periodo: revision.periodo,
+        uri: revision.uri,
+        checksum: revision.checksum,
+        estado: revision.estado,
+        filasProcesadas: revision.filasProcesadas,
+        filasDescartadas: revision.filasDescartadas,
+        actualizadoEn: timestampToJson(revision.actualizadoEn),
+      },
+    };
   }
 
   ejecuciones() {
@@ -463,15 +604,55 @@ export class ActividadService implements OnModuleInit {
   }
 
   async correspondencias(dto: ConsultaActividadDto) {
-    const db = this.prisma.db;
-    const [row] = await db.query(
-      db.raw
-        .sql`WITH codigos AS (SELECT m.origen AS codigo FROM movimientos_aeropuerto m JOIN actividad_publicaciones p ON p.revision_id=m.revision_id WHERE p.periodo=${`${dto.periodo}-01`}::date UNION SELECT m.destino FROM movimientos_aeropuerto m JOIN actividad_publicaciones p ON p.revision_id=m.revision_id WHERE p.periodo=${`${dto.periodo}-01`}::date)
-      SELECT COALESCE(json_agg(x),'[]')::text AS json FROM (SELECT c.codigo,i.aeropuerto_id AS "aeropuertoId",a.nombre FROM codigos c LEFT JOIN identidades_aeropuerto_fuente i ON i.fuente='ANAC' AND i.identificador=c.codigo LEFT JOIN aeropuertos a ON a.id=i.aeropuerto_id ORDER BY c.codigo LIMIT ${dto.limite} OFFSET ${(dto.pagina - 1) * dto.limite}) x`
-        .returnsRow({ json: 'pg/text@1' })
+    const { db } = this.prisma;
+    const tablas = db.sql.public;
+    return db.query(
+      tablas.actividad_publicaciones
+        .as('publicacion')
+        .lateralJoin('codigos', (lateral) =>
+          lateral
+            .from(tablas.movimientos_aeropuerto.as('filaAnac'))
+            .select(
+              'codigo',
+              ({ filaAnac }) =>
+                new ExpressionImpl(
+                  FunctionCallExpr.of('jsonb_array_elements_text', [
+                    FunctionCallExpr.of('jsonb_build_array', [
+                      filaAnac.origen.buildAst(),
+                      filaAnac.destino.buildAst(),
+                    ]),
+                  ]),
+                  filaAnac.origen.returnType,
+                ),
+            )
+            .where((f, sql) =>
+              sql.eq(f.filaAnac.revision_id, f.publicacion.revision_id),
+            )
+            .distinct()
+            .orderBy('codigo')
+            .limit(dto.limite)
+            .offset((dto.pagina - 1) * dto.limite),
+        )
+        .outerLeftJoin(
+          tablas.identidades_aeropuerto_fuente.as('identidad'),
+          (f, sql) =>
+            sql.and(
+              sql.eq(f.identidad.fuente, 'ANAC'),
+              sql.eq(f.identidad.identificador, f.codigos.codigo),
+            ),
+        )
+        .outerLeftJoin(tablas.aeropuertos.as('aeropuerto'), (f, sql) =>
+          sql.eq(f.aeropuerto.id, f.identidad.aeropuerto_id),
+        )
+        .select((f) => ({
+          codigo: f.codigos.codigo,
+          aeropuertoId: f.identidad.aeropuerto_id,
+          nombre: f.aeropuerto.nombre,
+        }))
+        .where((f, sql) => sql.eq(f.publicacion.periodo, dto.periodo + '-01'))
+        .orderBy('codigo')
         .build(),
     );
-    return JSON.parse(row.json) as unknown;
   }
 
   async resolver(dto: CorrespondenciaAnacDto) {

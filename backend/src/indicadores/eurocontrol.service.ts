@@ -1,4 +1,6 @@
-import { timestampToJson } from '../prisma/timestamp.js';
+import { timestampToJson, ultimoDiaDelMes } from '../prisma/timestamp.js';
+import { FunctionCallExpr } from '@prisma/orm-postgres/relational-core/ast';
+import { ExpressionImpl } from '@prisma/orm-postgres/relational-core/expression';
 import {
   BadRequestException,
   Injectable,
@@ -98,17 +100,88 @@ export class EurocontrolService implements OnModuleInit {
     );
   }
   async sources() {
-    const rows = await this.prisma.db.query(
-      this.prisma.db.raw
-        .sql`SELECT jsonb_build_object('producto',p.producto,'pausado',p.pausado,'programacionUtc','0 4 1 * *','ultimaEjecucion',(
-          SELECT to_jsonb(e) FROM ejecuciones_etl e WHERE e.fuente='EUROCONTROL:'||p.producto
-          ORDER BY COALESCE((SELECT min(ev.creado_en) FROM eventos_ejecucion_etl ev WHERE ev.ejecucion_id=e.id AND ev.intento=0),e.iniciado_en) DESC NULLS LAST,e.id DESC LIMIT 1
-        )) AS dato FROM eurocontrol_programacion p ORDER BY producto`
-        .returnsRow({ dato: 'pg/jsonb@1' })
-        .build(),
+    const { db, models } = this.prisma;
+    const programaciones = await models.EurocontrolProgramacion.select(
+      'producto',
+      'pausado',
+    )
+      .orderBy((p) => p.producto.asc())
+      .all();
+    const tablas = db.sql.public;
+    return Promise.all(
+      programaciones.map(async (programacion) => {
+        const [ejecucion] = await db.query(
+          tablas.ejecuciones_etl
+            .as('ejecucion')
+            .outerLateralJoin('registro', (lateral) =>
+              lateral
+                .from(tablas.eventos_ejecucion_etl.as('evento'))
+                .select('creado_en', (f, sql) => sql.min(f.evento.creado_en))
+                .where((f, sql) =>
+                  sql.and(
+                    sql.eq(f.evento.ejecucion_id, f.ejecucion.id),
+                    sql.eq(f.evento.intento, 0),
+                  ),
+                ),
+            )
+            .select(
+              'id',
+              'fuente',
+              'estado',
+              'intento',
+              'filas_totales',
+              'filas_procesadas',
+              'filas_insertadas',
+              'filas_descartadas',
+              'iniciado_en',
+              'finalizado_en',
+              'mensaje_error',
+              'proceso_id',
+              'solicitante_id',
+              'instantanea_configuracion',
+              'uri_fuente',
+              'checksum_fuente',
+            )
+            .where((f, sql) =>
+              sql.eq(
+                f.ejecucion.fuente,
+                `EUROCONTROL:${programacion.producto}`,
+              ),
+            )
+            .orderBy(
+              (f) =>
+                new ExpressionImpl(
+                  FunctionCallExpr.of('coalesce', [
+                    f.registro.creado_en.buildAst(),
+                    f.ejecucion.iniciado_en.buildAst(),
+                  ]),
+                  f.ejecucion.iniciado_en.returnType,
+                ),
+              { direction: 'desc', nulls: 'last' },
+            )
+            .orderBy('id', { direction: 'desc' })
+            .limit(1)
+            .build(),
+        );
+        return {
+          ...programacion,
+          programacionUtc: '0 4 1 * *',
+          ultimaEjecucion: ejecucion
+            ? {
+                ...ejecucion,
+                iniciado_en:
+                  ejecucion.iniciado_en &&
+                  timestampToJson(ejecucion.iniciado_en),
+                finalizado_en:
+                  ejecucion.finalizado_en &&
+                  timestampToJson(ejecucion.finalizado_en),
+              }
+            : null,
+        };
+      }),
     );
-    return rows.map((row) => row.dato);
   }
+
   async schedule(producto: EurocontrolProduct, pausado: boolean) {
     await this.prisma.models.EurocontrolProgramacion.where({ producto }).update(
       {
@@ -307,26 +380,68 @@ export class EurocontrolService implements OnModuleInit {
   async list(query: ConsultaIndicadoresDto) {
     const { producto, ambito, entidad, granularidad, mes, instantaneaId } =
       query;
-    const [row] = await this.prisma.db.query(
-      this.prisma.db.raw.sql`
-      WITH snapshots AS (
-        SELECT DISTINCT ON(producto) * FROM indicadores_instantaneas WHERE publicada=true AND (${producto ?? ''}::text = '' OR producto=${producto ?? ''}) AND (${instantaneaId ?? ''}::text = '' OR id=${instantaneaId ?? ''}) ORDER BY producto,creado_en DESC,id DESC
-      ), datos AS (
-        SELECT i.*
-        FROM indicadores_externos i JOIN snapshots s ON s.id=i.instantanea_id WHERE (${ambito ?? ''}::text = '' OR i.ambito=${ambito ?? ''}) AND (${entidad ?? ''}::text = '' OR i.entidad=${entidad ?? ''}) AND (${granularidad ?? ''}::text = '' OR i.granularidad=${granularidad ?? ''}) AND (${mes ?? ''}::text = '' OR to_char(i.hasta,'YYYY-MM')=${mes ?? ''})
-      ), pagina AS (
-        SELECT * FROM datos ORDER BY hasta DESC,ambito,entidad,granularidad,instantanea_id LIMIT ${query.limite} OFFSET ${(query.pagina - 1) * query.limite}
-      ) SELECT jsonb_build_object('total',(SELECT count(*) FROM datos),'datos',COALESCE((
-        SELECT jsonb_agg(jsonb_build_object('instantaneaId',s.id,'producto',s.producto,'fuente','EUROCONTROL','atribucion',s.atribucion,'aviso',s.aviso,'metodologia',s.metodologia,'uri',s.uri,'actualizadoEn',s.creado_en,'ambito',i.ambito,'entidad',i.entidad,'nombre',i.nombre,'granularidad',i.granularidad,'desde',i.desde,'hasta',i.hasta,'valores',i.valores)
-          ORDER BY i.hasta DESC,i.ambito,i.entidad,i.granularidad,i.instantanea_id)
-        FROM pagina i JOIN snapshots s ON s.id=i.instantanea_id
-      ),'[]'::jsonb)) AS resultado
-    `
-        .returnsRow({ resultado: 'pg/jsonb@1' })
-        .build(),
-    );
-    return row.resultado;
+    if (mes?.startsWith('0000-')) return { total: 0, datos: [] };
+
+    const { InstantaneaIndicador, IndicadorExterno } = this.prisma.models;
+    const instantaneas = await InstantaneaIndicador.where({
+      publicada: true,
+      ...(producto && { producto }),
+      ...(instantaneaId && { id: instantaneaId }),
+    })
+      .orderBy([
+        (i) => i.producto.asc(),
+        (i) => i.creadoEn.desc(),
+        (i) => i.id.desc(),
+      ])
+      .distinctOn('producto')
+      .all();
+    if (!instantaneas.length) return { total: 0, datos: [] };
+
+    const porId = new Map(instantaneas.map((i) => [i.id, i]));
+    let filtrados = IndicadorExterno.where({
+      ...(ambito && { ambito }),
+      ...(entidad && { entidad }),
+      ...(granularidad && { granularidad }),
+    }).where((i) => i.instantaneaId.in([...porId.keys()]));
+    if (mes) {
+      const desde = mes + '-01';
+      filtrados = filtrados
+        .where((i) => i.hasta.gte(desde))
+        .where((i) => i.hasta.lte(ultimoDiaDelMes(desde)));
+    }
+
+    const [pagina, { total }] = await Promise.all([
+      filtrados
+        .orderBy([
+          (i) => i.hasta.desc(),
+          (i) => i.ambito.asc(),
+          (i) => i.entidad.asc(),
+          (i) => i.granularidad.asc(),
+          (i) => i.instantaneaId.asc(),
+        ])
+        .offset((query.pagina - 1) * query.limite)
+        .limit(query.limite)
+        .all(),
+      filtrados.aggregate((i) => ({ total: i.count() })),
+    ]);
+    return {
+      total,
+      datos: pagina.map((indicador) => {
+        const instantanea = porId.get(indicador.instantaneaId)!;
+        return {
+          ...indicador,
+          producto: instantanea.producto,
+          fuente: 'EUROCONTROL',
+          atribucion: instantanea.atribucion,
+          aviso: instantanea.aviso,
+          metodologia: instantanea.metodologia,
+          uri: instantanea.uri,
+          actualizadoEn: timestampToJson(instantanea.creadoEn),
+        };
+      }),
+    };
   }
+
   async snapshots(query: ConsultaIndicadoresDto) {
     let publicadas = this.prisma.models.InstantaneaIndicador.where({
       publicada: true,

@@ -85,7 +85,7 @@ describe('Puntualidad del mapa por HTTP', () => {
               provide: PrismaService,
               useValue: {
                 models: tx.orm.public,
-                db: { raw: tx.raw, query: tx.query.bind(tx) },
+                db: { sql: tx.sql, raw: tx.raw, query: tx.query.bind(tx) },
               },
             },
           ],

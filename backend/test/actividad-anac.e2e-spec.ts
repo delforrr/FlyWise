@@ -41,6 +41,7 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
               useValue: {
                 models: tx.orm.public,
                 db: {
+                  sql: tx.sql,
                   raw: tx.raw,
                   query: tx.query.bind(tx),
                   execute: tx.execute.bind(tx),
@@ -136,6 +137,16 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
               },
             ],
           });
+          for (const [pagina, codigo] of [
+            [1, 'AER'],
+            [2, 'CBA'],
+          ] as const) {
+            const correspondencias = await api
+              .get('/administracion/actividad-anac/correspondencias')
+              .query({ periodo: '2026-08', limite: 1, pagina })
+              .expect(200);
+            expect(correspondencias.body).toMatchObject([{ codigo }]);
+          }
           await api
             .get('/administracion/actividad-anac')
             .query({ periodo: '2026-13' })

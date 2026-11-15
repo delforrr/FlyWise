@@ -1,3 +1,5 @@
+import type { CollectionRowOf } from '@prisma/orm-postgres/orm-client';
+import { timestampToJson } from '../prisma/timestamp.js';
 import { randomUUID } from 'node:crypto';
 import type { Transaction } from '../prisma/db.js';
 import type { ObservacionVuelo } from '../entities/vuelos/domain/operacion.js';
@@ -60,4 +62,42 @@ export async function guardarObservaciones(
       .build(),
   );
   return resultado;
+}
+
+export async function archivarObservaciones(
+  tx: Transaction,
+  lote: { id: string; version: number }[],
+  ejecucionId: string,
+  archivadoEn: string,
+) {
+  const { Vuelo, HistorialVuelo } = tx.orm.public;
+  const idsPorVersion = new Map<number, string[]>();
+  for (const { id, version } of lote) {
+    const ids = idsPorVersion.get(version) ?? [];
+    ids.push(id);
+    idsPorVersion.set(version, ids);
+  }
+
+  const retiradas: CollectionRowOf<typeof Vuelo>[] = [];
+  for (const [version, ids] of idsPorVersion) {
+    const vuelos = await Vuelo.where((vuelo) => vuelo.id.in(ids)).updateAll({
+      archivadoEn,
+      ejecucionEtlId: ejecucionId,
+      version: version + 1,
+    });
+    retiradas.push(...vuelos);
+  }
+
+  await HistorialVuelo.createAll(
+    retiradas.map((vuelo) => ({
+      vueloId: vuelo.id,
+      version: vuelo.version,
+      accion: 'retiro-fuente',
+      instantanea: {
+        ...vuelo,
+        archivadoEn: timestampToJson(archivadoEn),
+      },
+    })),
+  );
+  return retiradas;
 }

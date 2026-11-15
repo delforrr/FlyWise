@@ -1,3 +1,4 @@
+import { ultimoDiaDelMes } from '../prisma/timestamp.js';
 import type { Database } from '../prisma/db.js';
 import type { ContextoRutaDto } from './dto/contexto-ruta.dto.js';
 
@@ -8,30 +9,77 @@ export async function consultarContextoRuta(
   const mes = periodo + '-01';
   const [actividad, indicadores] = await Promise.all([
     leerActividad(db, origenId, destinoId, mes),
-    db.query(
-      db.raw.sql`
-        SELECT DISTINCT ON (a.id) a.icao AS aeropuerto,
-          i.desde::text AS desde, i.hasta::text AS hasta,
-          ((i.valores->>'ARR_PUN')::numeric * 100)::float8 AS "puntualidadLlegada"
-        FROM aeropuertos a
-        JOIN indicadores_externos i ON i.entidad=a.icao AND i.ambito='AIRPORT'
-        JOIN indicadores_instantaneas s ON s.id=i.instantanea_id
-        WHERE a.id IN (${origenId},${destinoId}) AND a.archivado_en IS NULL
-          AND s.publicada AND s.producto='stakeholder'
-          AND i.granularidad IN ('WK','DY') AND i.valores->>'ARR_PUN' IS NOT NULL
-          AND i.desde >= ${mes}::date AND i.hasta < ${mes}::date + interval '1 month'
-        ORDER BY a.id, s.creado_en DESC, s.id DESC, i.hasta DESC, i.desde ASC
-      `
-        .returnsRow({
-          aeropuerto: 'pg/text@1',
-          desde: 'pg/text@1',
-          hasta: 'pg/text@1',
-          puntualidadLlegada: 'pg/float8@1',
-        })
-        .build(),
-    ),
+    leerIndicadores(db, [origenId, destinoId], mes),
   ]);
   return { actividad: actividad?.despegues ? actividad : null, indicadores };
+}
+
+async function leerIndicadores(db: Database, ids: string[], mes: string) {
+  const tablas = db.sql.public;
+  const hasta = ultimoDiaDelMes(mes);
+  const plan = tablas.aeropuertos
+    .as('aeropuerto')
+    .innerJoin(tablas.indicadores_externos.as('indicador'), (f, sql) =>
+      sql.eq(f.aeropuerto.icao, f.indicador.entidad),
+    )
+    .innerJoin(tablas.indicadores_instantaneas.as('instantanea'), (f, sql) =>
+      sql.eq(f.indicador.instantanea_id, f.instantanea.id),
+    )
+    .select((f) => ({
+      id: f.aeropuerto.id,
+      aeropuerto: f.indicador.entidad,
+      desde: f.indicador.desde,
+      hasta: f.indicador.hasta,
+      valores: f.indicador.valores,
+    }))
+    .where((f, sql) =>
+      sql.and(
+        sql.in(f.aeropuerto.id, ids),
+        sql.eq(f.aeropuerto.archivado_en, null),
+        sql.eq(f.indicador.ambito, 'AIRPORT'),
+        sql.eq(f.instantanea.publicada, true),
+        sql.eq(f.instantanea.producto, 'stakeholder'),
+        sql.in(f.indicador.granularidad, ['WK', 'DY']),
+        sql.gte(f.indicador.desde, mes),
+        sql.lte(f.indicador.hasta, hasta),
+      ),
+    )
+    .orderBy('id')
+    .orderBy((f) => f.instantanea.creado_en, { direction: 'desc' })
+    .orderBy((f) => f.instantanea.id, { direction: 'desc' })
+    .orderBy('hasta', { direction: 'desc' })
+    .orderBy('desde')
+    .build();
+  const vistos = new Set<string>();
+  const indicadores: {
+    aeropuerto: string;
+    desde: string;
+    hasta: string;
+    puntualidadLlegada: number;
+  }[] = [];
+  for await (const { id, aeropuerto, desde, hasta, valores } of db.query(
+    plan,
+  )) {
+    if (
+      vistos.has(id) ||
+      !valores ||
+      typeof valores !== 'object' ||
+      !('ARR_PUN' in valores)
+    )
+      continue;
+    const puntualidad = valores.ARR_PUN;
+    if (typeof puntualidad !== 'number' && typeof puntualidad !== 'string')
+      continue;
+    vistos.add(id);
+    indicadores.push({
+      aeropuerto,
+      desde,
+      hasta,
+      puntualidadLlegada: Number(puntualidad) * 100,
+    });
+    if (vistos.size === ids.length) break;
+  }
+  return indicadores;
 }
 
 async function leerActividad(

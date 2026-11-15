@@ -1,4 +1,7 @@
+import { and, or } from '@prisma/orm-postgres/orm-client';
 import type { Transaction } from '../prisma/db.js';
+import { ultimoDiaDelMes } from '../prisma/timestamp.js';
+import { archivarObservaciones } from '../vuelos/observaciones.store.js';
 
 // La publicación ya tiene el bloqueo de cambios de operaciones de importarLote.
 export async function retirarAusentesBts(
@@ -6,31 +9,72 @@ export async function retirarAusentesBts(
   periodo: string,
   ejecucionId: string,
 ) {
-  const inicio = `${periodo}-01`;
-  await tx.execute(
-    tx.raw.sql`
-    WITH retiradas AS (
-      UPDATE vuelos v SET archivado_en=CURRENT_TIMESTAMP, version=v.version+1,
-        ejecucion_etl_id=${ejecucionId}
-      WHERE v.fuente='BTS' AND NOT v.protegido_manualmente AND v.archivado_en IS NULL
-        AND v.fecha_vuelo >= ${inicio}::date AND v.fecha_vuelo < ${inicio}::date + interval '1 month'
-        AND NOT EXISTS (SELECT 1 FROM preparacion_bts p
-          WHERE p.ejecucion_id=${ejecucionId} AND p.identidad=v.id_registro_fuente)
-      RETURNING v.*
-    ), auditoria AS (
-      INSERT INTO historial_vuelos(id,vuelo_id,version,accion,instantanea)
-      SELECT gen_random_uuid()::text,id,version,'retiro-fuente',
-        jsonb_build_object('id',id,'version',version,'fuente',fuente,'idRegistroFuente',id_registro_fuente,
-          'fechaVuelo',fecha_vuelo,'numeroVuelo',numero_vuelo,'origenId',origen_id,'destinoId',destino_id,
-          'aerolineaId',aerolinea_id,'estado',estado,'demoraLlegadaMinutos',demora_llegada_minutos,'horarios',horarios,
-          'protegidoManualmente',false,'archivadoEn',archivado_en,'ejecucionEtlId',ejecucion_etl_id,'ultimaObservacion',ultima_observacion)
-      FROM retiradas
+  const inicio = periodo + '-01';
+  const hasta = ultimoDiaDelMes(inicio);
+  const archivadoEn = new Date().toISOString().slice(0, -1).replace('T', ' ');
+  const tablas = tx.sql.public;
+  const ausentes = tablas.vuelos
+    .as('vuelo')
+    .outerLeftJoin(tablas.preparacion_bts.as('preparada'), (f, sql) =>
+      sql.and(
+        sql.eq(f.preparada.ejecucion_id, ejecucionId),
+        sql.eq(f.preparada.identidad, f.vuelo.id_registro_fuente),
+      ),
     )
-    INSERT INTO metricas_ruta(origen_id,destino_id,aerolinea_id,periodo,vuelos_totales,actualizado_en,pendiente)
-    SELECT DISTINCT origen_id,destino_id,aerolinea_id,${inicio}::date,0,NULL::timestamp,true FROM retiradas
-    ON CONFLICT(origen_id,destino_id,aerolinea_id,periodo) DO UPDATE SET pendiente=true,error_actualizacion=NULL
-  `
-      .affectedCount()
-      .build(),
-  );
+    .select((f) => ({ id: f.vuelo.id, version: f.vuelo.version }))
+    .where((f, sql) =>
+      sql.and(
+        sql.eq(f.vuelo.fuente, 'BTS'),
+        sql.eq(f.vuelo.protegido_manualmente, false),
+        sql.eq(f.vuelo.archivado_en, null),
+        sql.gte(f.vuelo.fecha_vuelo, inicio),
+        sql.lte(f.vuelo.fecha_vuelo, hasta),
+        sql.eq(f.preparada.identidad, null),
+      ),
+    )
+    .orderBy('id')
+    .limit(100)
+    .forUpdate({ of: ['vuelo'] })
+    .build();
+
+  const { MetricaRuta } = tx.orm.public;
+  for (;;) {
+    const lote = await tx.query(ausentes);
+    if (!lote.length) return;
+    const retiradas = await archivarObservaciones(
+      tx,
+      lote,
+      ejecucionId,
+      archivadoEn,
+    );
+    const poblaciones = new Map(
+      retiradas.map(({ origenId, destinoId, aerolineaId }) => [
+        JSON.stringify([origenId, destinoId, aerolineaId]),
+        { origenId, destinoId, aerolineaId },
+      ]),
+    );
+    const claves = [...poblaciones.values()];
+    await MetricaRuta.createAndCount(
+      claves.map((clave) => ({
+        ...clave,
+        periodo: inicio,
+        vuelosTotales: 0,
+        pendiente: true,
+      })),
+      { onConflict: 'skip' },
+    );
+    await MetricaRuta.where({ periodo: inicio })
+      .where((m) =>
+        or(
+          ...claves.map(({ origenId, destinoId, aerolineaId }) =>
+            and(
+              m.origenId.eq(origenId),
+              m.destinoId.eq(destinoId),
+              m.aerolineaId.eq(aerolineaId),
+            ),
+          ),
+        ),
+      )
+      .updateAndCount({ pendiente: true, errorActualizacion: null });
+  }
 }

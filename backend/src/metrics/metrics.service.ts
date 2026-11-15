@@ -1,3 +1,5 @@
+import { FunctionCallExpr } from '@prisma/orm-postgres/relational-core/ast';
+import { ExpressionImpl } from '@prisma/orm-postgres/relational-core/expression';
 import { and } from '@prisma/orm-postgres/orm-client';
 import { consultarContextoRuta } from './contexto-ruta.js';
 import { porcentajeOtp } from './domain/otp.js';
@@ -95,79 +97,108 @@ export class MetricsService {
   async consultar(consulta: ConsultaMetricasDto, pares?: ParRutaDto[]) {
     const { periodo, origenId, destinoId, aerolineaId, pagina, limite } =
       consulta;
-    const lote = JSON.stringify(pares ?? []);
-    const rows = await this.prisma.db.query(
-      this.prisma.db.raw.sql`
-      SELECT origen_id AS "origenId",destino_id AS "destinoId",
-        sum(vuelos_totales)::int AS "vuelosTotales",sum(vuelos_cancelados)::int AS "vuelosCancelados",
-        sum(vuelos_sin_evidencia)::int AS "vuelosSinEvidencia",
-        sum(vuelos_desviados)::int AS "vuelosDesviados",sum(vuelos_puntuales)::int AS "vuelosPuntuales",
-        sum(demora_llegada_total_minutos)::float8 AS "demoraLlegadaTotalMinutos", bool_or(pendiente) AS pendiente,
-        max(error_actualizacion) AS "errorActualizacion",min(actualizado_en)::text AS "actualizadoEn",
-        jsonb_agg(fuentes) AS fuentes, count(*) OVER()::int AS total
-      FROM metricas_ruta WHERE periodo=${periodo + '-01'}::date
-        AND (${origenId ?? ''}::text = '' OR origen_id=${origenId ?? ''})
-        AND (${destinoId ?? ''}::text = '' OR destino_id=${destinoId ?? ''})
-        AND (${aerolineaId ?? ''}::text = '' OR aerolinea_id=${aerolineaId ?? ''})
-        AND (NOT ${pares !== undefined} OR (actualizado_en IS NOT NULL AND vuelos_totales > 0
-          AND (origen_id, destino_id) IN (
-          SELECT p."origenId", p."destinoId" FROM jsonb_to_recordset(${lote}::jsonb) p("origenId" text, "destinoId" text)
-        )))
-      GROUP BY origen_id,destino_id ORDER BY origen_id,destino_id LIMIT ${limite} OFFSET ${(pagina - 1) * limite}
-    `
-        .returnsRow({
-          origenId: 'pg/text@1',
-          destinoId: 'pg/text@1',
-          vuelosTotales: 'pg/int4@1',
-          vuelosCancelados: 'pg/int4@1',
-          vuelosSinEvidencia: 'pg/int4@1',
-          vuelosDesviados: 'pg/int4@1',
-          vuelosPuntuales: 'pg/int4@1',
-          demoraLlegadaTotalMinutos: 'pg/float8@1',
-          pendiente: 'pg/bool@1',
-          errorActualizacion: { codecId: 'pg/text@1', nullable: true },
-          actualizadoEn: { codecId: 'pg/text@1', nullable: true },
-          fuentes: 'pg/jsonb@1',
-          total: 'pg/int4@1',
-        })
-        .build(),
-    );
+    const { db } = this.prisma;
+    const fecha = periodo + '-01';
+    if (pares?.length === 0) return { datos: [], total: 0, pagina, limite };
+    const tabla = db.sql.public.metricas_ruta;
+    const base = tabla
+      .select()
+      .where((m, sql) =>
+        sql.and(
+          sql.eq(m.periodo, fecha),
+          ...(origenId ? [sql.eq(m.origen_id, origenId)] : []),
+          ...(destinoId ? [sql.eq(m.destino_id, destinoId)] : []),
+          ...(aerolineaId ? [sql.eq(m.aerolinea_id, aerolineaId)] : []),
+        ),
+      );
+    const filtradas = pares
+      ? base.where((m, sql) =>
+          sql.and(
+            sql.ne(m.actualizado_en, null),
+            sql.gt(m.vuelos_totales, 0),
+            sql.or(
+              ...pares.map((par) =>
+                sql.and(
+                  sql.eq(m.origen_id, par.origenId),
+                  sql.eq(m.destino_id, par.destinoId),
+                ),
+              ),
+            ),
+          ),
+        )
+      : base;
+    const agrupar = (query: typeof base) =>
+      query.select((m) => ({ origenId: m.origen_id, destinoId: m.destino_id }));
+    const consultaDatos = agrupar(filtradas)
+      .select((m, sql) => ({
+        vuelosTotales: sql.sum(m.vuelos_totales),
+        vuelosCancelados: sql.sum(m.vuelos_cancelados),
+        vuelosDesviados: sql.sum(m.vuelos_desviados),
+        vuelosPuntuales: sql.sum(m.vuelos_puntuales),
+        vuelosSinEvidencia: sql.sum(m.vuelos_sin_evidencia),
+        demoraLlegadaTotalMinutos: sql.sum(m.demora_llegada_total_minutos),
+        errorActualizacion: sql.max(m.error_actualizacion),
+        actualizadoEn: sql.min(m.actualizado_en),
+        pendiente: new ExpressionImpl(
+          FunctionCallExpr.of('bool_or', [m.pendiente.buildAst()]),
+          m.pendiente.returnType,
+        ),
+        fuentes: new ExpressionImpl(
+          FunctionCallExpr.of('jsonb_agg', [m.fuentes.buildAst()]),
+          m.fuentes.returnType,
+        ),
+      }))
+      .groupBy('origenId', 'destinoId')
+      .orderBy('origenId')
+      .orderBy('destinoId')
+      .limit(limite)
+      .offset((pagina - 1) * limite);
+    const contarPares = (query: typeof base) =>
+      db.query(
+        tabla
+          .as('metrica')
+          .lateralJoin('resumen', (lateral) =>
+            lateral
+              .from(agrupar(query).groupBy('origenId', 'destinoId').as('pares'))
+              .select('total', (_m, sql) => sql.count()),
+          )
+          .select('total')
+          .where((m, sql) => sql.eq(m.metrica.periodo, fecha))
+          .limit(1)
+          .build(),
+      );
+
+    const [rows, conteo] = await Promise.all([
+      db.query(consultaDatos.build()),
+      contarPares(filtradas),
+    ]);
     const datos = rows.map((row) => ({
       origenId: row.origenId,
       destinoId: row.destinoId,
-      vuelosTotales: row.vuelosTotales,
-      vuelosCancelados: row.vuelosCancelados,
-      vuelosDesviados: row.vuelosDesviados,
-      vuelosPuntuales: row.vuelosPuntuales,
-      demoraLlegadaTotalMinutos: row.demoraLlegadaTotalMinutos,
+      vuelosTotales: row.vuelosTotales ?? 0,
+      vuelosCancelados: row.vuelosCancelados ?? 0,
+      vuelosDesviados: row.vuelosDesviados ?? 0,
+      vuelosPuntuales: row.vuelosPuntuales ?? 0,
+      demoraLlegadaTotalMinutos: Number(row.demoraLlegadaTotalMinutos),
       pendiente: row.pendiente,
       errorActualizacion: row.errorActualizacion,
       actualizadoEn: row.actualizadoEn,
       periodo,
       aerolineaId: aerolineaId ?? null,
-      vuelosOperados: row.vuelosTotales - row.vuelosCancelados,
-      vuelosSinEvidencia: row.vuelosSinEvidencia,
+      vuelosOperados: (row.vuelosTotales ?? 0) - (row.vuelosCancelados ?? 0),
+      vuelosSinEvidencia: row.vuelosSinEvidencia ?? 0,
       otp15: porcentajeOtp(
-        row.vuelosPuntuales,
-        row.vuelosTotales - row.vuelosCancelados - row.vuelosSinEvidencia,
+        row.vuelosPuntuales ?? 0,
+        (row.vuelosTotales ?? 0) -
+          (row.vuelosCancelados ?? 0) -
+          (row.vuelosSinEvidencia ?? 0),
       ),
       fuentes: [...new Set((row.fuentes as string[][]).flat())].sort(),
     }));
-    let total = rows[0]?.total ?? 0;
-    if (!rows.length && pagina > 1) {
-      const [resumen] = await this.prisma.db.query(
-        this.prisma.db.raw.sql`
-        SELECT count(DISTINCT (origen_id,destino_id))::int AS total
-        FROM metricas_ruta WHERE periodo=${periodo + '-01'}::date
-          AND (${origenId ?? ''}::text = '' OR origen_id=${origenId ?? ''})
-          AND (${destinoId ?? ''}::text = '' OR destino_id=${destinoId ?? ''})
-          AND (${aerolineaId ?? ''}::text = '' OR aerolinea_id=${aerolineaId ?? ''})
-      `
-          .returnsRow({ total: 'pg/int4@1' })
-          .build(),
-      );
-      total = resumen.total;
-    }
+    const total =
+      pares && !rows.length && pagina > 1
+        ? ((await contarPares(base))[0]?.total ?? 0)
+        : (conteo[0]?.total ?? 0);
     return { datos, total, pagina, limite };
   }
 }

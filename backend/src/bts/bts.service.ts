@@ -1,4 +1,4 @@
-import { or } from '@prisma/orm-postgres/orm-client';
+import { and, or } from '@prisma/orm-postgres/orm-client';
 import { bloquearRecurso } from '../prisma/bloqueo-transaccional.js';
 import { admiteFuente } from '../metrics/domain/autoridad-publicacion.js';
 import { exigirIngestaDisponible } from '../ingestion/infrastructure/admision-operaciones.js';
@@ -780,17 +780,119 @@ export class BtsService implements OnModuleInit {
       throw new UnrecoverableError(
         'La nueva carga parcial conserva la publicación anterior',
       );
-    await tx.execute(
-      tx.raw.sql`
-              UPDATE metricas_ruta m SET pendiente=false,error_actualizacion=NULL
-              WHERE m.periodo=${periodo + '-01'}::date AND EXISTS (
-                SELECT 1 FROM vuelos v WHERE v.ejecucion_etl_id=${ejecucionId}
-                  AND (v.origen_id,v.destino_id,v.aerolinea_id)=(m.origen_id,m.destino_id,m.aerolinea_id)
-              )
-            `
-        .affectedCount()
-        .build(),
+    await this.procesarPoblacionesBts(
+      tx,
+      periodo,
+      ejecucionId,
+      false,
+      async (poblaciones) => {
+        await tx.orm.public.MetricaRuta.where({ periodo: periodo + '-01' })
+          .where((m) =>
+            or(
+              ...poblaciones.map(({ origenId, destinoId, aerolineaId }) =>
+                and(
+                  m.origenId.eq(origenId),
+                  m.destinoId.eq(destinoId),
+                  m.aerolineaId.eq(aerolineaId),
+                ),
+              ),
+            ),
+          )
+          .updateAndCount({ pendiente: false, errorActualizacion: null });
+      },
     );
+  }
+
+  private async procesarPoblacionesBts(
+    tx: Transaction,
+    periodo: string,
+    ejecucionId: string,
+    publicacion: boolean,
+    procesar: (
+      filas: (PoblacionBtsDto & {
+        fuente: string | null;
+        ejecucionId: string | null;
+        actualizada: boolean;
+        vuelosTotales: number;
+        fuentes: unknown;
+        observada: boolean;
+      })[],
+    ) => Promise<void>,
+  ) {
+    const tablas = tx.sql.public;
+    const base = tablas.metricas_ruta
+      .as('metrica')
+      .outerLeftJoin(tablas.ejecuciones_etl.as('ejecucion'), (f, sql) =>
+        sql.eq(f.metrica.ejecucion_etl_id, f.ejecucion.id),
+      )
+      .outerLateralJoin('observacion', (lateral) =>
+        lateral
+          .from(tablas.vuelos.as('vuelo'))
+          .select('id', (f) => f.vuelo.id)
+          .where((f, sql) =>
+            sql.and(
+              sql.eq(f.vuelo.ejecucion_etl_id, ejecucionId),
+              ...(publicacion ? [sql.eq(f.vuelo.fuente, 'BTS')] : []),
+              sql.eq(f.vuelo.origen_id, f.metrica.origen_id),
+              sql.eq(f.vuelo.destino_id, f.metrica.destino_id),
+              sql.eq(f.vuelo.aerolinea_id, f.metrica.aerolinea_id),
+            ),
+          )
+          .limit(1),
+      )
+      .select('origenId', (f) => f.metrica.origen_id)
+      .select('destinoId', (f) => f.metrica.destino_id)
+      .select('aerolineaId', (f) => f.metrica.aerolinea_id)
+      .select('fuente', (f) => f.ejecucion.fuente)
+      .select('ejecucionId', (f) => f.metrica.ejecucion_etl_id)
+      .select('actualizada', (f, sql) => sql.ne(f.metrica.actualizado_en, null))
+      .select('vuelosTotales', (f) => f.metrica.vuelos_totales)
+      .select('fuentes', (f) => f.metrica.fuentes)
+      .select('observada', (f, sql) => sql.ne(f.observacion.id, null))
+      .where((f, sql) =>
+        sql.and(
+          sql.eq(f.metrica.periodo, periodo + '-01'),
+          publicacion
+            ? sql.and(
+                sql.eq(f.metrica.pendiente, true),
+                sql.or(
+                  sql.ne(f.metrica.ejecucion_etl_id, null),
+                  sql.ne(f.observacion.id, null),
+                ),
+              )
+            : sql.ne(f.observacion.id, null),
+        ),
+      )
+      .orderBy('origenId')
+      .orderBy('destinoId')
+      .orderBy('aerolineaId')
+      .limit(100);
+
+    let cursor = { origenId: '', destinoId: '', aerolineaId: '' };
+    for (;;) {
+      const pagina = await tx.query(
+        base
+          .where((f, sql) =>
+            sql.or(
+              sql.gt(f.metrica.origen_id, cursor.origenId),
+              sql.and(
+                sql.eq(f.metrica.origen_id, cursor.origenId),
+                sql.gt(f.metrica.destino_id, cursor.destinoId),
+              ),
+              sql.and(
+                sql.eq(f.metrica.origen_id, cursor.origenId),
+                sql.eq(f.metrica.destino_id, cursor.destinoId),
+                sql.gt(f.metrica.aerolinea_id, cursor.aerolineaId),
+              ),
+            ),
+          )
+          .build(),
+      );
+      if (!pagina.length) return;
+      await procesar(pagina);
+      if (pagina.length < 100) return;
+      cursor = pagina[pagina.length - 1];
+    }
   }
 
   private async publicarMesBts(
@@ -806,59 +908,32 @@ export class BtsService implements OnModuleInit {
       aerolineaId,
     }: PoblacionBtsDto) => JSON.stringify([origenId, destinoId, aerolineaId]);
     const conAutorizacion = new Set(autorizadas.map(clavePoblacion));
-    let cursor = { origenId: '', destinoId: '', aerolineaId: '' };
-    for (;;) {
-      const poblaciones = await tx.query(
-        tx.raw.sql`
-                SELECT m.origen_id AS "origenId",m.destino_id AS "destinoId",m.aerolinea_id AS "aerolineaId",
-                  e.fuente, m.ejecucion_etl_id AS "ejecucionId",
-                  m.actualizado_en IS NOT NULL AS actualizada, m.vuelos_totales AS "vuelosTotales", m.fuentes, COALESCE(observada.existe, false) AS observada
-                FROM metricas_ruta m LEFT JOIN ejecuciones_etl e ON e.id=m.ejecucion_etl_id
-                LEFT JOIN LATERAL (
-                  SELECT true AS existe FROM vuelos v
-                  WHERE v.ejecucion_etl_id=${ejecucionId} AND v.fuente='BTS'
-                    AND (v.origen_id,v.destino_id,v.aerolinea_id)=(m.origen_id,m.destino_id,m.aerolinea_id)
-                  LIMIT 1
-                ) observada ON true
-                WHERE m.periodo=${periodo + '-01'}::date AND m.pendiente
-                  AND (m.ejecucion_etl_id IS NOT NULL OR observada.existe)
-                  AND (m.origen_id,m.destino_id,m.aerolinea_id)>(${cursor.origenId},${cursor.destinoId},${cursor.aerolineaId})
-                ORDER BY m.origen_id,m.destino_id,m.aerolinea_id LIMIT 100
-              `
-          .returnsRow({
-            origenId: 'pg/text@1',
-            destinoId: 'pg/text@1',
-            aerolineaId: 'pg/text@1',
-            fuente: { codecId: 'pg/text@1', nullable: true },
-            ejecucionId: { codecId: 'pg/text@1', nullable: true },
-            actualizada: 'pg/bool@1',
-            vuelosTotales: 'pg/int4@1',
-            fuentes: 'pg/jsonb@1',
-            observada: 'pg/bool@1',
-          })
-          .build(),
-      );
-      for (const actual of poblaciones) {
-        const { origenId, destinoId, aerolineaId } = actual;
-        const poblacion = { origenId, destinoId, aerolineaId };
-        if (actual.fuente !== 'BTS' && !actual.observada) continue;
-        if (
-          !admiteFuente(
-            actual,
-            'BTS',
-            conAutorizacion.has(clavePoblacion(poblacion)),
+    await this.procesarPoblacionesBts(
+      tx,
+      periodo,
+      ejecucionId,
+      true,
+      async (poblaciones) => {
+        for (const actual of poblaciones) {
+          const { origenId, destinoId, aerolineaId } = actual;
+          const poblacion = { origenId, destinoId, aerolineaId };
+          if (actual.fuente !== 'BTS' && !actual.observada) continue;
+          if (
+            !admiteFuente(
+              actual,
+              'BTS',
+              conAutorizacion.has(clavePoblacion(poblacion)),
+            )
           )
-        )
-          continue;
-        await escribirPublicacion(
-          tx,
-          { ...poblacion, periodo },
-          { fuente: 'BTS', ejecucionId },
-        );
-      }
-      if (poblaciones.length < 100) break;
-      cursor = poblaciones[poblaciones.length - 1];
-    }
+            continue;
+          await escribirPublicacion(
+            tx,
+            { ...poblacion, periodo },
+            { fuente: 'BTS', ejecucionId },
+          );
+        }
+      },
+    );
   }
 }
 
