@@ -1,3 +1,4 @@
+import { timestampToJson } from '../prisma/timestamp.js';
 import { bloquearMesAnac } from '../prisma/bloqueo-transaccional.js';
 import {
   BadRequestException,
@@ -210,6 +211,37 @@ export class ActividadService implements OnModuleInit {
     );
   }
 
+  private prepararRevision(periodo: string, ejecucionId: string, uri: string) {
+    return this.prisma.db.transaction(async (tx) => {
+      const job = await tx.orm.public.EjecucionEtl.where({ id: ejecucionId })
+        .select('intento')
+        .forUpdate()
+        .firstOrThrow();
+      const revision = await tx.orm.public.RevisionActividad.where({
+        id: ejecucionId,
+      })
+        .select('estado')
+        .forUpdate()
+        .first();
+      if (revision?.estado === 'publicada') return null;
+
+      await tx.orm.public.RevisionActividad.upsert({
+        create: { id: ejecucionId, periodo: periodo + '-01', uri },
+        update: {
+          estado: 'procesando',
+          filasProcesadas: 0,
+          filasDescartadas: 0,
+          checksum: null,
+          uri,
+        },
+      });
+      await tx.orm.public.MovimientoAeropuerto.where({
+        revisionId: ejecucionId,
+      }).deleteAndCount();
+      return job;
+    });
+  }
+
   async importar(
     fuente: Readable,
     periodo: string,
@@ -219,23 +251,11 @@ export class ActividadService implements OnModuleInit {
     if (!/^(19|20)\d{2}-(0[1-9]|1[0-2])$/.test(periodo))
       throw new BadRequestException('Mes ANAC inválido');
     const db = this.prisma.db;
-    // A retry may replace only unpublished staging rows.
-    const [revision] = await db.query(
-      db.raw
-        .sql`INSERT INTO actividad_revisiones(id,periodo,uri) VALUES (${ejecucionId},${`${periodo}-01`}::date,${uri}) ON CONFLICT(id) DO UPDATE SET estado='procesando',filas_procesadas=0,filas_descartadas=0,checksum=NULL,uri=EXCLUDED.uri WHERE actividad_revisiones.estado<>'publicada' RETURNING id`
-        .returnsRow({ id: 'pg/text@1' })
-        .build(),
-    );
-    if (!revision) {
+    const job = await this.prepararRevision(periodo, ejecucionId, uri);
+    if (!job) {
       fuente.destroy();
       return;
     }
-    await this.prisma.models.MovimientoAeropuerto.where({
-      revisionId: ejecucionId,
-    }).deleteAndCount();
-    const job = await this.prisma.models.EjecucionEtl.firstOrThrow({
-      id: ejecucionId,
-    });
     const hash = createHash('sha256');
     let bytes = 0,
       numeroFila = 0,
@@ -314,6 +334,10 @@ export class ActividadService implements OnModuleInit {
         throw new Error('El CSV ANAC no abarca todo el mes seleccionado');
       const checksum = hash.digest('hex');
       await db.transaction(async (tx) => {
+        await tx.orm.public.EjecucionEtl.where({ id: ejecucionId })
+          .select('id')
+          .forUpdate()
+          .firstOrThrow();
         await bloquearMesAnac(tx, periodo);
         await tx.orm.public.RevisionActividad.where({ id: ejecucionId }).update(
           {
@@ -421,14 +445,21 @@ export class ActividadService implements OnModuleInit {
   }
 
   async revisiones(periodo: string) {
-    const db = this.prisma.db;
-    const [row] = await db.query(
-      db.raw
-        .sql`SELECT COALESCE(json_agg(x),'[]')::text AS json FROM (SELECT r.id,r.periodo,r.estado,r.checksum,r.uri,r.filas_procesadas AS "filasProcesadas",r.filas_descartadas AS "filasDescartadas",r.actualizado_en AS "actualizadoEn",(p.revision_id=r.id) AS vigente FROM actividad_revisiones r LEFT JOIN actividad_publicaciones p ON p.periodo=r.periodo WHERE r.periodo=${`${periodo}-01`}::date ORDER BY r.actualizado_en DESC LIMIT 20) x`
-        .returnsRow({ json: 'pg/text@1' })
-        .build(),
-    );
-    return JSON.parse(row.json) as unknown;
+    const mes = periodo + '-01';
+    const [revisiones, publicacion] = await Promise.all([
+      this.prisma.models.RevisionActividad.where({ periodo: mes })
+        .orderBy((revision) => revision.actualizadoEn.desc())
+        .limit(20)
+        .all(),
+      this.prisma.models.PublicacionActividad.select('revisionId').first({
+        periodo: mes,
+      }),
+    ]);
+    return revisiones.map(({ actualizadoEn, ...revision }) => ({
+      ...revision,
+      actualizadoEn: timestampToJson(actualizadoEn),
+      vigente: publicacion ? publicacion.revisionId === revision.id : null,
+    }));
   }
 
   async correspondencias(dto: ConsultaActividadDto) {

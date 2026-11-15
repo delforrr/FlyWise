@@ -1,3 +1,4 @@
+import { timestampToJson } from '../prisma/timestamp.js';
 import {
   BadRequestException,
   Injectable,
@@ -327,21 +328,27 @@ export class EurocontrolService implements OnModuleInit {
     return row.resultado;
   }
   async snapshots(query: ConsultaIndicadoresDto) {
-    const [row] = await this.prisma.db.query(
-      this.prisma.db.raw.sql`
-        WITH publicadas AS (
-          SELECT id,producto,creado_en,checksum,ejecucion_id FROM indicadores_instantaneas
-          WHERE publicada=true AND (${query.producto ?? ''}='' OR producto=${query.producto ?? ''})
-        ), pagina AS (
-          SELECT * FROM publicadas ORDER BY creado_en DESC,id DESC LIMIT ${query.limite} OFFSET ${(query.pagina - 1) * query.limite}
-        ) SELECT jsonb_build_object('total',(SELECT count(*) FROM publicadas),'datos',COALESCE((
-          SELECT jsonb_agg(jsonb_build_object('id',id,'producto',producto,'actualizadoEn',creado_en,'checksum',checksum,'ejecucionId',ejecucion_id)
-            ORDER BY creado_en DESC,id DESC) FROM pagina
-        ),'[]'::jsonb)) AS resultado
-      `
-        .returnsRow({ resultado: 'pg/jsonb@1' })
-        .build(),
-    );
-    return row.resultado;
+    let publicadas = this.prisma.models.InstantaneaIndicador.where({
+      publicada: true,
+    });
+    if (query.producto)
+      publicadas = publicadas.where({ producto: query.producto });
+    const [pagina, { total }] = await Promise.all([
+      publicadas
+        .select('id', 'producto', 'creadoEn', 'checksum', 'ejecucionId')
+        .orderBy([(i) => i.creadoEn.desc(), (i) => i.id.desc()])
+        .offset((query.pagina - 1) * query.limite)
+        .limit(query.limite)
+        .all(),
+      publicadas.aggregate((i) => ({ total: i.count() })),
+    ]);
+
+    return {
+      total,
+      datos: pagina.map(({ creadoEn, ...fila }) => ({
+        ...fila,
+        actualizadoEn: timestampToJson(creadoEn),
+      })),
+    };
   }
 }

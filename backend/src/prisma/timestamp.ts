@@ -8,3 +8,7 @@ export function ultimoDiaDelMes(inicioMes: string) {
   fecha.setUTCMonth(fecha.getUTCMonth() + 1, 0);
   return fecha.toISOString().split('T')[0];
 }
+
+export function timestampToJson(value: string) {
+  return value.replace(' ', 'T').replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1');
+}

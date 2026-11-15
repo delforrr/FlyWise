@@ -389,9 +389,7 @@ export class RoutesService {
         .offset((consulta.pagina - 1) * consulta.limite)
         .limit(consulta.limite)
         .all(),
-      patron
-        ? this.contarRutasPorBusqueda(patron, consulta.estado)
-        : query.aggregate((r) => ({ total: r.count() })),
+      query.aggregate((r) => ({ total: r.count() })),
     ]);
     return {
       datos,
@@ -399,31 +397,6 @@ export class RoutesService {
       pagina: consulta.pagina,
       limite: consulta.limite,
     };
-  }
-
-  private async contarRutasPorBusqueda(
-    patron: string,
-    estado: ConsultaCatalogoDto['estado'],
-  ) {
-    const [resumen] = await this.prisma.db.query(
-      this.prisma.db.raw.sql`
-        WITH aeropuertos_coincidentes AS MATERIALIZED (
-          SELECT id FROM aeropuertos
-          WHERE nombre ILIKE ${patron} OR iata ILIKE ${patron}
-        )
-        SELECT COUNT(*) AS total
-        FROM rutas
-        WHERE (${estado === 'todos'} OR (archivado_en IS NULL) = ${estado === 'vigentes'})
-          AND (
-            id ILIKE ${patron}
-            OR origen_id IN (SELECT id FROM aeropuertos_coincidentes)
-            OR destino_id IN (SELECT id FROM aeropuertos_coincidentes)
-          )
-      `
-        .returnsRow({ total: 'pg/int8@1' })
-        .build(),
-    );
-    return resumen;
   }
 
   async detalleAdmin(id: string) {
