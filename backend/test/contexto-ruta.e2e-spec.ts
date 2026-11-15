@@ -115,7 +115,9 @@ describe('Contexto público de una ruta', () => {
             MetricsService,
             {
               provide: PrismaService,
-              useValue: { db: { raw: tx.raw, query: tx.query.bind(tx) } },
+              useValue: {
+                db: { sql: tx.sql, raw: tx.raw, query: tx.query.bind(tx) },
+              },
             },
           ],
         }).compile();

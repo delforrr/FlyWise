@@ -15,7 +15,14 @@ describe('AirportsService', () => {
       Aeropuerto: ReturnType<typeof mockCollection>;
       Pais: ReturnType<typeof mockCollection>;
     };
-    db: ReturnType<typeof mockDatabase>;
+    db: ReturnType<typeof mockDatabase> & {
+      orm: {
+        public: {
+          Aeropuerto: ReturnType<typeof mockCollection>;
+          Ruta: ReturnType<typeof mockCollection>;
+        };
+      };
+    };
   };
 
   const mockAirport = {
@@ -38,12 +45,17 @@ describe('AirportsService', () => {
         Aeropuerto: mockCollection(),
         Pais: mockCollection(),
       },
-      db: mockDatabase(),
+      db: {
+        ...mockDatabase(),
+        orm: {
+          public: { Aeropuerto: mockCollection(), Ruta: mockCollection() },
+        },
+      },
     };
     prismaService.models.Aeropuerto.all.mockResolvedValue([mockAirport]);
-    prismaService.db.query.mockResolvedValue([
-      { id: mockAirport.id, cantidad: 120 },
-      { id: 'airport-uuid-2', cantidad: 120 },
+    prismaService.db.orm.public.Aeropuerto.all.mockResolvedValue([
+      { id: mockAirport.id, rutasOrigen: 60, rutasDestino: 60 },
+      { id: 'airport-uuid-2', rutasOrigen: 60, rutasDestino: 60 },
     ]);
 
     const module: TestingModule = await Test.createTestingModule({

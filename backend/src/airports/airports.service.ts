@@ -1,4 +1,8 @@
-import { conCantidadesRutas } from '../catalogos/cantidades-rutas.js';
+import {
+  cantidadesRutas,
+  conCantidadesRutas,
+  sumarCantidadesRutas,
+} from '../catalogos/cantidades-rutas.js';
 import { ubicacionAeropuerto } from './ubicacion.js';
 import { escaparLike } from '../prisma/escape-like.js';
 import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
@@ -262,6 +266,7 @@ export class AirportsService {
     }
     const [datos, resumen] = await Promise.all([
       query
+        .with(cantidadesRutas(this.prisma.db))
         .orderBy([(a) => a.nombre.asc(), (a) => a.id.asc()])
         .offset((consulta.pagina - 1) * consulta.limite)
         .limit(consulta.limite)
@@ -269,7 +274,7 @@ export class AirportsService {
       query.aggregate((a) => ({ total: a.count() })),
     ]);
     return {
-      datos: await conCantidadesRutas(this.prisma.db, datos),
+      datos: datos.map(sumarCantidadesRutas),
       total: Number(resumen.total),
       pagina: consulta.pagina,
       limite: consulta.limite,
@@ -277,10 +282,11 @@ export class AirportsService {
   }
 
   async detalleAdmin(id: string) {
-    const registro = await this.prisma.models.Aeropuerto.first({ id });
+    const registro = await this.prisma.models.Aeropuerto.with(
+      cantidadesRutas(this.prisma.db),
+    ).first({ id });
     if (!registro) throw new NotFoundException('El aeropuerto no existe');
-    const [resultado] = await conCantidadesRutas(this.prisma.db, [registro]);
-    return resultado;
+    return sumarCantidadesRutas(registro);
   }
 
   crearAdmin(datos: CrearAeropuertoDto) {

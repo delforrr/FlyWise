@@ -3,6 +3,8 @@ export function mockCollection() {
     where: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
     include: jest.fn().mockReturnThis(),
+    fragment: jest.fn(),
+    with: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     offset: jest.fn().mockReturnThis(),
     limit: jest.fn().mockReturnThis(),
