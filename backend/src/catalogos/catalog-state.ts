@@ -1,11 +1,10 @@
+import { bloquearRecurso } from '../prisma/bloqueo-transaccional.js';
 import { errorCatalogo } from '../prisma/catalog-error.js';
 import type { Database, Transaction } from '../prisma/db.js';
 
 // The same PostgreSQL transaction lock orders ETL and administrative catalog writes.
 export async function bloquearCatalogo(tx: Transaction) {
-  await tx.execute(
-    tx.raw.sql`SELECT pg_advisory_xact_lock(641024)`.affectedCount().build(),
-  );
+  await bloquearRecurso(tx, 'catalogo');
 }
 
 export function escribirCatalogo<T>(

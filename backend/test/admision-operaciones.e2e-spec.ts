@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { exigirIngestaDisponible } from '../src/ingestion/infrastructure/admision-operaciones.js';
+import { bloquearMesAnac } from '../src/prisma/bloqueo-transaccional.js';
 import { disposableDatabase } from './helpers/disposable-database.js';
 
 describe('Admisión exclusiva de operaciones', () => {
@@ -46,6 +47,32 @@ describe('Admisión exclusiva de operaciones', () => {
           .affectedCount()
           .build(),
       );
+    }
+  });
+  it('bloquea un mes ANAC sin bloquear otro período', async () => {
+    const otraConexion = disposableDatabase();
+    const periodo = '2099-07';
+    const recurso = `anac:${periodo}`;
+    try {
+      await db.transaction((tx) => bloquearMesAnac(tx, periodo));
+      await db.transaction(async (tx) => {
+        await bloquearMesAnac(tx, periodo);
+        await otraConexion.transaction((otro) =>
+          bloquearMesAnac(otro, '2099-08'),
+        );
+        await expect(
+          otraConexion.transaction(async (otro) => {
+            await otro.orm.public.BloqueoTransaccional.where({ recurso })
+              .forUpdate({ nowait: true })
+              .firstOrThrow();
+          }),
+        ).rejects.toThrow(/could not obtain lock/i);
+      });
+    } finally {
+      await db.orm.public.BloqueoTransaccional.where((b) =>
+        b.recurso.in([recurso, 'anac:2099-08']),
+      ).deleteAndCount();
+      await otraConexion.close();
     }
   });
 });

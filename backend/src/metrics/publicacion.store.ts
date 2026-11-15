@@ -1,3 +1,4 @@
+import { bloquearRecurso } from '../prisma/bloqueo-transaccional.js';
 import { ultimoDiaDelMes } from '../prisma/timestamp.js';
 import type { Operacion } from '../entities/vuelos/domain/operacion.js';
 import type { Database, Transaction } from '../prisma/db.js';
@@ -132,7 +133,5 @@ export async function marcarPendiente(
 
 export async function bloquearCambiosMetricas(tx: Transaction) {
   // A publication sees every operation and its pending marker in the same generation.
-  await tx.execute(
-    tx.raw.sql`SELECT pg_advisory_xact_lock(826103)`.affectedCount().build(),
-  );
+  await bloquearRecurso(tx, 'metricas');
 }

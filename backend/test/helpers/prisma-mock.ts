@@ -29,6 +29,15 @@ export function mockDatabase() {
   };
   const db = {
     transaction: jest.fn(),
+    orm: {
+      public: {
+        BloqueoTransaccional: {
+          where: jest.fn().mockReturnThis(),
+          forUpdate: jest.fn().mockReturnThis(),
+          firstOrThrow: jest.fn().mockResolvedValue({}),
+        },
+      },
+    },
     raw: {
       sql: jest.fn<typeof plan, [TemplateStringsArray, ...unknown[]]>(
         () => plan,

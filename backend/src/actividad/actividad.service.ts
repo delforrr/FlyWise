@@ -1,3 +1,4 @@
+import { bloquearMesAnac } from '../prisma/bloqueo-transaccional.js';
 import {
   BadRequestException,
   ConflictException,
@@ -313,12 +314,7 @@ export class ActividadService implements OnModuleInit {
         throw new Error('El CSV ANAC no abarca todo el mes seleccionado');
       const checksum = hash.digest('hex');
       await db.transaction(async (tx) => {
-        await tx.execute(
-          tx.raw
-            .sql`SELECT pg_advisory_xact_lock(hashtext('ANAC'),hashtext(${periodo}))`
-            .affectedCount()
-            .build(),
-        );
+        await bloquearMesAnac(tx, periodo);
         await tx.orm.public.RevisionActividad.where({ id: ejecucionId }).update(
           {
             estado: 'publicada',

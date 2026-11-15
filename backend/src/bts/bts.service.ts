@@ -1,3 +1,4 @@
+import { bloquearRecurso } from '../prisma/bloqueo-transaccional.js';
 import { admiteFuente } from '../metrics/domain/autoridad-publicacion.js';
 import { exigirIngestaDisponible } from '../ingestion/infrastructure/admision-operaciones.js';
 import { fechaInformadaBts } from '../adapters/bts/operacion-bts.js';
@@ -79,9 +80,7 @@ export class BtsService implements OnModuleInit {
     }
   }
   private bloquear(tx: Transaction) {
-    return tx.execute(
-      tx.raw.sql`SELECT pg_advisory_xact_lock(641028)`.affectedCount().build(),
-    );
+    return bloquearRecurso(tx, 'bts');
   }
   async configuracion(): Promise<ConfiguracionBtsDto> {
     const db = this.prisma.db;

@@ -455,3 +455,9 @@ model IndicadorExterno {
   @@check(expression: sql`(granularidad = ANY (ARRAY['DY'::text, 'WK'::text, 'Y2D'::text]))`, map:"indicadores_externos_granularidad_check")
   @@check(expression: sql`(desde <= hasta)`, map:"indicadores_externos_check")
 }
+
+model BloqueoTransaccional {
+  recurso String @id
+
+  @@map("bloqueos_transaccionales")
+}
