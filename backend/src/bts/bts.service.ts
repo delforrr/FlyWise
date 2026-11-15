@@ -1,3 +1,4 @@
+import { or } from '@prisma/orm-postgres/orm-client';
 import { bloquearRecurso } from '../prisma/bloqueo-transaccional.js';
 import { admiteFuente } from '../metrics/domain/autoridad-publicacion.js';
 import { exigirIngestaDisponible } from '../ingestion/infrastructure/admision-operaciones.js';
@@ -36,7 +37,7 @@ import { abrirCsvBts, descargarBts } from '../adapters/bts/bts-source.js';
 import { retirarAusentesBts } from './retiros-bts.js';
 import { escribirPublicacion } from '../metrics/publicacion.store.js';
 import { VuelosService } from '../vuelos/vuelos.service.js';
-import type { Operacion } from '../entities/vuelos/domain/operacion.js';
+import type { ObservacionVuelo } from '../entities/vuelos/domain/operacion.js';
 
 const now = () => new Date().toISOString().replace('T', ' ').replace('Z', '');
 @Injectable()
@@ -83,21 +84,12 @@ export class BtsService implements OnModuleInit {
     return bloquearRecurso(tx, 'bts');
   }
   async configuracion(): Promise<ConfiguracionBtsDto> {
-    const db = this.prisma.db;
-    const rows = await db.query(
-      db.raw
-        .sql`SELECT periodo,pausado,expresion_cron AS cron FROM configuracion_bts WHERE id`
-        .returnsRow({
-          periodo: 'pg/text@1',
-          pausado: 'pg/bool@1',
-          cron: 'pg/text@1',
-        })
-        .build(),
-    );
-    const row = rows[0];
-    return row
-      ? { periodo: row.periodo, pausado: row.pausado, expresionCron: row.cron }
-      : { periodo: '', pausado: true, expresionCron: '' };
+    const config = await this.prisma.models.ConfiguracionBts.select(
+      'periodo',
+      'pausado',
+      'expresionCron',
+    ).first({ id: true });
+    return config ?? { periodo: '', pausado: true, expresionCron: '' };
   }
   async configurar(dto: ConfiguracionBtsDto) {
     if (dto.periodo >= new Date().toISOString().slice(0, 7))
@@ -121,15 +113,12 @@ export class BtsService implements OnModuleInit {
         throw new BadRequestException('Expresión cron inválida');
       }
     }
-    const db = this.prisma.db;
-    await db.execute(
-      db.raw
-        .sql`INSERT INTO configuracion_bts(id,periodo,pausado,expresion_cron)
-      VALUES(true,${dto.periodo},${dto.pausado},${dto.expresionCron})
-      ON CONFLICT(id) DO UPDATE SET periodo=EXCLUDED.periodo,pausado=EXCLUDED.pausado,expresion_cron=EXCLUDED.expresion_cron`
-        .affectedCount()
-        .build(),
-    );
+    const { periodo, pausado, expresionCron } = dto;
+    const valores = { periodo, pausado, expresionCron };
+    await this.prisma.models.ConfiguracionBts.upsert({
+      create: { id: true, ...valores },
+      update: valores,
+    });
     await this.schedule(dto);
     return this.configuracion();
   }
@@ -245,94 +234,140 @@ export class BtsService implements OnModuleInit {
     return this.ejecutar(periodo, solicitanteId, true);
   }
   async cobertura() {
-    const db = this.prisma.db;
-    return db.query(
-      db.raw
-        .sql`SELECT periodo,ejecucion_id AS "ejecucionId",filas,publicado_en::text AS "publicadoEn",e.filas_descartadas AS descartadas FROM cobertura_bts c JOIN ejecuciones_etl e ON e.id=c.ejecucion_id ORDER BY periodo DESC LIMIT 100`
-        .returnsRow({
-          periodo: 'pg/text@1',
-          ejecucionId: 'pg/text@1',
-          filas: 'pg/int4@1',
-          publicadoEn: 'pg/text@1',
-          descartadas: 'pg/int4@1',
-        })
-        .build(),
+    const filas = await this.prisma.models.CoberturaBts.include(
+      'ejecucion',
+      (ejecucion) => ejecucion.select('filasDescartadas'),
+    )
+      .orderBy((fila) => fila.periodo.desc())
+      .limit(100)
+      .all();
+    return filas.flatMap(({ ejecucion, ...fila }) =>
+      ejecucion
+        ? [
+            {
+              ...fila,
+              publicadoEn: fila.publicadoEn.replace(
+                /(\.\d*?[1-9])0+$|\.0+$/,
+                '$1',
+              ),
+              descartadas: ejecucion.filasDescartadas,
+            },
+          ]
+        : [],
     );
   }
   async pendientes(dto: ConsultaBtsDto) {
-    const db = this.prisma.db;
-    const rows =
+    const pagina =
       dto.tipo === 'operadores'
-        ? await db.query(
-            db.raw
-              .sql`SELECT identificador,codigo,count(*) OVER()::int AS total FROM identidades_operador_bts WHERE aerolinea_id IS NULL ORDER BY identificador LIMIT ${dto.limite} OFFSET ${(dto.pagina - 1) * dto.limite}`
-              .returnsRow({
-                identificador: 'pg/text@1',
-                codigo: 'pg/text@1',
-                total: 'pg/int4@1',
-              })
-              .build(),
-          )
-        : await db.query(
-            db.raw
-              .sql`SELECT identificador,COALESCE(observacion->>'codigo','') AS codigo,count(*) OVER()::int AS total FROM identidades_aeropuerto_fuente WHERE fuente='BTS' AND aeropuerto_id IS NULL ORDER BY identificador LIMIT ${dto.limite} OFFSET ${(dto.pagina - 1) * dto.limite}`
-              .returnsRow({
-                identificador: 'pg/text@1',
-                codigo: 'pg/text@1',
-                total: 'pg/int4@1',
-              })
-              .build(),
-          );
-    return {
-      datos: rows.map(({ identificador, codigo }) => ({
-        identificador,
-        codigo,
-      })),
-      total: rows[0]?.total ?? 0,
-      pagina: dto.pagina,
-      limite: dto.limite,
-    };
+        ? await this.pendientesOperadores(dto)
+        : await this.pendientesAeropuertos(dto);
+    return { ...pagina, pagina: dto.pagina, limite: dto.limite };
   }
+
+  private async pendientesOperadores(dto: ConsultaBtsDto) {
+    const pendientes = this.prisma.models.IdentidadOperadorBts.where({
+      aerolineaId: null,
+    });
+    const [datos, { total }] = await Promise.all([
+      pendientes
+        .select('identificador', 'codigo')
+        .orderBy((i) => i.identificador.asc())
+        .offset((dto.pagina - 1) * dto.limite)
+        .limit(dto.limite)
+        .all(),
+      pendientes.aggregate((i) => ({ total: i.count() })),
+    ]);
+    return { datos, total: datos.length ? total : 0 };
+  }
+
+  private async pendientesAeropuertos(dto: ConsultaBtsDto) {
+    const pendientes = this.prisma.models.IdentidadAeropuertoFuente.where({
+      fuente: 'BTS',
+      aeropuertoId: null,
+    });
+    const [filas, { total }] = await Promise.all([
+      pendientes
+        .select('identificador', 'observacion')
+        .orderBy((i) => i.identificador.asc())
+        .offset((dto.pagina - 1) * dto.limite)
+        .limit(dto.limite)
+        .all(),
+      pendientes.aggregate((i) => ({ total: i.count() })),
+    ]);
+    const datos = filas.map(({ identificador, observacion }) => {
+      const codigo =
+        observacion &&
+        typeof observacion === 'object' &&
+        'codigo' in observacion
+          ? observacion.codigo
+          : null;
+      return {
+        identificador,
+        codigo: typeof codigo === 'string' ? codigo : '',
+      };
+    });
+    return { datos, total: datos.length ? total : 0 };
+  }
+
   async resolver(dto: CorrespondenciaBtsDto) {
     return this.prisma.db.transaction(async (db) => {
       await this.bloquear(db);
-      const entity =
-        dto.tipo === 'operadores'
-          ? await db.orm.public.Aerolinea.first({
-              id: dto.entidadId,
-              archivadoEn: null,
-            })
-          : await db.orm.public.Aeropuerto.first({
-              id: dto.entidadId,
-              archivadoEn: null,
-            });
-      if (!entity)
-        throw new BadRequestException('Entidad inexistente o archivada');
       const changed =
         dto.tipo === 'operadores'
-          ? await db.query(
-              db.raw
-                .sql`UPDATE identidades_operador_bts SET aerolinea_id=${dto.entidadId} WHERE identificador=${dto.identificador} AND (aerolinea_id IS NULL OR aerolinea_id=${dto.entidadId}) RETURNING identificador`
-                .returnsRow({ identificador: 'pg/text@1' })
-                .build(),
-            )
-          : await db.query(
-              db.raw
-                .sql`UPDATE identidades_aeropuerto_fuente SET aeropuerto_id=${dto.entidadId}
-              WHERE fuente='BTS' AND identificador=${dto.identificador} AND (aeropuerto_id IS NULL OR aeropuerto_id=${dto.entidadId})
-              AND NOT EXISTS(SELECT 1 FROM identidades_aeropuerto_fuente AS otra
-                WHERE otra.fuente='BTS' AND otra.aeropuerto_id=${dto.entidadId} AND otra.identificador<>${dto.identificador})
-              RETURNING identificador`
-                .returnsRow({ identificador: 'pg/text@1' })
-                .build(),
-            );
-      if (!changed.length)
+          ? await this.resolverOperador(db, dto.identificador, dto.entidadId)
+          : await this.resolverAeropuerto(db, dto.identificador, dto.entidadId);
+      if (!changed)
         throw new ConflictException(
           'Correspondencia inexistente, ya resuelta o aeropuerto vinculado a otra identidad BTS',
         );
       return { resuelto: true };
     });
   }
+  private async resolverOperador(
+    tx: Transaction,
+    identificador: string,
+    entidadId: string,
+  ) {
+    const aerolinea = await tx.orm.public.Aerolinea.select('id').first({
+      id: entidadId,
+      archivadoEn: null,
+    });
+    if (!aerolinea)
+      throw new BadRequestException('Entidad inexistente o archivada');
+
+    return tx.orm.public.IdentidadOperadorBts.where({ identificador })
+      .where((i) => or(i.aerolineaId.isNull(), i.aerolineaId.eq(entidadId)))
+      .select('identificador')
+      .update({ aerolineaId: entidadId });
+  }
+
+  private async resolverAeropuerto(
+    tx: Transaction,
+    identificador: string,
+    entidadId: string,
+  ) {
+    const aeropuerto = await tx.orm.public.Aeropuerto.select('id')
+      .include('identidadesFuente', (identidades) =>
+        identidades
+          .where({ fuente: 'BTS' })
+          .where((i) => i.identificador.neq(identificador))
+          .select('identificador')
+          .limit(1),
+      )
+      .first({ id: entidadId, archivadoEn: null });
+    if (!aeropuerto)
+      throw new BadRequestException('Entidad inexistente o archivada');
+    if (aeropuerto.identidadesFuente.length) return null;
+
+    return tx.orm.public.IdentidadAeropuertoFuente.where({
+      fuente: 'BTS',
+      identificador,
+    })
+      .where((i) => or(i.aeropuertoId.isNull(), i.aeropuertoId.eq(entidadId)))
+      .select('identificador')
+      .update({ aeropuertoId: entidadId });
+  }
+
   async importar(ejecucionId: string, periodo: string, path?: string) {
     let download: Awaited<ReturnType<typeof descargarBts>> | undefined;
     let csvSource: Awaited<ReturnType<typeof abrirCsvBts>> | undefined;
@@ -395,11 +430,9 @@ export class BtsService implements OnModuleInit {
       if (!iniciada)
         throw new ConflictException('La ejecución BTS cambió de estado');
     });
-    await db.execute(
-      db.raw.sql`DELETE FROM preparacion_bts WHERE ejecucion_id=${ejecucionId}`
-        .affectedCount()
-        .build(),
-    );
+    await this.prisma.models.PreparacionBts.where({
+      ejecucionId,
+    }).deleteAndCount();
     await this.prisma.models.EventoEjecucionEtl.create({
       ejecucionId,
       intento,
@@ -500,30 +533,18 @@ export class BtsService implements OnModuleInit {
             .build(),
         );
       });
-      const resolved = await db.query(
-        db.raw
-          .sql`SELECT x.identidad,COALESCE(o.aeropuerto_id,'') AS origen,COALESCE(d.aeropuerto_id,'') AS destino,COALESCE(a.aerolinea_id,'') AS operador
-        FROM jsonb_to_recordset(${input}::jsonb) x(identidad text,"origenBts" text,"destinoBts" text,"operadorBts" text)
-        LEFT JOIN identidades_aeropuerto_fuente o ON o.fuente='BTS' AND o.identificador=x."origenBts"
-        LEFT JOIN identidades_aeropuerto_fuente d ON d.fuente='BTS' AND d.identificador=x."destinoBts"
-        LEFT JOIN identidades_operador_bts a ON a.identificador=x."operadorBts"`
-          .returnsRow({
-            identidad: 'pg/text@1',
-            origen: 'pg/text@1',
-            destino: 'pg/text@1',
-            operador: 'pg/text@1',
-          })
-          .build(),
-      );
-      const ids = new Map(resolved.map((row) => [row.identidad, row]));
+      const { aeropuertos, operadores } =
+        await this.leerCorrespondenciasLote(batch);
       const accepted: (OperacionBts & {
         origenId: string;
         destinoId: string;
         aerolineaId: string;
       })[] = [];
       for (const row of batch) {
-        const identity = ids.get(row.identidad);
-        if (!identity?.origen || !identity.destino || !identity.operador) {
+        const origenId = aeropuertos.get(row.origenBts);
+        const destinoId = aeropuertos.get(row.destinoBts);
+        const aerolineaId = operadores.get(row.operadorBts);
+        if (!origenId || !destinoId || !aerolineaId) {
           sinCorrespondencia++;
           await discard(
             row.numeroFila,
@@ -533,21 +554,19 @@ export class BtsService implements OnModuleInit {
           );
           continue;
         }
-        accepted.push({
-          ...row,
-          origenId: identity.origen,
-          destinoId: identity.destino,
-          aerolineaId: identity.operador,
-        });
+        accepted.push({ ...row, origenId, destinoId, aerolineaId });
       }
       if (accepted.length) {
-        const staged = await db.query(
-          db.raw
-            .sql`INSERT INTO preparacion_bts(ejecucion_id,identidad,numero_fila,observacion)
-        SELECT ${ejecucionId},x->>'identidad',(x->>'numeroFila')::int,x FROM jsonb_array_elements(${JSON.stringify(accepted)}::jsonb) x
-        ON CONFLICT DO NOTHING RETURNING numero_fila AS "numeroFila"`
-            .returnsRow({ numeroFila: 'pg/int4@1' })
-            .build(),
+        const staged = await this.prisma.models.PreparacionBts.select(
+          'numeroFila',
+        ).createAll(
+          accepted.map((fila) => ({
+            ejecucionId,
+            identidad: fila.identidad,
+            numeroFila: fila.numeroFila,
+            observacion: fila,
+          })),
+          { onConflict: 'skip' },
         );
         const stagedRows = new Set(staged.map(({ numeroFila }) => numeroFila));
         for (const row of accepted)
@@ -610,13 +629,10 @@ export class BtsService implements OnModuleInit {
         if (descartadas)
           await this.conservarPublicacionBts(tx, periodo, ejecucionId);
         else await this.publicarMesBts(tx, periodo, ejecucionId, autorizadas);
-        await tx.execute(
-          tx.raw
-            .sql`INSERT INTO cobertura_bts(periodo,ejecucion_id,filas) VALUES(${periodo},${ejecucionId},${procesadas})
-          ON CONFLICT(periodo) DO UPDATE SET ejecucion_id=EXCLUDED.ejecucion_id,filas=EXCLUDED.filas,publicado_en=CURRENT_TIMESTAMP`
-            .affectedCount()
-            .build(),
-        );
+        await tx.orm.public.CoberturaBts.upsert({
+          create: { periodo, ejecucionId, filas: procesadas },
+          update: { ejecucionId, filas: procesadas, publicadoEn: now() },
+        });
         await tx.orm.public.EjecucionEtl.where({ id: ejecucionId }).update({
           estado: 'completed',
           finalizadoEn: now(),
@@ -632,12 +648,9 @@ export class BtsService implements OnModuleInit {
           nivel: 'success',
           mensaje: `Mes BTS ${periodo}: ${procesadas} operaciones aceptadas. ${resumenDescartes()}`,
         });
-        await tx.execute(
-          tx.raw
-            .sql`DELETE FROM preparacion_bts WHERE ejecucion_id=${ejecucionId}`
-            .affectedCount()
-            .build(),
-        );
+        await tx.orm.public.PreparacionBts.where({
+          ejecucionId,
+        }).deleteAndCount();
         return { procesadas, insertadas, descartadas };
       });
     } catch (error) {
@@ -658,15 +671,38 @@ export class BtsService implements OnModuleInit {
         nivel: 'error',
         mensaje: `${mensaje}. ${resumenDescartes()}`,
       });
-      await db.execute(
-        db.raw
-          .sql`DELETE FROM preparacion_bts WHERE ejecucion_id=${ejecucionId}`
-          .affectedCount()
-          .build(),
-      );
+      await this.prisma.models.PreparacionBts.where({
+        ejecucionId,
+      }).deleteAndCount();
       throw error;
     }
   }
+  private async leerCorrespondenciasLote(batch: OperacionBts[]) {
+    const aeropuertos = [
+      ...new Set(batch.flatMap((fila) => [fila.origenBts, fila.destinoBts])),
+    ];
+    const operadores = [...new Set(batch.map((fila) => fila.operadorBts))];
+    const [coincidenciasAeropuerto, coincidenciasOperador] = await Promise.all([
+      this.prisma.models.IdentidadAeropuertoFuente.where({ fuente: 'BTS' })
+        .where((i) => i.identificador.in(aeropuertos))
+        .select('identificador', 'aeropuertoId')
+        .all(),
+      this.prisma.models.IdentidadOperadorBts.where((i) =>
+        i.identificador.in(operadores),
+      )
+        .select('identificador', 'aerolineaId')
+        .all(),
+    ]);
+    return {
+      aeropuertos: new Map(
+        coincidenciasAeropuerto.map((i) => [i.identificador, i.aeropuertoId]),
+      ),
+      operadores: new Map(
+        coincidenciasOperador.map((i) => [i.identificador, i.aerolineaId]),
+      ),
+    };
+  }
+
   private async importarOperacionesPreparadas(
     tx: Transaction,
     ejecucionId: string,
@@ -674,33 +710,16 @@ export class BtsService implements OnModuleInit {
     let cursor = '',
       insertadas = 0;
     for (;;) {
-      const rows = await tx.query(
-        tx.raw.sql`SELECT identidad, observacion->>'fechaVuelo' AS "fechaVuelo",
-                observacion->>'numeroVuelo' AS "numeroVuelo", observacion->>'origenId' AS "origenId",
-                observacion->>'destinoId' AS "destinoId", observacion->>'aerolineaId' AS "aerolineaId",
-                observacion->>'estado' AS estado, (observacion->>'demoraLlegadaMinutos')::int AS "demoraLlegadaMinutos"
-                FROM preparacion_bts WHERE ejecucion_id=${ejecucionId} AND identidad>${cursor}
-                ORDER BY identidad LIMIT 1000`
-          .returnsRow({
-            identidad: 'pg/text@1',
-            fechaVuelo: 'pg/text@1',
-            numeroVuelo: 'pg/text@1',
-            origenId: 'pg/text@1',
-            destinoId: 'pg/text@1',
-            aerolineaId: 'pg/text@1',
-            estado: 'pg/text@1',
-            demoraLlegadaMinutos: { codecId: 'pg/int4@1', nullable: true },
-          })
-          .build(),
-      );
+      const rows = await tx.orm.public.PreparacionBts.where({ ejecucionId })
+        .where((fila) => fila.identidad.gt(cursor))
+        .select('identidad', 'observacion')
+        .orderBy((fila) => fila.identidad.asc())
+        .limit(1000)
+        .all();
       if (!rows.length) break;
-      const observations = rows.map(({ identidad, estado, ...operacion }) => ({
-        ...operacion,
-        estado: estado as Operacion['estado'],
-        horarios: fechaInformadaBts,
-        fuente: 'BTS',
-        idRegistroFuente: identidad,
-      }));
+      const observations = rows.map(({ identidad, observacion }) =>
+        this.operacionPreparada(identidad, observacion),
+      );
       insertadas += (
         await this.vuelos.importarLote(observations, ejecucionId, tx)
       ).insertadas;
@@ -709,17 +728,54 @@ export class BtsService implements OnModuleInit {
     return insertadas;
   }
 
+  private operacionPreparada(identidad: string, observacion: unknown) {
+    if (!observacion || typeof observacion !== 'object')
+      throw new Error('Registro BTS preparado inválido');
+    const {
+      fechaVuelo,
+      numeroVuelo,
+      origenId,
+      destinoId,
+      aerolineaId,
+      estado,
+      demoraLlegadaMinutos,
+    } = observacion as Record<string, unknown>;
+    if (
+      typeof fechaVuelo !== 'string' ||
+      typeof numeroVuelo !== 'string' ||
+      typeof origenId !== 'string' ||
+      typeof destinoId !== 'string' ||
+      typeof aerolineaId !== 'string' ||
+      (estado !== 'ARRIVED' &&
+        estado !== 'CANCELLED' &&
+        estado !== 'DIVERTED') ||
+      (demoraLlegadaMinutos !== null &&
+        typeof demoraLlegadaMinutos !== 'number')
+    )
+      throw new Error('Registro BTS preparado inválido');
+
+    return {
+      fechaVuelo,
+      numeroVuelo,
+      origenId,
+      destinoId,
+      aerolineaId,
+      estado,
+      demoraLlegadaMinutos,
+      horarios: fechaInformadaBts,
+      fuente: 'BTS',
+      idRegistroFuente: identidad,
+    } satisfies ObservacionVuelo;
+  }
+
   private async conservarPublicacionBts(
     tx: Transaction,
     periodo: string,
     ejecucionId: string,
   ) {
-    const [cobertura] = await tx.query(
-      tx.raw.sql`SELECT e.filas_descartadas AS descartadas FROM cobertura_bts c
-            JOIN ejecuciones_etl e ON e.id=c.ejecucion_id WHERE c.periodo=${periodo}`
-        .returnsRow({ descartadas: 'pg/int4@1' })
-        .build(),
-    );
+    const cobertura = await tx.orm.public.CoberturaBts.select('periodo').first({
+      periodo,
+    });
     if (cobertura)
       throw new UnrecoverableError(
         'La nueva carga parcial conserva la publicación anterior',

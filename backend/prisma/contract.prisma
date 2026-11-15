@@ -120,6 +120,8 @@ model Aerolinea {
   vuelos Vuelo[]
   metricas MetricaRuta[]
 
+  identidadesOperadorBts IdentidadOperadorBts[]
+
   @@index([iata], map: "airlines_iata_idx")
   @@index([icao], map: "airlines_icao_idx")
   @@index([paisId], map: "airlines_country_id_idx")
@@ -199,6 +201,9 @@ model EjecucionEtl {
   solicitante           Usuario?                @relation(fields: [solicitanteId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   muestrasDescartadas      MuestraDescartadaEtl[]
   eventos                EventoEjecucionEtl[]
+
+  preparacionBts PreparacionBts[]
+  coberturasBts CoberturaBts[]
 
   @@index([fuente, estado], map: "etl_jobs_source_status_idx")
   @@index([procesoId, iniciadoEn], map: "etl_jobs_pipeline_id_started_at_idx")
@@ -460,4 +465,46 @@ model BloqueoTransaccional {
   recurso String @id
 
   @@map("bloqueos_transaccionales")
+}
+
+model ConfiguracionBts {
+  id Boolean @id @default(true)
+  periodo String
+  pausado Boolean @default(true)
+  expresionCron String @default("") @map("expresion_cron")
+
+  @@check(expression: sql`id`, map: "configuracion_bts_id_check")
+  @@check(expression: sql`(periodo ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'::text)`, map: "configuracion_bts_periodo_check")
+  @@map("configuracion_bts")
+}
+
+model IdentidadOperadorBts {
+  identificador String @id
+  codigo String
+  aerolineaId String? @map("aerolinea_id")
+  aerolinea Aerolinea? @relation(fields: [aerolineaId], references: [id], onDelete: Restrict, onUpdate: Cascade, index: false)
+
+  @@map("identidades_operador_bts")
+}
+
+model PreparacionBts {
+  ejecucionId String @map("ejecucion_id")
+  identidad String
+  numeroFila Int @map("numero_fila")
+  observacion Jsonb
+  ejecucion EjecucionEtl @relation(fields: [ejecucionId], references: [id], onDelete: Restrict, onUpdate: NoAction, index: false)
+
+  @@id([ejecucionId, identidad])
+  @@map("preparacion_bts")
+}
+
+model CoberturaBts {
+  periodo String @id
+  ejecucionId String @map("ejecucion_id")
+  filas Int
+  publicadoEn TimestampString(3) @default(now()) @map("publicado_en")
+  ejecucion EjecucionEtl @relation(fields: [ejecucionId], references: [id], onDelete: Restrict, onUpdate: NoAction, index: false)
+
+  @@check(expression: sql`(filas > 0)`, map: "cobertura_bts_filas_check")
+  @@map("cobertura_bts")
 }
