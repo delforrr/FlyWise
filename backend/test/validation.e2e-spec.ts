@@ -1,3 +1,4 @@
+import { catalogFile } from './helpers/catalog-file.js';
 import { aeropuertoOpenFlights } from './helpers/identidad-openflights.js';
 import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { Test } from '@nestjs/testing';
@@ -117,14 +118,14 @@ describe('Data validation regressions (PostgreSQL)', () => {
         const service = await importer(tx);
         const file = join(directory, 'countries.dat');
         await writeFile(file, 'Preserved fixture,AR,AR\n');
-        await service.importCatalog('paises', file);
+        await service.importCatalog('paises', catalogFile(file));
         await writeFile(file, 'Preserved fixture,INVALID,AR\n');
-        await service.importCatalog('paises', file);
+        await service.importCatalog('paises', catalogFile(file));
         expect(
           await tx.orm.public.Pais.first({ nombre: 'Preserved fixture' }),
         ).toMatchObject({ codigoIso: 'AR' });
         await writeFile(file, 'Preserved fixture,\\N,AR\n');
-        await service.importCatalog('paises', file);
+        await service.importCatalog('paises', catalogFile(file));
         expect(
           await tx.orm.public.Pais.first({ nombre: 'Preserved fixture' }),
         ).toMatchObject({ codigoIso: null });
@@ -145,15 +146,15 @@ describe('Data validation regressions (PostgreSQL)', () => {
           const validIata = dataset === 'aeropuertos' ? 'ZZZ' : 'ZZ';
           const validIcao = dataset === 'aeropuertos' ? 'ZZZZ' : 'ZZZ';
           await writeFile(file, input(validIata, validIcao));
-          await service.importCatalog(dataset, file);
+          await service.importCatalog(dataset, catalogFile(file));
           await writeFile(file, input('INVALID', 'INVALID'));
-          await service.importCatalog(dataset, file);
+          await service.importCatalog(dataset, catalogFile(file));
           expect(await stored()).toMatchObject({
             iata: validIata,
             icao: validIcao,
           });
           await writeFile(file, input('\\N', '\\N'));
-          await service.importCatalog(dataset, file);
+          await service.importCatalog(dataset, catalogFile(file));
           expect(await stored()).toMatchObject({ iata: null, icao: null });
         }
       });
@@ -172,25 +173,34 @@ describe('Data validation regressions (PostgreSQL)', () => {
           fuente: 'paises',
           estado: 'running',
         });
-        const result = await service.importCatalog('paises', file, job.id, {
-          conexion: {
-            tipoFuente: 'http_stream',
-            metodoHttp: 'GET',
-            formatoDatos: 'csv',
-            csvConCabecera: true,
-            urlEndpoint: 'https://raw.githubusercontent.com/fixture',
+        const result = await service.importCatalog(
+          'paises',
+          catalogFile(file),
+          job.id,
+          {
+            conexion: {
+              tipoFuente: 'http_stream',
+              metodoHttp: 'GET',
+              formatoDatos: 'csv',
+              csvConCabecera: true,
+              urlEndpoint: 'https://raw.githubusercontent.com/fixture',
+            },
+            mapeoEsquema: [
+              { columnaOrigen: 'nombre', campoDestino: 'nombre' },
+              {
+                columnaOrigen: 'iso',
+                campoDestino: 'codigoIso',
+                required: true,
+              },
+            ],
+            configuracionProgramacion: {
+              expresionCron: '',
+              tamanoLote: 1000,
+              tiempoLimiteSegundos: 30,
+              maximoReintentos: 0,
+            },
           },
-          mapeoEsquema: [
-            { columnaOrigen: 'nombre', campoDestino: 'nombre' },
-            { columnaOrigen: 'iso', campoDestino: 'codigoIso', required: true },
-          ],
-          configuracionProgramacion: {
-            expresionCron: '',
-            tamanoLote: 1000,
-            tiempoLimiteSegundos: 30,
-            maximoReintentos: 0,
-          },
-        });
+        );
         expect(result).toMatchObject({ processed: 0, discarded: 1 });
         expect(
           await tx.orm.public.Pais.first({ nombre: 'Required fixture' }),

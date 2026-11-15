@@ -9,14 +9,28 @@ describe('EtlProcessor', () => {
   const eventos = mockCollection();
   const importCatalog = jest.fn();
   const run = jest.fn();
+  const cerrarCargaLocal = jest.fn();
+  const config = {
+    conexion: {},
+    configuracionProgramacion: { tiempoLimiteSegundos: 300 },
+  };
+  const validateConfiguration = jest.fn().mockResolvedValue(config);
+  const record = {
+    fuente: 'aeropuertos',
+    instantaneaConfiguracion: config,
+  };
   const processor = new EtlProcessor(
     { importCatalog } as unknown as CatalogImportService,
     {
       models: { EjecucionEtl: ejecuciones, EventoEjecucionEtl: eventos },
     } as unknown as PrismaService,
-    { run } as unknown as PipelinesService,
+    {
+      run,
+      cerrarCargaLocal,
+      validateConfiguration,
+    } as unknown as PipelinesService,
   );
-  const crearJob = (dataset = 'all') =>
+  const crearJob = (dataset = 'aeropuertos') =>
     ({
       name: 'process-dataset',
       attemptsMade: 0,
@@ -25,9 +39,7 @@ describe('EtlProcessor', () => {
   const job = crearJob();
   beforeEach(() => {
     jest.clearAllMocks();
-    ejecuciones.firstOrThrow.mockResolvedValue({
-      instantaneaConfiguracion: null,
-    });
+    ejecuciones.firstOrThrow.mockResolvedValue(record);
     importCatalog.mockResolvedValue({
       total: 3,
       processed: 2,
@@ -35,19 +47,19 @@ describe('EtlProcessor', () => {
       discarded: 1,
     });
   });
-  it('clears intento counters and imports references before rutas', async () => {
+  it('clears intento counters and imports the configured source', async () => {
     await expect(processor.process(job)).resolves.toEqual({
       success: true,
-      filasProcesadas: 8,
-      filasInsertadas: 4,
-      filasDescartadas: 4,
+      filasProcesadas: 2,
+      filasInsertadas: 1,
+      filasDescartadas: 1,
     });
-    expect(importCatalog.mock.calls.map((call: unknown[]) => call[0])).toEqual([
-      'paises',
+    expect(importCatalog).toHaveBeenCalledWith(
       'aeropuertos',
-      'aerolineas',
-      'rutas',
-    ]);
+      expect.objectContaining({ pipe: expect.any(Function) }),
+      'job-1',
+      config,
+    );
     expect(ejecuciones.update).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -63,17 +75,21 @@ describe('EtlProcessor', () => {
       expect.objectContaining({ estado: 'completed' }),
     );
   });
-  it('acepta un trabajo persistido con el nombre anterior del conjunto', async () => {
-    await processor.process(crearJob('airports'));
-    expect(importCatalog).toHaveBeenCalledWith(
-      'aeropuertos',
-      expect.stringContaining('airports.dat'),
-      'job-1',
-      undefined,
-    );
+  it('rejects old local jobs permanently before opening a source', async () => {
+    const local = { ...record, instantaneaConfiguracion: null };
+    ejecuciones.firstOrThrow.mockResolvedValueOnce(local);
+    await expect(processor.process(crearJob('all'))).rejects.toMatchObject({
+      name: 'UnrecoverableError',
+    });
+    expect(cerrarCargaLocal).toHaveBeenCalledWith(local);
+    expect(importCatalog).not.toHaveBeenCalled();
   });
 
   it('does not silently complete unsupported datasets', async () => {
+    ejecuciones.firstOrThrow.mockResolvedValueOnce({
+      ...record,
+      fuente: 'unknown',
+    });
     await expect(processor.process(crearJob('unknown'))).rejects.toThrow();
     expect(importCatalog).not.toHaveBeenCalled();
     expect(ejecuciones.update).toHaveBeenLastCalledWith(

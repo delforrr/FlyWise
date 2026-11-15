@@ -1,28 +1,18 @@
+import { catalogFile } from '../../test/helpers/catalog-file.js';
 import { CatalogImportService } from './catalog-import.service.js';
 import {
   mockCollection,
   mockDatabase,
 } from '../../test/helpers/prisma-mock.js';
 import { Test, TestingModule } from '@nestjs/testing';
-import { EtlService } from './etl.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { getQueueToken } from '@nestjs/bullmq';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { PipelineConfiguration } from './interfaces/pipeline-configuration.js';
-import { BadRequestException } from '@nestjs/common';
 
-describe('EtlService', () => {
-  let service: EtlService;
+describe('CatalogImportService', () => {
   let catalog: CatalogImportService;
-  let queueMock: {
-    add: jest.Mock;
-    getWaitingCount: jest.Mock;
-    getActiveCount: jest.Mock;
-    getCompletedCount: jest.Mock;
-    getFailedCount: jest.Mock;
-  };
   let prismaMock: {
     models: {
       EjecucionEtl: ReturnType<typeof mockCollection>;
@@ -34,14 +24,6 @@ describe('EtlService', () => {
   };
 
   beforeEach(async () => {
-    queueMock = {
-      add: jest.fn().mockResolvedValue({ id: 'bull-job-1' }),
-      getWaitingCount: jest.fn().mockResolvedValue(0),
-      getActiveCount: jest.fn().mockResolvedValue(1),
-      getCompletedCount: jest.fn().mockResolvedValue(5),
-      getFailedCount: jest.fn().mockResolvedValue(0),
-    };
-
     prismaMock = {
       models: {
         EjecucionEtl: mockCollection(),
@@ -66,12 +48,7 @@ describe('EtlService', () => {
     prismaMock.db.query.mockResolvedValue([]);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        EtlService,
         CatalogImportService,
-        {
-          provide: getQueueToken('etl-queue'),
-          useValue: queueMock,
-        },
         {
           provide: PrismaService,
           useValue: prismaMock,
@@ -79,19 +56,21 @@ describe('EtlService', () => {
       ],
     }).compile();
 
-    service = module.get<EtlService>(EtlService);
     catalog = module.get(CatalogImportService);
   });
 
   it('should be defined', () => {
-    expect(service).toBeDefined();
+    expect(catalog).toBeDefined();
   });
 
   it.each(['aeropuertos', 'aerolineas', 'paises'] as const)(
     '%s rejects unreadable files instead of leaving an unhandled stream error',
     async (method) => {
       await expect(
-        catalog.importCatalog(method, '/missing/flywise-audit-file.dat'),
+        catalog.importCatalog(
+          method,
+          catalogFile('/missing/flywise-audit-file.dat'),
+        ),
       ).rejects.toThrow(/ENOENT/);
     },
   );
@@ -108,7 +87,9 @@ describe('EtlService', () => {
       pais.createAll
         .mockImplementationOnce((rows: { id: string }[]) => rows.slice(1))
         .mockImplementationOnce((rows: { id: string }[]) => rows);
-      await expect(catalog.importCatalog('paises', file)).resolves.toEqual({
+      await expect(
+        catalog.importCatalog('paises', catalogFile(file)),
+      ).resolves.toEqual({
         total: 2001,
         processed: 2001,
         inserted: 2000,
@@ -136,7 +117,9 @@ describe('EtlService', () => {
       try {
         const file = join(directory, 'catalog.dat');
         await writeFile(file, row);
-        await expect(catalog.importCatalog(method, file)).resolves.toEqual({
+        await expect(
+          catalog.importCatalog(method, catalogFile(file)),
+        ).resolves.toEqual({
           total: 1,
           processed: 1,
           inserted: 0,
@@ -161,14 +144,14 @@ describe('EtlService', () => {
           '3,Invalid,City,Argentina,EZE,SAEZ,Infinity,-58,0,0,N,UTC,airport,OpenFlights',
         ].join('\n'),
       );
-      await expect(catalog.importCatalog('aeropuertos', file)).resolves.toEqual(
-        {
-          total: 3,
-          processed: 0,
-          inserted: 0,
-          discarded: 3,
-        },
-      );
+      await expect(
+        catalog.importCatalog('aeropuertos', catalogFile(file)),
+      ).resolves.toEqual({
+        total: 3,
+        processed: 0,
+        inserted: 0,
+        discarded: 3,
+      });
       expect(
         prismaMock.models.Aeropuerto.createAndCount,
       ).not.toHaveBeenCalled();
@@ -231,7 +214,7 @@ describe('EtlService', () => {
             `id;title;lat;lng;extra\n42;Aeropuerto;0;0;${value}\n`,
           );
           await expect(
-            catalog.importCatalog('aeropuertos', file, undefined, {
+            catalog.importCatalog('aeropuertos', catalogFile(file), undefined, {
               ...configuration,
               mapeoEsquema: [
                 ...configuration.mapeoEsquema,
@@ -257,7 +240,7 @@ describe('EtlService', () => {
             `id;title;lat;lng;code\n42;Aeropuerto;0;0;${value}\n`,
           );
           await expect(
-            catalog.importCatalog('aeropuertos', file, undefined, {
+            catalog.importCatalog('aeropuertos', catalogFile(file), undefined, {
               ...configuration,
               mapeoEsquema: [
                 ...configuration.mapeoEsquema,
@@ -282,7 +265,12 @@ describe('EtlService', () => {
         await writeFile(file, 'id;title;lat;lng\n2147480000;" a; b ";0;-58\n');
         prismaMock.db.query.mockResolvedValueOnce([{ inserted: true }]);
         await expect(
-          catalog.importCatalog('aeropuertos', file, undefined, configuration),
+          catalog.importCatalog(
+            'aeropuertos',
+            catalogFile(file),
+            undefined,
+            configuration,
+          ),
         ).resolves.toEqual({
           total: 1,
           processed: 1,
@@ -317,7 +305,7 @@ describe('EtlService', () => {
         const file = join(directory, 'aeropuertos.csv');
         await writeFile(file, 'id;title;lat;lng\n42;Aeropuerto;0;0\n');
         await expect(
-          catalog.importCatalog('aeropuertos', file, undefined, {
+          catalog.importCatalog('aeropuertos', catalogFile(file), undefined, {
             ...configuration,
             mapeoEsquema: configuration.mapeoEsquema.map((rule) =>
               rule.campoDestino === 'nombre'
@@ -336,73 +324,17 @@ describe('EtlService', () => {
         const file = join(directory, 'aeropuertos.csv');
         await writeFile(file, 'wrong;columns\n1;2\n');
         await expect(
-          catalog.importCatalog('aeropuertos', file, undefined, configuration),
+          catalog.importCatalog(
+            'aeropuertos',
+            catalogFile(file),
+            undefined,
+            configuration,
+          ),
         ).rejects.toThrow(/columnas/);
         expect(prismaMock.db.query).not.toHaveBeenCalled();
       } finally {
         await rm(directory, { recursive: true });
       }
-    });
-  });
-
-  describe('triggerJob', () => {
-    it('rejects unknown datasets before creating a job', async () => {
-      await expect(service.triggerJob('unknown')).rejects.toThrow(
-        BadRequestException,
-      );
-      expect(prismaMock.models.EjecucionEtl.create).not.toHaveBeenCalled();
-    });
-
-    it('marks the job failed if it cannot be queued', async () => {
-      queueMock.add.mockRejectedValueOnce(new Error('Queue unavailable'));
-      await expect(service.triggerJob('all')).rejects.toThrow(
-        'No fue posible encolar la ejecución',
-      );
-      expect(prismaMock.models.EjecucionEtl.update).toHaveBeenCalledWith({
-        estado: 'failed',
-        mensajeError: 'No fue posible encolar la ejecución',
-      });
-    });
-    it('should create database record and enqueue BullMQ job', async () => {
-      const res = await service.triggerJob('aeropuertos');
-
-      expect(prismaMock.models.EjecucionEtl.create).toHaveBeenCalledWith({
-        fuente: 'aeropuertos',
-        estado: 'pending',
-        uriFuente: null,
-      });
-      expect(queueMock.add).toHaveBeenCalled();
-      expect(res.ejecucionId).toBe('job-record-1');
-      expect(res.bullJobId).toBe('bull-job-1');
-    });
-  });
-
-  describe('getStatus', () => {
-    it('should return queue metricas', async () => {
-      const res = await service.getStatus();
-      expect(queueMock.getActiveCount).toHaveBeenCalled();
-      expect(res.counts.activa).toBe(1);
-      expect(res.counts.completed).toBe(5);
-    });
-  });
-
-  describe('getHistory', () => {
-    it('derives duration from timestamps and leaves unfinished ejecuciones without a duration', async () => {
-      prismaMock.models.EjecucionEtl.all.mockResolvedValue([
-        {
-          id: 'finished',
-          iniciadoEn: '2026-09-01 00:00:00',
-          finalizadoEn: '2026-09-01 00:00:02',
-        },
-        { id: 'pending', iniciadoEn: null, finalizadoEn: null },
-      ]);
-      const history = await service.getHistory();
-      expect(history.map((job) => job.durationMs)).toEqual([2000, null]);
-    });
-    it('should return recent ETL ejecuciones', async () => {
-      const res = await service.getHistory();
-      expect(prismaMock.models.EjecucionEtl.all).toHaveBeenCalled();
-      expect(res).toHaveLength(1);
     });
   });
 });

@@ -254,7 +254,9 @@ Prisma 8 está fijado a las versiones RC del lockfile. Se parte del contrato act
 
 Consultar también el [reporte de fuentes de OTP y alternativas de catálogos](docs/data-sources.md).
 
-Los datos de catálogo provienen de los archivos `.dat` en `backend/data/`. El ETL importa países, aeropuertos, aerolíneas y rutas con streams y upsert. El constructor y el monitoreo consultan la API real; OTP permanece sin datos hasta integrar una fuente operativa. No se cargan datos de muestra ni se crea un administrador automáticamente.
+El ETL importa países, aeropuertos, aerolíneas y rutas por HTTPS desde los procesos configurados de OpenFlights y OurAirports, con streams y upsert. El constructor y el monitoreo consultan la API real. El indicador OTP permanece sin datos hasta integrar una fuente operativa. No se cargan datos de muestra ni se crea un administrador automáticamente.
+
+Si actualizás desde una versión que ofrecía cargas locales, detené los workers anteriores antes de arrancar la nueva versión. Las cargas locales pendientes se cierran y quedan en el historial. Ejecutá el proceso configurado para volver a cargar el catálogo.
 
 1. Iniciar el servidor de desarrollo:
 
@@ -286,4 +288,17 @@ npm run dev
 
 La aplicación web estará disponible en `http://localhost:3000`.
 
-Los catálogos se cargan mediante ETL desde los `.dat`; no se utiliza un seed. Las cuentas existentes se conservan. En una instalación nueva, registrá una cuenta y asignale el rol `ADMIN` mediante una operación administrativa controlada en PostgreSQL antes de acceder a la administración.
+Para cargar OpenFlights desde el panel de servicios, ejecutá los procesos configurados en orden: países, aeropuertos, aerolíneas y rutas. Para OurAirports, ejecutá primero países y luego aeropuertos. Las cuentas existentes se conservan. En una instalación nueva, registrá una cuenta y asignale el rol `ADMIN` mediante una operación administrativa controlada en PostgreSQL antes de acceder a la administración.
+
+
+### Pruebas E2E con el catálogo de OpenFlights
+
+Las suites de catálogo, identidad de importación y reintentos usan una versión fija de los cuatro archivos de OpenFlights. Desde la raíz del repositorio, extraelos a un directorio temporal:
+
+```bash
+export OPENFLIGHTS_FIXTURE_DIR="$(mktemp -d)"
+git archive c7868fb9dc476916410c520daa05ce01db3b4b8f backend/data |
+  tar -x -C "$OPENFLIGHTS_FIXTURE_DIR" --strip-components=2
+```
+
+Para las pruebas que consultan un catálogo ya importado, cargá los archivos en una base de pruebas aislada en este orden: países, aeropuertos, aerolíneas y rutas. Usá el mismo directorio de fixtures al ejecutar las suites.

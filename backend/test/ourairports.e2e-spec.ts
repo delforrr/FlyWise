@@ -1,3 +1,4 @@
+import { catalogFile } from './helpers/catalog-file.js';
 import {
   aeropuertoOpenFlights,
   asociarAeropuertoOpenFlights,
@@ -124,7 +125,7 @@ describe('OurAirports: ingesta de catálogo', () => {
           expect(
             await service.importCatalog(
               'aeropuertos',
-              file,
+              catalogFile(file),
               undefined,
               configuration,
             ),
@@ -145,7 +146,7 @@ describe('OurAirports: ingesta de catálogo', () => {
             .expect(200);
           await service.importCatalog(
             'aeropuertos',
-            file,
+            catalogFile(file),
             undefined,
             configuration,
           );
@@ -164,7 +165,7 @@ describe('OurAirports: ingesta de catálogo', () => {
           );
           await service.importCatalog(
             'aeropuertos',
-            file,
+            catalogFile(file),
             undefined,
             configuration,
           );
@@ -179,7 +180,7 @@ describe('OurAirports: ingesta de catálogo', () => {
             file,
             `${reverseOfId},"OpenFlights después","Goroka","${country.nombre}",\\N,"${reverseIcao}",-7,145,0,0,"U","UTC","airport","OpenFlights"\n`,
           );
-          await service.importCatalog('aeropuertos', file);
+          await service.importCatalog('aeropuertos', catalogFile(file));
           const afterOpenFlights = (
             await api
               .get(`/administracion/aeropuertos`)
@@ -221,7 +222,7 @@ describe('OurAirports: ingesta de catálogo', () => {
           );
           await service.importCatalog(
             'aeropuertos',
-            file,
+            catalogFile(file),
             undefined,
             configuration,
           );
@@ -235,12 +236,12 @@ describe('OurAirports: ingesta de catálogo', () => {
               )
               .join('\n') + '\n',
           );
-          await service.importCatalog('aeropuertos', file);
+          await service.importCatalog('aeropuertos', catalogFile(file));
           await writeFile(
             file,
             `${pair[0]},"OpenFlights corregido","Ciudad nueva","País sin resolver",${conflictIata},\\N,-8,145,0,0,"U","UTC","airport","OpenFlights"\n`,
           );
-          await service.importCatalog('aeropuertos', file);
+          await service.importCatalog('aeropuertos', catalogFile(file));
           const corregida = await api
             .get('/administracion/fuentes/identidades')
             .query({ busqueda: String(pair[0]) })
@@ -275,7 +276,9 @@ describe('OurAirports: ingesta de catálogo', () => {
             file,
             `2B,410,${conflictIata},${pair[0]},KZN,2990,,0,CR2\n`,
           );
-          expect(await service.importCatalog('rutas', file)).toMatchObject({
+          expect(
+            await service.importCatalog('rutas', catalogFile(file)),
+          ).toMatchObject({
             processed: 0,
             discarded: 1,
           });
@@ -304,7 +307,7 @@ describe('OurAirports: ingesta de catálogo', () => {
           );
           await service.importCatalog(
             'aeropuertos',
-            file,
+            catalogFile(file),
             undefined,
             configuration,
           );

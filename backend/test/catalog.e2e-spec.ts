@@ -1,12 +1,12 @@
+import { catalogFile, openFlightsFixture } from './helpers/catalog-file.js';
 import { aeropuertoOpenFlights } from './helpers/identidad-openflights.js';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { OPENFLIGHTS_FILES } from '../src/etl/catalog.js';
 import { CatalogImportService } from '../src/etl/catalog-import.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { resolve } from 'node:path';
 import { RoutesService } from '../src/routes/routes.service.js';
 
-// Stream the real checked-in catalogues; rollback preserves the developer's database.
+// Stream the pinned OpenFlights fixtures; rollback preserves the developer's database.
 describe('OpenFlights complete import (PostgreSQL)', () => {
   const db = createDatabase();
   afterAll(async () => {
@@ -44,7 +44,7 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
           results.push(
             await service.importCatalog(
               target,
-              resolve('data', OPENFLIGHTS_FILES[target]),
+              catalogFile(openFlightsFixture(OPENFLIGHTS_FILES[target])),
               job.id,
             ),
           );
@@ -107,7 +107,7 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
         });
         const repeated = await service.importCatalog(
           'rutas',
-          resolve('data/routes.dat'),
+          catalogFile(openFlightsFixture('routes.dat')),
         );
         expect(repeated).toMatchObject({
           processed: 66197,
@@ -131,9 +131,12 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
         });
         await service.importCatalog(
           'aeropuertos',
-          resolve('data/airports.dat'),
+          catalogFile(openFlightsFixture('airports.dat')),
         );
-        await service.importCatalog('aerolineas', resolve('data/airlines.dat'));
+        await service.importCatalog(
+          'aerolineas',
+          catalogFile(openFlightsFixture('airlines.dat')),
+        );
         expect(
           await tx.orm.public.Aeropuerto.first({ id: aeropuerto.id }),
         ).toMatchObject({ nombre: 'Edición manual conservada' });
@@ -146,7 +149,7 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
         });
         await service.importCatalog(
           'aeropuertos',
-          resolve('data/airports.dat'),
+          catalogFile(openFlightsFixture('airports.dat')),
         );
         expect(
           await tx.orm.public.Aeropuerto.first({ id: aeropuerto.id }),

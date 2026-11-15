@@ -1,3 +1,4 @@
+import { catalogFile } from './helpers/catalog-file.js';
 import { aeropuertoOpenFlights } from './helpers/identidad-openflights.js';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
@@ -54,7 +55,7 @@ describe('Administración e ingesta concurrentes (HTTP y PostgreSQL)', () => {
       const source = (lat: number, lng: number) =>
         `${idOpenflights},Importado,City,Argentina,\\N,\\N,${lat},${lng},0,0,N,UTC,airport,OpenFlights`;
       await writeFile(file, source(90, 180));
-      await etl.importCatalog('aeropuertos', file);
+      await etl.importCatalog('aeropuertos', catalogFile(file));
       const airport = await aeropuertoOpenFlights(
         db,
         idOpenflights,
@@ -70,7 +71,7 @@ describe('Administración e ingesta concurrentes (HTTP y PostgreSQL)', () => {
         expect.arrayContaining([expect.objectContaining({ id: airport.id })]),
       );
       await writeFile(file, source(-90, -180));
-      await etl.importCatalog('aeropuertos', file);
+      await etl.importCatalog('aeropuertos', catalogFile(file));
       expect(await nearby(-90, -180)).toEqual(
         expect.arrayContaining([expect.objectContaining({ id: airport.id })]),
       );
@@ -82,9 +83,9 @@ describe('Administración e ingesta concurrentes (HTTP y PostgreSQL)', () => {
           .patch(`/administracion/aeropuertos/${airport.id}`)
           .send({ nombre: 'Edición manual concurrente' })
           .expect(200),
-        etl.importCatalog('aeropuertos', file),
+        etl.importCatalog('aeropuertos', catalogFile(file)),
       ]);
-      await etl.importCatalog('aeropuertos', file);
+      await etl.importCatalog('aeropuertos', catalogFile(file));
       expect(
         await db.orm.public.Aeropuerto.firstOrThrow({ id: airport.id }),
       ).toMatchObject({
@@ -93,9 +94,9 @@ describe('Administración e ingesta concurrentes (HTTP y PostgreSQL)', () => {
       });
       await Promise.all([
         api.delete(`/administracion/aeropuertos/${airport.id}`).expect(204),
-        etl.importCatalog('aeropuertos', file),
+        etl.importCatalog('aeropuertos', catalogFile(file)),
       ]);
-      await etl.importCatalog('aeropuertos', file);
+      await etl.importCatalog('aeropuertos', catalogFile(file));
       expect(
         (await db.orm.public.Aeropuerto.firstOrThrow({ id: airport.id }))
           .archivadoEn,

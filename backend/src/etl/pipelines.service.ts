@@ -1,4 +1,3 @@
-import { encolarEjecucion } from './encolar-ejecucion.js';
 import {
   BadRequestException,
   ConflictException,
@@ -8,6 +7,7 @@ import {
   ValidationPipe,
   Logger,
 } from '@nestjs/common';
+import { and, or } from '@prisma/orm-postgres/orm-client';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, defaultRepeatStrategy } from 'bullmq';
 import { Transform } from 'node:stream';
@@ -16,6 +16,7 @@ import csv from 'csv-parser';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CATALOG_FIELDS,
+  CATALOG_TARGETS,
   CreatePipelineDto,
   PipelineConnectionDto,
   PipelineExecutionDto,
@@ -32,6 +33,10 @@ import { timestampToDate } from '../prisma/timestamp.js';
 import { OPENFLIGHTS_COLUMNS, OPENFLIGHTS_FILES } from './catalog.js';
 import type { PipelineConfiguration } from './interfaces/pipeline-configuration.js';
 
+export const CARGA_LOCAL_RETIRADA =
+  'La carga local fue retirada. Ejecutá un proceso de catálogo configurado.';
+
+const FUENTES_LOCALES = ['all', 'countries', 'airports', 'airlines', 'routes'];
 const now = () => new Date().toISOString().replace('T', ' ').replace('Z', '');
 
 @Injectable()
@@ -125,24 +130,29 @@ export class PipelinesService implements OnModuleInit {
   private async reconcileFailedExecutions() {
     let cursor = '';
     for (;;) {
-      const rows = await this.prisma.models.EjecucionEtl.where({
-        estado: 'running',
-      })
-        .where((row) => row.id.gt(cursor))
-        .where((row) =>
-          row.fuente.in([
-            'paises',
-            'aeropuertos',
-            'aerolineas',
-            'rutas',
-            'all',
-          ]),
-        )
-        .select('id', 'intento')
+      const rows = await this.prisma.models.EjecucionEtl.where((row) =>
+        and(
+          row.id.gt(cursor),
+          or(
+            and(row.estado.eq('running'), row.fuente.in([...CATALOG_TARGETS])),
+            and(
+              row.estado.in(['pending', 'running']),
+              row.instantaneaConfiguracion.isNull(),
+              row.fuente.in([...CATALOG_TARGETS, ...FUENTES_LOCALES]),
+            ),
+          ),
+        ),
+      )
+        .select('id', 'intento', 'iniciadoEn', 'instantaneaConfiguracion')
         .orderBy((row) => row.id.asc())
         .limit(100)
         .all();
-      for (const { id, intento } of rows) {
+      for (const row of rows) {
+        if (!row.instantaneaConfiguracion) {
+          await this.cerrarCargaLocal(row);
+          continue;
+        }
+        const { id, intento } = row;
         const job = await this.queue.getJob(id);
         if (!job || (await job.getState()) !== 'failed') continue;
         const mensaje =
@@ -170,6 +180,37 @@ export class PipelinesService implements OnModuleInit {
       if (rows.length < 100) return;
       cursor = rows[rows.length - 1].id;
     }
+  }
+
+  async cerrarCargaLocal({
+    id,
+    intento,
+    iniciadoEn,
+  }: {
+    id: string;
+    intento: number;
+    iniciadoEn: string | null;
+  }) {
+    await this.prisma.db.transaction(async (tx) => {
+      const execution = await tx.orm.public.EjecucionEtl.where({
+        id,
+        instantaneaConfiguracion: null,
+      })
+        .where((row) => row.estado.in(['pending', 'running']))
+        .update({
+          estado: 'failed',
+          finalizadoEn: iniciadoEn ? now() : null,
+          mensajeError: CARGA_LOCAL_RETIRADA,
+        });
+      if (execution) {
+        await tx.orm.public.EventoEjecucionEtl.create({
+          ejecucionId: id,
+          intento,
+          nivel: 'error',
+          mensaje: CARGA_LOCAL_RETIRADA,
+        });
+      }
+    });
   }
 
   list() {
@@ -421,13 +462,61 @@ export class PipelinesService implements OnModuleInit {
     solicitanteId?: string,
   ) {
     configuration = await this.validateConfiguration(fuente, configuration);
-    const { ejecucionId } = await encolarEjecucion(this.prisma, this.queue, {
+    const record = await this.prisma.models.EjecucionEtl.create({
       fuente,
       procesoId,
       solicitanteId,
       instantaneaConfiguracion: configuration,
+      estado: 'pending',
+      uriFuente: configuration.conexion.urlEndpoint,
     });
-    return { ejecucionId };
+    try {
+      await this.queue.add(
+        'process-dataset',
+        { jobId: record.id, dataset: fuente },
+        {
+          jobId: record.id,
+          attempts:
+            configuration.configuracionProgramacion.maximoReintentos + 1,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: { count: 100 },
+          removeOnFail: { count: 100 },
+        },
+      );
+    } catch {
+      const mensaje = 'No fue posible encolar la ejecución';
+      await this.prisma.models.EjecucionEtl.where({ id: record.id }).update({
+        estado: 'failed',
+        mensajeError: mensaje,
+      });
+      throw new BadRequestException(mensaje);
+    }
+    return { ejecucionId: record.id };
+  }
+
+  async getHistory() {
+    const ejecuciones = await this.prisma.models.EjecucionEtl.orderBy((job) =>
+      job.iniciadoEn.desc(),
+    )
+      .limit(20)
+      .all();
+    return ejecuciones.map((job) => {
+      const iniciadoEn = job.iniciadoEn
+        ? timestampToDate(job.iniciadoEn)
+        : null;
+      const finalizadoEn = job.finalizadoEn
+        ? timestampToDate(job.finalizadoEn)
+        : null;
+      return {
+        ...job,
+        iniciadoEn,
+        finalizadoEn,
+        durationMs:
+          iniciadoEn && finalizadoEn
+            ? finalizadoEn.getTime() - iniciadoEn.getTime()
+            : null,
+      };
+    });
   }
 
   async job(id: string) {
@@ -466,15 +555,10 @@ export class PipelinesService implements OnModuleInit {
     const job = await this.job(id);
     if (job.fuente === 'OAG')
       throw new ConflictException('Reintentá desde la administración de OAG');
+    if (!job.instantaneaConfiguracion)
+      throw new ConflictException(CARGA_LOCAL_RETIRADA);
     if (job.estado !== 'failed' && job.estado !== 'completed')
       throw new ConflictException('La ejecución todavía está activa');
-    if (!job.instantaneaConfiguracion) {
-      const { ejecucionId } = await encolarEjecucion(this.prisma, this.queue, {
-        fuente: job.fuente,
-        solicitanteId,
-      });
-      return { ejecucionId };
-    }
 
     return this.enqueue(
       job.fuente,

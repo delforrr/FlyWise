@@ -5,7 +5,7 @@ import { storeOurAirportsBatch } from './adapters/ourairports-store.js';
 import { escribirCatalogo } from '../catalogos/catalog-state.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import * as fs from 'node:fs';
+import type { Readable } from 'node:stream';
 import csv from 'csv-parser';
 import { pipeline as proceso } from 'node:stream/promises';
 import { createHash } from 'node:crypto';
@@ -17,7 +17,7 @@ import {
   type CatalogRecord,
 } from './catalog.js';
 import { upsertCatalogBatch, resolveRouteBatch } from './catalog-store.js';
-import { openCsvSource, redactSourceRow } from './http-source.js';
+import { redactSourceRow } from './http-source.js';
 import {
   MAX_DISCARDED_SAMPLES_PER_JOB,
   type PipelineConfiguration,
@@ -32,16 +32,10 @@ export class CatalogImportService {
 
   async importCatalog(
     dataset: CatalogDataset,
-    filePath: string | null,
+    fuente: Readable,
     ejecucionId?: string,
     configuration?: PipelineConfiguration,
   ) {
-    const fuente = filePath
-      ? fs.createReadStream(filePath)
-      : await openCsvSource(
-          configuration!.conexion,
-          configuration!.configuracionProgramacion.tiempoLimiteSegundos,
-        );
     const checksum = createHash('sha256');
     const headers = configuration?.conexion.csvConCabecera ? undefined : false;
     const tamanoLote =

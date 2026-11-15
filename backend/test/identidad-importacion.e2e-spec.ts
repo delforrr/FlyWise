@@ -1,3 +1,4 @@
+import { catalogFile, openFlightsFixture } from './helpers/catalog-file.js';
 import {
   aeropuertoOpenFlights,
   asociarAeropuertoOpenFlights,
@@ -9,7 +10,7 @@ import { createReadStream } from 'node:fs';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { CatalogImportService } from '../src/etl/catalog-import.service.js';
@@ -28,7 +29,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
   beforeAll(async () => {
     directorio = await mkdtemp(join(tmpdir(), 'flywise-identidad-'));
     fichero = join(directorio, 'routes.dat');
-    const fuente = createReadStream(resolve('data/routes.dat'));
+    const fuente = createReadStream(openFlightsFixture('routes.dat'));
     const lector = createInterface({ input: fuente, crlfDelay: Infinity });
     try {
       for await (const registro of lector) {
@@ -104,7 +105,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         archivadoEn: '2026-10-30 00:00:00',
       });
       await writeFile(fichero, linea + '\n');
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         inserted: 0,
         discarded: 0,
       });
@@ -126,11 +129,15 @@ describe('Claves de importación con una fila real de routes.dat', () => {
       const celdas = linea.split(',');
       celdas[7] = '99';
       await writeFile(fichero, celdas.join(',') + '\n');
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         inserted: 1,
         discarded: 0,
       });
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         inserted: 0,
         discarded: 0,
       });
@@ -161,7 +168,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
       celdas[2] = 'ZZZ';
       celdas[3] = '2147483001';
       await writeFile(fichero, celdas.join(',') + '\n');
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         inserted: 1,
         discarded: 0,
       });
@@ -171,7 +180,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
       expect(
         await tx.orm.public.OfertaRuta.first({ rutaId: ruta.id }),
       ).not.toBeNull();
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         inserted: 0,
         discarded: 0,
       });
@@ -192,7 +203,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         estado: 'running',
       });
       expect(
-        await service.importCatalog('rutas', fichero, job.id),
+        await service.importCatalog('rutas', catalogFile(fichero), job.id),
       ).toMatchObject({ processed: 0, inserted: 0, discarded: 1 });
       expect(
         await tx.orm.public.MuestraDescartadaEtl.first({ ejecucionId: job.id }),
@@ -214,7 +225,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         protegidoManualmente: true,
       });
       await writeFile(fichero, linea + '\n');
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         inserted: 0,
         discarded: 0,
       });
@@ -231,7 +244,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
       const primera = celdas.join(',');
       celdas[1] = String.raw`\N`;
       await writeFile(fichero, primera + '\n' + celdas.join(',') + '\n');
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         processed: 0,
         inserted: 0,
         discarded: 2,
@@ -245,7 +260,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
       celdas[7] = '99';
       const registro = celdas.join(',') + '\n';
       await writeFile(fichero, registro + registro);
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         processed: 2,
         inserted: 1,
         discarded: 0,
@@ -267,7 +284,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
           estado: 'running',
         });
         expect(
-          await service.importCatalog('rutas', fichero, job.id),
+          await service.importCatalog('rutas', catalogFile(fichero), job.id),
         ).toMatchObject({ processed: 0, inserted: 0, discarded: 2 });
         const muestras = await tx.orm.public.MuestraDescartadaEtl.where({
           ejecucionId: job.id,
@@ -300,7 +317,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
           estado: 'running',
         });
         expect(
-          await service.importCatalog('rutas', fichero, job.id),
+          await service.importCatalog('rutas', catalogFile(fichero), job.id),
         ).toMatchObject({ processed: 0, discarded: 1 });
         expect(
           await tx.orm.public.MuestraDescartadaEtl.first({
@@ -326,7 +343,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
       expect(origen.icao).not.toBeNull();
       celdas[2] = origen.icao!;
       await writeFile(fichero, linea + '\n' + celdas.join(',') + '\n');
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         processed: 2,
         inserted: 0,
         discarded: 0,
@@ -343,7 +362,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
       celdas[4] = otro.iata!;
       celdas[5] = '1';
       await writeFile(fichero, primera + '\n' + celdas.join(',') + '\n');
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         processed: 2,
         inserted: 2,
         discarded: 0,
@@ -363,7 +384,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         celdas[columna + 1] = '2147483002';
         celdas[7] = '99';
         await writeFile(fichero, celdas.join(',') + '\n');
-        expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+        expect(
+          await service.importCatalog('rutas', catalogFile(fichero)),
+        ).toMatchObject({
           inserted: 1,
           discarded: 0,
         });
@@ -374,7 +397,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
           estado: 'running',
         });
         expect(
-          await service.importCatalog('rutas', fichero, job.id),
+          await service.importCatalog('rutas', catalogFile(fichero), job.id),
         ).toMatchObject({ processed: 0, discarded: 1 });
         expect(
           await tx.orm.public.MuestraDescartadaEtl.first({
@@ -408,7 +431,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
           estado: 'running',
         });
         expect(
-          await service.importCatalog('rutas', fichero, job.id),
+          await service.importCatalog('rutas', catalogFile(fichero), job.id),
         ).toMatchObject({ processed: 0, inserted: 0, discarded: 2 });
         const muestras = await tx.orm.public.MuestraDescartadaEtl.where({
           ejecucionId: job.id,
@@ -444,7 +467,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         estado: 'running',
       });
       expect(
-        await service.importCatalog('rutas', fichero, job.id),
+        await service.importCatalog('rutas', catalogFile(fichero), job.id),
       ).toMatchObject({ processed: 0, inserted: 0, discarded: 2 });
       const muestras = await tx.orm.public.MuestraDescartadaEtl.where({
         ejecucionId: job.id,
@@ -478,7 +501,9 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         protegidoManualmente: true,
       });
       await writeFile(fichero, linea + '\n');
-      expect(await service.importCatalog('rutas', fichero)).toMatchObject({
+      expect(
+        await service.importCatalog('rutas', catalogFile(fichero)),
+      ).toMatchObject({
         discarded: 0,
       });
       const aeropuerto = await tx.orm.public.Aeropuerto.create({
@@ -508,7 +533,7 @@ describe('Claves de importación con una fila real de routes.dat', () => {
         estado: 'running',
       });
       expect(
-        await service.importCatalog('rutas', fichero, job.id),
+        await service.importCatalog('rutas', catalogFile(fichero), job.id),
       ).toMatchObject({ processed: 0, discarded: 1 });
       expect(
         await tx.orm.public.MuestraDescartadaEtl.first({ ejecucionId: job.id }),

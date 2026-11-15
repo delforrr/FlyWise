@@ -1,3 +1,4 @@
+import { openFlightsFixture } from './helpers/catalog-file.js';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Queue, QueueEvents, Worker } from 'bullmq';
@@ -5,8 +6,11 @@ import { randomUUID } from 'node:crypto';
 import { createDatabase, type Transaction } from '../src/prisma/db.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { CatalogImportService } from '../src/etl/catalog-import.service.js';
-import { EtlProcessor } from '../src/etl/etl.processor.js';
-import { PipelinesService } from '../src/etl/pipelines.service.js';
+import { catalogSnapshot, mockCatalogHttp } from './helpers/catalog-http.js';
+
+await mockCatalogHttp(openFlightsFixture('airlines.dat'));
+const { EtlProcessor } = await import('../src/etl/etl.processor.js');
+const { PipelinesService } = await import('../src/etl/pipelines.service.js');
 
 describe('Attempt audit (real BullMQ and PostgreSQL)', () => {
   const db = createDatabase();
@@ -72,6 +76,7 @@ describe('Attempt audit (real BullMQ and PostgreSQL)', () => {
           const record = await tx.orm.public.EjecucionEtl.create({
             fuente: 'aerolineas',
             estado: 'pending',
+            instantaneaConfiguracion: { ...catalogSnapshot('aerolineas') },
           });
           const job = await queue.add(
             'process-dataset',
