@@ -26,7 +26,7 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
     await queue.close();
     await db.close();
   });
-  it('publica el mes atómicamente y distingue movimientos, conectividad, Pasajeros y PAX', async () => {
+  it('publica el mes atómicamente y distingue movimientos observados y conectividad', async () => {
     const rollback = new Error('rollback ANAC');
     let role = 'ADMIN';
     try {
@@ -101,8 +101,6 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
                 movimientos: 31,
                 despegues: 1,
                 aterrizajes: 30,
-                pasajeros: 240,
-                pax: 120,
               },
             ],
             cobertura: {
@@ -133,7 +131,6 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
                 origen: 'AER',
                 destino: 'CBA',
                 movimientosSalida: 1,
-                pasajeros: 120,
               },
             ],
           });
@@ -163,9 +160,7 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
           });
           await expect(
             service.importar(
-              Readable.from([
-                fixture.replace(';120;120;', ';desconocido;120;'),
-              ]),
+              Readable.from([fixture.replace(';0:01;', ';24:01;')]),
               '2026-08',
               failed.id,
               'https://datos.transporte.gob.ar/revision.csv',
@@ -206,8 +201,14 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
             Readable.from([
               fixture
                 .replace('Aerolinea Nombre', 'Aerolínea Nombre')
-                .replace(';120;120;', ';125;125;')
-                .replace(';120;0;', ';125;0;'),
+                .replace(
+                  'Calidad dato',
+                  'Aeronave;Matrícula;Pasajeros;PAX;Calidad dato',
+                )
+                .replace(
+                  /;(PROVISORIO|DEFINITIVO)/g,
+                  ';B738;LV-AAA;inválido;inválido;$1',
+                ),
             ]),
             '2026-08',
             revision.id,
@@ -221,9 +222,13 @@ describe('ANAC: movimientos y revisiones por HTTP', () => {
           ).body;
           expect(revised).toMatchObject({
             total: 31,
-            resumen: [{ pasajeros: 250, pax: 125 }],
+            resumen: [{ movimientos: 31, despegues: 1, aterrizajes: 30 }],
             cobertura: { revisionId: revision.id },
           });
+          expect(revised).not.toHaveProperty('datos.0.aeronave');
+          expect(revised).not.toHaveProperty('datos.0.matricula');
+          expect(revised).not.toHaveProperty('datos.0.pasajeros');
+          expect(revised).not.toHaveProperty('datos.0.pax');
           const truncated = await tx.orm.public.EjecucionEtl.create({
             fuente: 'ANAC',
             estado: 'running',

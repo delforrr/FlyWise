@@ -11,8 +11,6 @@ interface Movimiento {
   destino: string;
   operador: string;
   clasificacion: string;
-  pasajeros: number | null;
-  pax?: number | null;
   calidad?: string;
   movimientosSalida?: number;
 }
@@ -21,10 +19,6 @@ interface Resumen {
   movimientos: number;
   despegues: number;
   aterrizajes: number;
-  pasajeros: number | null;
-  pax: number | null;
-  movimientosConPasajeros: number;
-  movimientosConPax: number;
 }
 interface Revision {
   id?: string;
@@ -62,7 +56,6 @@ interface Identidad {
 interface Muestra {
   numeroFila: number;
   motivo: string;
-  muestraOriginal: string;
 }
 interface Configuracion {
   fichaUrl: string;
@@ -325,9 +318,6 @@ onMounted(async () => {
       Consultando movimientos…
     </div>
     <template v-else-if="resultado">
-      <p v-if="resultado.cobertura" class="text-sm text-text-muted">
-        Pasajeros por movimiento y tarjetas de embarque (PAX) se leen por separado.
-      </p>
       <div v-if="resultado.cobertura" class="text-sm border-y border-border-subtle py-3">
         <p>
           Mes publicado ·
@@ -356,8 +346,6 @@ onMounted(async () => {
               <th class="text-right p-2">Movimientos</th>
               <th class="text-right p-2">Despegues</th>
               <th class="text-right p-2">Aterrizajes</th>
-              <th class="text-right p-2">Pasajeros</th>
-              <th class="text-right p-2">PAX</th>
             </tr>
           </thead>
           <tbody>
@@ -370,18 +358,6 @@ onMounted(async () => {
               <td class="text-right p-2">{{ quantity(r.movimientos) }}</td>
               <td class="text-right p-2">{{ quantity(r.despegues) }}</td>
               <td class="text-right p-2">{{ quantity(r.aterrizajes) }}</td>
-              <td class="text-right p-2">
-                {{ quantity(r.pasajeros)
-                }}<small class="block text-text-muted"
-                  >{{ r.movimientosConPasajeros }} movimientos conocidos</small
-                >
-              </td>
-              <td class="text-right p-2">
-                {{ quantity(r.pax)
-                }}<small class="block text-text-muted"
-                  >{{ r.movimientosConPax }} movimientos conocidos</small
-                >
-              </td>
             </tr>
           </tbody>
         </table>
@@ -407,8 +383,6 @@ onMounted(async () => {
               </th>
               <th class="text-left p-2">Origen → destino (ANAC)</th>
               <th class="text-left p-2">Operador / clasificación</th>
-              <th class="text-right p-2">Pasajeros</th>
-              <th v-if="!vistaConectividad" class="text-right p-2">PAX</th>
               <th v-if="!vistaConectividad" class="text-left p-2">Calidad</th>
             </tr>
           </thead>
@@ -433,10 +407,6 @@ onMounted(async () => {
                 }}<small class="block text-text-muted">{{
                   row.clasificacion
                 }}</small>
-              </td>
-              <td class="p-2 text-right">{{ quantity(row.pasajeros) }}</td>
-              <td v-if="!vistaConectividad" class="p-2 text-right">
-                {{ quantity(row.pax) }}
               </td>
               <td v-if="!vistaConectividad" class="p-2">{{ row.calidad }}</td>
             </tr>
@@ -524,9 +494,6 @@ onMounted(async () => {
       <ul v-if="muestras.length" class="text-sm space-y-2 py-3">
         <li v-for="sample in muestras" :key="sample.numeroFila">
           Fila {{ sample.numeroFila }}: {{ sample.motivo }}
-          <pre class="overflow-x-auto text-xs mt-1">{{
-            sample.muestraOriginal
-          }}</pre>
         </li>
       </ul>
       <p v-for="revision in revisiones" :key="revision.id" class="text-sm py-2">

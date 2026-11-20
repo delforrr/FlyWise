@@ -37,8 +37,7 @@ export class ActividadController {
   constructor(private readonly service: ActividadService) {}
   @Get()
   @ApiOperation({
-    summary:
-      'Movimientos del mes publicado, con filtros y muestra conocida de pasajeros',
+    summary: 'Movimientos observados del mes publicado, con filtros',
   })
   consultar(@Query() dto: ConsultaActividadDto) {
     return this.service.consultar(dto);

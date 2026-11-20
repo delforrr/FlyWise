@@ -8,10 +8,6 @@ export interface MovimientoAnac {
   operador: string;
   clase: string;
   clasificacion: string;
-  aeronave: string;
-  matricula: string;
-  pasajeros: number | null;
-  pax: number | null;
   calidad: string;
 }
 
@@ -24,9 +20,6 @@ export const ANAC_HEADERS = [
   'Aeropuerto',
   'Origen / Destino',
   'Aerolinea Nombre',
-  'Aeronave',
-  'Pasajeros',
-  'PAX',
   'Calidad dato',
 ];
 
@@ -70,13 +63,6 @@ export function normalizarMovimiento(
     throw new Error(
       'Movimiento sin aeropuerto, extremo, operador o clasificación',
     );
-  const integer = (name: string) => {
-    const value = field(name);
-    if (!value) return null;
-    if (!/^\d+$/.test(value) || Number(value) > 2147483647)
-      throw new Error(`${name} inválido`);
-    return Number(value);
-  };
   return {
     numeroFila,
     fechaUtc,
@@ -87,10 +73,6 @@ export function normalizarMovimiento(
     operador: field('Aerolinea Nombre'),
     clase: field('Clase de Vuelo (todos los vuelos)'),
     clasificacion: field('Clasificación Vuelo'),
-    aeronave: field('Aeronave'),
-    matricula: field('Matrícula'),
-    pasajeros: integer('Pasajeros'),
-    pax: integer('PAX'),
     calidad: field('Calidad dato') || 'No informada',
   };
 }

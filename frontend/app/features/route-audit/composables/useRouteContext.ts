@@ -4,7 +4,7 @@ import { useBackendRequest } from '~/shared/composables/useBackendRequest';
 import type { FlightRoute } from '~/types/route';
 
 interface RouteContext {
-  actividad: { despegues: number; pasajeros: number | null } | null;
+  actividad: { despegues: number } | null;
   indicadores: { aeropuerto: string; desde: string; hasta: string; puntualidadLlegada: number }[];
 }
 

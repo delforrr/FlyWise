@@ -104,7 +104,6 @@ async function leerActividad(
         sql.eq(f.identidadDestino.identificador, f.movimientos.destino),
     )
     .select('despegues', (_f, sql) => sql.count())
-    .select('pasajeros', (f, sql) => sql.sum(f.movimientos.pasajeros))
     .where((f, sql) =>
       sql.and(
         sql.eq(f.publicacion.periodo, mes),
@@ -117,10 +116,5 @@ async function leerActividad(
     )
     .build();
   const [resumen] = await db.query(plan);
-  return (
-    resumen && {
-      despegues: Number(resumen.despegues),
-      pasajeros: resumen.pasajeros === null ? null : Number(resumen.pasajeros),
-    }
-  );
+  return resumen && { despegues: Number(resumen.despegues) };
 }

@@ -85,9 +85,6 @@ describe('Contexto público de una ruta', () => {
             operador: '',
             clase: '',
             clasificacion: '',
-            aeronave: '',
-            matricula: '',
-            pasajeros: 25,
             calidad: '',
           });
         }
@@ -142,7 +139,7 @@ describe('Contexto público de una ruta', () => {
             .get(path)
             .query(query)
             .expect(200, {
-              actividad: { despegues: 1, pasajeros: 25 },
+              actividad: { despegues: 1 },
               indicadores: [
                 {
                   aeropuerto: 'ZZZZ',

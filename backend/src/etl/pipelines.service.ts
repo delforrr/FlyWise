@@ -548,6 +548,7 @@ export class PipelinesService implements OnModuleInit {
       .all();
     return rows.map((row) => ({
       ...row,
+      muestraOriginal: job.fuente === 'ANAC' ? '' : row.muestraOriginal,
       creadoEn: timestampToDate(row.creadoEn).toISOString(),
     }));
   }

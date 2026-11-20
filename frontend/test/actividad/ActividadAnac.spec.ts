@@ -8,7 +8,7 @@ vi.mock("../../app/shared/composables/useBackendRequest", () => ({
 }));
 
 describe("Actividad ANAC", () => {
-  it("muestra procedencia, calidad y pasajeros con semánticas separadas y permite cambiar el mes", async () => {
+  it("muestra procedencia, calidad y movimientos y permite cambiar el mes", async () => {
     request.mockImplementation(
       (path: string, options?: { query?: { intento?: number } }) => {
         if (path.endsWith("/ejecuciones"))
@@ -29,8 +29,7 @@ describe("Actividad ANAC", () => {
               ? [
                   {
                     numeroFila: 7,
-                    motivo: "PAX inválido",
-                    muestraOriginal: "{}",
+                    motivo: "Hora UTC inválida",
                   },
                 ]
               : [],
@@ -54,8 +53,6 @@ describe("Actividad ANAC", () => {
                 destino: "CBA",
                 operador: "Operador ANAC",
                 clasificacion: "Doméstico",
-                pasajeros: 120,
-                pax: 120,
                 calidad: "PROVISORIO",
               },
             ],
@@ -66,10 +63,6 @@ describe("Actividad ANAC", () => {
                 movimientos: 2,
                 despegues: 1,
                 aterrizajes: 1,
-                pasajeros: 240,
-                pax: 120,
-                movimientosConPasajeros: 2,
-                movimientosConPax: 2,
               },
             ],
             cobertura: {
@@ -110,9 +103,7 @@ describe("Actividad ANAC", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("ANAC — CC BY 4.0");
     expect(wrapper.text()).toContain("PROVISORIO");
-    expect(wrapper.text()).toContain("240");
-    expect(wrapper.text()).toContain("PAX");
-    expect(wrapper.text()).toContain("tarjetas de embarque");
+    expect(wrapper.text()).not.toContain("PAX");
     await wrapper.get('input[type="month"]').setValue("2026-08");
     await wrapper
       .get('form[aria-label="Consultar actividad"]')
@@ -133,7 +124,7 @@ describe("Actividad ANAC", () => {
       .get('select[aria-label="Intento de descartes"]')
       .setValue("1");
     await flushPromises();
-    expect(wrapper.text()).toContain("Fila 7: PAX inválido");
+    expect(wrapper.text()).toContain("Fila 7: Hora UTC inválida");
     wrapper.unmount();
   });
 });

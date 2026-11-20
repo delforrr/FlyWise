@@ -21,9 +21,7 @@ jest.unstable_mockModule('../src/etl/http-source.js', () => ({
     attempts++;
     return Promise.resolve(
       Readable.from([
-        attempts === 1
-          ? fixture.replace(';120;120;', ';inválido;120;')
-          : fixture,
+        attempts === 1 ? fixture.replace(';0:01;', ';24:01;') : fixture,
       ]),
     );
   },
@@ -101,7 +99,7 @@ describe('ANAC: jobs y recuperación real', () => {
         ).toMatchObject({ total: 31, cobertura: { filasProcesadas: 31 } });
         const rejected = await service.muestras(result!.ejecucionId, 1);
         expect(rejected).toMatchObject([
-          { numeroFila: 2, motivo: 'Pasajeros inválido' },
+          { numeroFila: 2, motivo: 'Hora UTC inválida' },
         ]);
         await job!.remove();
         throw rollback;

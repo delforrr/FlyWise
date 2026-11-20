@@ -137,10 +137,6 @@ const bannerAccentClass = computed(() => {
           <dd class="text-text-main tabular-nums">{{ context.periodo }}</dd>
           <dt>Despegues del tramo</dt>
           <dd class="text-text-main tabular-nums">{{ numero.format(context.actividad.despegues) }}</dd>
-          <template v-if="context.actividad.pasajeros !== null">
-            <dt>Pasajeros</dt>
-            <dd class="text-text-main tabular-nums">{{ numero.format(context.actividad.pasajeros) }}</dd>
-          </template>
         </dl>
       </template>
       <template #indicadores>

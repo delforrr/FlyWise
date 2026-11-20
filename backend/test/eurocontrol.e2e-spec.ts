@@ -67,13 +67,18 @@ async function insertUnlistedWorksheet(path: string) {
     ]),
   );
 }
+const connection = {
+  host: process.env.REDIS_HOST ?? 'localhost',
+  port: Number(process.env.REDIS_PORT ?? 6379),
+};
+
 describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
   const db = createDatabase();
   const queue = new Queue<{
     producto: EurocontrolProduct;
     ejecucionId?: string;
   }>(`eurocontrol-test-${process.pid}`, {
-    connection: { host: 'localhost', port: 6379 },
+    connection,
   });
   afterAll(async () => {
     await queue.removeJobScheduler('eurocontrol-network');
@@ -106,7 +111,7 @@ describe('EUROCONTROL: indicadores nativos y publicación atómica', () => {
         );
         const worker = new Worker(queue.name, null, {
           autorun: false,
-          connection: { host: 'localhost', port: 6379 },
+          connection,
         });
         try {
           const job = await worker.getNextJob('fixture-lock', { block: false });

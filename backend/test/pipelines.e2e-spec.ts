@@ -140,6 +140,19 @@ describe('Pipeline persistence and immutable execution configuration', () => {
             'La conexión con PostgreSQL se cerró durante la ingesta. Podés reintentar.',
         });
         expect(queue.removeJobScheduler).toHaveBeenCalledWith(another.id);
+        const anac = await tx.orm.public.EjecucionEtl.create({
+          fuente: 'ANAC',
+          estado: 'pending',
+        });
+        await tx.orm.public.MuestraDescartadaEtl.create({
+          ejecucionId: anac.id,
+          numeroFila: 2,
+          motivo: 'Hora UTC inválida',
+          muestraOriginal: '{"Matrícula":"LV-AAA","PAX":"120"}',
+        });
+        expect(await service.samples(anac.id)).toMatchObject([
+          { numeroFila: 2, motivo: 'Hora UTC inválida', muestraOriginal: '' },
+        ]);
         throw rollback;
       });
       throw new Error('Expected rollback');

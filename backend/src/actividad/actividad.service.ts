@@ -288,9 +288,12 @@ export class ActividadService implements OnModuleInit {
         separator: ';',
         strict: true,
         maxRowBytes: 65536,
-        mapHeaders: ({ header }) => cabeceraAnac(header),
+        mapHeaders: ({ header }) => {
+          const nombre = cabeceraAnac(header);
+          return ANAC_HEADERS.includes(nombre) ? nombre : null;
+        },
       });
-      parser.on('headers', (headers: string[]) => {
+      parser.on('headers', (headers: (string | null)[]) => {
         headersValid = ANAC_HEADERS.every((header) => headers.includes(header));
         if (!headersValid)
           parser.destroy(new Error('Cabecera ANAC incompatible'));
@@ -414,7 +417,7 @@ export class ActividadService implements OnModuleInit {
       cobertura: null,
       fuente: 'ANAC — CC BY 4.0',
       metodologia:
-        'Movimientos UTC. Conectividad: sólo despegues. Pasajeros: movimiento/aeropuerto; PAX: tarjetas de embarque, agregado nacional cabotaje. No sumar ambas columnas ni inferir vuelos, OTP, cancelaciones u ocupación.',
+        'Movimientos observados en UTC. La conectividad cuenta únicamente despegues.',
     };
     if (!publicacion) return respuesta;
 
@@ -436,24 +439,14 @@ export class ActividadService implements OnModuleInit {
           ...(conectividad ? [sql.eq(m.movimiento, 'DESPEGUE')] : []),
         ),
       );
-    const totales = filtrados.select((m, sql) => ({
-      movimientos: sql.count(),
-      pasajeros: sql.sum(m.pasajeros),
-      pax: sql.sum(m.pax),
-      movimientosConPasajeros: sql.count(m.pasajeros),
-      movimientosConPax: sql.count(m.pax),
-    }));
-    const porClasificacion = totales
+    const porClasificacion = filtrados
       .select('clasificacion', 'movimiento')
+      .select('movimientos', (_m, sql) => sql.count())
       .groupBy('clasificacion', 'movimiento')
       .orderBy('clasificacion');
     const conexiones = filtrados
       .select('origen', 'destino', 'operador', 'clasificacion')
-      .select((m, sql) => ({
-        movimientosSalida: sql.count(),
-        pasajeros: sql.sum(m.pasajeros),
-        movimientosConPasajeros: sql.count(m.pasajeros),
-      }))
+      .select('movimientosSalida', (_m, sql) => sql.count())
       .groupBy('origen', 'destino', 'operador', 'clasificacion');
 
     const [datos, grupos, totalConexiones] = await Promise.all([
@@ -478,10 +471,6 @@ export class ActividadService implements OnModuleInit {
                 'operador',
                 'clase',
                 'clasificacion',
-                'aeronave',
-                'matricula',
-                'pasajeros',
-                'pax',
                 'calidad',
               )
               .select((m) => ({
@@ -516,10 +505,6 @@ export class ActividadService implements OnModuleInit {
         movimientos: number;
         despegues: number;
         aterrizajes: number;
-        pasajeros: number | null;
-        pax: number | null;
-        movimientosConPasajeros: number;
-        movimientosConPax: number;
       }
     >();
     let movimientos = 0;
@@ -529,20 +514,11 @@ export class ActividadService implements OnModuleInit {
         movimientos: 0,
         despegues: 0,
         aterrizajes: 0,
-        pasajeros: null,
-        pax: null,
-        movimientosConPasajeros: 0,
-        movimientosConPax: 0,
       };
       movimientos += grupo.movimientos;
       fila.movimientos += grupo.movimientos;
       if (grupo.movimiento === 'DESPEGUE') fila.despegues += grupo.movimientos;
       else fila.aterrizajes += grupo.movimientos;
-      if (grupo.pasajeros !== null)
-        fila.pasajeros = (fila.pasajeros ?? 0) + grupo.pasajeros;
-      if (grupo.pax !== null) fila.pax = (fila.pax ?? 0) + grupo.pax;
-      fila.movimientosConPasajeros += grupo.movimientosConPasajeros;
-      fila.movimientosConPax += grupo.movimientosConPax;
       resumen.set(grupo.clasificacion, fila);
     }
     return {
@@ -580,6 +556,7 @@ export class ActividadService implements OnModuleInit {
       ejecucionId: id,
       intento: intento ?? job.intento,
     })
+      .select('numeroFila', 'motivo')
       .orderBy((row) => row.numeroFila.asc())
       .limit(100)
       .all();

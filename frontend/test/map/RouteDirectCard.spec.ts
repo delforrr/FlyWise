@@ -47,7 +47,7 @@ enableAutoUnmount(afterEach);
 
 it('muestra el OTP-15 de la ruta y presenta la actividad ANAC en su propia pestaña', async () => {
   const fetch = vi.fn().mockResolvedValue({
-    actividad: { despegues: 17, pasajeros: 2350 },
+    actividad: { despegues: 17 },
     indicadores: [],
   });
   const { wrapper } = mountCard(fetch);
@@ -62,14 +62,13 @@ it('muestra el OTP-15 de la ruta y presenta la actividad ANAC en su propia pesta
   expect(wrapper.text()).toContain('2026-08');
   expect(wrapper.text()).toContain('Despegues');
   expect(wrapper.text()).toContain('17');
-  expect(wrapper.text()).toContain('2.350');
   expect(wrapper.text()).not.toContain('20 operados de 25');
   expect(wrapper.text()).not.toContain('EUROCONTROL');
 });
 
 it('muestra el aeropuerto y el período EUROCONTROL aunque el tramo no tenga OTP-15', async () => {
   const fetch = vi.fn().mockResolvedValue({
-    actividad: { despegues: 17, pasajeros: null },
+    actividad: { despegues: 17 },
     indicadores: [
       { aeropuerto: 'LEMD', desde: '2026-08-01', hasta: '2026-08-31', puntualidadLlegada: 83.5 },
     ],
@@ -98,7 +97,7 @@ it('al cambiar el período vuelve a OTP-15 y descarta las respuestas externas an
     indicadores: { aeropuerto: string; desde: string; hasta: string; puntualidadLlegada: number }[];
   }>();
   const fetch = vi.fn()
-    .mockResolvedValueOnce({ actividad: { despegues: 17, pasajeros: null }, indicadores: [] })
+    .mockResolvedValueOnce({ actividad: { despegues: 17 }, indicadores: [] })
     .mockReturnValueOnce(anterior.promise)
     .mockResolvedValueOnce({ actividad: null, indicadores: [] });
   const { wrapper, filtro } = mountCard(fetch);
