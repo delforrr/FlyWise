@@ -17,7 +17,12 @@ describe('Global connections (PostgreSQL)', () => {
       await db.transaction(async (tx) => {
         const service = new RoutesService({
           models: tx.orm.public,
-          db: { raw: tx.raw, query: tx.query.bind(tx) },
+          db: {
+            raw: tx.raw,
+            sql: tx.sql,
+            toSql: tx.toSql.bind(tx),
+            query: tx.query.bind(tx),
+          },
         } as unknown as PrismaService);
         const tag = randomUUID();
         const ar = await tx.orm.public.Pais.create({

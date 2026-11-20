@@ -66,6 +66,8 @@ describe('OurAirports: ingesta de catálogo', () => {
                 db: {
                   orm: tx.orm,
                   raw: tx.raw,
+                  toSql: tx.toSql.bind(tx),
+                  sql: tx.sql,
                   query: tx.query.bind(tx),
                   execute: tx.execute.bind(tx),
                   transaction: async <T>(

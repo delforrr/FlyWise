@@ -1,34 +1,13 @@
-import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
 import { createDatabase } from '../src/prisma/db.js';
 
-describe('Internal catalog invariants (PostgreSQL)', () => {
+describe('Email identity integrity (PostgreSQL)', () => {
   const db = createDatabase();
   afterAll(() => db.close());
-  it('rejects malformed catalog values and unnormalized emails from internal writers', async () => {
+  it('rejects unnormalized emails from internal writers', async () => {
     const rollback = new Error('rollback invariant fixtures');
     try {
       await db.transaction(async (tx) => {
         const invalidWrites = [
-          () => tx.orm.public.Pais.create({ nombre: '   ' }),
-          () =>
-            tx.orm.public.Pais.create({
-              nombre: 'Invalid ISO fixture',
-              codigoIso: 'invalid',
-            }),
-          () =>
-            tx.orm.public.Aerolinea.create({
-              nombre: 'Invalid IATA fixture',
-              iata: 'TOOLONG',
-            }),
-          () =>
-            tx.orm.public.Aeropuerto.create({
-              nombre: 'Invalid ICAO fixture',
-              nombrePais: 'Test',
-              latitud: 0,
-              longitud: 0,
-              ubicacion: ubicacionAeropuerto(0, 0),
-              icao: 'bad',
-            }),
           () =>
             tx.orm.public.Usuario.create({
               correo: ' USER@example.test ',

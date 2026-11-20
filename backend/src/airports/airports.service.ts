@@ -1,6 +1,7 @@
 import {
   cantidadesRutas,
   conCantidadesRutas,
+  consultaCantidadesRutas,
   sumarCantidadesRutas,
 } from '../catalogos/cantidades-rutas.js';
 import { ubicacionAeropuerto } from './ubicacion.js';
@@ -54,6 +55,7 @@ export class AirportsService {
     const { db } = this.prisma;
     return db.query(
       db.raw.sql`
+        WITH cantidades AS MATERIALIZED (${consultaCantidadesRutas(db)})
         SELECT a.id,a.nombre,a.ciudad,a.nombre_pais AS "nombrePais",a.iata,a.icao,
           a.latitud,a.longitud,a.pais_id AS "paisId",a.fuente,
           a.protegido_manualmente AS "protegidoManualmente",
@@ -62,9 +64,9 @@ export class AirportsService {
           COALESCE(c.cantidad,0) AS "cantidadRutas"
         FROM aeropuertos a
         LEFT JOIN paises p ON p.id=a.pais_id
-        LEFT JOIN cantidades_rutas_aeropuerto c ON c.aeropuerto_id=a.id
+        LEFT JOIN cantidades c ON c.aeropuerto_id=a.id
         WHERE a.archivado_en IS NULL
-        ORDER BY COALESCE(c.cantidad,0) DESC,a.id ASC
+        ORDER BY "cantidadRutas" DESC,a.id ASC
         LIMIT ${dto.limit} OFFSET ${dto.offset}
       `
         .returnsRow({
@@ -104,7 +106,7 @@ export class AirportsService {
       .include('pais', (pais) => pais.select('codigoIso'))
       .orderBy([
         (airport, { fns }) =>
-          fns.raw`COALESCE((SELECT cantidad FROM cantidades_rutas_aeropuerto WHERE aeropuerto_id=${airport.id}),0)`
+          fns.raw`COALESCE((SELECT cantidad FROM (${consultaCantidadesRutas(this.prisma.db)}) conteo WHERE aeropuerto_id=${airport.id}),0)`
             .returns('pg/int4@1')
             .desc(),
         (airport) => airport.nombre.asc(),
@@ -134,47 +136,46 @@ export class AirportsService {
   async findNearby(
     nearbyDto: NearbyAirportsDto,
   ): Promise<NearbyAirportResult[]> {
-    const radiusMeters = nearbyDto.radiusKm * 1000;
-
-    return this.prisma.db.query(
-      this.prisma.db.raw.sql`
-      SELECT
-        id,
-        nombre,
-        ciudad,
-        nombre_pais as "nombrePais",
-        (SELECT codigo_iso FROM paises WHERE paises.id = aeropuertos.pais_id) AS "codigoIsoPais",
-        iata,
-        icao,
-        latitud,
-        longitud,
-        COALESCE((SELECT cantidad FROM cantidades_rutas_aeropuerto WHERE aeropuerto_id=aeropuertos.id),0) as "cantidadRutas",
-        ROUND((ST_DistanceSphere(
-          ubicacion::geometry,
-          ST_SetSRID(ST_MakePoint(${nearbyDto.lng}, ${nearbyDto.lat}), 4326)
-        ) / 1000)::numeric, 1)::float as "distanciaKm"
-      FROM aeropuertos
-      WHERE archivado_en IS NULL AND ST_DWithin(
-        ubicacion,
-        ST_SetSRID(ST_MakePoint(${nearbyDto.lng}, ${nearbyDto.lat}), 4326)::geography,
-        ${radiusMeters}
-      )
-      ORDER BY "distanciaKm" ASC
-      LIMIT 50;
-    `
-        .returnsRow({
-          id: 'pg/text@1',
-          nombre: 'pg/text@1',
-          ciudad: { codecId: 'pg/text@1', nullable: true },
-          nombrePais: 'pg/text@1',
-          codigoIsoPais: { codecId: 'pg/text@1', nullable: true },
-          iata: { codecId: 'pg/text@1', nullable: true },
-          icao: { codecId: 'pg/text@1', nullable: true },
-          latitud: 'pg/float8@1',
-          longitud: 'pg/float8@1',
-          cantidadRutas: 'pg/int4@1',
-          distanciaKm: 'pg/float8@1',
-        })
+    const { db } = this.prisma;
+    const { aeropuertos, paises } = db.sql.public;
+    const { lat, lng, radiusKm } = nearbyDto;
+    return db.query(
+      aeropuertos
+        .as('airport')
+        .outerLeftJoin(paises.as('country'), (f, sql) =>
+          sql.eq(f.airport.pais_id, f.country.id),
+        )
+        .select(({ airport, country }, sql) => ({
+          id: airport.id,
+          nombre: airport.nombre,
+          ciudad: airport.ciudad,
+          nombrePais: airport.nombre_pais,
+          codigoIsoPais: country.codigo_iso,
+          iata: airport.iata,
+          icao: airport.icao,
+          latitud: airport.latitud,
+          longitud: airport.longitud,
+          cantidadRutas:
+            sql.raw`COALESCE((SELECT cantidad FROM (${consultaCantidadesRutas(db)}) conteo WHERE aeropuerto_id=${airport.id}),0)`.returns(
+              'pg/int4@1',
+            ),
+        }))
+        .where(({ airport }, sql) => sql.eq(airport.archivado_en, null))
+        .select('distanciaKm', ({ airport }, sql) =>
+          sql.raw`ROUND((ST_DistanceSphere(
+            ${airport.ubicacion}::geometry,
+            ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)
+          ) / 1000)::numeric, 1)::float8`.returns('pg/float8@1'),
+        )
+        .where(({ airport }, sql) =>
+          sql.raw`ST_DWithin(
+            ${airport.ubicacion},
+            ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+            ${radiusKm * 1000}
+          )`.returns('pg/bool@1'),
+        )
+        .orderBy('distanciaKm')
+        .limit(50)
         .build(),
     );
   }

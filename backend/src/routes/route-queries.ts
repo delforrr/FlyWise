@@ -1,3 +1,4 @@
+import { consultaCantidadesRutas } from '../catalogos/cantidades-rutas.js';
 import { and, or, type CollectionRowOf } from '@prisma/orm-postgres/orm-client';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { GlobalRoutesDto } from './dto/global-routes.dto.js';
@@ -60,7 +61,7 @@ export async function seleccionarConexiones(
   const limit = dto.limit ?? 50;
   return await prisma.db.query(
     prisma.db.raw.sql`
-      WITH candidates AS (
+      WITH cantidades AS MATERIALIZED (${consultaCantidadesRutas(prisma.db)}), candidates AS (
         SELECT
           CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN d.id ELSE o.id END AS "origenId",
           CASE WHEN ${symmetric} AND (COALESCE(o.iata, o.icao, o.nombre), o.id) > (COALESCE(d.iata, d.icao, d.nombre), d.id) THEN o.id ELSE d.id END AS "destinoId",
@@ -68,8 +69,8 @@ export async function seleccionarConexiones(
         FROM rutas conexion
         JOIN aeropuertos o ON o.id = conexion.origen_id
         JOIN aeropuertos d ON d.id = conexion.destino_id
-        LEFT JOIN cantidades_rutas_aeropuerto ocount ON ocount.aeropuerto_id=o.id
-        LEFT JOIN cantidades_rutas_aeropuerto dcount ON dcount.aeropuerto_id=d.id
+        LEFT JOIN cantidades ocount ON ocount.aeropuerto_id=o.id
+        LEFT JOIN cantidades dcount ON dcount.aeropuerto_id=d.id
         LEFT JOIN paises oc ON oc.id = o.pais_id
         LEFT JOIN paises dc ON dc.id = d.pais_id
         WHERE conexion.archivado_en IS NULL AND o.archivado_en IS NULL AND d.archivado_en IS NULL

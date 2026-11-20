@@ -1,3 +1,4 @@
+import { createDatabase } from '../prisma/db.js';
 import {
   mockCollection,
   mockDatabase,
@@ -15,7 +16,8 @@ describe('RoutesService', () => {
       Aeropuerto: ReturnType<typeof mockCollection>;
       Ruta: ReturnType<typeof mockCollection>;
     };
-    db: ReturnType<typeof mockDatabase>;
+    db: Omit<ReturnType<typeof mockDatabase>, 'raw'> &
+      Pick<ReturnType<typeof createDatabase>, 'raw' | 'sql' | 'toSql'>;
   };
 
   const flatRoute = {
@@ -67,6 +69,10 @@ describe('RoutesService', () => {
   }
   const mockRoute = oferta(flatRoute);
 
+  const { raw, sql, toSql } = createDatabase(
+    'postgresql://localhost/flywise_test',
+  );
+
   beforeEach(async () => {
     prismaService = {
       models: {
@@ -74,7 +80,7 @@ describe('RoutesService', () => {
         Aeropuerto: mockCollection(),
         Ruta: mockCollection(),
       },
-      db: mockDatabase(),
+      db: { ...mockDatabase(), raw, sql, toSql },
     };
     prismaService.models.Aeropuerto.all
       .mockResolvedValueOnce([{ id: 'airport-a' }])

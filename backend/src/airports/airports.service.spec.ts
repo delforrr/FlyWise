@@ -1,3 +1,4 @@
+import { createDatabase } from '../prisma/db.js';
 import {
   mockCollection,
   mockDatabase,
@@ -15,14 +16,15 @@ describe('AirportsService', () => {
       Aeropuerto: ReturnType<typeof mockCollection>;
       Pais: ReturnType<typeof mockCollection>;
     };
-    db: ReturnType<typeof mockDatabase> & {
-      orm: {
-        public: {
-          Aeropuerto: ReturnType<typeof mockCollection>;
-          Ruta: ReturnType<typeof mockCollection>;
+    db: Omit<ReturnType<typeof mockDatabase>, 'raw'> &
+      Pick<ReturnType<typeof createDatabase>, 'raw' | 'sql' | 'toSql'> & {
+        orm: {
+          public: {
+            Aeropuerto: ReturnType<typeof mockCollection>;
+            Ruta: ReturnType<typeof mockCollection>;
+          };
         };
       };
-    };
   };
 
   const mockAirport = {
@@ -38,6 +40,10 @@ describe('AirportsService', () => {
     cantidadRutas: 120,
   };
 
+  const { raw, sql, toSql } = createDatabase(
+    'postgresql://localhost/flywise_test',
+  );
+
   beforeEach(async () => {
     prismaService = {
       models: {
@@ -47,6 +53,9 @@ describe('AirportsService', () => {
       },
       db: {
         ...mockDatabase(),
+        raw,
+        sql,
+        toSql,
         orm: {
           public: { Aeropuerto: mockCollection(), Ruta: mockCollection() },
         },

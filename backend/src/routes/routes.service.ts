@@ -1,3 +1,4 @@
+import { consultaCantidadesRutas } from '../catalogos/cantidades-rutas.js';
 import { extremosDistintos } from '../entities/rutas/domain/ruta.js';
 import {
   includeRouteDetails,
@@ -192,7 +193,7 @@ export class RoutesService {
       })
       .orderBy([
         (route, { fns }) =>
-          fns.raw`COALESCE((SELECT cantidad FROM cantidades_rutas_aeropuerto WHERE aeropuerto_id = (SELECT origen_id FROM rutas WHERE id = ${route.rutaId})),0)`
+          fns.raw`COALESCE((SELECT cantidad FROM (${consultaCantidadesRutas(this.prisma.db)}) conteo WHERE aeropuerto_id = (SELECT origen_id FROM rutas WHERE id = ${route.rutaId})),0)`
             .returns('pg/int4@1')
             .desc(),
         (route) => route.id.asc(),
@@ -294,20 +295,36 @@ export class RoutesService {
         destino: oferta.ruta.destino,
       };
     });
-    const missing = rows;
-    const distances = missing.length
-      ? await this.prisma.db.query(
-          this.prisma.db.raw.sql`
-          SELECT r.id, ST_DistanceSphere(o.ubicacion::geometry, d.ubicacion::geometry) / 1000 AS "distanciaKm"
-          FROM ofertas_ruta r JOIN rutas conexion ON conexion.id=r.ruta_id
-          JOIN aeropuertos o ON o.id = conexion.origen_id
-          JOIN aeropuertos d ON d.id = conexion.destino_id
-          WHERE r.id IN (SELECT jsonb_array_elements_text(${JSON.stringify(missing.map((route) => route.id))}::jsonb))
-        `
-            .returnsRow({ id: 'pg/text@1', distanciaKm: 'pg/float8@1' })
-            .build(),
+    if (!rows.length) return [];
+    const { db } = this.prisma;
+    const { ofertas_ruta, rutas, aeropuertos } = db.sql.public;
+    const ids = JSON.stringify(rows.map(({ id }) => id));
+    const distances = await db.query(
+      ofertas_ruta
+        .as('offer')
+        .innerJoin(rutas.as('route'), (f, sql) =>
+          sql.eq(f.route.id, f.offer.ruta_id),
         )
-      : [];
+        .innerJoin(aeropuertos.as('origin'), (f, sql) =>
+          sql.eq(f.origin.id, f.route.origen_id),
+        )
+        .innerJoin(aeropuertos.as('destination'), (f, sql) =>
+          sql.eq(f.destination.id, f.route.destino_id),
+        )
+        .select((f, sql) => ({
+          id: f.offer.id,
+          distanciaKm: sql.raw`ST_DistanceSphere(
+                ${f.origin.ubicacion}::geometry,
+                ${f.destination.ubicacion}::geometry
+              ) / 1000`.returns('pg/float8@1'),
+        }))
+        .where((f, sql) =>
+          sql.raw`${f.offer.id} IN (SELECT jsonb_array_elements_text(${ids}::jsonb))`.returns(
+            'pg/bool@1',
+          ),
+        )
+        .build(),
+    );
     const byId = new Map(
       distances.map((route) => [route.id, route.distanciaKm]),
     );

@@ -18,6 +18,8 @@ describe('OpenFlights complete import (PostgreSQL)', () => {
       await db.transaction(async (tx) => {
         const database = {
           raw: tx.raw,
+          toSql: tx.toSql.bind(tx),
+          sql: tx.sql,
           query: tx.query.bind(tx),
           execute: tx.execute.bind(tx),
           transaction: async <T>(work: (inner: Transaction) => Promise<T>) =>

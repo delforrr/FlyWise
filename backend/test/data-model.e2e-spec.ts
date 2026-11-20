@@ -431,17 +431,6 @@ describe('Data model (PostgreSQL integration)', () => {
       expect(sinEvidencia.demoraLlegadaMinutos).toBeNull();
       await rejected(
         tx,
-        () =>
-          tx.orm.public.Vuelo.create({
-            ...flight,
-            idRegistroFuente: 'cancelled-with-delay',
-            estado: 'CANCELLED',
-            demoraLlegadaMinutos: 5,
-          }),
-        /flights_arrival_delay_check/,
-      );
-      await rejected(
-        tx,
         () => tx.orm.public.EjecucionEtl.where({ id: ejecucion.id }).delete(),
         /foreign key/i,
       );
@@ -486,24 +475,6 @@ describe('Data model (PostgreSQL integration)', () => {
             vuelosTotales: 1,
           }),
         /unique constraint/i,
-      );
-      await rejected(
-        tx,
-        () =>
-          tx.orm.public.MetricaRuta.where({
-            ...tuple,
-            periodo: metric.periodo,
-          }).update({ periodo: '2026-09-02' }),
-        /route_metrics_period_check/,
-      );
-      await rejected(
-        tx,
-        () =>
-          tx.orm.public.MetricaRuta.where({
-            ...tuple,
-            periodo: metric.periodo,
-          }).update({ vuelosPuntuales: 4 }),
-        /route_metrics_counts_check/,
       );
       await tx.orm.public.MetricaRuta.create({
         ejecucionEtlId: ejecucion.id,

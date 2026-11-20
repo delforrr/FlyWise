@@ -238,7 +238,6 @@ JWT_SECRET=clave_secreta_jwt_de_desarrollo
 npx prisma contract emit
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/functions.sql
 npx prisma db init --db "$DATABASE_URL"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/changes/20261114_catalogo_consultas.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/constraints.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/changes/20261115_bloqueos_transaccionales.sql
 npx prisma db verify --db "$DATABASE_URL"
@@ -249,6 +248,8 @@ Las funciones y triggers propios se trasladaron al backend; ver [migración de r
 El contrato de Prisma crea las tablas BTS en instalaciones nuevas. En bases anteriores que ya ejecutaron `20261108_bts.sql`, adoptar esas tablas emitiendo el contrato nuevo, verificando el esquema y firmando la base con `prisma db sign --no-advance-ref`. `constraints.sql` instala la restricción de ofertas y las configuraciones iniciales de ANAC y EUROCONTROL. Para una base existente con el modelo en español, consultar el [orden de actualización y recuperación del catálogo](docs/tickets/T07.md#actualización-y-recuperación).
 
 Para actualizar una base existente a los bloqueos por fila, detener todas las instancias que escriben (API y workers). Emitir el contrato nuevo, aplicar `20261115_bloqueos_transaccionales.sql`, verificar con `prisma db verify --schema-only`, firmar con `prisma db sign --no-advance-ref` y verificar el contrato completo antes de iniciar la versión nueva. Para volver a la versión anterior, detener primero la nueva, emitir el contrato anterior, firmar y verificar antes de reanudar el servicio. La tabla adicional se puede conservar.
+
+Para actualizar una instalación con el esquema anterior de ANAC, consultar primero el [procedimiento de T08](docs/tickets/T08.md#actualización-y-recuperación). Para retirar los CHECK de negocio y la vista de conteo, seguir la [actualización y recuperación de T09](docs/tickets/T09.md#actualización-y-recuperación).
 
 Prisma 8 está fijado a las versiones RC del lockfile. Se parte del contrato actual, sin historial de migraciones. El arranque requiere `psql`.
 
