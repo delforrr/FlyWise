@@ -19,28 +19,24 @@ type PublicacionesPendientes = {
 };
 
 export async function recalcularPendientes(repo: PublicacionesPendientes) {
-  let recalculadas = 0;
-  for (;;) {
-    const pendientes = await repo.leerPendientes();
-    for (const {
-      ejecucionId,
-      actualizada,
-      vuelosTotales,
-      fuentes,
-      ...poblacion
-    } of pendientes) {
-      if (
-        tienePublicacionExterna({
-          ejecucionId,
-          actualizada,
-          vuelosTotales,
-          fuentes,
-        })
-      )
-        await repo.limpiarPendiente(poblacion);
-      else await repo.publicarAdministrativa(poblacion);
-      recalculadas++;
-    }
-    if (pendientes.length < LOTE_METRICAS_PENDIENTES) return recalculadas;
+  const pendientes = await repo.leerPendientes();
+  for (const {
+    ejecucionId,
+    actualizada,
+    vuelosTotales,
+    fuentes,
+    ...poblacion
+  } of pendientes) {
+    if (
+      tienePublicacionExterna({
+        ejecucionId,
+        actualizada,
+        vuelosTotales,
+        fuentes,
+      })
+    )
+      await repo.limpiarPendiente(poblacion);
+    else await repo.publicarAdministrativa(poblacion);
   }
+  return pendientes.length;
 }

@@ -124,7 +124,10 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
         await app.init();
         const worker = new Worker<{ ejecucionId: string }>(
           queue.name,
-          (job) => app.get(OagService).importar(job.data.ejecucionId),
+          async (job) =>
+            job.name === 'recuperar'
+              ? undefined
+              : app.get(OagService).importar(job.data.ejecucionId),
           { connection },
         );
         try {
@@ -304,7 +307,10 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
             if (!job) throw new Error('No se encoló OAG');
             const trabajo = job.waitUntilFinished(events, 5000);
             if (fallo) await expect(trabajo).rejects.toThrow(fallo);
-            else await trabajo;
+            else {
+              await trabajo;
+              await app.get(OagService).recuperar();
+            }
             const historial = await api
               .get(endpoint + '/ejecuciones')
               .expect(200);
@@ -326,7 +332,25 @@ describe('Ingesta OAG por administración y lectura pública del mapa', () => {
               .expect(200);
             return res.body as unknown;
           };
-          await ejecutar('completed');
+          jest
+            .spyOn(queue, 'add')
+            .mockRejectedValueOnce(new Error('Redis no recibió el trabajo'));
+          const aceptada = await api
+            .post(endpoint + '/ejecutar')
+            .send({})
+            .expect(201);
+          const idRecuperado = (aceptada.body as { ejecucionId: string })
+            .ejecucionId;
+          expect(await queue.getJob(idRecuperado)).toBeUndefined();
+          await api
+            .post(endpoint + '/ejecutar')
+            .send({})
+            .expect(409);
+          await app.get(OagService).onModuleInit();
+          const recuperada = await queue.getJob(idRecuperado);
+          if (!recuperada) throw new Error('No se recuperó la ejecución OAG');
+          await recuperada.waitUntilFinished(events, 5000);
+          await app.get(OagService).recuperar();
           expect(fetchOag).toHaveBeenCalledTimes(2);
           const operaciones = await api
             .get('/administracion/vuelos')

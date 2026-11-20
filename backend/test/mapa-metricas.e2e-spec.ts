@@ -106,6 +106,8 @@ describe('Puntualidad del mapa por HTTP', () => {
           .send(filtros)
           .expect(200);
         expect(combinadas.body).toHaveLength(2);
+        for (const fila of combinadas.body as unknown[])
+          expect(fila).not.toHaveProperty('pendiente');
         expect(combinadas.body).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
@@ -114,7 +116,6 @@ describe('Puntualidad del mapa por HTTP', () => {
               otp15: 75,
               vuelosTotales: 13,
               vuelosOperados: 12,
-              pendiente: true,
               actualizadoEn: '2099-09-01 12:00:00',
               fuentes: ['Administrativa', 'BTS'],
             }),

@@ -168,6 +168,7 @@ model OfertaRuta {
 }
 
 model EjecucionEtl {
+  listaParaPublicar Boolean @default(false) @map("lista_para_publicar")
   revisionesAnac RevisionActividad[]
   intento               Int                  @default(0)
   id                    String               @id @onCreate(uuid())
@@ -314,7 +315,7 @@ model EventoEjecucionEtl {
   @@check(expression: sql`(intento >= 0)`, map: "etl_job_events_attempt_check")
 }
 
-// One fuente record per flight operation; idRegistroFuente must survive retries.
+// La identidad de fuente es estable dentro de una ejecución.
 model Vuelo {
   version Int @default(1)
   protegidoManualmente Boolean @default(false) @map("protegido_manualmente")
@@ -339,7 +340,7 @@ model Vuelo {
   aerolinea     Aerolinea @relation(fields: [aerolineaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   ejecucionEtl      EjecucionEtl? @relation(fields: [ejecucionEtlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
-  @@unique([fuente, idRegistroFuente])
+  @@unique([fuente, idRegistroFuente, ejecucionEtlId], map: "vuelos_fuente_registro_ejecucion_key")
   @@index([origenId, destinoId, aerolineaId, fechaVuelo], map: "flights_origin_id_destination_id_airline_id_flight_date_idx")
   @@index([fechaVuelo], map: "flights_flight_date_idx")
   @@index([destinoId], map: "flights_destination_id_idx")

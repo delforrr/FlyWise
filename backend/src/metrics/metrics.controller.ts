@@ -1,5 +1,14 @@
+import { AdminGuard, JwtAuthGuard } from '../auth/auth.guard.js';
 import { ContextoRutaDto } from './dto/contexto-ruta.dto.js';
-import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { MetricsService } from './metrics.service.js';
 import { ConsultaMetricasDto } from './dto/consulta-metricas.dto.js';
@@ -22,5 +31,17 @@ export class MetricsController {
   }
   @Get('mapa/opciones') opcionesMapa() {
     return this.service.opcionesMapa();
+  }
+}
+
+@ApiTags('Métricas de rutas')
+@UseGuards(JwtAuthGuard, AdminGuard)
+@Controller('administracion/metricas')
+export class MetricasAdministrativasController {
+  constructor(private readonly service: MetricsService) {}
+
+  @Get('rutas')
+  consultar(@Query() consulta: ConsultaMetricasDto) {
+    return this.service.consultar(consulta, undefined, true);
   }
 }

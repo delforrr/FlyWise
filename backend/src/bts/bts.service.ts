@@ -1,7 +1,10 @@
-import { and, or } from '@prisma/orm-postgres/orm-client';
+import { or } from '@prisma/orm-postgres/orm-client';
 import { bloquearRecurso } from '../prisma/bloqueo-transaccional.js';
-import { admiteFuente } from '../metrics/domain/autoridad-publicacion.js';
-import { exigirIngestaDisponible } from '../ingestion/infrastructure/admision-operaciones.js';
+import {
+  exigirIngestaDisponible,
+  exigirServicioDisponible,
+  type ServicioAdmitido,
+} from '../ingestion/infrastructure/admision-operaciones.js';
 import { fechaInformadaBts } from '../adapters/bts/operacion-bts.js';
 import type { AdaptadorOperaciones } from '../ingestion/application/adaptador-operaciones.js';
 import {
@@ -13,6 +16,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   type OnModuleInit,
 } from '@nestjs/common';
@@ -34,14 +38,16 @@ import {
 import { ingerirOperaciones } from '../ingestion/application/ingesta-operaciones.js';
 import { createHash } from 'node:crypto';
 import { abrirCsvBts, descargarBts } from '../adapters/bts/bts-source.js';
-import { retirarAusentesBts } from './retiros-bts.js';
-import { escribirPublicacion } from '../metrics/publicacion.store.js';
+import { bloquearCambiosMetricas } from '../metrics/publicacion.store.js';
+import { publicarPoblacionesCandidatas } from '../metrics/poblaciones-candidatas.store.js';
 import { VuelosService } from '../vuelos/vuelos.service.js';
 import type { ObservacionVuelo } from '../entities/vuelos/domain/operacion.js';
 
 const now = () => new Date().toISOString().replace('T', ' ').replace('Z', '');
 @Injectable()
 export class BtsService implements OnModuleInit {
+  private readonly logger = new Logger(BtsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue('bts-queue') private readonly queue: Queue,
@@ -51,6 +57,16 @@ export class BtsService implements OnModuleInit {
   ) {}
   async onModuleInit() {
     await this.schedule(await this.configuracion());
+    await this.queue.setGlobalConcurrency(1);
+    await this.queue.upsertJobScheduler(
+      'recuperar-bts',
+      { every: 5000 },
+      { name: 'recuperar', opts: { removeOnComplete: 10, removeOnFail: 10 } },
+    );
+    await this.recuperar();
+  }
+
+  async recuperar() {
     let cursor = '';
     for (;;) {
       const jobs = await this.prisma.models.EjecucionEtl.where({
@@ -63,11 +79,42 @@ export class BtsService implements OnModuleInit {
         .all();
       for (const job of jobs) {
         const periodo = periodoDe(job);
-        if (!periodo) continue;
+        if (!periodo) {
+          await this.prisma.models.EjecucionEtl.where({
+            id: job.id,
+            intento: job.intento,
+            estado: job.estado,
+          }).update({
+            estado: 'failed',
+            listaParaPublicar: false,
+            finalizadoEn: job.iniciadoEn ? now() : null,
+            mensajeError: 'La ejecución BTS no conserva su mes',
+          });
+          continue;
+        }
+        if (job.listaParaPublicar) {
+          try {
+            await this.publicar(job.id, job.intento, periodo);
+          } catch (error) {
+            await this.prisma.models.EjecucionEtl.where({
+              id: job.id,
+              intento: job.intento,
+              listaParaPublicar: true,
+            }).update({
+              mensajeError: 'BTS: publicación pendiente de reintento',
+            });
+            this.logger.error(`BTS ${job.id}: falló la promoción`, error);
+          }
+          continue;
+        }
         const queued = await this.queue.getJob(job.id);
         if (!queued) await this.encolar(job.id, periodo);
-        else if ((await queued.getState()) === 'failed') {
-          await this.prisma.models.EjecucionEtl.where({ id: job.id })
+        else if (['failed', 'completed'].includes(await queued.getState())) {
+          await this.prisma.models.EjecucionEtl.where({
+            id: job.id,
+            intento: job.intento,
+            listaParaPublicar: false,
+          })
             .where((row) => row.estado.in(['pending', 'running']))
             .update({
               estado: 'failed',
@@ -137,6 +184,7 @@ export class BtsService implements OnModuleInit {
     solicitanteId?: string,
     manual = false,
     autorizarCambioFuente: PoblacionBtsDto[] = [],
+    servicio?: ServicioAdmitido,
   ) {
     const config = await this.configuracion();
     if (config.pausado && !manual) throw new ConflictException('BTS pausado');
@@ -147,10 +195,12 @@ export class BtsService implements OnModuleInit {
       throw new BadRequestException('Seleccioná un mes finalizado');
     const uriFuente = urlBts(periodo);
     const record = await this.prisma.db.transaction(async (tx) => {
+      if (servicio) await exigirServicioDisponible(tx, servicio);
       await exigirIngestaDisponible(tx);
       return tx.orm.public.EjecucionEtl.create({
         fuente: 'BTS',
         estado: 'pending',
+        procesoId: servicio?.id,
         solicitanteId: solicitanteId ?? null,
         uriFuente,
         instantaneaConfiguracion: {
@@ -172,14 +222,10 @@ export class BtsService implements OnModuleInit {
     });
     try {
       await this.encolar(record.id, periodo);
-      return { ejecucionId: record.id };
     } catch {
-      await this.prisma.models.EjecucionEtl.where({ id: record.id }).update({
-        estado: 'failed',
-        mensajeError: 'No fue posible encolar BTS',
-      });
-      throw new BadRequestException('No fue posible encolar BTS');
+      this.logger.warn(`BTS ${record.id}: encolado pendiente de recuperación`);
     }
+    return { ejecucionId: record.id };
   }
   private encolar(ejecucionId: string, periodo: string) {
     return this.queue.add(
@@ -231,7 +277,18 @@ export class BtsService implements OnModuleInit {
     const periodo = periodoDe(job);
     if (!periodo)
       throw new BadRequestException('La ejecución no conserva su mes');
-    return this.ejecutar(periodo, solicitanteId, true);
+    const proceso = job.procesoId
+      ? await this.prisma.models.ProcesoEtl.first({ id: job.procesoId })
+      : null;
+    return this.ejecutar(
+      periodo,
+      solicitanteId,
+      true,
+      [],
+      proceso
+        ? { id: proceso.id, actualizadoEn: proceso.actualizadoEn }
+        : undefined,
+    );
   }
   async cobertura() {
     const filas = await this.prisma.models.CoberturaBts.include(
@@ -368,18 +425,28 @@ export class BtsService implements OnModuleInit {
       .update({ aeropuertoId: entidadId });
   }
 
-  async importar(ejecucionId: string, periodo: string, path?: string) {
+  async importar(
+    ejecucionId: string,
+    periodo: string,
+    path?: string,
+    quedanIntentos = false,
+  ) {
     let download: Awaited<ReturnType<typeof descargarBts>> | undefined;
     let csvSource: Awaited<ReturnType<typeof abrirCsvBts>> | undefined;
     try {
-      return await this.procesar(ejecucionId, periodo, async () => {
-        if (!path) {
-          download = await descargarBts(urlBts(periodo));
-          path = download.path;
-        }
-        csvSource = await abrirCsvBts(path);
-        return csvSource.stream;
-      });
+      return await this.procesar(
+        ejecucionId,
+        periodo,
+        async () => {
+          if (!path) {
+            download = await descargarBts(urlBts(periodo));
+            path = download.path;
+          }
+          csvSource = await abrirCsvBts(path);
+          return csvSource.stream;
+        },
+        quedanIntentos,
+      );
     } finally {
       csvSource?.close();
       await download?.cleanup();
@@ -390,24 +457,19 @@ export class BtsService implements OnModuleInit {
     ejecucionId: string,
     periodo: string,
     source: Readable | (() => Promise<Readable>),
+    quedanIntentos = false,
   ) {
     const job = await this.prisma.models.EjecucionEtl.first({
       id: ejecucionId,
       fuente: 'BTS',
     });
     if (!job) throw new NotFoundException('Ejecución BTS inexistente');
-    if (job.estado === 'completed')
+    if (job.estado === 'completed' || job.listaParaPublicar)
       return {
         procesadas: job.filasProcesadas,
         insertadas: job.filasInsertadas,
         descartadas: job.filasDescartadas,
       };
-    const autorizadas =
-      (
-        job.instantaneaConfiguracion as {
-          conexion?: { autorizarCambioFuente?: PoblacionBtsDto[] };
-        } | null
-      )?.conexion?.autorizarCambioFuente ?? [];
     const intento = job.intento + 1;
     const db = this.prisma.db;
     await db.transaction(async (tx) => {
@@ -416,6 +478,7 @@ export class BtsService implements OnModuleInit {
         id: ejecucionId,
         estado: job.estado,
         intento: job.intento,
+        listaParaPublicar: false,
       }).update({
         estado: 'running',
         intento,
@@ -622,20 +685,29 @@ export class BtsService implements OnModuleInit {
       const checksumFuente = hash.copy().digest('hex');
       return await db.transaction(async (tx) => {
         await this.bloquear(tx);
+        const activa = await tx.orm.public.EjecucionEtl.where({
+          id: ejecucionId,
+          intento,
+          estado: 'running',
+          listaParaPublicar: false,
+        })
+          .select('id')
+          .forUpdate()
+          .first();
+        if (!activa)
+          throw new ConflictException('La ejecución BTS cambió de estado');
         const insertadas = await this.importarOperacionesPreparadas(
           tx,
           ejecucionId,
         );
-        if (descartadas)
-          await this.conservarPublicacionBts(tx, periodo, ejecucionId);
-        else await this.publicarMesBts(tx, periodo, ejecucionId, autorizadas);
-        await tx.orm.public.CoberturaBts.upsert({
-          create: { periodo, ejecucionId, filas: procesadas },
-          update: { ejecucionId, filas: procesadas, publicadoEn: now() },
-        });
-        await tx.orm.public.EjecucionEtl.where({ id: ejecucionId }).update({
-          estado: 'completed',
-          finalizadoEn: now(),
+        const listaParaPublicar = descartadas === 0;
+        await tx.orm.public.EjecucionEtl.where({
+          id: ejecucionId,
+          intento,
+        }).update({
+          estado: listaParaPublicar ? 'running' : 'completed',
+          listaParaPublicar,
+          finalizadoEn: listaParaPublicar ? null : now(),
           filasTotales: total,
           filasProcesadas: procesadas,
           filasInsertadas: insertadas,
@@ -645,7 +717,7 @@ export class BtsService implements OnModuleInit {
         await tx.orm.public.EventoEjecucionEtl.create({
           ejecucionId,
           intento,
-          nivel: 'success',
+          nivel: listaParaPublicar ? 'info' : 'warn',
           mensaje: `Mes BTS ${periodo}: ${procesadas} operaciones aceptadas. ${resumenDescartes()}`,
         });
         await tx.orm.public.PreparacionBts.where({
@@ -656,9 +728,15 @@ export class BtsService implements OnModuleInit {
     } catch (error) {
       const mensaje =
         error instanceof Error ? error.message.slice(0, 500) : 'Falló BTS';
-      await this.prisma.models.EjecucionEtl.where({ id: ejecucionId }).update({
-        estado: 'failed',
-        finalizadoEn: now(),
+      const reintenta =
+        quedanIntentos && !(error instanceof UnrecoverableError);
+      await this.prisma.models.EjecucionEtl.where({
+        id: ejecucionId,
+        intento,
+        estado: 'running',
+      }).update({
+        estado: reintenta ? 'running' : 'failed',
+        finalizadoEn: reintenta ? null : now(),
         filasTotales: total,
         filasProcesadas: procesadas,
         filasDescartadas: descartadas,
@@ -768,172 +846,53 @@ export class BtsService implements OnModuleInit {
     } satisfies ObservacionVuelo;
   }
 
-  private async conservarPublicacionBts(
-    tx: Transaction,
-    periodo: string,
-    ejecucionId: string,
-  ) {
-    const cobertura = await tx.orm.public.CoberturaBts.select('periodo').first({
-      periodo,
+  private publicar(id: string, intento: number, periodo: string) {
+    return this.prisma.db.transaction(async (tx) => {
+      await bloquearCambiosMetricas(tx);
+      const job = await tx.orm.public.EjecucionEtl.where({
+        id,
+        intento,
+        estado: 'running',
+        listaParaPublicar: true,
+      })
+        .forUpdate()
+        .first();
+      if (!job) return;
+
+      const autorizadas =
+        (
+          job.instantaneaConfiguracion as {
+            conexion?: { autorizarCambioFuente?: PoblacionBtsDto[] };
+          } | null
+        )?.conexion?.autorizarCambioFuente ?? [];
+      const clave = ({ origenId, destinoId, aerolineaId }: PoblacionBtsDto) =>
+        JSON.stringify([origenId, destinoId, aerolineaId]);
+      const permiso = new Set(autorizadas.map(clave));
+      await publicarPoblacionesCandidatas(tx, periodo, id, 'BTS', (poblacion) =>
+        permiso.has(clave(poblacion)),
+      );
+
+      await tx.orm.public.CoberturaBts.upsert({
+        create: { periodo, ejecucionId: id, filas: job.filasProcesadas },
+        update: {
+          ejecucionId: id,
+          filas: job.filasProcesadas,
+          publicadoEn: now(),
+        },
+      });
+      await tx.orm.public.EjecucionEtl.where({ id }).update({
+        estado: 'completed',
+        mensajeError: null,
+        listaParaPublicar: false,
+        finalizadoEn: now(),
+      });
+      await tx.orm.public.EventoEjecucionEtl.create({
+        ejecucionId: id,
+        intento,
+        nivel: 'success',
+        mensaje: `BTS ${periodo} publicado: ${job.filasProcesadas} operaciones`,
+      });
     });
-    if (cobertura)
-      throw new UnrecoverableError(
-        'La nueva carga parcial conserva la publicación anterior',
-      );
-    await this.procesarPoblacionesBts(
-      tx,
-      periodo,
-      ejecucionId,
-      false,
-      async (poblaciones) => {
-        await tx.orm.public.MetricaRuta.where({ periodo: periodo + '-01' })
-          .where((m) =>
-            or(
-              ...poblaciones.map(({ origenId, destinoId, aerolineaId }) =>
-                and(
-                  m.origenId.eq(origenId),
-                  m.destinoId.eq(destinoId),
-                  m.aerolineaId.eq(aerolineaId),
-                ),
-              ),
-            ),
-          )
-          .updateAndCount({ pendiente: false, errorActualizacion: null });
-      },
-    );
-  }
-
-  private async procesarPoblacionesBts(
-    tx: Transaction,
-    periodo: string,
-    ejecucionId: string,
-    publicacion: boolean,
-    procesar: (
-      filas: (PoblacionBtsDto & {
-        fuente: string | null;
-        ejecucionId: string | null;
-        actualizada: boolean;
-        vuelosTotales: number;
-        fuentes: unknown;
-        observada: boolean;
-      })[],
-    ) => Promise<void>,
-  ) {
-    const tablas = tx.sql.public;
-    const base = tablas.metricas_ruta
-      .as('metrica')
-      .outerLeftJoin(tablas.ejecuciones_etl.as('ejecucion'), (f, sql) =>
-        sql.eq(f.metrica.ejecucion_etl_id, f.ejecucion.id),
-      )
-      .outerLateralJoin('observacion', (lateral) =>
-        lateral
-          .from(tablas.vuelos.as('vuelo'))
-          .select('id', (f) => f.vuelo.id)
-          .where((f, sql) =>
-            sql.and(
-              sql.eq(f.vuelo.ejecucion_etl_id, ejecucionId),
-              ...(publicacion ? [sql.eq(f.vuelo.fuente, 'BTS')] : []),
-              sql.eq(f.vuelo.origen_id, f.metrica.origen_id),
-              sql.eq(f.vuelo.destino_id, f.metrica.destino_id),
-              sql.eq(f.vuelo.aerolinea_id, f.metrica.aerolinea_id),
-            ),
-          )
-          .limit(1),
-      )
-      .select('origenId', (f) => f.metrica.origen_id)
-      .select('destinoId', (f) => f.metrica.destino_id)
-      .select('aerolineaId', (f) => f.metrica.aerolinea_id)
-      .select('fuente', (f) => f.ejecucion.fuente)
-      .select('ejecucionId', (f) => f.metrica.ejecucion_etl_id)
-      .select('actualizada', (f, sql) => sql.ne(f.metrica.actualizado_en, null))
-      .select('vuelosTotales', (f) => f.metrica.vuelos_totales)
-      .select('fuentes', (f) => f.metrica.fuentes)
-      .select('observada', (f, sql) => sql.ne(f.observacion.id, null))
-      .where((f, sql) =>
-        sql.and(
-          sql.eq(f.metrica.periodo, periodo + '-01'),
-          publicacion
-            ? sql.and(
-                sql.eq(f.metrica.pendiente, true),
-                sql.or(
-                  sql.ne(f.metrica.ejecucion_etl_id, null),
-                  sql.ne(f.observacion.id, null),
-                ),
-              )
-            : sql.ne(f.observacion.id, null),
-        ),
-      )
-      .orderBy('origenId')
-      .orderBy('destinoId')
-      .orderBy('aerolineaId')
-      .limit(100);
-
-    let cursor = { origenId: '', destinoId: '', aerolineaId: '' };
-    for (;;) {
-      const pagina = await tx.query(
-        base
-          .where((f, sql) =>
-            sql.or(
-              sql.gt(f.metrica.origen_id, cursor.origenId),
-              sql.and(
-                sql.eq(f.metrica.origen_id, cursor.origenId),
-                sql.gt(f.metrica.destino_id, cursor.destinoId),
-              ),
-              sql.and(
-                sql.eq(f.metrica.origen_id, cursor.origenId),
-                sql.eq(f.metrica.destino_id, cursor.destinoId),
-                sql.gt(f.metrica.aerolinea_id, cursor.aerolineaId),
-              ),
-            ),
-          )
-          .build(),
-      );
-      if (!pagina.length) return;
-      await procesar(pagina);
-      if (pagina.length < 100) return;
-      cursor = pagina[pagina.length - 1];
-    }
-  }
-
-  private async publicarMesBts(
-    tx: Transaction,
-    periodo: string,
-    ejecucionId: string,
-    autorizadas: PoblacionBtsDto[],
-  ) {
-    await retirarAusentesBts(tx, periodo, ejecucionId);
-    const clavePoblacion = ({
-      origenId,
-      destinoId,
-      aerolineaId,
-    }: PoblacionBtsDto) => JSON.stringify([origenId, destinoId, aerolineaId]);
-    const conAutorizacion = new Set(autorizadas.map(clavePoblacion));
-    await this.procesarPoblacionesBts(
-      tx,
-      periodo,
-      ejecucionId,
-      true,
-      async (poblaciones) => {
-        for (const actual of poblaciones) {
-          const { origenId, destinoId, aerolineaId } = actual;
-          const poblacion = { origenId, destinoId, aerolineaId };
-          if (actual.fuente !== 'BTS' && !actual.observada) continue;
-          if (
-            !admiteFuente(
-              actual,
-              'BTS',
-              conAutorizacion.has(clavePoblacion(poblacion)),
-            )
-          )
-            continue;
-          await escribirPublicacion(
-            tx,
-            { ...poblacion, periodo },
-            { fuente: 'BTS', ejecucionId },
-          );
-        }
-      },
-    );
   }
 }
 

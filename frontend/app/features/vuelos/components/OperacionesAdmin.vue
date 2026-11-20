@@ -135,7 +135,7 @@ async function abrir(vuelo: Vuelo | null) {
       demoraLlegadaMinutos: registro.demoraLlegadaMinutos,
     });
     const [respuesta] = await Promise.all([
-      request<Pagina<MetricaOperacion>>("/metricas/rutas", {
+      request<Pagina<MetricaOperacion>>("/administracion/metricas/rutas", {
         query: {
           periodo: registro.fechaVuelo.slice(0, 7),
           origenId: registro.origenId,

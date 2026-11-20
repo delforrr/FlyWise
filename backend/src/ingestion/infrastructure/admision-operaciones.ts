@@ -19,3 +19,23 @@ export async function exigirIngestaDisponible(tx: Transaction) {
     });
   }
 }
+
+export type ServicioAdmitido = { id: string; actualizadoEn: string };
+
+export async function exigirServicioDisponible(
+  tx: Transaction,
+  referencia: ServicioAdmitido,
+) {
+  const servicio = await tx.orm.public.ProcesoEtl.where({
+    ...referencia,
+    archivadoEn: null,
+    pausado: false,
+  })
+    .select('id')
+    .forUpdate()
+    .first();
+  if (!servicio)
+    throw new ConflictException(
+      'El servicio cambió. Volvé a cargar su configuración.',
+    );
+}

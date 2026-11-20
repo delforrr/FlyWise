@@ -1,3 +1,4 @@
+import { LOTE_METRICAS_PENDIENTES } from './application/recalcular-pendientes.js';
 import { FunctionCallExpr } from '@prisma/orm-postgres/relational-core/ast';
 import { ExpressionImpl } from '@prisma/orm-postgres/relational-core/expression';
 import { and } from '@prisma/orm-postgres/orm-client';
@@ -22,8 +23,15 @@ import {
 export class MetricsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  recalcularPendientes() {
-    return this.prisma.db.transaction(recalcularMetricasPendientes);
+  async recalcularPendientes() {
+    let total = 0;
+    for (;;) {
+      const lote = await this.prisma.db.transaction(
+        recalcularMetricasPendientes,
+      );
+      total += lote;
+      if (lote < LOTE_METRICAS_PENDIENTES) return total;
+    }
   }
 
   registrarError(error: unknown) {
@@ -94,7 +102,11 @@ export class MetricsService {
     return consultarContextoRuta(this.prisma.db, consulta);
   }
 
-  async consultar(consulta: ConsultaMetricasDto, pares?: ParRutaDto[]) {
+  async consultar(
+    consulta: ConsultaMetricasDto,
+    pares?: ParRutaDto[],
+    administrativo = false,
+  ) {
     const { periodo, origenId, destinoId, aerolineaId, pagina, limite } =
       consulta;
     const { db } = this.prisma;
@@ -137,12 +149,14 @@ export class MetricsService {
         vuelosPuntuales: sql.sum(m.vuelos_puntuales),
         vuelosSinEvidencia: sql.sum(m.vuelos_sin_evidencia),
         demoraLlegadaTotalMinutos: sql.sum(m.demora_llegada_total_minutos),
-        errorActualizacion: sql.max(m.error_actualizacion),
         actualizadoEn: sql.min(m.actualizado_en),
-        pendiente: new ExpressionImpl(
-          FunctionCallExpr.of('bool_or', [m.pendiente.buildAst()]),
-          m.pendiente.returnType,
-        ),
+        ...(administrativo && {
+          errorActualizacion: sql.max(m.error_actualizacion),
+          pendiente: new ExpressionImpl(
+            FunctionCallExpr.of('bool_or', [m.pendiente.buildAst()]),
+            m.pendiente.returnType,
+          ),
+        }),
         fuentes: new ExpressionImpl(
           FunctionCallExpr.of('jsonb_agg', [m.fuentes.buildAst()]),
           m.fuentes.returnType,
@@ -180,8 +194,10 @@ export class MetricsService {
       vuelosDesviados: row.vuelosDesviados ?? 0,
       vuelosPuntuales: row.vuelosPuntuales ?? 0,
       demoraLlegadaTotalMinutos: Number(row.demoraLlegadaTotalMinutos),
-      pendiente: row.pendiente,
-      errorActualizacion: row.errorActualizacion,
+      ...(administrativo && {
+        pendiente: row.pendiente,
+        errorActualizacion: row.errorActualizacion,
+      }),
       actualizadoEn: row.actualizadoEn,
       periodo,
       aerolineaId: aerolineaId ?? null,

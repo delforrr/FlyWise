@@ -28,7 +28,7 @@ const route = {
     origenId: SEED_ROUTES[0]!.origenId, destinoId: SEED_ROUTES[0]!.destinoId,
     periodo: '2026-08', aerolineaId: null, otp15: 76,
     vuelosTotales: 25, vuelosOperados: 20, fuentes: ['BTS'],
-    actualizadoEn: '2026-09-01 12:30:00', pendiente: false, errorActualizacion: null,
+    actualizadoEn: '2026-09-01 12:30:00',
   },
 };
 

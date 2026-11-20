@@ -207,10 +207,8 @@ export class VuelosService {
         );
       identidades.add(clave);
     }
-    const importar = async (tx: Transaction) => {
-      await bloquearCambiosMetricas(tx);
-      return guardarObservaciones(tx, observaciones, ejecucionEtlId);
-    };
+    const importar = (tx: Transaction) =>
+      guardarObservaciones(tx, observaciones, ejecucionEtlId);
     return transaccion
       ? importar(transaccion)
       : this.prisma.db.transaction(importar);
@@ -282,6 +280,8 @@ export class VuelosService {
       await bloquearCambiosMetricas(tx);
       const actual = await tx.orm.public.Vuelo.first({ id });
       if (!actual) throw new NotFoundException('La operación no existe');
+      if (actual.ejecucionEtlId)
+        throw new ConflictException('La evidencia de una ingesta es inmutable');
       if (actual.version !== version)
         throw new ConflictException('La operación cambió; vuelva a cargarla');
       await tx.orm.public.Vuelo.where({ id, version }).update({

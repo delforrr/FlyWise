@@ -17,8 +17,6 @@ export interface RouteMetric {
   vuelosOperados: number
   fuentes: string[]
   actualizadoEn: string | null
-  pendiente: boolean
-  errorActualizacion: string | null
 }
 
 export interface FlightRoute {

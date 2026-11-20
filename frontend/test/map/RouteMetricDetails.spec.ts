@@ -14,7 +14,7 @@ describe('Detalle de puntualidad de un arco', () => {
             origenId: route.origenId, destinoId: route.destinoId,
             periodo: '2026-08', aerolineaId: null, otp15: 0,
             vuelosTotales: 5, vuelosOperados: 4, fuentes: ['BTS', 'Administrativa'],
-            actualizadoEn: '2026-09-01 12:30:00', pendiente: true, errorActualizacion: null,
+            actualizadoEn: '2026-09-01 12:30:00',
           },
         },
       },
@@ -26,7 +26,7 @@ describe('Detalle de puntualidad de un arco', () => {
       expect(wrapper.text()).toContain('4 operados de 5');
       expect(wrapper.text()).toContain('BTS, Registro manual');
       expect(wrapper.text()).toContain('2026-09-01 12:30 UTC');
-      expect(wrapper.text()).toContain('Actualización pendiente');
+      expect(wrapper.text()).not.toContain('Actualización pendiente');
     } finally {
       wrapper.unmount();
     }

@@ -24,10 +24,131 @@ import { VuelosService } from '../src/vuelos/vuelos.service.js';
 import { MetricsService } from '../src/metrics/metrics.service.js';
 import { MetricsController } from '../src/metrics/metrics.controller.js';
 import { CatalogIdentitiesController } from '../src/etl/catalog-identities.controller.js';
+import { OagService } from '../src/adapters/oag/oag.service.js';
+import { AdaptadorOag } from '../src/adapters/oag/adaptador-oag.js';
+import { periodosCerradosMapa } from '../src/metrics/periodos-mapa.js';
 
 describe('BTS mensual por HTTP y jobs', () => {
   const db = createDatabase();
   afterAll(() => db.close());
+  it('reserva el cupo entre commit y encolado mientras arranca otra réplica', async () => {
+    const primera = new PrismaService();
+    const segunda = new PrismaService();
+    const connection = {
+      host: process.env.REDIS_HOST ?? 'localhost',
+      port: Number(process.env.REDIS_PORT ?? 6379),
+    };
+    const nombre = `bts-replicas-${randomUUID()}`;
+    const cola = new Queue(nombre, { connection });
+    const colaReplica = new Queue(nombre, { connection });
+    const colaOag: ConstructorParameters<typeof OagService>[1] = new Queue(
+      `oag-replicas-${randomUUID()}`,
+      { connection },
+    );
+    const bts = (prisma: PrismaService, queue: Queue) =>
+      new BtsService(
+        prisma,
+        queue,
+        new VuelosService(prisma),
+        new AdaptadorBts(),
+      );
+    const oag = new OagService(segunda, colaOag, new AdaptadorOag());
+    const periodo = periodosCerradosMapa()[0];
+    const anterior = process.env.OAG_SUBSCRIPTION_KEY;
+    process.env.OAG_SUBSCRIPTION_KEY = 'credencial-sintetica';
+    const ids: string[] = [];
+    let procesoId: string | undefined;
+    let ejecucionId: string | undefined;
+    let avisoEncolado!: (id: string) => void;
+    const intentoEncolado = new Promise<string>((resolve) => {
+      avisoEncolado = resolve;
+    });
+    let liberar!: () => void;
+    const interrumpir = new Promise<void>((resolve) => {
+      liberar = resolve;
+    });
+    let solicitud: ReturnType<BtsService['ejecutar']> | undefined;
+    try {
+      for (const icao of ['ZXQB', 'ZXQC']) {
+        const aeropuerto = await db.orm.public.Aeropuerto.create({
+          icao,
+          nombre: icao,
+          nombrePais: 'Argentina',
+          latitud: 0,
+          longitud: 0,
+          ubicacion: ubicacionAeropuerto(0, 0),
+        });
+        ids.push(aeropuerto.id);
+      }
+      const proceso = await db.orm.public.ProcesoEtl.create({
+        nombre: nombre,
+        nombreConjunto: 'Operaciones de vuelos',
+        entidadDestino: 'otp_metrics',
+        pausado: false,
+        conexion: {},
+        mapeoEsquema: [],
+        configuracionProgramacion: {},
+      });
+      procesoId = proceso.id;
+      const alcance = await oag.resolverAlcance({
+        periodo,
+        origenId: ids[0],
+        destinoId: ids[1],
+        coberturaMinimaPct: 90,
+      });
+      jest
+        .spyOn(cola, 'add')
+        .mockImplementationOnce(async (_nombre, _datos, opts) => {
+          avisoEncolado(opts!.jobId!);
+          await interrumpir;
+          throw new Error('Conexión interrumpida después del commit');
+        });
+      solicitud = bts(primera, cola).ejecutar(periodo, undefined, true);
+      ejecucionId = await Promise.race([
+        intentoEncolado,
+        solicitud.then(() => {
+          throw new Error('No se reprodujo la interrupción');
+        }),
+      ]);
+      expect(await colaReplica.getJob(ejecucionId)).toBeUndefined();
+      const [, conflicto] = await Promise.allSettled([
+        bts(segunda, colaReplica).onModuleInit(),
+        oag.ejecutar(undefined, alcance, undefined, [], {
+          id: proceso.id,
+          actualizadoEn: proceso.actualizadoEn,
+        }),
+      ]).then(([replica, conflicto]) => {
+        if (replica.status === 'rejected') throw replica.reason;
+        return [replica, conflicto] as const;
+      });
+      expect(conflicto).toMatchObject({
+        status: 'rejected',
+        reason: { status: 409, response: { ejecucionId } },
+      });
+      expect((await colaReplica.getJob(ejecucionId))?.data).toEqual({
+        ejecucionId,
+        periodo,
+      });
+      liberar();
+      await expect(solicitud).resolves.toEqual({ ejecucionId });
+    } finally {
+      liberar();
+      await solicitud?.catch(() => undefined);
+      await colaReplica.obliterate();
+      await Promise.all([cola.close(), colaReplica.close(), colaOag.close()]);
+      if (ejecucionId)
+        await db.orm.public.EjecucionEtl.where({ id: ejecucionId }).delete();
+      if (procesoId)
+        await db.orm.public.ProcesoEtl.where({ id: procesoId }).delete();
+      await db.orm.public.Aeropuerto.where((a) =>
+        a.id.in(ids),
+      ).deleteAndCount();
+      await Promise.all([primera.db.close(), segunda.db.close()]);
+      if (anterior === undefined) delete process.env.OAG_SUBSCRIPTION_KEY;
+      else process.env.OAG_SUBSCRIPTION_KEY = anterior;
+    }
+  }, 15000);
+
   it('encola y publica un mes completo con identidades resueltas, y conserva la cobertura ante un fallo', async () => {
     const rollback = new Error('rollback BTS');
     const connection = {
@@ -272,7 +393,8 @@ describe('BTS mensual por HTTP y jobs', () => {
           const queuedJob = await queue.getJob(ejecucionId);
           const worker = new Worker<{ ejecucionId: string; periodo: string }>(
             queue.name,
-            ({ data }) => {
+            async ({ data, name }) => {
+              if (name === 'recuperar') return;
               if (data.periodo === '2026-07')
                 throw new Error('Worker interrumpido');
               return module
@@ -288,6 +410,7 @@ describe('BTS mensual por HTTP y jobs', () => {
               insertadas: 31,
               descartadas: 0,
             });
+            await module.get(BtsService).recuperar();
             const interrumpida = await tx.orm.public.EjecucionEtl.create({
               fuente: 'BTS',
               estado: 'running',
@@ -384,10 +507,17 @@ describe('BTS mensual por HTTP y jobs', () => {
               periodo: '2026-08-01',
             }),
           ).toMatchObject({ ejecucionEtlId: ejecucionId });
-          const retry = await tx.orm.public.EjecucionEtl.create({
-            fuente: 'BTS',
-            estado: 'pending',
-          });
+          const prepararMes = (periodo: string) =>
+            tx.orm.public.EjecucionEtl.create({
+              fuente: 'BTS',
+              estado: 'pending',
+              instantaneaConfiguracion: {
+                conexion: { periodo },
+                mapeoEsquema: [],
+                configuracionProgramacion: {},
+              },
+            });
+          const retry = await prepararMes('2026-08');
           expect(
             await module
               .get(BtsService)
@@ -396,7 +526,8 @@ describe('BTS mensual por HTTP y jobs', () => {
                 '2026-08',
                 join(process.cwd(), 'test/fixtures/bts-month.zip'),
               ),
-          ).toEqual({ procesadas: 31, insertadas: 0, descartadas: 0 });
+          ).toEqual({ procesadas: 31, insertadas: 31, descartadas: 0 });
+          await module.get(BtsService).recuperar();
           // BullMQ may deliver a previously committed job again after losing its lock.
           expect(
             await module
@@ -421,10 +552,23 @@ describe('BTS mensual por HTTP y jobs', () => {
               ejecucionId: retry.id,
             }),
           ]);
-          const revision = await tx.orm.public.EjecucionEtl.create({
-            fuente: 'BTS',
-            estado: 'pending',
+          const operadoraAusente = await tx.orm.public.Aerolinea.create({
+            nombre: 'BTS ausente en revisión',
           });
+          const poblacionVacia = {
+            origenId: origin.id,
+            destinoId: destination.id,
+            aerolineaId: operadoraAusente.id,
+            periodo: '2026-08-01',
+          };
+          await tx.orm.public.MetricaRuta.create({
+            ...poblacionVacia,
+            ejecucionEtlId: retry.id,
+            fuentes: ['BTS'],
+            vuelosTotales: 1,
+            actualizadoEn: '2026-09-01 00:00:00',
+          });
+          const revision = await prepararMes('2026-08');
           expect(
             await module
               .get(BtsService)
@@ -433,27 +577,23 @@ describe('BTS mensual por HTTP y jobs', () => {
                 '2026-08',
                 join(process.cwd(), 'test/fixtures/bts-month-revision.zip'),
               ),
-          ).toEqual({ procesadas: 31, insertadas: 1, descartadas: 0 });
-          const retiradas = await tx.orm.public.Vuelo.where({
-            fuente: 'BTS',
+          ).toEqual({ procesadas: 31, insertadas: 31, descartadas: 0 });
+          await module.get(BtsService).recuperar();
+          expect(
+            await tx.orm.public.MetricaRuta.first(poblacionVacia),
+          ).toMatchObject({
+            vuelosTotales: 0,
             ejecucionEtlId: revision.id,
-          })
-            .where((vuelo) => vuelo.archivadoEn.isNotNull())
-            .include('historial', (historial) =>
-              historial.where({ accion: 'retiro-fuente' }),
-            )
-            .all();
-          expect(retiradas).toHaveLength(1);
-          expect(retiradas[0].historial).toEqual([
-            expect.objectContaining({
-              version: retiradas[0].version,
-              instantanea: expect.objectContaining({
-                id: retiradas[0].id,
-                archivadoEn: expect.any(String),
-                ejecucionEtlId: revision.id,
-              }),
-            }),
-          ]);
+          });
+          for (const id of [ejecucionId, retry.id, revision.id]) {
+            const operaciones = await tx.orm.public.Vuelo.where({
+              ejecucionEtlId: id,
+            }).all();
+            expect(operaciones).toHaveLength(31);
+            expect(
+              operaciones.every((vuelo) => vuelo.archivadoEn === null),
+            ).toBe(true);
+          }
           await module.get(MetricsService).recalcularPendientes();
           expect(
             (await api.get('/metricas/rutas').query(query).expect(200)).body,
@@ -523,19 +663,12 @@ describe('BTS mensual por HTTP y jobs', () => {
           ).toMatchObject({ aeropuertoId: countryAirport.id });
           expect(
             (await api.get('/administracion/bts/cobertura').expect(200)).body,
-          ).toEqual(
+          ).not.toEqual(
             expect.arrayContaining([
-              expect.objectContaining({
-                periodo: '2026-07',
-                filas: 31,
-                descartadas: 1,
-              }),
+              expect.objectContaining({ periodo: '2026-07' }),
             ]),
           );
-          const mesSinEvidencia = await tx.orm.public.EjecucionEtl.create({
-            fuente: 'BTS',
-            estado: 'pending',
-          });
+          const mesSinEvidencia = await prepararMes('2026-06');
           const junio = days
             .slice(0, 30)
             .map((fila, i) =>
@@ -550,6 +683,7 @@ describe('BTS mensual por HTTP y jobs', () => {
               '2026-06',
               Readable.from([[header, ...junio].join('\n')]),
             );
+          await module.get(BtsService).recuperar();
           expect(
             (
               await api
@@ -627,6 +761,7 @@ describe('BTS mensual por HTTP y jobs', () => {
                 '2026-06',
                 Readable.from([[header, ...junio].join('\n')]),
               );
+            await module.get(BtsService).recuperar();
             return ejecucionId;
           };
           await iniciarBts([]);

@@ -32,7 +32,5 @@ const numero = new Intl.NumberFormat('es-AR');
         <dd class="text-text-main tabular-nums">{{ metricas.actualizadoEn.slice(0, 16).replace('T', ' ') }} UTC</dd>
       </template>
     </dl>
-    <p v-if="metricas.errorActualizacion" class="text-error">No se pudo actualizar el cálculo.</p>
-    <p v-else-if="metricas.pendiente" role="status">Actualización pendiente.</p>
   </div>
 </template>

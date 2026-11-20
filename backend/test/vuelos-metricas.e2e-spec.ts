@@ -9,7 +9,10 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { JwtAuthGuard } from '../src/auth/auth.guard.js';
 import { VuelosController } from '../src/vuelos/vuelos.controller.js';
 import { VuelosService } from '../src/vuelos/vuelos.service.js';
-import { MetricsController } from '../src/metrics/metrics.controller.js';
+import {
+  MetricasAdministrativasController,
+  MetricsController,
+} from '../src/metrics/metrics.controller.js';
 import { MetricsService } from '../src/metrics/metrics.service.js';
 import { MetricsProcessor } from '../src/metrics/metrics.processor.js';
 import { ubicacionAeropuerto } from '../src/airports/ubicacion.js';
@@ -53,7 +56,11 @@ describe('Operaciones y OTP mensual por HTTP', () => {
         };
         let rol = 'ADMIN';
         const module = await Test.createTestingModule({
-          controllers: [VuelosController, MetricsController],
+          controllers: [
+            VuelosController,
+            MetricsController,
+            MetricasAdministrativasController,
+          ],
           providers: [
             VuelosService,
             MetricsService,
@@ -105,10 +112,13 @@ describe('Operaciones y OTP mensual por HTTP', () => {
             .post(vuelos)
             .send({ ...base, ...datos })
             .expect(codigo);
-        const consultar = async (periodo: string) =>
+        const consultar = async (
+          periodo: string,
+          endpoint = '/administracion/metricas/rutas',
+        ) =>
           cuerpo<PaginaHttp<unknown>>(
             await api
-              .get(metricas)
+              .get(endpoint)
               .query({ periodo, ...ruta })
               .expect(200),
           ).datos[0];
@@ -271,49 +281,39 @@ describe('Operaciones y OTP mensual por HTTP', () => {
               numeroVuelo: 'EDITADO',
               demoraLlegadaMinutos: 0,
             })
-            .expect(200);
+            .expect(409);
           expect(await importar(90)).toEqual({ procesadas: 1, insertadas: 0 });
           expect((await api.get(importado).expect(200)).body).toMatchObject({
-            demoraLlegadaMinutos: 0,
-            horarios: null,
-            protegidoManualmente: true,
-            ultimaObservacion: { demoraLlegadaMinutos: 90 },
-          });
-          await api
-            .post(`${importado}/restablecer-fuente`)
-            .send({ version: 3 })
-            .expect(201);
-          expect((await api.get(importado).expect(200)).body).toMatchObject({
-            demoraLlegadaMinutos: 90,
+            demoraLlegadaMinutos: 16,
             horarios,
-            protegidoManualmente: false,
-          });
-          await recalcular();
-          expect(await consultar('2020-02')).toMatchObject({
-            vuelosTotales: 1,
-            vuelosPuntuales: 1,
-            otp15: 100,
-            fuentes: ['Administrativa'],
+            version: 1,
+            archivadoEn: null,
           });
           await api
             .post(`${importado}/archivar`)
-            .send({ version: 4 })
-            .expect(201);
-          await importar(20);
-          expect(
-            cuerpo<VueloHttp>(await api.get(importado).expect(200)).archivadoEn,
-          ).not.toBeNull();
-          await api
-            .post(`${importado}/restablecer-fuente`)
-            .send({ version: 6 })
+            .send({ version: 1 })
             .expect(409);
+          const revision = await tx.orm.public.EjecucionEtl.create({
+            fuente: 'BTS',
+            estado: 'pending',
+          });
           expect(
-            cuerpo<PaginaHttp<unknown>>(
-              await api.get(`${importado}/historial`).expect(200),
-            ).datos[0],
+            await module
+              .get(VuelosService)
+              .importarLote(
+                [{ ...observacion, demoraLlegadaMinutos: 90 }],
+                revision.id,
+              ),
+          ).toEqual({ procesadas: 1, insertadas: 1 });
+          expect(
+            await tx.orm.public.Vuelo.first({ ejecucionEtlId: revision.id }),
           ).toMatchObject({
-            version: 6,
-            instantanea: { ultimaObservacion: { demoraLlegadaMinutos: 20 } },
+            demoraLlegadaMinutos: 90,
+            idRegistroFuente: 'fixture03',
+          });
+          expect((await api.get(importado).expect(200)).body).toMatchObject({
+            demoraLlegadaMinutos: 16,
+            ejecucionEtlId: job.id,
           });
 
           const marzo = { fechaVuelo: '2020-03-01', numeroVuelo: 'FW3' };
@@ -371,9 +371,11 @@ describe('Operaciones y OTP mensual por HTTP', () => {
             .get(MetricsService)
             .registrarError(new Error('Error de actualización fixture'));
           expect(await consultar('2020-03')).toMatchObject({
-            pendiente: true,
             errorActualizacion: 'Error de actualización fixture',
           });
+          const publica = await consultar('2020-03', metricas);
+          expect(publica).not.toHaveProperty('errorActualizacion');
+          expect(publica).not.toHaveProperty('pendiente');
           await recalcular();
           expect(await consultar('2020-03')).toMatchObject({
             vuelosTotales: 11,
@@ -381,7 +383,6 @@ describe('Operaciones y OTP mensual por HTTP', () => {
             vuelosPuntuales: 9,
             otp15: 90,
             pendiente: false,
-            errorActualizacion: null,
           });
           await crear({ ...marzo, demoraLlegadaMinutos: null });
           await recalcular();
@@ -427,6 +428,7 @@ describe('Operaciones y OTP mensual por HTTP', () => {
           ).toMatchObject({ total: 1, datos: [{ fechaVuelo: '0024-02-29' }] });
           rol = 'OPERATOR';
           await api.get(vuelos).expect(403);
+          await api.get('/administracion/metricas/rutas').expect(403);
           await crear({}, 403);
         } finally {
           await worker.close();

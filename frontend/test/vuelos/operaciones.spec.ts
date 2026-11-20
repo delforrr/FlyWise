@@ -63,7 +63,7 @@ beforeEach(() => {
           ],
           total: 1,
         }
-      : path === "/metricas/rutas"
+      : path === "/administracion/metricas/rutas"
         ? {
             datos: [
               {
