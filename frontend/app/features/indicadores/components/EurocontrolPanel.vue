@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
 import { useBackendRequest } from "~/shared/composables/useBackendRequest";
+defineProps<{ embedded?: boolean }>();
 interface Indicador {
   instantaneaId: string;
   producto: string;
@@ -193,9 +194,13 @@ onMounted(refresh);
 </script>
 
 <template>
-  <section class="space-y-5" aria-labelledby="eurocontrol-title">
+  <section
+    class="space-y-5"
+    :aria-labelledby="embedded ? undefined : 'eurocontrol-title'"
+    :aria-label="embedded ? 'Indicadores EUROCONTROL' : undefined"
+  >
     <div class="flex flex-wrap justify-between gap-3 items-center">
-      <div>
+      <div v-if="!embedded">
         <h1 id="eurocontrol-title" class="text-xl font-semibold">
           Indicadores EUROCONTROL
         </h1>
@@ -205,6 +210,7 @@ onMounted(refresh);
       </div>
       <UButton color="neutral" variant="ghost"
         type="button"
+        :class="embedded ? 'ms-auto' : ''"
         class="border border-border-subtle rounded px-3 py-2 text-sm"
         :disabled="loading"
         @click="refresh"

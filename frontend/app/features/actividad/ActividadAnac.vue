@@ -63,6 +63,7 @@ interface Configuracion {
   pausado: boolean;
 }
 const request = useBackendRequest();
+defineProps<{ embedded?: boolean }>();
 const base = "/administracion/actividad-anac";
 const today = new Date();
 const periodo = ref(
@@ -277,13 +278,13 @@ onMounted(async () => {
 <template>
   <section class="space-y-6">
     <div class="flex flex-wrap justify-between items-start gap-4">
-      <div>
+      <div v-if="!embedded">
         <h1 class="text-2xl font-semibold">Actividad ANAC</h1>
         <p class="text-sm text-text-muted mt-1">
           ANAC — CC BY 4.0
         </p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex gap-2" :class="embedded ? 'ms-auto' : ''">
         <UButton
           color="neutral"
           variant="outline"
