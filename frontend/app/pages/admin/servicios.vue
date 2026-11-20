@@ -2,7 +2,6 @@
 import { ref } from "vue";
 import type {
   ProcesoEtl,
-  TargetEntity,
   TriggerSyncOptions,
 } from "~/features/etl-monitoring/types/etl";
 import {
@@ -17,6 +16,8 @@ import EtlPipelineWizardModal from "~/features/etl-monitoring/components/EtlPipe
 import EtlDeleteConfirmModal from "~/features/etl-monitoring/components/EtlDeleteConfirmModal.vue";
 import EtlPauseConfirmModal from "~/features/etl-monitoring/components/EtlPauseConfirmModal.vue";
 import EtlTriggerModal from "~/features/etl-monitoring/components/EtlTriggerModal.vue";
+import EtlOperationsModal from "~/features/etl-monitoring/components/EtlOperationsModal.vue";
+import EtlServiceHistoryModal from "~/features/etl-monitoring/components/EtlServiceHistoryModal.vue";
 import SourceIdentities from "~/features/etl-monitoring/components/SourceIdentities.vue";
 
 definePageMeta({
@@ -48,6 +49,10 @@ const { triggerSync } = useEtlMonitoring();
 const isWizardModalOpen = ref(false);
 const pipelineToEdit = ref<ProcesoEtl | null>(null);
 let wizardVersion = 0;
+const editarOperacion = ref(false);
+const servicioHistorial = ref<ProcesoEtl | null>(null);
+const ejecutando = ref(false);
+const conflictoActivo = ref<string>();
 
 const isDeleteModalOpen = ref(false);
 const pipelineToDelete = ref<ProcesoEtl | null>(null);
@@ -64,7 +69,13 @@ function handleOpenCreate() {
   isWizardModalOpen.value = true;
 }
 
+function handleOpenOperation(proceso: ProcesoEtl | null) {
+  pipelineToEdit.value = proceso;
+  editarOperacion.value = true;
+}
+
 function handleOpenEdit(proceso: ProcesoEtl) {
+  if (proceso.operacion) return handleOpenOperation(proceso);
   wizardVersion++;
   pipelineToEdit.value = proceso;
   isWizardModalOpen.value = true;
@@ -99,6 +110,7 @@ function handleConfirmPause(id: string) {
 }
 
 function handleOpenTrigger(proceso: ProcesoEtl) {
+  conflictoActivo.value = undefined;
   pipelineForTrigger.value = proceso;
   isTriggerModalOpen.value = true;
 }
@@ -122,9 +134,21 @@ async function handleConfirmDelete(id: string) {
   isDeleteModalOpen.value = false;
 }
 
-function handleConfirmTrigger(options: TriggerSyncOptions) {
-  triggerSync(options);
-  isTriggerModalOpen.value = false;
+async function handleConfirmTrigger(options: TriggerSyncOptions) {
+  if (ejecutando.value) return;
+  ejecutando.value = true;
+  conflictoActivo.value = undefined;
+  try {
+    await triggerSync(options);
+    isTriggerModalOpen.value = false;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'data' in error) {
+      const data = error.data as { ejecucionId?: string } | undefined;
+      conflictoActivo.value = data?.ejecucionId;
+    }
+  } finally {
+    ejecutando.value = false;
+  }
 }
 </script>
 
@@ -134,6 +158,7 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
     <EtlServiceManagementHeader
       :stats="serviceStats"
       @create-service="handleOpenCreate"
+      @create-operation="handleOpenOperation(null)"
     />
 
     <div class="grid gap-4 rounded-lg bg-surface-card p-4 sm:grid-cols-3 sm:p-5">
@@ -164,6 +189,7 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
         @delete="handleOpenDelete"
         @toggle-status="handleToggleStatus"
         @trigger-sync="handleOpenTrigger"
+        @history="servicioHistorial = $event"
       />
     </div>
 
@@ -196,6 +222,17 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
 
     <!-- Modales Operativos -->
     <SourceIdentities />
+    <UButton to="/admin/bts#bts-identities" variant="link" color="neutral">Correspondencias BTS</UButton>
+    <EtlOperationsModal
+      v-if="editarOperacion"
+      :servicio="pipelineToEdit"
+      @close="editarOperacion = false"
+    />
+    <EtlServiceHistoryModal
+      v-if="servicioHistorial"
+      :servicio="servicioHistorial"
+      @close="servicioHistorial = null"
+    />
     <EtlPipelineWizardModal
       :is-open="isWizardModalOpen"
       :pipeline-to-edit="pipelineToEdit"
@@ -220,6 +257,8 @@ function handleConfirmTrigger(options: TriggerSyncOptions) {
     <EtlTriggerModal
       :is-open="isTriggerModalOpen"
       :proceso="pipelineForTrigger"
+      :busy="ejecutando"
+      :conflicto-activo="conflictoActivo"
       @close="isTriggerModalOpen = false"
       @confirm="handleConfirmTrigger"
     />

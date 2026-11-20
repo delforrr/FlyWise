@@ -1,3 +1,4 @@
+import { ServiciosOperacionesService } from './servicios-operaciones.service.js';
 import type { Queue } from 'bullmq';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -18,6 +19,8 @@ describe('API de catálogos ETL', () => {
     ejecuciones.all.mockResolvedValue([
       {
         id: 'completed',
+        mensajeError: 'error interno',
+        instantaneaConfiguracion: { referencia: 'CREDENCIAL' },
         iniciadoEn: '2026-09-01 00:00:00',
         finalizadoEn: '2026-09-01 00:00:02',
       },
@@ -26,16 +29,17 @@ describe('API de catálogos ETL', () => {
     const module = await Test.createTestingModule({
       controllers: [EtlHistoryController, PipelineController],
       providers: [
+        { provide: ServiciosOperacionesService, useValue: {} },
         {
           provide: PipelinesService,
           useValue: {
-            getHistory: () =>
+            getHistory: (id?: string, administrativo?: boolean) =>
               new PipelinesService(
                 {
                   models: { EjecucionEtl: ejecuciones },
                 } as unknown as PrismaService,
                 {} as Queue,
-              ).getHistory(),
+              ).getHistory(id, administrativo),
           },
         },
       ],

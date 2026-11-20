@@ -13,8 +13,9 @@ const emit = defineEmits<{
   (e: "edit", service: ProcesoEtl): void;
   (e: "duplicate", id: string): void;
   (e: "delete", service: ProcesoEtl): void;
-  (e: "toggle-estado", service: ProcesoEtl): void;
+  (e: "toggle-status", service: ProcesoEtl): void;
   (e: "trigger-sync", service: ProcesoEtl): void;
+  (e: "history", service: ProcesoEtl): void;
   (e: "test-endpoint", service: ProcesoEtl): void;
 }>();
 
@@ -144,7 +145,8 @@ const columns: TableColumn<ProcesoEtl>[] = [
 
       <!-- 3. Endpoint & Conexión -->
       <template #endpoint-cell="{ row }">
-        <div class="min-w-36 max-w-48 space-y-1 py-1">
+        <span v-if="row.original.operacion">{{ row.original.operacion.proveedor }} · {{ row.original.operacion.periodo || 'Sin mes' }}</span>
+        <div v-else class="min-w-36 max-w-48 space-y-1 py-1">
           <div class="flex items-center gap-1.5">
             <UBadge
               color="neutral"
@@ -278,7 +280,11 @@ const columns: TableColumn<ProcesoEtl>[] = [
             />
           </UTooltip>
 
-          <UTooltip text="Editar Servicio y Endpoint">
+          <UTooltip text="Historial del servicio">
+            <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-history"
+              :aria-label="`Historial de ${row.original.nombre}`" @click="emit('history', row.original)" />
+          </UTooltip>
+          <UTooltip text="Editar servicio">
             <UButton
               size="xs"
               variant="ghost"
@@ -290,7 +296,7 @@ const columns: TableColumn<ProcesoEtl>[] = [
             />
           </UTooltip>
 
-          <UTooltip text="Duplicar Configuración">
+          <UTooltip v-if="!row.original.operacion" text="Duplicar configuración">
             <UButton
               size="xs"
               variant="ghost"
@@ -319,7 +325,7 @@ const columns: TableColumn<ProcesoEtl>[] = [
                   : 'i-lucide-pause'
               "
               class="cursor-pointer"
-              @click="emit('toggle-estado', row.original)"
+              @click="emit('toggle-status', row.original)"
               :aria-label="`${row.original.estado === 'pausado' ? 'Reanudar' : 'Pausar'} ${row.original.nombre}`"
             />
           </UTooltip>

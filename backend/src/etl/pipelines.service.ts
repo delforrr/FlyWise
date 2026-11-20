@@ -494,13 +494,15 @@ export class PipelinesService implements OnModuleInit {
     return { ejecucionId: record.id };
   }
 
-  async getHistory() {
-    const ejecuciones = await this.prisma.models.EjecucionEtl.orderBy((job) =>
-      job.iniciadoEn.desc(),
-    )
+  async getHistory(procesoId?: string, administrativo = true) {
+    const modelo = this.prisma.models.EjecucionEtl;
+    const ejecuciones = await (procesoId ? modelo.where({ procesoId }) : modelo)
+      .orderBy((job) => job.iniciadoEn.desc())
       .limit(20)
       .all();
     return ejecuciones.map((job) => {
+      const { mensajeError, instantaneaConfiguracion, uriFuente, ...datos } =
+        job;
       const iniciadoEn = job.iniciadoEn
         ? timestampToDate(job.iniciadoEn)
         : null;
@@ -508,7 +510,12 @@ export class PipelinesService implements OnModuleInit {
         ? timestampToDate(job.finalizadoEn)
         : null;
       return {
-        ...job,
+        ...datos,
+        ...(administrativo && {
+          mensajeError,
+          instantaneaConfiguracion,
+          uriFuente,
+        }),
         iniciadoEn,
         finalizadoEn,
         durationMs:

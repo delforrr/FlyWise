@@ -1,3 +1,6 @@
+import { OagModule } from '../adapters/oag/oag.module.js';
+import { BtsModule } from '../bts/bts.module.js';
+import { ServiciosOperacionesService } from './servicios-operaciones.service.js';
 import { CatalogImportService } from './catalog-import.service.js';
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
@@ -9,6 +12,8 @@ import { CatalogIdentitiesController } from './catalog-identities.controller.js'
 
 @Module({
   imports: [
+    OagModule,
+    BtsModule,
     BullModule.registerQueue({
       name: 'etl-queue',
     }),
@@ -18,6 +23,11 @@ import { CatalogIdentitiesController } from './catalog-identities.controller.js'
     PipelineController,
     CatalogIdentitiesController,
   ],
-  providers: [CatalogImportService, EtlProcessor, PipelinesService],
+  providers: [
+    CatalogImportService,
+    EtlProcessor,
+    PipelinesService,
+    ServiciosOperacionesService,
+  ],
 })
 export class EtlModule {}

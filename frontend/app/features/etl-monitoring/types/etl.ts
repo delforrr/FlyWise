@@ -105,7 +105,17 @@ export interface DiscardedRowRecord {
   timestamp: string;
 }
 
+export interface ServicioOperaciones {
+  proveedor: 'OAG' | 'BTS';
+  periodo: string;
+  origenId?: string;
+  destinoId?: string;
+  coberturaMinimaPct?: number;
+  tramos?: { origenId: string; destinoId: string }[];
+}
+
 export interface ProcesoEtl {
+  operacion?: ServicioOperaciones;
   intento?: number;
   id: PipelineId;
   latestJobId?: string;
@@ -153,8 +163,15 @@ export interface EtlLogEntry {
   detail?: string;
 }
 
+export interface PoblacionOperacion {
+  origenId: string;
+  destinoId: string;
+  aerolineaId: string;
+}
+
 export interface TriggerSyncOptions {
   procesoId: PipelineId;
+  autorizarCambioFuente?: PoblacionOperacion[];
 }
 
 export type Pipeline = ProcesoEtl;
@@ -176,4 +193,4 @@ export interface EtlJobRecord {
   mensajeError: string | null;
   durationMs: number | null;
 }
-export type StoredPipeline = Pick<ProcesoEtl, 'id' | 'nombre' | 'nombreConjunto' | 'descripcion' | 'entidadDestino' | 'esSistema' | 'conexion' | 'mapeoEsquema' | 'configuracionProgramacion'> & { pausado: boolean };
+export type StoredPipeline = Pick<ProcesoEtl, 'id' | 'operacion' | 'nombre' | 'nombreConjunto' | 'descripcion' | 'entidadDestino' | 'esSistema' | 'conexion' | 'mapeoEsquema' | 'configuracionProgramacion'> & { pausado: boolean };

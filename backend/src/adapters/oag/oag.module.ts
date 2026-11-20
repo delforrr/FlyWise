@@ -12,12 +12,14 @@ class OagProcessor extends WorkerHost {
   }
 
   process(job: Job<{ ejecucionId: string }>) {
+    if (job.name === 'recuperar') return this.oag.recuperar();
     return this.oag.importar(job.data.ejecucionId);
   }
 }
 
 @Module({
   imports: [BullModule.registerQueue({ name: OAG_QUEUE })],
+  exports: [OagService],
   controllers: [OagController],
   providers: [
     { provide: ADAPTADOR_OAG, useClass: AdaptadorOag },

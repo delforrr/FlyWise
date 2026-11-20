@@ -8,6 +8,7 @@ import { VuelosModule } from '../vuelos/vuelos.module.js';
 
 @Module({
   imports: [VuelosModule, BullModule.registerQueue({ name: 'bts-queue' })],
+  exports: [BtsService],
   controllers: [BtsController],
   providers: [
     { provide: ADAPTADOR_BTS, useClass: AdaptadorBts },

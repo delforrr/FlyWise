@@ -25,9 +25,6 @@ const sections = [
     { label: "Usuarios", to: "/admin/usuarios", icon: "i-lucide-users" },
   ],
   [
-    { label: "OTP con OAG", to: "/admin/oag", icon: "i-lucide-calendar-days" },
-    { label: "OTP con BTS", to: "/admin/bts", icon: "i-lucide-calendar-days" },
-    { label: "Actividad ANAC", to: "/admin/actividad", icon: "i-lucide-chart-column" },
     { label: "Indicadores", to: "/admin/indicadores", icon: "i-lucide-chart-line" },
   ],
   [

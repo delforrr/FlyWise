@@ -25,7 +25,12 @@ export function useEtlMonitoring() {
   });
   async function triggerSync(options: TriggerSyncOptions | string) {
     const id = typeof options === 'string' ? options : options.procesoId;
-    await request(`/etl/procesos/${id}/ejecutar`, { method: 'POST' }); await refresh();
+    const autorizadas = typeof options === 'string' ? undefined : options.autorizarCambioFuente;
+    await request(`/etl/procesos/${id}/ejecutar`, {
+      method: 'POST',
+      ...(autorizadas?.length && { body: { autorizarCambioFuente: autorizadas } }),
+    });
+    await refresh();
   }
   async function setPaused(id: string, pausado: boolean) {
     await request(`/etl/procesos/${id}`, { method: 'PATCH', body: { pausado } }); await refresh();

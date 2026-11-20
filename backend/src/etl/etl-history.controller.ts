@@ -1,3 +1,5 @@
+import { CurrentUser } from '../users/decorators/current-user.decorator.js';
+import type { UserDto } from '../users/dto/user.dto.js';
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/auth.guard.js';
@@ -12,7 +14,7 @@ export class EtlHistoryController {
 
   @Get('historial')
   @ApiOperation({ summary: 'Consulta el historial de ejecuciones' })
-  getHistory() {
-    return this.pipelines.getHistory();
+  getHistory(@CurrentUser() user?: UserDto) {
+    return this.pipelines.getHistory(undefined, user?.rol === 'ADMIN');
   }
 }
