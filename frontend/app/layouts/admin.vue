@@ -34,15 +34,14 @@ const sections = [
     { label: "Operaciones", to: "/admin/vuelos", icon: "i-lucide-plane-takeoff" },
   ],
 ];
-const navigation = computed(() =>
-  (user.value?.rol === "ADMIN" ? sections : sections.slice(0, 1)).map(group =>
-    group.map(item => ({
-      ...item,
-      exact: true,
-      onSelect: () => { menuOpen.value = false; },
-    })),
-  ),
-);
+const navigation = computed(() => {
+  const groups = user.value?.rol === "ADMIN" ? sections : sections.slice(0, 1);
+  return groups.flat().map(item => ({
+    ...item,
+    exact: true,
+    onSelect: () => { menuOpen.value = false; },
+  }));
+});
 </script>
 
 <template>
@@ -147,7 +146,7 @@ const navigation = computed(() =>
         variant="link"
         aria-label="Navegación administrativa"
         class="hidden max-w-7xl mx-auto px-8 pb-2 xl:flex"
-        :ui="{ link: 'whitespace-nowrap', linkLabel: 'overflow-visible' }"
+        :ui="{ root: 'justify-start gap-0', link: 'whitespace-nowrap', linkLabel: 'overflow-visible' }"
       />
     </header>
 
