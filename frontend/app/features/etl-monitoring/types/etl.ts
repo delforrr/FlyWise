@@ -107,6 +107,7 @@ export interface DiscardedRowRecord {
 
 export interface ServicioOperaciones {
   proveedor: 'OAG' | 'BTS';
+  programable?: boolean;
   periodo: string;
   origenId?: string;
   destinoId?: string;

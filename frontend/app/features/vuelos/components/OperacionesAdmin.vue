@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useBackendRequest } from "~/shared/composables/useBackendRequest";
+import CargaVuelosModal from "./CargaVuelosModal.vue";
 import SelectorCatalogo from "~/features/catalogos/components/SelectorCatalogo.vue";
 import {
   operacionSchema,
@@ -11,6 +12,7 @@ import {
 } from "../operaciones";
 
 const request = useBackendRequest();
+const mostrarCarga = ref(false);
 const registros = ref<Vuelo[]>([]),
   total = ref(0),
   pagina = ref(1);
@@ -83,6 +85,10 @@ async function cargar() {
 async function buscar() {
   pagina.value = 1;
   await cargar();
+}
+async function actualizarCarga(periodo: string) {
+  filtros.periodo = periodo;
+  await buscar();
 }
 async function cargarHistoria() {
   if (!seleccion.value) return;
@@ -216,11 +222,13 @@ onMounted(cargar);
 <template>
   <section class="space-y-5" aria-labelledby="operaciones-titulo">
     <header class="flex flex-wrap items-center justify-between gap-3">
-      <h1 id="operaciones-titulo" class="text-2xl font-semibold">Operaciones de vuelo</h1>
-      <UButton icon="i-lucide-plus" color="neutral" :disabled="guardando" @click="abrir(null)"
-        >Crear operación</UButton
-      >
+      <h1 id="operaciones-titulo" class="text-2xl font-semibold">Vuelos</h1>
+      <div class="flex flex-wrap gap-2">
+        <UButton icon="i-lucide-download" @click="mostrarCarga = true">Cargar vuelos y OTP</UButton>
+        <UButton icon="i-lucide-plus" color="neutral" :disabled="guardando" @click="abrir(null)">Crear operación</UButton>
+      </div>
     </header>
+    <CargaVuelosModal v-if="mostrarCarga" @cerrar="mostrarCarga = false" @completada="actualizarCarga" />
     <form aria-label="Filtrar operaciones" class="rounded-lg bg-surface-card p-4 sm:p-5 space-y-4" @submit.prevent="buscar">
       <div class="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
         <UFormField label="Mes UTC"><UInput class="w-full" v-model="filtros.periodo" type="month" aria-label="Filtrar por mes UTC" /></UFormField>

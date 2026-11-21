@@ -11,6 +11,7 @@ const { request, refresh } = useEtlData();
 const { rememberAirport } = useCatalog();
 const nombre = ref(props.servicio?.nombre ?? '');
 const pausado = ref(props.servicio?.pausado ?? true);
+const cron = ref(props.servicio?.configuracionProgramacion?.expresionCron ?? '');
 const config = ref<ServicioOperaciones>({
   proveedor: 'OAG',
   periodo: '',
@@ -48,6 +49,7 @@ async function guardar() {
         pausado: pausado.value,
         proveedor,
         periodo,
+        ...(config.value.programable && { expresionCron: cron.value }),
         ...(proveedor === 'OAG' && {
           tramos: tramos.value.map(({ origenId, destinoId }) => ({ origenId, destinoId })),
           coberturaMinimaPct,
@@ -99,6 +101,10 @@ async function guardar() {
             <UInput v-model.number="config.coberturaMinimaPct" type="number" min="1" max="100" required />
           </UFormField>
         </template>
+        <UFormField v-if="config.programable" label="Cron mensual (UTC)"
+          description="Usa el último mes cerrado del mapa. Vacío deja habilitada solo la carga manual.">
+          <UInput v-model="cron" placeholder="0 4 15 * *" maxlength="100" class="w-full" />
+        </UFormField>
         <USwitch v-model="pausado" label="Pausado" />
         <div class="flex flex-wrap justify-end gap-2">
           <UButton type="button" color="neutral" variant="outline" @click="emit('close')">Cancelar</UButton>

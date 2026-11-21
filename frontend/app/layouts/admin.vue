@@ -31,7 +31,7 @@ const sections = [
     { label: "Aeropuertos", to: "/admin/aeropuertos", icon: "i-lucide-map-pin" },
     { label: "Aerolíneas", to: "/admin/aerolineas", icon: "i-lucide-plane" },
     { label: "Rutas", to: "/admin/rutas", icon: "i-lucide-route" },
-    { label: "Operaciones", to: "/admin/vuelos", icon: "i-lucide-plane-takeoff" },
+    { label: "Vuelos", to: "/admin/vuelos", icon: "i-lucide-plane-takeoff" },
   ],
 ];
 const navigation = computed(() => {
