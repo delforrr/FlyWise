@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useBackendRequest } from "~/shared/composables/useBackendRequest";
 
 interface Movimiento {
@@ -87,8 +87,10 @@ const resultado = ref<Resultado | null>(null),
   identidades = ref<Identidad[]>([]);
 const config = ref<Configuracion | null>(null),
   selected = ref<Record<string, string>>({}),
-  options = ref<{ label: string; value: string }[]>([]);
+  options = ref<{ label: string; value: string }[]>([]),
+  searchTerm = ref("");
 const loading = ref(false),
+  searching = ref(false),
   saving = ref(false),
   error = ref(""),
   notice = ref(""),
@@ -230,26 +232,37 @@ async function verMuestras(job?: Ejecucion) {
       error.value = "No se pudieron consultar las muestras rechazadas.";
   }
 }
-async function buscarAeropuerto(q: string) {
+// El selector muestra el catálogo apenas se abre y lo filtra al escribir.
+watch(searchTerm, (term, _, onCleanup) => {
   const version = ++searchVersion;
-  if (q.trim().length < 2) {
-    options.value = [];
-    return;
-  }
-  try {
-    const rows = await request<
-      { id: string; nombre: string; iata: string | null; icao: string | null }[]
-    >("/aeropuertos/buscar", { query: { q, limit: 20 } });
-    if (version === searchVersion)
-      options.value = rows.map((a) => ({
-        value: a.id,
-        label: `${a.iata ?? a.icao ?? "Sin código"} · ${a.nombre}`,
-      }));
-  } catch {
-    if (version === searchVersion)
-      error.value = "No se pudieron buscar aeropuertos.";
-  }
-}
+  const controller = new AbortController();
+  const q = term.trim();
+  searching.value = true;
+  const timer = setTimeout(async () => {
+    try {
+      const rows = await request<
+        { id: string; nombre: string; iata: string | null; icao: string | null }[]
+      >(q.length >= 2 ? "/aeropuertos/buscar" : "/aeropuertos/catalogo", {
+        query: q.length >= 2 ? { q, limit: 20 } : { limit: 20 },
+        signal: controller.signal,
+      });
+      if (version === searchVersion)
+        options.value = rows.map((a) => ({
+          value: a.id,
+          label: `${a.iata ?? a.icao ?? "Sin código"} · ${a.nombre}`,
+        }));
+    } catch {
+      if (version === searchVersion && !controller.signal.aborted)
+        error.value = "No se pudieron buscar aeropuertos.";
+    } finally {
+      if (version === searchVersion) searching.value = false;
+    }
+  }, 200);
+  onCleanup(() => {
+    clearTimeout(timer);
+    controller.abort();
+  });
+}, { immediate: true });
 async function vincular(codigo: string) {
   saving.value = true;
   error.value = "";
@@ -530,13 +543,20 @@ onMounted(async () => {
           >{{ identity.codigo }} · {{ identity.nombre ?? "Sin vincular" }}</span
         ><USelectMenu
           v-model="selected[identity.codigo]"
+          v-model:search-term="searchTerm"
           :items="options"
+          :loading="searching"
           ignore-filter
           value-key="value"
           placeholder="Buscar aeropuerto para vincular"
           class="w-full sm:w-80"
-          @update:search-term="buscarAeropuerto"
-        /><UButton
+        >
+          <template #empty
+            ><span class="text-sm text-text-muted"
+              >Sin coincidencias. Probá con otro código o nombre.</span
+            ></template
+          >
+        </USelectMenu><UButton
           color="neutral"
           :disabled="!selected[identity.codigo] || saving"
           @click="vincular(identity.codigo)"

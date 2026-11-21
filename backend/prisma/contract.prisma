@@ -92,8 +92,10 @@ model IdentidadAeropuertoFuente {
   aeropuertoId String? @map("aeropuerto_id")
   aeropuerto Aeropuerto? @relation(fields: [aeropuertoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   observacion Json
+  rechazadoEn TimestampString(3)? @map("rechazado_en")
   @@id([fuente, identificador])
   @@index([aeropuertoId])
+  @@index([fuente, rechazadoEn])
   @@map("identidades_aeropuerto_fuente")
 }
 

@@ -25,6 +25,7 @@ export function resolverIdentidadAeropuerto(
     if (identity.aeropuertoId === airport.id) return identity;
     await tx.orm.public.IdentidadAeropuertoFuente.where(params).update({
       aeropuertoId: airport.id,
+      rechazadoEn: null,
     });
     if (params.fuente === 'OpenFlights') {
       const otra = await tx.orm.public.IdentidadAeropuertoFuente.where({
