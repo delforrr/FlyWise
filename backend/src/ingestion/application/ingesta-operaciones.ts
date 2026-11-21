@@ -5,16 +5,20 @@ import type {
   LoteOperaciones,
 } from './adaptador-operaciones.js';
 
-type Consumidor<T extends EvidenciaOperacion> = {
-  iniciarLote?(lote: LoteOperaciones<T>): void;
+type Consumidor<T extends EvidenciaOperacion, Cursor> = {
+  iniciarLote?(lote: LoteOperaciones<T, Cursor>): void;
   procesarFila(fila: FilaOperacion<T>): void | Promise<void>;
-  terminarLote(lote: LoteOperaciones<T>): void | Promise<void>;
+  terminarLote(lote: LoteOperaciones<T, Cursor>): void | Promise<void>;
 };
 
-export async function ingerirOperaciones<Alcance, T extends EvidenciaOperacion>(
-  adaptador: AdaptadorOperaciones<Alcance, T>,
+export async function ingerirOperaciones<
+  Alcance,
+  T extends EvidenciaOperacion,
+  Cursor,
+>(
+  adaptador: AdaptadorOperaciones<Alcance, T, Cursor>,
   alcance: Alcance,
-  consumidor: Consumidor<T>,
+  consumidor: Consumidor<T, Cursor>,
 ) {
   for await (const lote of adaptador.leerLotes(alcance)) {
     consumidor.iniciarLote?.(lote);

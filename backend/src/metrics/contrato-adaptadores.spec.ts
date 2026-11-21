@@ -72,7 +72,7 @@ describe('Contrato OTP de OAG y BTS', () => {
         );
         try {
           await ingerirOperaciones(
-            new AdaptadorOag(),
+            new AdaptadorOag(() => 'sintetica'),
             {
               consulta: {
                 periodo: '2026-10',
@@ -80,7 +80,6 @@ describe('Contrato OTP de OAG y BTS', () => {
                 destinoCodigo: 'COR',
                 tipoCodigo: 'IATA',
               },
-              clave: 'sintetica',
               cursores: [],
             },
             consumidor,

@@ -1,3 +1,4 @@
+import { ConfiguracionOag } from '../src/adapters/oag/configuracion-oag.js';
 import { getQueueToken } from '@nestjs/bullmq';
 import { ValidationPipe, type ExecutionContext } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -39,6 +40,7 @@ describe('Servicios de operaciones', () => {
             BtsService,
             VuelosService,
             { provide: OagService, useValue: {} },
+            { provide: ConfiguracionOag, useValue: {} },
             { provide: ADAPTADOR_BTS, useValue: {} },
             {
               provide: getQueueToken('etl-queue'),
@@ -52,6 +54,7 @@ describe('Servicios de operaciones', () => {
               provide: getQueueToken('bts-queue'),
               useValue: {
                 add,
+                getJobScheduler: jest.fn(),
                 setGlobalConcurrency: jest.fn(),
                 upsertJobScheduler: jest.fn(),
                 removeJobScheduler: jest.fn(),
@@ -100,6 +103,13 @@ describe('Servicios de operaciones', () => {
             proveedor: 'BTS',
             periodo: '2026-08',
           };
+          const porDefecto = await api
+            .post(base + '/operaciones')
+            .send({ nombre: 'OAG sin tramo', periodo: datos.periodo })
+            .expect(400);
+          expect(porDefecto.body).toMatchObject({
+            message: 'Seleccioná al menos un tramo',
+          });
           await api
             .post(base + '/operaciones')
             .send({ ...datos, proveedor: 'externo' })

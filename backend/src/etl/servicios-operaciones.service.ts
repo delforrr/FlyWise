@@ -1,3 +1,5 @@
+import { ConfiguracionOag } from '../adapters/oag/configuracion-oag.js';
+import { PROCESO_OAG_ID } from '../ingestion/infrastructure/cron-operaciones.js';
 import { and, not, or } from '@prisma/orm-postgres/orm-client';
 import {
   BadRequestException,
@@ -11,7 +13,10 @@ import type { PoblacionBtsDto } from '../bts/bts.dto.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { ServicioOperacionesDto } from './dto/servicio-operaciones.dto.js';
 
-type Configuracion = Omit<ServicioOperacionesDto, 'nombre' | 'pausado'>;
+type Configuracion = Omit<
+  ServicioOperacionesDto,
+  'nombre' | 'pausado' | 'expresionCron'
+>;
 const claveTramo = ({
   origenId,
   destinoId,
@@ -28,9 +33,10 @@ export class ServiciosOperacionesService {
     private readonly prisma: PrismaService,
     private readonly oag: OagService,
     private readonly bts: BtsService,
+    private readonly configOag: ConfiguracionOag,
   ) {}
 
-  private presentar<T extends { conexion: unknown }>(servicio: T) {
+  private presentar<T extends { id: string; conexion: unknown }>(servicio: T) {
     const { conexion, ...datos } = servicio;
     const {
       proveedor = 'OAG',
@@ -49,6 +55,7 @@ export class ServiciosOperacionesService {
         destinoId,
         coberturaMinimaPct,
         tramos,
+        programable: servicio.id === PROCESO_OAG_ID,
       },
     };
   }
@@ -71,7 +78,11 @@ export class ServiciosOperacionesService {
   }
 
   async guardar(dto: ServicioOperacionesDto, id?: string) {
-    const { nombre, pausado, tramos, ...config } = dto;
+    const { nombre, pausado, tramos, expresionCron, ...config } = dto;
+    if (expresionCron != null && id !== PROCESO_OAG_ID)
+      throw new BadRequestException(
+        'La programación se configura en el servicio mensual del sistema',
+      );
     const conexion = {
       ...config,
       ...(tramos && { tramos: tramos.map((tramo) => ({ ...tramo })) }),
@@ -114,20 +125,26 @@ export class ServiciosOperacionesService {
       throw new BadRequestException(
         'El servicio OAG del sistema conserva su proveedor',
       );
-    const row = await this.prisma.models.ProcesoEtl.where({
-      id,
-      ...operacion,
-    }).update(datos);
+    const row =
+      id === PROCESO_OAG_ID
+        ? await this.configOag.actualizarProceso(datos, expresionCron)
+        : await this.prisma.models.ProcesoEtl.where({
+            id,
+            ...operacion,
+          }).update(datos);
     if (!row)
       throw new NotFoundException('Servicio de operaciones no encontrado');
     return this.presentar(row);
   }
 
   async pausar(id: string, pausado: boolean) {
-    const row = await this.prisma.models.ProcesoEtl.where({
-      id,
-      ...operacion,
-    }).update({ pausado });
+    const row =
+      id === PROCESO_OAG_ID
+        ? await this.configOag.actualizarProceso({ pausado })
+        : await this.prisma.models.ProcesoEtl.where({
+            id,
+            ...operacion,
+          }).update({ pausado });
     return row && this.presentar(row);
   }
 
@@ -267,7 +284,11 @@ export class ServiciosOperacionesService {
       throw new BadRequestException('Los tramos deben ser distintos');
     return Promise.all(
       tramos.map((tramo) =>
-        this.oag.resolverAlcance({ ...tramo, periodo, coberturaMinimaPct }),
+        this.configOag.resolverAlcance({
+          ...tramo,
+          periodo,
+          coberturaMinimaPct,
+        }),
       ),
     );
   }

@@ -1,20 +1,23 @@
-import { setTimeout } from 'node:timers/promises';
 import type { HorariosOperacion } from '../../entities/vuelos/domain/operacion.js';
 
-export class FalloOag extends Error {}
-export class CredencialOagRechazada extends FalloOag {}
-export class CuotaOagAgotada extends FalloOag {
-  constructor(readonly reintentarDesde: number) {
-    super('Cuota de OAG agotada');
+import {
+  FalloOag,
+  type Codigos,
+  type ConsultaOag,
+  type OperacionOag,
+} from '../../ingestion/application/oag/alcance-oag.js';
+
+export class FalloTransitorioOag extends FalloOag {
+  constructor(
+    mensaje: string,
+    readonly reintentarDesde?: number,
+  ) {
+    super(mensaje);
   }
 }
-
+export class CredencialOagRechazada extends FalloOag {}
 export const OAG_ENDPOINT = 'https://api.oag.com/flight-instances/';
 export const OAG_CLAVE_ENTORNO = 'OAG_SUBSCRIPTION_KEY';
-const MAX_REINTENTOS_PAGINA = 2;
-const MAX_ESPERA_PAGINA_MS = 30_000;
-
-export type Codigos = { iata?: string; icao?: string };
 type Hora = { local?: string; utc?: string };
 type Extremo = { airport?: Codigos; date?: Hora; time?: Hora };
 type EstadoOag = {
@@ -37,17 +40,12 @@ type VueloOag = {
   statusDetails?: EstadoOag[];
 };
 
-export type ConsultaOag = {
-  periodo: string;
-  origenCodigo: string;
-  destinoCodigo: string;
-  tipoCodigo: 'IATA' | 'ICAO';
-};
-
 export async function* paginasOag(
   consulta: ConsultaOag,
   clave: string,
   cursoresPrevios: string[] = [],
+  filasPrevias = 0,
+  totalEsperado?: number,
 ) {
   const url = new URL(OAG_ENDPOINT);
   const [anio, mes] = consulta.periodo.split('-').map(Number);
@@ -66,24 +64,19 @@ export async function* paginasOag(
   const cursores = new Set(cursoresPrevios);
   if (cursoresPrevios.length)
     url.searchParams.set('After', cursoresPrevios[cursoresPrevios.length - 1]);
+  let total = filasPrevias;
   for (;;) {
-    let pagina: { data?: unknown; paging?: { next?: string | null } };
+    let pagina: {
+      data?: unknown;
+      paging?: { next?: string | null; totalCount?: number };
+    };
+    const respuesta = await descargarPagina(url, clave);
     try {
-      const respuesta = await descargarPagina(url, clave);
-      if (respuesta.status === 401 || respuesta.status === 403)
-        throw new CredencialOagRechazada(
-          `OAG respondió HTTP ${respuesta.status}`,
-        );
-      if (!respuesta.ok)
-        throw new FalloOag(`OAG respondió HTTP ${respuesta.status}`);
-      try {
-        pagina = (await respuesta.json()) as typeof pagina;
-      } catch {
-        throw new FalloOag('OAG devolvió una página inválida');
-      }
+      pagina = (await respuesta.json()) as typeof pagina;
     } catch (error) {
-      if (error instanceof FalloOag) throw error;
-      throw new FalloOag('No fue posible obtener la página de OAG');
+      if (error instanceof SyntaxError)
+        throw new FalloOag('OAG devolvió una página inválida');
+      throw new FalloTransitorioOag('No fue posible leer la página de OAG');
     }
     if (
       !Array.isArray(pagina?.data) ||
@@ -92,7 +85,25 @@ export async function* paginasOag(
         (typeof pagina.paging !== 'object' || Array.isArray(pagina.paging)))
     )
       throw new FalloOag('OAG devolvió una página inválida');
+    total += pagina.data.length;
+    const informado = pagina.paging?.totalCount;
+    if (informado !== undefined) {
+      if (
+        !Number.isSafeInteger(informado) ||
+        informado < 0 ||
+        (totalEsperado !== undefined && informado !== totalEsperado)
+      )
+        throw new FalloOag('OAG devolvió un total de paginación inválido');
+      totalEsperado = informado;
+    }
     const siguiente = pagina.paging?.next;
+    if (
+      totalEsperado !== undefined &&
+      (total > totalEsperado || (siguiente == null && total !== totalEsperado))
+    )
+      throw new FalloOag(
+        'La paginación de OAG no coincide con el total informado',
+      );
     if (siguiente == null) {
       yield { filas: pagina.data as unknown[], cursor: null };
       return;
@@ -109,37 +120,42 @@ export async function* paginasOag(
       throw new FalloOag('OAG devolvió un cursor de paginación inválido');
     // El proveedor sólo decide el cursor; la consulta y el destino se mantienen fijos.
     cursores.add(cursor);
-    yield { filas: pagina.data as unknown[], cursor };
+    yield { filas: pagina.data as unknown[], cursor, totalEsperado };
     url.searchParams.set('After', cursor);
   }
 }
 
 async function descargarPagina(url: URL, clave: string) {
-  for (let intento = 0; ; intento++) {
-    const respuesta = await fetch(url.toString(), {
+  let respuesta: Response;
+  try {
+    respuesta = await fetch(url.toString(), {
       headers: { 'Subscription-Key': clave },
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(30_000),
     });
-    if (respuesta.status !== 429) return respuesta;
-
-    const cabecera = respuesta.headers.get('Retry-After')?.trim();
-    const demora = !cabecera
-      ? 1000 * 2 ** intento
-      : /^\d+$/.test(cabecera)
-        ? Number(cabecera) * 1000
-        : Math.max(0, Date.parse(cabecera) - Date.now());
-    await respuesta.body?.cancel();
-    if (
-      intento >= MAX_REINTENTOS_PAGINA ||
-      !Number.isFinite(demora) ||
-      demora > MAX_ESPERA_PAGINA_MS
-    )
-      throw new CuotaOagAgotada(
-        Date.now() + (cabecera && Number.isFinite(demora) ? demora : 0),
-      );
-    await setTimeout(demora);
+  } catch {
+    throw new FalloTransitorioOag('No fue posible obtener la página de OAG');
   }
+  if (respuesta.ok) return respuesta;
+
+  const { status } = respuesta;
+  const cabecera = respuesta.headers.get('Retry-After')?.trim();
+  await respuesta.body?.cancel().catch(() => undefined);
+  if (status === 401 || status === 403)
+    throw new CredencialOagRechazada(`OAG respondió HTTP ${status}`);
+  if (status === 429 || status >= 500) {
+    const ahora = Date.now();
+    const fecha = !cabecera
+      ? NaN
+      : /^\d+$/.test(cabecera)
+        ? ahora + Number(cabecera) * 1000
+        : Date.parse(cabecera);
+    throw new FalloTransitorioOag(
+      status === 429 ? 'Cuota de OAG agotada' : `OAG respondió HTTP ${status}`,
+      Number.isFinite(fecha) ? Math.max(ahora, fecha) : undefined,
+    );
+  }
+  throw new FalloOag(`OAG respondió HTTP ${status}`);
 }
 
 function instanteUtc(valor: unknown): number {
@@ -197,7 +213,10 @@ function salidaProgramada(vuelo: VueloOag) {
   };
 }
 
-export function normalizarVueloOag(fila: unknown, consulta: ConsultaOag) {
+export function normalizarVueloOag(
+  fila: unknown,
+  consulta: ConsultaOag,
+): OperacionOag | 'fuera-de-poblacion' | null {
   if (!fila || typeof fila !== 'object') return null;
   const vuelo = fila as VueloOag;
   if (vuelo.codeshare?.operatingFlight?.code || vuelo.originalFlight)

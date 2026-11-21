@@ -1,3 +1,11 @@
+import {
+  reconciliarCronMensual,
+  validarCronMensual,
+} from '../ingestion/infrastructure/cron-mensual.js';
+import {
+  bloquearConfiguracionCron,
+  cronOperaciones,
+} from '../ingestion/infrastructure/cron-operaciones.js';
 import { or } from '@prisma/orm-postgres/orm-client';
 import { bloquearRecurso } from '../prisma/bloqueo-transaccional.js';
 import {
@@ -21,7 +29,7 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
-import { defaultRepeatStrategy, UnrecoverableError, type Queue } from 'bullmq';
+import { UnrecoverableError, type Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Transaction } from '../prisma/db.js';
 import type {
@@ -56,7 +64,6 @@ export class BtsService implements OnModuleInit {
     private readonly adaptador: AdaptadorOperaciones<LecturaBts, OperacionBts>,
   ) {}
   async onModuleInit() {
-    await this.schedule(await this.configuracion());
     await this.queue.setGlobalConcurrency(1);
     await this.queue.upsertJobScheduler(
       'recuperar-bts',
@@ -67,6 +74,7 @@ export class BtsService implements OnModuleInit {
   }
 
   async recuperar() {
+    await this.sincronizarCron();
     let cursor = '';
     for (;;) {
       const jobs = await this.prisma.models.EjecucionEtl.where({
@@ -143,41 +151,43 @@ export class BtsService implements OnModuleInit {
       throw new BadRequestException(
         'Selecciona un mes finalizado; no se realiza backfill automático',
       );
-    if (dto.expresionCron) {
-      // Los cinco campos restringen la ejecución a un día mensual y UTC.
-      if (
-        !/^[0-5]?\d (?:[01]?\d|2[0-3]) (?:[1-9]|[12]\d|3[01]) \* \*$/.test(
-          dto.expresionCron,
-        )
-      )
-        throw new BadRequestException('La programación debe ser mensual');
-      try {
-        defaultRepeatStrategy(Date.now(), {
-          pattern: dto.expresionCron,
-          tz: 'UTC',
-        });
-      } catch {
-        throw new BadRequestException('Expresión cron inválida');
-      }
-    }
     const { periodo, pausado, expresionCron } = dto;
+    validarCronMensual(expresionCron);
     const valores = { periodo, pausado, expresionCron };
-    await this.prisma.models.ConfiguracionBts.upsert({
-      create: { id: true, ...valores },
-      update: valores,
+    await this.prisma.db.transaction(async (tx) => {
+      await bloquearConfiguracionCron(tx);
+      if (!pausado && expresionCron)
+        await cronOperaciones.exigirDisponible(tx, 'BTS');
+      await tx.orm.public.ConfiguracionBts.upsert({
+        create: { id: true, ...valores },
+        update: valores,
+      });
     });
-    await this.schedule(dto);
+    await this.sincronizarCron();
     return this.configuracion();
   }
-  private async schedule(dto: ConfiguracionBtsDto) {
-    if (dto.pausado || !dto.expresionCron)
-      await this.queue.removeJobScheduler('bts-mensual');
-    else
-      await this.queue.upsertJobScheduler(
-        'bts-mensual',
-        { pattern: dto.expresionCron, tz: 'UTC' },
-        { name: 'programada', data: {} },
-      );
+  private async sincronizarCron() {
+    try {
+      const { pausado, expresionCron } = await this.configuracion();
+      const cron = pausado ? '' : expresionCron;
+      const id = 'bts-mensual';
+      await reconciliarCronMensual(cron, {
+        leer: () => this.queue.getJobScheduler(id),
+        quitar: () => this.queue.removeJobScheduler(id),
+        guardar: () =>
+          this.queue.upsertJobScheduler(
+            id,
+            { pattern: cron, tz: 'UTC' },
+            {
+              name: 'programada',
+              data: { cron },
+              opts: { removeOnComplete: 10, removeOnFail: 10 },
+            },
+          ),
+      });
+    } catch {
+      this.logger.warn('BTS: sincronización de cron pendiente de recuperación');
+    }
   }
   async ejecutar(
     periodo?: string,
@@ -185,6 +195,7 @@ export class BtsService implements OnModuleInit {
     manual = false,
     autorizarCambioFuente: PoblacionBtsDto[] = [],
     servicio?: ServicioAdmitido,
+    cron?: string,
   ) {
     const config = await this.configuracion();
     if (config.pausado && !manual) throw new ConflictException('BTS pausado');
@@ -195,8 +206,19 @@ export class BtsService implements OnModuleInit {
       throw new BadRequestException('Seleccioná un mes finalizado');
     const uriFuente = urlBts(periodo);
     const record = await this.prisma.db.transaction(async (tx) => {
-      if (servicio) await exigirServicioDisponible(tx, servicio);
       await exigirIngestaDisponible(tx);
+      if (servicio) await exigirServicioDisponible(tx, servicio);
+      if (cron !== undefined) {
+        const actual = await tx.orm.public.ConfiguracionBts.first({ id: true });
+        if (
+          !cron ||
+          !actual ||
+          actual.pausado ||
+          cron !== actual.expresionCron ||
+          config.periodo !== actual.periodo
+        )
+          throw new ConflictException('La programación de BTS cambió');
+      }
       return tx.orm.public.EjecucionEtl.create({
         fuente: 'BTS',
         estado: 'pending',

@@ -14,11 +14,18 @@ export type FilaOperacion<T extends EvidenciaOperacion> =
     }
   | { tipo: 'fuera-de-poblacion' };
 
-export interface LoteOperaciones<T extends EvidenciaOperacion> {
+export interface LoteOperaciones<
+  T extends EvidenciaOperacion,
+  Cursor = string,
+> {
   filas: readonly FilaOperacion<T>[];
-  cursor?: string | null;
+  cursor?: Cursor | null;
 }
 
-export interface AdaptadorOperaciones<Alcance, T extends EvidenciaOperacion> {
-  leerLotes(alcance: Alcance): AsyncIterable<LoteOperaciones<T>>;
+export interface AdaptadorOperaciones<
+  Alcance,
+  T extends EvidenciaOperacion,
+  Cursor = string,
+> {
+  leerLotes(alcance: Alcance): AsyncIterable<LoteOperaciones<T, Cursor>>;
 }

@@ -9,56 +9,31 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import {
-  ArrayMaxSize,
-  ArrayUnique,
-  IsArray,
-  IsBoolean,
-  IsInt,
-  IsOptional,
-  IsUUID,
-  Matches,
-  Max,
-  Min,
-} from 'class-validator';
+import { ConfiguracionOagDto, EjecutarOagDto } from './oag.dto.js';
 import { JwtAuthGuard, AdminGuard } from '../../auth/auth.guard.js';
 import { CurrentUser } from '../../users/decorators/current-user.decorator.js';
 import type { UserDto } from '../../users/dto/user.dto.js';
+import { ConfiguracionOag } from './configuracion-oag.js';
 import { OagService } from './oag.service.js';
-
-export class ConfiguracionOagDto {
-  @IsBoolean() pausado!: boolean;
-  @IsUUID() origenId!: string;
-  @IsUUID() destinoId!: string;
-  @Matches(/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/)
-  periodo!: string;
-  @IsInt() @Min(1) @Max(100) coberturaMinimaPct!: number;
-}
-
-class EjecutarOagDto {
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(1000)
-  @ArrayUnique()
-  @IsUUID(undefined, { each: true })
-  autorizarCambioFuente?: string[];
-}
 
 @ApiTags('OAG mensual')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('administracion/oag')
 export class OagController {
-  constructor(private readonly oag: OagService) {}
+  constructor(
+    private readonly oag: OagService,
+    private readonly config: ConfiguracionOag,
+  ) {}
 
   @Get('configuracion')
   configuracion() {
-    return this.oag.configuracion();
+    return this.config.configuracion();
   }
 
   @Patch('configuracion')
   configurar(@Body() dto: ConfiguracionOagDto) {
-    return this.oag.configurar(dto);
+    return this.config.configurar(dto);
   }
 
   @Post('ejecutar')

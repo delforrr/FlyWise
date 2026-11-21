@@ -12,6 +12,7 @@ import {
   Length,
   Matches,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -27,6 +28,7 @@ export class ServicioOperacionesDto {
   @IsIn(['OAG', 'BTS']) proveedor!: 'OAG' | 'BTS';
   @Matches(/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/) periodo!: string;
   @IsOptional() @IsBoolean() pausado?: boolean;
+  @IsOptional() @IsString() @MaxLength(100) expresionCron?: string;
   @IsOptional() @IsUUID() origenId?: string;
   @IsOptional() @IsUUID() destinoId?: string;
   @IsOptional()
@@ -37,6 +39,10 @@ export class ServicioOperacionesDto {
   @Type(() => TramoServicioDto)
   tramos?: TramoServicioDto[];
   @IsOptional() @IsInt() @Min(1) @Max(100) coberturaMinimaPct?: number;
+}
+
+export class CrearServicioOperacionesDto extends ServicioOperacionesDto {
+  override proveedor: 'OAG' | 'BTS' = 'OAG';
 }
 
 export class EjecutarServicioDto {

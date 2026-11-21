@@ -8,12 +8,20 @@ export class BtsProcessor extends WorkerHost {
   constructor(private readonly bts: BtsService) {
     super();
   }
-  async process(job: Job<{ ejecucionId?: string; periodo?: string }>) {
+  async process(
+    job: Job<{ ejecucionId?: string; periodo?: string; cron?: string }>,
+  ) {
     if (job.name === 'recuperar') return this.bts.recuperar();
     if (job.name === 'programada') {
-      if ((await this.bts.configuracion()).pausado) return;
       try {
-        return await this.bts.ejecutar();
+        return await this.bts.ejecutar(
+          undefined,
+          undefined,
+          false,
+          [],
+          undefined,
+          job.data.cron ?? '',
+        );
       } catch (error) {
         if (!(error instanceof ConflictException)) throw error;
         new Logger(BtsProcessor.name).warn(error.getResponse());

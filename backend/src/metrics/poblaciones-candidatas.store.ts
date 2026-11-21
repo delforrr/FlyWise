@@ -15,6 +15,7 @@ export async function publicarPoblacionesCandidatas(
   fuente: string,
   autorizada: (clave: Clave) => boolean,
   tramo?: Tramo,
+  opciones?: { conservarAusentes: boolean },
 ) {
   const { MetricaRuta } = tx.orm.public;
   const desde = periodo + '-01';
@@ -87,6 +88,8 @@ export async function publicarPoblacionesCandidatas(
     if (candidatas.length < 100) break;
     cursor = candidatas[candidatas.length - 1];
   }
+
+  if (opciones?.conservarAusentes) return;
 
   // Una cobertura completa también sustituye poblaciones propias que quedaron vacías.
   const anteriores = MetricaRuta.where({

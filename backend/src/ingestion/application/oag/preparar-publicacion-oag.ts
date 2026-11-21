@@ -1,8 +1,8 @@
 import {
   validarOperacion,
   type ObservacionVuelo,
-} from '../../entities/vuelos/domain/operacion.js';
-import type { OperacionOag } from './adaptador-oag.js';
+} from '../../../entities/vuelos/domain/operacion.js';
+import type { OperacionOag } from './alcance-oag.js';
 
 export type VueloResuelto = Omit<OperacionOag, 'carrier'> & {
   aerolineaId: string;

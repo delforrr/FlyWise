@@ -1,5 +1,6 @@
 import { ConsultaCatalogoDto } from '../common/dto/consulta-catalogo.dto.js';
 import {
+  CrearServicioOperacionesDto,
   EjecutarServicioDto,
   ServicioOperacionesDto,
 } from './dto/servicio-operaciones.dto.js';
@@ -55,7 +56,7 @@ export class PipelineController {
     return [...operaciones, ...catalogos];
   }
   @Post('procesos/operaciones')
-  crearOperacion(@Body() dto: ServicioOperacionesDto) {
+  crearOperacion(@Body() dto: CrearServicioOperacionesDto) {
     return this.operaciones.guardar(dto);
   }
   @Patch('procesos/operaciones/:id')

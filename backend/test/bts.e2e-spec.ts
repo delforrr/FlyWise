@@ -1,3 +1,7 @@
+import { PROCESO_OAG_ID } from '../src/ingestion/infrastructure/cron-operaciones.js';
+import { ConfiguracionOag } from '../src/adapters/oag/configuracion-oag.js';
+import { PublicacionOagStore } from '../src/adapters/oag/publicacion-oag.store.js';
+import { CargarOag } from '../src/ingestion/application/oag/cargar-oag.js';
 import { jest } from '@jest/globals';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter.js';
 import {
@@ -52,10 +56,24 @@ describe('BTS mensual por HTTP y jobs', () => {
         new VuelosService(prisma),
         new AdaptadorBts(),
       );
-    const oag = new OagService(segunda, colaOag, new AdaptadorOag());
+    const configOag = new ConfiguracionOag(segunda, colaOag);
+    const repositorio = new PublicacionOagStore(segunda);
+    const oag = new OagService(
+      segunda,
+      colaOag,
+      configOag,
+      new CargarOag(new AdaptadorOag(), repositorio),
+      repositorio,
+    );
     const periodo = periodosCerradosMapa()[0];
     const anterior = process.env.OAG_SUBSCRIPTION_KEY;
     process.env.OAG_SUBSCRIPTION_KEY = 'credencial-sintetica';
+    const configuracionPreviaOag = await db.orm.public.ProcesoEtl.first({
+      id: PROCESO_OAG_ID,
+    });
+    const configuracionPreviaBts = await db.orm.public.ConfiguracionBts.first({
+      id: true,
+    });
     const ids: string[] = [];
     let procesoId: string | undefined;
     let ejecucionId: string | undefined;
@@ -90,12 +108,64 @@ describe('BTS mensual por HTTP y jobs', () => {
         configuracionProgramacion: {},
       });
       procesoId = proceso.id;
-      const alcance = await oag.resolverAlcance({
+      const alcance = await configOag.resolverAlcance({
         periodo,
         origenId: ids[0],
         destinoId: ids[1],
         coberturaMinimaPct: 90,
       });
+      const expresionCron = '0 4 15 * *';
+      const configBts = bts(primera, cola);
+      await configOag.inicializar();
+      const manualOag = {
+        periodo,
+        origenId: ids[0],
+        destinoId: ids[1],
+        coberturaMinimaPct: 90,
+        pausado: false,
+      };
+      const manualBts = { periodo, pausado: false, expresionCron: '' };
+      const cronOag = { ...manualOag, expresionCron };
+      const cronBts = { ...manualBts, expresionCron };
+      await configOag.configurar({ ...manualOag, expresionCron: '' });
+      await configBts.configurar(manualBts);
+      const resultados = await Promise.allSettled([
+        configOag.configurar(cronOag),
+        configBts.configurar(cronBts),
+      ]);
+      expect(
+        resultados.filter(({ status }) => status === 'fulfilled'),
+      ).toHaveLength(1);
+      expect(
+        resultados.find(({ status }) => status === 'rejected'),
+      ).toMatchObject({
+        reason: { status: 409 },
+      });
+      if (resultados[0].status === 'fulfilled') {
+        expect(await configBts.configuracion()).toEqual(manualBts);
+        expect(await colaOag.getJobScheduler('oag-mensual')).toMatchObject({
+          pattern: expresionCron,
+        });
+        await configOag.configurar({ ...manualOag, expresionCron: '' });
+        await configBts.configurar(cronBts);
+      } else {
+        expect(await configOag.configuracion()).toEqual(manualOag);
+        expect(await cola.getJobScheduler('bts-mensual')).toMatchObject({
+          pattern: expresionCron,
+        });
+        await configBts.configurar(manualBts);
+        await configOag.configurar(cronOag);
+        await expect(configBts.configurar(cronBts)).rejects.toMatchObject({
+          status: 409,
+        });
+        await configOag.configurar({ ...manualOag, expresionCron: '' });
+        await configBts.configurar(cronBts);
+      }
+      await expect(configOag.configurar(cronOag)).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(await configOag.configuracion()).toEqual(manualOag);
+
       jest
         .spyOn(cola, 'add')
         .mockImplementationOnce(async (_nombre, _datos, opts) => {
@@ -134,6 +204,28 @@ describe('BTS mensual por HTTP y jobs', () => {
     } finally {
       liberar();
       await solicitud?.catch(() => undefined);
+      await colaOag.obliterate();
+      if (configuracionPreviaOag) {
+        const { pausado, conexion, configuracionProgramacion } =
+          configuracionPreviaOag;
+        await db.orm.public.ProcesoEtl.where({ id: PROCESO_OAG_ID }).update({
+          pausado,
+          conexion,
+          configuracionProgramacion,
+        });
+      } else {
+        await db.orm.public.ProcesoEtl.where({ id: PROCESO_OAG_ID }).delete();
+      }
+      if (configuracionPreviaBts) {
+        const { pausado, periodo, expresionCron } = configuracionPreviaBts;
+        await db.orm.public.ConfiguracionBts.where({ id: true }).update({
+          pausado,
+          periodo,
+          expresionCron,
+        });
+      } else {
+        await db.orm.public.ConfiguracionBts.where({ id: true }).delete();
+      }
       await colaReplica.obliterate();
       await Promise.all([cola.close(), colaReplica.close(), colaOag.close()]);
       if (ejecucionId)

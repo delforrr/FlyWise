@@ -5,33 +5,44 @@ import type {
 import {
   normalizarVueloOag,
   paginasOag,
-  type ConsultaOag,
+  OAG_CLAVE_ENTORNO,
 } from './flight-info.js';
+import {
+  FalloOag,
+  type CursorOag,
+  type LecturaOag,
+  type OperacionOag,
+} from '../../ingestion/application/oag/alcance-oag.js';
 
-export type OperacionOag = Exclude<
-  ReturnType<typeof normalizarVueloOag>,
-  string | null
->;
-
-export type LecturaOag = {
-  consulta: ConsultaOag;
-  clave: string;
-  cursores: string[];
-};
 export const ADAPTADOR_OAG = Symbol('ADAPTADOR_OAG');
 
 export class AdaptadorOag implements AdaptadorOperaciones<
   LecturaOag,
-  OperacionOag
+  OperacionOag,
+  CursorOag
 > {
-  async *leerLotes({ consulta, clave, cursores }: LecturaOag) {
-    for await (const { filas, cursor } of paginasOag(
+  constructor(
+    private readonly obtenerClave = () => process.env[OAG_CLAVE_ENTORNO],
+  ) {}
+
+  async *leerLotes({
+    consulta,
+    cursores,
+    filasPrevias,
+    totalEsperado,
+  }: LecturaOag) {
+    const clave = this.obtenerClave()?.trim();
+    if (!clave)
+      throw new FalloOag('OAG no cuenta con una credencial configurada');
+    for await (const { filas, cursor, totalEsperado: total } of paginasOag(
       consulta,
       clave,
       cursores,
+      filasPrevias,
+      totalEsperado,
     )) {
       yield {
-        cursor,
+        cursor: cursor ? { valor: cursor, totalEsperado: total } : null,
         filas: filas.map((original): FilaOperacion<OperacionOag> => {
           const operacion = normalizarVueloOag(original, consulta);
           if (operacion === 'fuera-de-poblacion') return { tipo: operacion };
